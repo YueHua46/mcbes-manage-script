@@ -1,0 +1,35 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "RefusedBadBoySM_BP",
+    "description": "杜绝熊孩服务器管理框架行为包",
+    "uuid": "c32e1f60-0ee0-4413-a760-d261d91e5fc6",
+    "version": [1, 1, 0],
+    "min_engine_version": [1, 21, 70]
+  },
+  "modules": [
+    {
+      "description": "杜绝熊孩服务器管理框架行为包",
+      "type": "data",
+      "uuid": "0c4dc15d-f113-4d6f-bb41-6a0b44d785e0",
+      "version": [1, 0, 0]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "uuid": "c022f157-4583-4c5e-ad08-a5828f8d0783",
+      "entry": "scripts/main.js",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "2.0.0-beta"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "2.0.0-beta"
+    }
+  ]
+}

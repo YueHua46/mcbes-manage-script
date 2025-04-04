@@ -1,0 +1,23 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "RefusedBadBoySM_RP",
+    "description": "杜绝熊孩服务器管理框架资源包",
+    "uuid": "1150bfb5-215b-45a1-bea0-6e9aaafcb344",
+    "version": [1, 1, 0],
+    "min_engine_version": [1, 21, 70]
+  },
+  "modules": [
+    {
+      "description": "杜绝熊孩服务器管理框架资源包",
+      "type": "resources",
+      "uuid": "b95615c0-01b0-4928-8a36-25a4dd434e32",
+      "version": [1, 0, 0]
+    }
+  ],
+  "metadata": {
+    "generated_with": {
+      "blockbench_item_wizard": ["1.1.0"]
+    }
+  }
+}

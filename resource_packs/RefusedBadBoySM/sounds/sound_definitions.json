@@ -1,0 +1,9 @@
+{
+	"format_version": "1.14.0",
+	"sound_definitions": {
+		"yuehua.welcome": {
+			"category": "neutral",
+			"sounds": ["sounds/welcome","sounds/1","sounds/2","sounds/3","sounds/4","sounds/5","sounds/6","sounds/7","sounds/8","sounds/9"]
+		}
+	}
+}

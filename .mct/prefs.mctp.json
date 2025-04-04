@@ -1,0 +1,181 @@
+{
+  "dataType": 1,
+  "storageBasePath": "",
+  "contentsModified": "2025-03-28T13:18:22.859Z",
+  "dataStorageRelativePath": "/杜绝熊孩/",
+  "editPreference": 0,
+  "name": "杜绝熊孩",
+  "title": "杜绝熊孩",
+  "description": "TypeScript Starter",
+  "defaultBehaviorPackUniqueId": "c32e1f60-0ee0-4413-a760-d261d91e5fc6",
+  "defaultResourcePackUniqueId": "1150bfb5-215b-45a1-bea0-6e9aaafcb344",
+  "defaultScriptModuleUniqueId": "c022f157-4583-4c5e-ad08-a5828f8d0783",
+  "defaultDataUniqueId": "0c4dc15d-f113-4d6f-bb41-6a0b44d785e0",
+  "focus": 0,
+  "items": [
+    {
+      "itemType": 59,
+      "projectPath": "/package.json",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": "package.json",
+      "isInWorld": false
+    },
+    {
+      "itemType": 58,
+      "projectPath": "/tsconfig.json",
+      "storageType": 0,
+      "creationType": 0,
+      "tags": [],
+      "name": "tsconfig.json",
+      "isInWorld": false
+    },
+    {
+      "itemType": 129,
+      "projectPath": "/.mct/prefs.mctp.json",
+      "storageType": 0,
+      "creationType": 0,
+      "tags": [],
+      "name": "prefs.mctp.json",
+      "isInWorld": false
+    },
+    {
+      "itemType": 109,
+      "projectPath": "/behavior_packs/starter/",
+      "storageType": 1,
+      "creationType": 0,
+      "tags": [],
+      "name": "starter"
+    },
+    {
+      "itemType": 5,
+      "projectPath": "/behavior_packs/starter/manifest.json",
+      "storageType": 0,
+      "creationType": 0,
+      "tags": ["behaviorpackmanifest"],
+      "name": "manifest.json",
+      "isInWorld": false
+    },
+    {
+      "itemType": 103,
+      "projectPath": "/behavior_packs/starter/pack_icon.png",
+      "storageType": 0,
+      "creationType": 0,
+      "tags": [],
+      "name": "pack_icon.png",
+      "isInWorld": false
+    },
+    {
+      "itemType": 110,
+      "projectPath": "/resource_packs/starter/",
+      "storageType": 1,
+      "creationType": 0,
+      "tags": [],
+      "name": "starter"
+    },
+    {
+      "itemType": 14,
+      "projectPath": "/resource_packs/starter/manifest.json",
+      "storageType": 0,
+      "creationType": 0,
+      "tags": ["resourcepackmanifest"],
+      "name": "manifest.json",
+      "isInWorld": false
+    },
+    {
+      "itemType": 103,
+      "projectPath": "/resource_packs/starter/pack_icon.png",
+      "storageType": 0,
+      "creationType": 0,
+      "tags": [],
+      "name": "pack_icon.png",
+      "isInWorld": false
+    },
+    {
+      "itemType": 13,
+      "projectPath": "/scripts/main.ts",
+      "storageType": 0,
+      "creationType": 0,
+      "tags": [],
+      "name": "main.ts",
+      "isInWorld": false
+    },
+    {
+      "itemType": 121,
+      "projectPath": "/.env",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": ".env"
+    },
+    {
+      "itemType": 122,
+      "projectPath": "/.prettierrc.json",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": ".prettierrc.json"
+    },
+    {
+      "itemType": 119,
+      "projectPath": "/just.config.ts",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": "just.config.ts"
+    },
+    {
+      "itemType": 120,
+      "projectPath": "/eslint.config.mjs",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": "eslint.config.mjs"
+    },
+    {
+      "itemType": 75,
+      "projectPath": "/.vscode/launch.json",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": "launch.json"
+    },
+    {
+      "itemType": 77,
+      "projectPath": "/.vscode/settings.json",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": "settings.json"
+    },
+    {
+      "itemType": 76,
+      "projectPath": "/.vscode/tasks.json",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": "tasks.json"
+    },
+    {
+      "itemType": 78,
+      "projectPath": "/.vscode/extensions.json",
+      "storageType": 0,
+      "creationType": 1,
+      "tags": [],
+      "name": "extensions.json"
+    }
+  ],
+  "projectFolderTitle": "mcbds-script",
+  "originalGitHubOwner": "microsoft",
+  "originalGitHubRepoName": "minecraft-scripting-samples",
+  "originalGitHubFolder": "/ts-starter",
+  "originalGalleryId": "tsStarter",
+  "creator": "yuehua",
+  "shortName": "RefusedBadBoySM",
+  "versionMajor": 1,
+  "versionMinor": 0,
+  "versionPatch": 0,
+  "collapsedStoragePaths": [],
+  "gitHubReferences": []
+}
