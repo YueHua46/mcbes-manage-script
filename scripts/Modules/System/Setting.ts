@@ -2,6 +2,7 @@ import { system } from "@minecraft/server";
 import { SystemLog } from "../../utils/utils";
 import { Database } from "../Database";
 import "./Events";
+import "./TrialMode";
 
 export type IModules =
   | "player"
@@ -17,7 +18,9 @@ export type IModules =
   | "maxLandPerPlayer"
   | "maxLandBlocks"
   | "playerNameColor"
-  | "playerChatColor";
+  | "playerChatColor"
+  | "trialMode" // 新增试玩模式开关
+  | "trialModeDuration"; // 新增试玩模式时长配置
 
 export type IValueType = boolean | string;
 
@@ -36,6 +39,8 @@ export const defaultSetting = {
   maxLandBlocks: "30000",
   playerNameColor: "§f",
   playerChatColor: "§f",
+  trialMode: false, // 默认关闭试玩模式
+  trialModeDuration: "3600", // 默认1小时(3600秒)
 };
 
 export class ServerSetting {

@@ -555,6 +555,11 @@ export const openCommonSettingForm = (player: Player) => {
       icon: "textures/ui/color_picker",
       action: () => openChatColorForm(player),
     },
+    {
+      text: "试玩模式设置",
+      icon: "textures/ui/permissions_visitor_hand_hover",
+      action: () => openTrialModeSettingForm(player),
+    },
   ];
   buttons.forEach(({ text, icon }) => form.button(text, icon));
 
@@ -613,6 +618,39 @@ export const openSystemSettingForm = (player: Player) => {
       default:
         if (typeof data.selection === "number") buttons[data.selection].action();
         break;
+    }
+  });
+};
+
+// 新增试玩模式设置表单
+export const openTrialModeSettingForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("§w试玩模式设置");
+
+  // 获取当前设置
+  const isEnabled = (setting.getState("trialMode") as boolean) ?? (defaultSetting.trialMode as boolean);
+  const duration = setting.getState("trialModeDuration") ?? defaultSetting.trialModeDuration;
+
+  // 添加表单元素
+  form.toggle("§w启用试玩模式", isEnabled);
+  form.textField(
+    "§w试玩时长(秒) 玩家在线达到此时长后才会自动转为生存模式，否则将一直是冒险模式",
+    "请输入试玩时长(秒)",
+    duration.toString()
+  );
+  form.submitButton("§w确认");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const { formValues } = data;
+    if (formValues) {
+      // 保存设置
+      setting.setState("trialMode", formValues[0] as boolean);
+      setting.setState("trialModeDuration", formValues[1]?.toString() ?? "3600");
+
+      openDialogForm(player, { title: "设置成功", desc: color.green("试玩模式设置已保存!") }, () =>
+        openCommonSettingForm(player)
+      );
     }
   });
 };
