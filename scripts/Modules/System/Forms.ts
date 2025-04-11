@@ -1,4 +1,4 @@
-import { Player, world } from "@minecraft/server";
+import { GameMode, Player, world } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../utils/color";
 import setting, { IModules, IValueType } from "./Setting";
@@ -558,7 +558,7 @@ export const openCommonSettingForm = (player: Player) => {
     {
       text: "试玩模式设置",
       icon: "textures/ui/permissions_visitor_hand_hover",
-      action: () => openTrialModeSettingForm(player),
+      action: () => openTrialModeMainForm(player),
     },
   ];
   buttons.forEach(({ text, icon }) => form.button(text, icon));
@@ -622,7 +622,74 @@ export const openSystemSettingForm = (player: Player) => {
   });
 };
 
-// 新增试玩模式设置表单
+// 新增添加VIP会员的表单
+export const openAddVipMemberForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("§w添加正式会员");
+
+  // 获取所有在线玩家
+  const allPlayers = world.getPlayers().map((p) => p.name);
+
+  form.dropdown("§w选择玩家", allPlayers);
+  form.submitButton("§w确认");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+
+    const { formValues } = data;
+    if (formValues?.[0] !== undefined) {
+      const selectedPlayerName = allPlayers[Number(formValues[0])];
+      const targetPlayer = world.getPlayers().find((p) => p.name === selectedPlayerName);
+
+      if (targetPlayer) {
+        targetPlayer.addTag("vip");
+        targetPlayer.removeTag("trialed");
+        targetPlayer.setGameMode(GameMode.survival);
+
+        openDialogForm(
+          player,
+          {
+            title: "添加成功",
+            desc: color.green(`已成功将 ${selectedPlayerName} 添加为正式会员!`),
+          },
+          () => openTrialModeMainForm(player)
+        );
+      }
+    }
+  });
+};
+
+// 修改后的试玩模式主表单
+export const openTrialModeMainForm = (player: Player) => {
+  const form = new ActionFormData();
+  form.title("§w试玩模式管理");
+
+  form.button("§w试玩模式设置", "textures/ui/permissions_visitor_hand_hover");
+  form.button("§w添加正式会员", "textures/ui/village_hero_effect");
+  form.button("§w移除正式会员", "textures/ui/redX1");
+  form.button("§w返回", "textures/ui/dialog_bubble_point");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+
+    switch (data.selection) {
+      case 0:
+        openTrialModeSettingForm(player);
+        break;
+      case 1:
+        openAddVipMemberForm(player);
+        break;
+      case 2:
+        openRemoveVipMemberForm(player);
+        break;
+      case 3:
+        openCommonSettingForm(player);
+        break;
+    }
+  });
+};
+
+// 修改原来的试玩模式设置表单（保持原有功能）
 export const openTrialModeSettingForm = (player: Player) => {
   const form = new ModalFormData();
   form.title("§w试玩模式设置");
@@ -634,7 +701,7 @@ export const openTrialModeSettingForm = (player: Player) => {
   // 添加表单元素
   form.toggle("§w启用试玩模式", isEnabled);
   form.textField(
-    "§w试玩时长(秒) 玩家在线达到此时长后才会自动转为生存模式，否则将一直是冒险模式",
+    "§w试玩时长(秒) 玩家在线达到此时长后，会自动退出试玩模式（变为冒险模式）",
     "请输入试玩时长(秒)",
     duration.toString()
   );
@@ -649,8 +716,57 @@ export const openTrialModeSettingForm = (player: Player) => {
       setting.setState("trialModeDuration", formValues[1]?.toString() ?? "3600");
 
       openDialogForm(player, { title: "设置成功", desc: color.green("试玩模式设置已保存!") }, () =>
-        openCommonSettingForm(player)
+        openTrialModeMainForm(player)
       );
+    }
+  });
+};
+
+// 新增删除VIP会员的表单
+export const openRemoveVipMemberForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("§w删除正式会员");
+
+  // 获取所有VIP玩家
+  const vipPlayers = world
+    .getPlayers()
+    .filter((p) => p.hasTag("vip"))
+    .map((p) => p.name);
+
+  if (vipPlayers.length === 0) {
+    return openDialogForm(
+      player,
+      {
+        title: "删除正式会员",
+        desc: color.red("当前没有正式会员可删除"),
+      },
+      () => openTrialModeMainForm(player)
+    );
+  }
+
+  form.dropdown("§w选择VIP会员", vipPlayers);
+  form.submitButton("§w确认删除");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+
+    const { formValues } = data;
+    if (formValues?.[0] !== undefined) {
+      const selectedPlayerName = vipPlayers[Number(formValues[0])];
+      const targetPlayer = world.getPlayers().find((p) => p.name === selectedPlayerName);
+
+      if (targetPlayer) {
+        targetPlayer.removeTag("vip");
+
+        openDialogForm(
+          player,
+          {
+            title: "删除成功",
+            desc: color.green(`已成功将 ${selectedPlayerName} 从正式会员中移除!`),
+          },
+          () => openTrialModeMainForm(player)
+        );
+      }
     }
   });
 };

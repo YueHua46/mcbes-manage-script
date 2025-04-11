@@ -10,16 +10,24 @@ function initPlayerTimer(player: Player) {
   const isEnabled = setting.getState("trialMode") ?? defaultSetting.trialMode;
   const duration = Number(setting.getState("trialModeDuration") ?? "3600");
 
-  console.warn(`isEnabled -> ${isEnabled}`);
-  console.warn(`duration -> ${duration}`);
-
   // 如果未启用试玩模式，则跳过
   if (!isEnabled) {
     return;
   }
 
-  // 如果玩家是管理员或已经完成过试玩，则跳过
-  if (player.isOp() || player.hasTag("admin") || player.hasTag("trialed")) {
+  // 如果玩家是管理员，或是正式会员，则跳过
+  if (player.isOp() || player.hasTag("admin") || player.hasTag("vip")) {
+    return;
+  }
+
+  // 如果玩家已经试玩所有时间，则自动进入冒险模式
+  if (player.hasTag("trialed")) {
+    player.sendMessage(
+      `${color.green("你已经使用完所有试玩时间，已自动切换为")} ${color.red("冒险模式")} ${color.green(
+        "如需继续游玩，请联系管理员申请正式会员！"
+      )}`
+    );
+    player.setGameMode(GameMode.adventure);
     return;
   }
 
@@ -31,12 +39,10 @@ function initPlayerTimer(player: Player) {
   player.setDynamicProperty("trialModeTimer", __playerTrialModeTimer);
   // 发送提示信息
   player.sendMessage(
-    `${color.green("本服已经开启试玩模式，您已进入试玩模式，请您继续耐心等待")} ${color.red(
+    `${color.green("本服已经开启试玩模式，您已进入试玩模式，时间达到指定时间后将变为冒险模式")} ${color.red(
       Number(duration) - Number(__playerTrialModeTimer) + ""
     )} ${color.green("秒")}`
   );
-  // 设置访客模式
-  player.setGameMode(GameMode.adventure);
 
   // 每秒检查一次
   const timerId = system.runInterval(() => {
@@ -48,9 +54,13 @@ function initPlayerTimer(player: Player) {
     // 检查是否达到时长
     if (currentTrialModeTimer >= duration) {
       player.addTag("trialed");
-      player.sendMessage("§a恭喜！您已完成试玩，现已成为本服正式成员~");
-      // 取消访客模式
-      player.setGameMode(GameMode.survival);
+      player.sendMessage(
+        `${color.green("你已经使用完所有试玩时间，已自动切换为")} ${color.red("冒险模式")} ${color.green(
+          "如需继续游玩，请联系管理员申请正式会员！"
+        )}`
+      );
+      // 设置为冒险模式
+      player.setGameMode(GameMode.adventure);
       // 取消计时
       system.clearRun(timerId);
       playerTimerIds.delete(player.name);
@@ -66,7 +76,6 @@ world.afterEvents.playerSpawn.subscribe((event) => {
   const { player } = event;
   const isJoin = player.getDynamicProperty("join") as boolean;
   if (isJoin) return;
-  console.warn(`player -> ${player}`);
   initPlayerTimer(player);
 });
 
