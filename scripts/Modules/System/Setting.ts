@@ -20,8 +20,10 @@ export type IModules =
   | "maxPointsPerPlayer"
   | "playerNameColor"
   | "playerChatColor"
-  | "trialMode" // 新增试玩模式开关
-  | "trialModeDuration"; // 新增试玩模式时长配置
+  | "trialMode" // 试玩模式开关
+  | "trialModeDuration" // 试玩模式时长配置
+  | "randomTeleport" // 随机传送开关
+  | "backToDeath"; // 回到上一次死亡地点
 
 export type IValueType = boolean | string;
 
@@ -43,6 +45,8 @@ export const defaultSetting = {
   playerChatColor: "§f",
   trialMode: false, // 默认关闭试玩模式
   trialModeDuration: "3600", // 默认1小时(3600秒)
+  randomTeleport: true, // 新增随机传送开关
+  backToDeath: true, // 回到上一次死亡地点
 };
 
 export class ServerSetting {
@@ -78,6 +82,8 @@ export class ServerSetting {
     this.db.set("playerChatColor", defaultSetting.playerChatColor);
     this.db.set("trialMode", defaultSetting.trialMode); // 初始化试玩模式开关
     this.db.set("trialModeDuration", defaultSetting.trialModeDuration); // 初始化试玩模式时长
+    this.db.set("randomTeleport", defaultSetting.randomTeleport); // 初始化随机传送开关
+    this.db.set("backToDeath", defaultSetting.backToDeath); // 初始化回到上一次死亡地点开关
   }
   getState(module: IModules) {
     if (this.db.get(module) === undefined) {

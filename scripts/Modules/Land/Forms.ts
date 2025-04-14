@@ -358,7 +358,7 @@ function createLandMemberForm(land: ILand) {
     },
     {
       text: "返回",
-      icon: "textures/ui/dialog_bubble_point",
+      icon: "font/images/back",
     },
   ];
 
@@ -393,7 +393,7 @@ export function openLandDeleteForm(player: Player, _land: ILand, isAdmin: boolea
   form.title("删除领地");
   form.body(color.red("删除领地后不可恢复，请谨慎操作！"));
   form.button("确认", "textures/ui/check");
-  form.button("取消", "textures/ui/cancel");
+  form.button("取消", "font/images/deny");
 
   form.show(player).then((data) => {
     const { cancelationReason, selection } = data;
@@ -553,7 +553,7 @@ export const openLandDetailForm = (
       },
       {
         text: "删除领地",
-        icon: "textures/ui/cancel",
+        icon: "font/images/deny",
         action: () => openLandDeleteForm(player, landData, isAdmin),
       },
     ];
@@ -562,7 +562,7 @@ export const openLandDetailForm = (
 
   buttons.push({
     text: "返回",
-    icon: "textures/ui/dialog_bubble_point",
+    icon: "font/images/back",
     action: () => {
       if (returnForm) returnForm();
       else if (isAdmin) openAllPlayerLandManageForm(player);
@@ -682,7 +682,7 @@ export function openLandListForm(player: Player, isAdmin: boolean = false, page:
       nextButtonIndex++;
     }
 
-    form.button("返回", "textures/ui/dialog_bubble_point");
+    form.button("返回", "font/images/back");
 
     form.show(player).then((data) => {
       if (data.cancelationReason) return;
@@ -726,7 +726,7 @@ function createLandManageForm() {
     },
     {
       text: "§w返回",
-      icon: "textures/ui/dialog_bubble_point",
+      icon: "font/images/back",
     },
   ];
 
@@ -802,7 +802,7 @@ export const openPlayerLandListForm = (
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/ui/dialog_bubble_point");
+  form.button("§w返回", "font/images/back");
   form.body(`第 ${page} 页 / 共 ${totalPages} 页\n§7总计: ${playerLands.length} 个领地`);
 
   form.show(player).then((data) => {
@@ -869,7 +869,7 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1) =>
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/ui/dialog_bubble_point");
+  form.button("§w返回", "font/images/back");
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
 
   form.show(player).then((data) => {

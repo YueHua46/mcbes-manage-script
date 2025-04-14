@@ -73,7 +73,7 @@ const openSearchResultsForm = (player: Player, lands: ILand[], playerName: strin
     nextButtonIndex++;
   }
 
-  form.button("返回", "textures/ui/dialog_bubble_point");
+  form.button("返回", "font/images/back");
 
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
 
@@ -144,7 +144,7 @@ export const openPlayerWayPointManageForm = (player: Player, page: number = 1) =
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/ui/dialog_bubble_point");
+  form.button("§w返回", "font/images/back");
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
 
   form.show(player).then((data) => {
@@ -179,10 +179,10 @@ export const openLandManageForm = (player: Player) => {
   form.title("§w领地管理");
 
   form.button("§w所有玩家领地管理", "textures/ui/icon_new");
-  form.button("§w删除当前所在区域领地", "textures/ui/redX1");
+  form.button("§w删除当前所在区域领地", "font/images/deny");
   form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
   // form.button('§w玩家坐标点管理', 'textures/ui/icon_steve')
-  form.button("§w返回", "textures/ui/dialog_bubble_point");
+  form.button("§w返回", "font/images/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -275,6 +275,16 @@ export const openFunctionSwitchForm = (player: Player) => {
       text: "§w掉落物清理",
       id: "killItem",
       state: setting.getState("killItem") ?? true,
+    },
+    {
+      text: "§w随机传送",
+      id: "randomTeleport",
+      state: setting.getState("randomTeleport") ?? true,
+    },
+    {
+      text: "§w回到死亡点",
+      id: "backToDeath",
+      state: setting.getState("backToDeath") ?? true,
     },
   ];
   form.title("§w功能开关");
@@ -540,20 +550,16 @@ export const openCommonSettingForm = (player: Player) => {
       icon: "textures/ui/icon_book_writable",
       action: () => openNotifyForms(player),
     },
+    // 新增领地设置主按钮
     {
-      text: "设置领地方块上限",
+      text: "领地设置",
       icon: "textures/ui/icon_recipe_construction",
-      action: () => openLandBlockLimitForm(player),
-    },
-    {
-      text: "设置玩家最大领地数量",
-      icon: "textures/ui/icon_recipe_nature",
-      action: () => openMaxLandPerPlayerSettingForm(player),
+      action: () => openLandSettingsForm(player),
     },
     // 新增坐标点上限设置按钮
     {
       text: "设置玩家最大坐标点数量",
-      icon: "textures/ui/icon_recipe_nature",
+      icon: "textures/ui/realmsIcon",
       action: () => openMaxWayPointPerPlayerSettingForm(player),
     },
     {
@@ -569,7 +575,7 @@ export const openCommonSettingForm = (player: Player) => {
   ];
   buttons.forEach(({ text, icon }) => form.button(text, icon));
 
-  form.button("§w返回", "textures/ui/dialog_bubble_point");
+  form.button("§w返回", "font/images/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -613,7 +619,7 @@ export const openSystemSettingForm = (player: Player) => {
 
   buttons.forEach(({ text, icon }) => form.button(text, icon));
 
-  form.button("§w返回", "textures/ui/dialog_bubble_point");
+  form.button("§w返回", "font/images/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -672,8 +678,8 @@ export const openTrialModeMainForm = (player: Player) => {
 
   form.button("§w试玩模式设置", "textures/ui/permissions_visitor_hand_hover");
   form.button("§w添加正式会员", "textures/ui/village_hero_effect");
-  form.button("§w移除正式会员", "textures/ui/redX1");
-  form.button("§w返回", "textures/ui/dialog_bubble_point");
+  form.button("§w移除正式会员", "font/images/deny");
+  form.button("§w返回", "font/images/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -818,6 +824,43 @@ export const openMaxWayPointPerPlayerSettingForm = (player: Player) => {
         },
         () => openCommonSettingForm(player)
       );
+    }
+  });
+};
+// 领地设置主表单
+export const openLandSettingsForm = (player: Player) => {
+  const form = new ActionFormData();
+  form.title("§w领地设置");
+
+  const buttons = [
+    {
+      text: "设置领地方块上限",
+      icon: "textures/ui/random_dice",
+      action: () => openLandBlockLimitForm(player),
+    },
+    {
+      text: "设置玩家最大领地数量",
+      icon: "textures/ui/icon_new",
+      action: () => openMaxLandPerPlayerSettingForm(player),
+    },
+    {
+      text: "§w返回",
+      icon: "font/images/back",
+      action: () => openCommonSettingForm(player),
+    },
+  ];
+
+  buttons.forEach(({ text, icon }) => form.button(text, icon));
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const selectionIndex = data.selection;
+    if (selectionIndex === null || selectionIndex === undefined) return;
+
+    if (selectionIndex < buttons.length - 1) {
+      buttons[selectionIndex].action();
+    } else {
+      openCommonSettingForm(player);
     }
   });
 };

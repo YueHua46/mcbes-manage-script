@@ -69,7 +69,7 @@ const openSearchResultsForm = (player: Player, wayPoints: IWayPoint[], playerNam
   }
 
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
-  form.button("返回", "textures/ui/dialog_bubble_point");
+  form.button("返回", "font/images/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
@@ -101,7 +101,12 @@ const openSearchResultsForm = (player: Player, wayPoints: IWayPoint[], playerNam
 };
 
 // 打开坐标点更新表单
-export const openWayPointUpdateForm = (player: Player, pointName: string, isAdmin: boolean = false) => {
+export const openWayPointUpdateForm = (
+  player: Player,
+  pointName: string,
+  isAdmin: boolean = false,
+  type: "private" | "public" = "private"
+) => {
   const form = new ModalFormData();
 
   form.title("编辑坐标点");
@@ -126,7 +131,7 @@ export const openWayPointUpdateForm = (player: Player, pointName: string, isAdmi
             title: "坐标点更新失败",
             desc: color.red(res),
           },
-          () => openWayPointUpdateForm(player, pointName, isAdmin)
+          () => openWayPointUpdateForm(player, pointName, isAdmin, type)
         );
       }
       openDialogForm(
@@ -135,7 +140,7 @@ export const openWayPointUpdateForm = (player: Player, pointName: string, isAdmi
           title: "坐标点更新成功",
           desc: color.green("坐标点更新成功！"),
         },
-        () => openWayPointListForm(player, isAdmin)
+        () => openWayPointListForm(player, isAdmin, type)
       );
     }
   });
@@ -203,16 +208,14 @@ export const openWayPointDetailForm = (
     buttons.push(
       {
         text: "编辑",
-        icon: "textures/ui/pencil_edit_icon",
+        icon: "font/images/edit2",
         action: () => {
-          openWayPointUpdateForm(player, pointName, isAdmin);
-          // 编辑后返回到详情页
-          openWayPointDetailForm(player, pointName, isAdmin, type, returnForm);
+          openWayPointUpdateForm(player, pointName, isAdmin, point.type);
         },
       },
       {
         text: "删除",
-        icon: "textures/ui/cancel",
+        icon: "font/images/deny",
         action: () => {
           openConfirmDialogForm(player, "删除坐标点", "是否确定删除该坐标点？", () => {
             const isSuccess = wayPoint.deletePoint(pointName);
@@ -273,7 +276,7 @@ export const openWayPointDetailForm = (
 
   buttons.push({
     text: "返回",
-    icon: "textures/ui/dialog_bubble_point",
+    icon: "font/images/back",
     action: returnForm,
   });
 
@@ -379,7 +382,7 @@ export const openWayPointListForm = (
     nextButtonIndex++;
   }
 
-  form.button("返回", "textures/ui/dialog_bubble_point");
+  form.button("返回", "font/images/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
@@ -459,7 +462,7 @@ export const openPlayerWayPointListForm = (
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/ui/dialog_bubble_point");
+  form.button("§w返回", "font/images/back");
   form.body(
     `第 ${page} 页 / 共 ${totalPages} 页\n§7总计: ${allPoints.length} 个坐标点 (私有: ${privatePoints.length}, 公开: ${publicPoints.length})`
   );
@@ -534,7 +537,7 @@ export const openWayPointMenuForms = (player: Player) => {
     });
   }
   buttons.forEach(({ text, icon }) => form.button(text, icon));
-  form.button("返回", "textures/ui/dialog_bubble_point");
+  form.button("返回", "font/images/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;

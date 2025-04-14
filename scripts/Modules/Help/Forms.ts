@@ -96,7 +96,7 @@ export const openHelpMenuForm = (player: Player) => {
   buttons.forEach(({ text, icon }) => {
     form.button(text, icon);
   });
-  form.button("返回", "textures/ui/dialog_bubble_point");
+  form.button("返回", "font/images/back");
   form.show(player).then((data) => {
     switch (data.selection) {
       case 0:
