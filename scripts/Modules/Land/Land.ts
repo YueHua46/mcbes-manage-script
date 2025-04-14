@@ -3,6 +3,7 @@ import { Database } from "../Database";
 import { MinecraftDimensionTypes } from "@minecraft/vanilla-data";
 import setting from "../System/Setting";
 import { defaultSetting } from "../System/Setting";
+import { isAdmin } from "../../utils/utils";
 
 export interface ILand {
   name: string;
@@ -56,13 +57,13 @@ class Land {
       z,
     };
   }
-  addLand(land: ILand) {
+  addLand(land: ILand, player: Player) {
     if (this.db.has(land.name)) return "领地名冲突，已存在，请尝试其他领地名称";
     if (this.checkOverlap(land)) return "领地重叠，请重新设置领地范围";
 
     // 检查玩家领地数量是否达到上限
     const maxLandPerPlayer = Number(setting.getState("maxLandPerPlayer") || defaultSetting.maxLandPerPlayer);
-    if (this.getPlayerLandCount(land.owner) >= maxLandPerPlayer) {
+    if (!isAdmin(player) && this.getPlayerLandCount(land.owner) >= maxLandPerPlayer) {
       return `您已达到最大领地数量限制(${maxLandPerPlayer})，无法创建更多领地`;
     }
 

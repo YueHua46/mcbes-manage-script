@@ -550,6 +550,12 @@ export const openCommonSettingForm = (player: Player) => {
       icon: "textures/ui/icon_recipe_nature",
       action: () => openMaxLandPerPlayerSettingForm(player),
     },
+    // 新增坐标点上限设置按钮
+    {
+      text: "设置玩家最大坐标点数量",
+      icon: "textures/ui/icon_recipe_nature",
+      action: () => openMaxWayPointPerPlayerSettingForm(player),
+    },
     {
       text: "设置聊天颜色",
       icon: "textures/ui/color_picker",
@@ -767,6 +773,51 @@ export const openRemoveVipMemberForm = (player: Player) => {
           () => openTrialModeMainForm(player)
         );
       }
+    }
+  });
+};
+
+export const openMaxWayPointPerPlayerSettingForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("设置玩家最大坐标点数量");
+
+  const currentValue = setting.getState("maxPointsPerPlayer") || defaultSetting.maxPointsPerPlayer;
+
+  form.textField(
+    color.white("每个玩家最大坐标点数量"),
+    color.gray("请输入每个玩家最大可创建的坐标点数量"),
+    currentValue.toString()
+  );
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const { formValues } = data;
+
+    if (formValues && formValues[0]) {
+      const value = formValues[0].toString();
+      const numValue = parseInt(value);
+
+      if (isNaN(numValue) || numValue <= 0) {
+        return openDialogForm(
+          player,
+          {
+            title: "设置失败",
+            desc: color.red("请输入有效的正整数！"),
+          },
+          () => openMaxWayPointPerPlayerSettingForm(player)
+        );
+      }
+
+      setting.setState("maxPointsPerPlayer", value);
+
+      openDialogForm(
+        player,
+        {
+          title: "设置成功",
+          desc: color.green(`成功设置每个玩家最大坐标点数量为 ${value}`),
+        },
+        () => openCommonSettingForm(player)
+      );
     }
   });
 };

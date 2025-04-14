@@ -2,8 +2,9 @@ import { Dimension, ItemStack, Player, system, Vector3, world } from "@minecraft
 import { Database } from "../Database";
 import { MinecraftDimensionTypes } from "../../types";
 import { useNotify } from "../../hooks/hooks";
-import { getNowDate } from "../../utils/utils";
+import { getNowDate, isAdmin } from "../../utils/utils";
 import { color } from "../../utils/color";
+import setting from "../System/Setting";
 
 export interface IWayPoint {
   name: string;
@@ -49,6 +50,9 @@ class WayPoint {
 
   createPoint(pointOption: ICreateWayPoint) {
     const { pointName, location, player, type = "private" } = pointOption;
+    const maxPoints = setting.getState("maxPointsPerPlayer");
+    const playerPoints = this.getPointsByPlayer(player.name);
+    if (!isAdmin(player) && playerPoints.length >= Number(maxPoints)) return "您的坐标点数量已达到服务器设置上限";
     if (!pointName || !location || !player) return "参数错误";
     if (this.db.get(pointName)) return "该坐标点名称已存在，请换一个名称";
 

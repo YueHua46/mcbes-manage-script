@@ -17,6 +17,7 @@ export type IModules =
   | "randomTpRange"
   | "maxLandPerPlayer"
   | "maxLandBlocks"
+  | "maxPointsPerPlayer"
   | "playerNameColor"
   | "playerChatColor"
   | "trialMode" // 新增试玩模式开关
@@ -37,6 +38,7 @@ export const defaultSetting = {
   randomTpRange: "50000",
   maxLandPerPlayer: "5",
   maxLandBlocks: "30000",
+  maxPointsPerPlayer: "20",
   playerNameColor: "§f",
   playerChatColor: "§f",
   trialMode: false, // 默认关闭试玩模式
@@ -71,8 +73,11 @@ export class ServerSetting {
     this.db.set("randomTpRange", defaultSetting.randomTpRange);
     this.db.set("maxLandPerPlayer", defaultSetting.maxLandPerPlayer);
     this.db.set("maxLandBlocks", defaultSetting.maxLandBlocks);
+    this.db.set("maxPointsPerPlayer", "10");
     this.db.set("playerNameColor", defaultSetting.playerNameColor);
     this.db.set("playerChatColor", defaultSetting.playerChatColor);
+    this.db.set("trialMode", defaultSetting.trialMode); // 初始化试玩模式开关
+    this.db.set("trialModeDuration", defaultSetting.trialModeDuration); // 初始化试玩模式时长
   }
   getState(module: IModules) {
     if (this.db.get(module) === undefined) {
