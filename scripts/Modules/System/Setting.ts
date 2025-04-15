@@ -23,7 +23,9 @@ export type IModules =
   | "trialMode" // 试玩模式开关
   | "trialModeDuration" // 试玩模式时长配置
   | "randomTeleport" // 随机传送开关
-  | "backToDeath"; // 回到上一次死亡地点
+  | "backToDeath" // 回到上一次死亡地点
+  | "enableTreeCutOneClick" // 新增一键砍树开关
+  | "enableDigOreOneClick"; // 新增一键挖矿开关
 
 export type IValueType = boolean | string;
 
@@ -47,6 +49,8 @@ export const defaultSetting = {
   trialModeDuration: "3600", // 默认1小时(3600秒)
   randomTeleport: true, // 新增随机传送开关
   backToDeath: true, // 回到上一次死亡地点
+  enableTreeCutOneClick: true, // 新增一键砍树开关
+  enableDigOreOneClick: true, // 新增一键挖矿开关
 };
 
 export class ServerSetting {
@@ -84,6 +88,8 @@ export class ServerSetting {
     this.db.set("trialModeDuration", defaultSetting.trialModeDuration); // 初始化试玩模式时长
     this.db.set("randomTeleport", defaultSetting.randomTeleport); // 初始化随机传送开关
     this.db.set("backToDeath", defaultSetting.backToDeath); // 初始化回到上一次死亡地点开关
+    this.db.set("enableTreeCutOneClick", defaultSetting.enableTreeCutOneClick); // 初始化一键砍树开关
+    this.db.set("enableDigOreOneClick", defaultSetting.enableDigOreOneClick); // 初始化一键挖矿开关
   }
   getState(module: IModules) {
     if (this.db.get(module) === undefined) {

@@ -4,6 +4,7 @@ import { MinecraftDimensionTypes } from "@minecraft/vanilla-data";
 import setting from "../System/Setting";
 import { defaultSetting } from "../System/Setting";
 import { isAdmin } from "../../utils/utils";
+import { color } from "@mcbe-mods/utils";
 
 export interface ILand {
   name: string;
@@ -59,8 +60,23 @@ class Land {
   }
   addLand(land: ILand, player: Player) {
     if (this.db.has(land.name)) return "领地名冲突，已存在，请尝试其他领地名称";
-    if (this.checkOverlap(land)) return "领地重叠，请重新设置领地范围";
-
+    const overlaps = this.checkOverlap(land);
+    if (overlaps.length > 0) {
+      // 只提示第一个重叠的领地，也可以遍历所有重叠领地
+      const info = overlaps
+        .map(
+          (o) =>
+            `与玩家 ${color.yellow(o.owner)} ${color.red("的领地")} ${color.yellow(o.name)} ${color.red(
+              "重叠"
+            )}\n${color.red("位置")}： ${color.yellow(`${o.vectors.start.x}`)},${color.yellow(
+              `${o.vectors.start.y}`
+            )},${color.yellow(color.yellow(`${o.vectors.start.z}`))} -> ${color.yellow(
+              `${o.vectors.end.x}`
+            )},${color.yellow(`${o.vectors.end.y}`)},${color.yellow(`${o.vectors.end.z}`)}`
+        )
+        .join("\n");
+      return `领地重叠，请重新设置领地范围。\n${info}`;
+    }
     // 检查玩家领地数量是否达到上限
     const maxLandPerPlayer = Number(setting.getState("maxLandPerPlayer") || defaultSetting.maxLandPerPlayer);
     if (!isAdmin(player) && this.getPlayerLandCount(land.owner) >= maxLandPerPlayer) {
@@ -105,18 +121,18 @@ class Land {
     return this.db.set(name, land);
   }
   // 检查领地是否重叠
-  checkOverlap(land: ILand) {
+  checkOverlap(land: ILand): ILand[] {
     const lands = this.db.getAll();
-    let isOverlap = false;
     const landArea = new BlockVolume(land.vectors.start, land.vectors.end);
+    const overlaps: ILand[] = [];
     for (const key in lands) {
       if (land.dimension !== lands[key].dimension) continue;
       const area = new BlockVolume(lands[key].vectors.start, lands[key].vectors.end);
       if (landArea.doesVolumeTouchFaces(area)) {
-        isOverlap = true;
+        overlaps.push(lands[key]);
       }
     }
-    return isOverlap;
+    return overlaps;
   }
   isInsideLand(location: Vector3, land: ILand) {
     const isInside =

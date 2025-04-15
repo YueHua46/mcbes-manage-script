@@ -22,6 +22,8 @@
     "enablemcpreviewloopback": "CheckNetIsolation.exe LoopbackExempt -a -p=S-1-15-2-424268864-5579737-879501358-346833251-474568803-887069379-4040235476"
   },
   "dependencies": {
+    "@mcbe-mods/utils": "^0.1.1",
+    "@minecraft/math": "^1.4.0",
     "@minecraft/server": "2.0.0-beta.1.21.70-stable",
     "@minecraft/server-net": "1.0.0-beta.1.21.70-stable",
     "@minecraft/server-ui": "2.0.0-beta.1.21.70-stable",
@@ -32,7 +34,6 @@
     "gulp-concat": "^2.6.1",
     "gulp-util": "^1.0.0",
     "gulp-zip": "^6.0.0",
-    "lodash": "^4.17.21",
-    "@minecraft/math": "^1.4.0"
+    "lodash": "^4.17.21"
   }
 }

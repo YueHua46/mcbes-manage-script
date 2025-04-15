@@ -572,6 +572,11 @@ export const openCommonSettingForm = (player: Player) => {
       icon: "textures/ui/permissions_visitor_hand_hover",
       action: () => openTrialModeMainForm(player),
     },
+    {
+      text: "一键砍树/挖矿设置",
+      icon: "textures/ui/haste_effect",
+      action: () => openOneClickMineTreeSettingForm(player),
+    },
   ];
   buttons.forEach(({ text, icon }) => form.button(text, icon));
 
@@ -861,6 +866,36 @@ export const openLandSettingsForm = (player: Player) => {
       buttons[selectionIndex].action();
     } else {
       openCommonSettingForm(player);
+    }
+  });
+};
+
+export const openOneClickMineTreeSettingForm = (player: Player) => {
+  const form = new ModalFormData();
+  const enableTreeCut = setting.getState("enableTreeCutOneClick") === true;
+  const enableDigOre = setting.getState("enableDigOreOneClick") === true;
+
+  form.title("§w一键砍树/挖矿设置");
+  form.toggle("开启一键砍树", enableTreeCut);
+  form.toggle("开启一键挖矿", enableDigOre);
+  form.submitButton("§w确定");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const { formValues } = data;
+    if (formValues) {
+      setting.setState("enableTreeCutOneClick", !!formValues[0]);
+      setting.setState("enableDigOreOneClick", !!formValues[1]);
+      openDialogForm(
+        player,
+        {
+          title: "设置成功",
+          desc: color.green("一键砍树/挖矿设置已更新！"),
+        },
+        () => openCommonSettingForm(player)
+      );
+    } else {
+      useNotify("chat", player, "§c设置失败");
     }
   });
 };
