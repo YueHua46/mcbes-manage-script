@@ -8,6 +8,7 @@ export type IModules =
   | "player"
   | "land"
   | "wayPoint"
+  | "economy"
   | "other"
   | "help"
   | "sm"
@@ -33,6 +34,7 @@ export const defaultSetting = {
   player: true,
   land: true,
   wayPoint: true,
+  economy: true,
   other: true,
   help: true,
   sm: true,

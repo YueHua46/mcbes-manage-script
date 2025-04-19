@@ -8,6 +8,7 @@ import { openBaseFunctionForm } from "../OtherFun/Forms";
 import { openWayPointMenuForms } from "../WayPoint/Forms";
 import { openSystemSettingForm } from "../System/Forms";
 import setting, { IModules } from "../System/Setting";
+import { openEconomyMenuForm } from "../Economic/Forms";
 
 interface MenuItem {
   text: string;
@@ -35,6 +36,13 @@ const menuItems: MenuItem[] = [
     text: "§w领地管理",
     icon: "textures/ui/icon_recipe_nature",
     action: openLandManageForms,
+  },
+  // 添加经济系统菜单项
+  {
+    id: "economy",
+    text: "§w经济系统",
+    icon: "textures/ui/MCoin",
+    action: openEconomyMenuForm,
   },
   {
     id: "other",
@@ -116,3 +124,6 @@ function openServerMenuForm(player: Player) {
 }
 
 export { openServerMenuForm };
+
+// 确保导出经济系统表单函数
+export { openEconomyMenuForm };

@@ -1,0 +1,17 @@
+{
+  "close_button": {
+    "type": "button",
+    "size": [16, 16],
+    "controls": [
+      {
+        "icon": {
+          "type": "image",
+          "texture": "textures/ui/your_custom_close_icon",
+          "size": [16, 16],
+          "anchor_from": "center",
+          "anchor_to": "center"
+        }
+      }
+    ]
+  }
+}

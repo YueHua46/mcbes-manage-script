@@ -128,6 +128,10 @@ class Land {
     for (const key in lands) {
       if (land.dimension !== lands[key].dimension) continue;
       const area = new BlockVolume(lands[key].vectors.start, lands[key].vectors.end);
+      console.log(`new area -> ${area.from.x},${area.from.y},${area.from.z} -> ${area.to.x},${area.to.y},${area.to.z}`);
+      console.log(
+        `loop area -> ${area.from.x},${area.from.y},${area.from.z} -> ${area.to.x},${area.to.y},${area.to.z}`
+      );
       if (landArea.doesVolumeTouchFaces(area)) {
         overlaps.push(lands[key]);
       }
