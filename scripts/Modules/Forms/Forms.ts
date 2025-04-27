@@ -9,6 +9,7 @@ import { openWayPointMenuForms } from "../WayPoint/Forms";
 import { openSystemSettingForm } from "../System/Forms";
 import setting, { IModules } from "../System/Setting";
 import { openEconomyMenuForm } from "../Economic/Forms";
+import { isAdmin } from "../../utils/utils";
 
 interface MenuItem {
   text: string;
@@ -22,13 +23,13 @@ const menuItems: MenuItem[] = [
   {
     id: "player",
     text: "§w玩家操作",
-    icon: "textures/ui/warning_alex",
+    icon: "textures/icons/player_actions",
     action: openPlayerActionForm,
   },
   {
     id: "wayPoint",
     text: "§w坐标点管理",
-    icon: "textures/ui/world_glyph_color",
+    icon: "textures/icons/waypoint",
     action: openWayPointMenuForms,
   },
   {
@@ -53,7 +54,7 @@ const menuItems: MenuItem[] = [
   {
     id: "help",
     text: "§w获取帮助",
-    icon: "textures/ui/csb_purchase_amazondevicewarning",
+    icon: "textures/icons/quest",
     action: openHelpMenuForm,
   },
   {
@@ -72,7 +73,7 @@ const menuItems: MenuItem[] = [
 ];
 
 function createServerMenuForm(player: Player): ActionFormData {
-  const isAdmin = player.getTags().includes("admin") || player.isOp();
+  const _isAdmin = isAdmin(player);
 
   const form = new ActionFormData();
   form.title("§w服务器菜单");
@@ -88,7 +89,7 @@ function createServerMenuForm(player: Player): ActionFormData {
       return setting.getState(id);
     })
     .forEach((item) => {
-      if (!item.adminOnly || isAdmin) {
+      if (!item.adminOnly || _isAdmin) {
         form.button(item.text, item.icon);
       }
     });

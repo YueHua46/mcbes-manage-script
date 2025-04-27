@@ -73,7 +73,7 @@ const openSearchResultsForm = (player: Player, lands: ILand[], playerName: strin
     nextButtonIndex++;
   }
 
-  form.button("返回", "font/images/back");
+  form.button("返回", "textures/icons/back");
 
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
 
@@ -144,7 +144,7 @@ export const openPlayerWayPointManageForm = (player: Player, page: number = 1) =
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
 
   form.show(player).then((data) => {
@@ -179,10 +179,10 @@ export const openLandManageForm = (player: Player) => {
   form.title("§w领地管理");
 
   form.button("§w所有玩家领地管理", "textures/ui/icon_new");
-  form.button("§w删除当前所在区域领地", "font/images/deny");
+  form.button("§w删除当前所在区域领地", "textures/icons/deny");
   form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
   // form.button('§w玩家坐标点管理', 'textures/ui/icon_steve')
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -580,7 +580,7 @@ export const openCommonSettingForm = (player: Player) => {
   ];
   buttons.forEach(({ text, icon }) => form.button(text, icon));
 
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -624,7 +624,7 @@ export const openSystemSettingForm = (player: Player) => {
 
   buttons.forEach(({ text, icon }) => form.button(text, icon));
 
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -683,8 +683,8 @@ export const openTrialModeMainForm = (player: Player) => {
 
   form.button("§w试玩模式设置", "textures/ui/permissions_visitor_hand_hover");
   form.button("§w添加正式会员", "textures/ui/village_hero_effect");
-  form.button("§w移除正式会员", "font/images/deny");
-  form.button("§w返回", "font/images/back");
+  form.button("§w移除正式会员", "textures/icons/deny");
+  form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -850,7 +850,7 @@ export const openLandSettingsForm = (player: Player) => {
     },
     {
       text: "§w返回",
-      icon: "font/images/back",
+      icon: "textures/icons/back",
       action: () => openCommonSettingForm(player),
     },
   ];

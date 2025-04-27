@@ -69,7 +69,7 @@ const openSearchResultsForm = (player: Player, wayPoints: IWayPoint[], playerNam
   }
 
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
-  form.button("返回", "font/images/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
@@ -208,14 +208,14 @@ export const openWayPointDetailForm = (
     buttons.push(
       {
         text: "编辑",
-        icon: "font/images/edit2",
+        icon: "textures/icons/edit2",
         action: () => {
           openWayPointUpdateForm(player, pointName, isAdmin, point.type);
         },
       },
       {
         text: "删除",
-        icon: "font/images/deny",
+        icon: "textures/icons/deny",
         action: () => {
           openConfirmDialogForm(player, "删除坐标点", "是否确定删除该坐标点？", () => {
             const isSuccess = wayPoint.deletePoint(pointName);
@@ -276,7 +276,7 @@ export const openWayPointDetailForm = (
 
   buttons.push({
     text: "返回",
-    icon: "font/images/back",
+    icon: "textures/icons/back",
     action: returnForm,
   });
 
@@ -382,7 +382,7 @@ export const openWayPointListForm = (
     nextButtonIndex++;
   }
 
-  form.button("返回", "font/images/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
@@ -462,7 +462,7 @@ export const openPlayerWayPointListForm = (
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
   form.body(
     `第 ${page} 页 / 共 ${totalPages} 页\n§7总计: ${allPoints.length} 个坐标点 (私有: ${privatePoints.length}, 公开: ${publicPoints.length})`
   );
@@ -537,7 +537,7 @@ export const openWayPointMenuForms = (player: Player) => {
     });
   }
   buttons.forEach(({ text, icon }) => form.button(text, icon));
-  form.button("返回", "font/images/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;

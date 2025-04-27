@@ -55,7 +55,7 @@ export const openUpdateNotifyForm = (player: Player) => {
   notifys.forEach((n) => {
     form.button(n.title, "textures/ui/icon_bell");
   });
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
     if (typeof data.selection === "number") {
@@ -94,24 +94,24 @@ export const openNotifyForms = (player: Player) => {
   const buttons = [
     {
       text: "添加通知",
-      icon: "font/images/add",
+      icon: "textures/icons/add",
       action: () => openAddNotifyForm(player),
     },
     {
       text: "更新通知",
-      icon: "font/images/edit2",
+      icon: "textures/icons/edit2",
       action: () => openUpdateNotifyForm(player),
     },
     {
       text: "删除通知",
-      icon: "font/images/deny",
+      icon: "textures/icons/deny",
       action: () => openDeleteNotifyForm(player),
     },
   ];
 
   buttons.forEach(({ text, icon }) => form.button(text, icon));
 
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
     switch (data.selection) {

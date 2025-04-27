@@ -114,8 +114,8 @@ function createPlayerActionForm() {
   const form = new ActionFormData();
   form.title("§w玩家操作");
   form.button("§wTPA玩家传送", "textures/ui/enable_editor");
-  form.button("§w聊天栏配置", "font/images/chat");
-  form.button("§w返回", "font/images/back");
+  form.button("§w聊天栏配置", "textures/icons/chat");
+  form.button("§w返回", "textures/icons/back");
   return form;
 }
 
@@ -147,12 +147,12 @@ export function openChatForm(player: Player) {
   const buttons = [
     {
       text: "聊天黑名单配置",
-      icon: "font/images/chatBlockText",
+      icon: "textures/icons/chatBlockText",
       action: () => openChatBlackForm(player),
     },
     {
       text: "静音聊天栏配置",
-      icon: "font/images/chatSpam",
+      icon: "textures/icons/chatSpam",
       action: () => openMuteChatForm(player),
     },
   ];
@@ -160,7 +160,7 @@ export function openChatForm(player: Player) {
   buttons.forEach((button) => {
     form.button(button.text, button.icon);
   });
-  form.button("返回", "font/images/back");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
     switch (data.selection) {
@@ -184,7 +184,7 @@ export function openDeleteChatBlackListForm(player: Player) {
   _blackList.forEach((name) => {
     form.button(name, "textures/ui/Friend2");
   });
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
     if (typeof data.selection !== "number") return;
@@ -243,19 +243,19 @@ export function openChatBlackForm(player: Player) {
   const buttons = [
     {
       text: "§w添加聊天黑名单",
-      icon: "font/images/add",
+      icon: "textures/icons/add",
       action: () => openAddChatBlackListForm(player),
     },
     {
       text: "§w删除聊天黑名单",
-      icon: "font/images/deny",
+      icon: "textures/icons/deny",
       action: () => openDeleteChatBlackListForm(player),
     },
   ];
   buttons.forEach((button) => {
     form.button(button.text, button.icon);
   });
-  form.button("返回", "font/images/back");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
     switch (data.selection) {

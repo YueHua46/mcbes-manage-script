@@ -92,7 +92,7 @@ export function openBaseFunctionForm(player: Player) {
     form.button(button.text, button.icon);
   });
 
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     switch (data.selection) {
@@ -141,11 +141,11 @@ export const openLeaveMessageForms = (player: Player) => {
       icon: "textures/ui/realmsStoriesIcon",
       action: () => openLeaveMessageListForm(player),
     },
-    { text: "§w添加留言", icon: "font/images/add", action: () => openAddLeaveMessageForm(player) },
-    { text: "§w删除留言", icon: "font/images/deny", action: () => openDeleteLeaveMessageForm(player) },
+    { text: "§w添加留言", icon: "textures/icons/add", action: () => openAddLeaveMessageForm(player) },
+    { text: "§w删除留言", icon: "textures/icons/deny", action: () => openDeleteLeaveMessageForm(player) },
   ];
   buttons.forEach(({ text, icon }) => form.button(text, icon));
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
     switch (data.selection) {
@@ -188,7 +188,7 @@ export const openLeaveMessageListForm = (player: Player, page: number = 1) => {
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "font/images/back");
+  form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;

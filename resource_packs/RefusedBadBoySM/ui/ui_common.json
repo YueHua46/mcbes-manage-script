@@ -1,0 +1,7 @@
+{
+  "namespace": "common",
+  "text_edit_box_label": {
+    "hide_hyphen": "$hide_hyphen",
+    "$hide_hyphen|default": false
+  }
+}
