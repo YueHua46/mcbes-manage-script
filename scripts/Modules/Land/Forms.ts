@@ -26,23 +26,24 @@ function createLandApplyForm(player: Player) {
     z: player.location.z.toFixed(0),
   };
 
-  form.textField(color.white("领地名称"), color.gray("请输入领地名称"), "");
-  form.textField(
-    color.white("领地起始点"),
-    color.gray("请输入领地起始点"),
-    `${defaultLandStartPos.x} ${defaultLandStartPos.y} ${defaultLandStartPos.z}`
-  );
-  form.textField(
-    color.white("领地结束点"),
-    color.gray("请输入领地结束点"),
-    `${defaultLandEndPos.x} ${defaultLandEndPos.y} ${defaultLandEndPos.z}`
-  );
+  form.textField(color.white("领地名称"), color.gray("请输入领地名称"), {
+    defaultValue: "",
+    tooltip: "请输入领地名称",
+  });
+  form.textField(color.white("领地起始点"), color.gray("请输入领地起始点"), {
+    defaultValue: `${defaultLandStartPos.x} ${defaultLandStartPos.y} ${defaultLandStartPos.z}`,
+    tooltip: "请输入领地起始点",
+  });
+  form.textField(color.white("领地结束点"), color.gray("请输入领地结束点"), {
+    defaultValue: `${defaultLandEndPos.x} ${defaultLandEndPos.y} ${defaultLandEndPos.z}`,
+    tooltip: "请输入领地结束点",
+  });
   form.submitButton("确认");
 
   return form;
 }
 
-function validateForm(formValues: (string | number | boolean)[] | undefined, player: Player): boolean {
+function validateForm(formValues: (string | number | boolean | undefined)[], player: Player): boolean {
   if (formValues && formValues[0] && formValues[1] && formValues[2]) {
     const landName = formValues[0] as string;
     const landStartPos = formValues[1] as string;
@@ -105,61 +106,74 @@ export function openLandApplyForm(player: Player) {
   form.show(player).then((data) => {
     const { formValues, cancelationReason } = data;
     if (cancelationReason === "UserClosed") return;
+    if (formValues && formValues[0] && formValues[1] && formValues[2]) {
+      const landName = formValues[0] as string;
+      const landStartPos = formValues[1] as string;
+      const landEndPos = formValues[2] as string;
 
-    if (validateForm(formValues, player)) {
-      const landName = formValues?.[0] as string;
-      const landStartPos = formValues?.[1] as string;
-      const landEndPos = formValues?.[2] as string;
-      const landStartPosVector3 = land.createVector3(landStartPos);
-      const landEndPosVector3 = land.createVector3(landEndPos);
+      if (validateForm(formValues, player)) {
+        const landStartPosVector3 = land.createVector3(landStartPos);
+        const landEndPosVector3 = land.createVector3(landEndPos);
 
-      const landData: ILand = {
-        name: landName,
-        owner: player.name,
-        dimension: player.dimension.id as MinecraftDimensionTypes,
-        members: [player.name],
-        public_auth: {
-          break: false,
-          place: false,
-          useBlock: false,
-          isChestOpen: false,
-          useEntity: false,
-          useButton: false,
-          explode: false,
-          burn: false,
-        },
-        config_public_auth: {
-          break: false,
-          place: false,
-          useBlock: false,
-          isChestOpen: false,
-          useEntity: false,
-          useButton: false,
-          explode: false,
-          burn: false,
-        },
-        vectors: {
-          start: landStartPosVector3 as Vector3,
-          end: landEndPosVector3 as Vector3,
-        },
-      };
-
-      const res = land.addLand(landData, player);
-      if (typeof res === "string") {
-        openDialogForm(
-          player,
-          {
-            title: "领地创建错误",
-            desc: color.red(res),
+        const landData: ILand = {
+          name: landName,
+          owner: player.name,
+          dimension: player.dimension.id as MinecraftDimensionTypes,
+          members: [player.name],
+          public_auth: {
+            break: false,
+            place: false,
+            useBlock: false,
+            isChestOpen: false,
+            useEntity: false,
+            useButton: false,
+            explode: false,
+            burn: false,
           },
-          () => {
-            openLandApplyForm(player);
-          }
-        );
-      } else {
-        player.sendMessage(color.yellow(`领地 ${landName} 创建成功！`));
-        landAreas.delete(player.name);
+          config_public_auth: {
+            break: false,
+            place: false,
+            useBlock: false,
+            isChestOpen: false,
+            useEntity: false,
+            useButton: false,
+            explode: false,
+            burn: false,
+          },
+          vectors: {
+            start: landStartPosVector3 as Vector3,
+            end: landEndPosVector3 as Vector3,
+          },
+        };
+
+        const res = land.addLand(landData, player);
+        if (typeof res === "string") {
+          openDialogForm(
+            player,
+            {
+              title: "领地创建错误",
+              desc: color.red(res),
+            },
+            () => {
+              openLandApplyForm(player);
+            }
+          );
+        } else {
+          player.sendMessage(color.yellow(`领地 ${landName} 创建成功！`));
+          landAreas.delete(player.name);
+        }
       }
+    } else {
+      openDialogForm(
+        player,
+        {
+          title: "领地创建错误",
+          desc: color.red("表单未填写完整，请重新填写！"),
+        },
+        () => {
+          openLandApplyForm(player);
+        }
+      );
     }
   });
 }
@@ -171,14 +185,38 @@ export function openLandAuthForm(player: Player, myLand: ILand) {
   const _myLand = land.db.get(myLand.name);
 
   form.title("领地公开权限");
-  form.toggle(color.white("破坏权限"), _myLand.public_auth.break);
-  form.toggle(color.white("放置权限"), _myLand.public_auth.place);
-  form.toggle(color.white("使用功能性方块权限"), _myLand.public_auth.useBlock);
-  form.toggle(color.white("箱子是否公开"), _myLand.public_auth.isChestOpen);
-  form.toggle(color.white("按钮是否公开"), _myLand.public_auth.useButton ?? false);
-  form.toggle(color.white("实体是否允许交互"), _myLand.public_auth.useEntity);
-  form.toggle(color.white("爆炸"), _myLand.public_auth.explode);
-  form.toggle(color.white("是否允许岩浆或燃烧"), _myLand.public_auth.burn);
+  form.toggle(color.white("破坏权限"), {
+    defaultValue: _myLand.public_auth.break,
+    tooltip: "是否允许玩家破坏领地内的方块",
+  });
+  form.toggle(color.white("放置权限"), {
+    defaultValue: _myLand.public_auth.place,
+    tooltip: "是否允许玩家放置领地内的方块",
+  });
+  form.toggle(color.white("使用功能性方块权限"), {
+    defaultValue: _myLand.public_auth.useBlock,
+    tooltip: "是否允许玩家使用功能性方块",
+  });
+  form.toggle(color.white("箱子是否公开"), {
+    defaultValue: _myLand.public_auth.isChestOpen,
+    tooltip: "是否允许玩家打开领地内的箱子",
+  });
+  form.toggle(color.white("按钮是否公开"), {
+    defaultValue: _myLand.public_auth.useButton ?? false,
+    tooltip: "是否允许玩家使用按钮",
+  });
+  form.toggle(color.white("实体是否允许交互"), {
+    defaultValue: _myLand.public_auth.useEntity,
+    tooltip: "是否允许玩家使用实体",
+  });
+  form.toggle(color.white("爆炸"), {
+    defaultValue: _myLand.public_auth.explode,
+    tooltip: "是否允许玩家爆炸",
+  });
+  form.toggle(color.white("是否允许岩浆或燃烧"), {
+    defaultValue: _myLand.public_auth.burn,
+    tooltip: "是否允许玩家岩浆或燃烧",
+  });
   form.submitButton("确认");
 
   form.show(player).then((data) => {
@@ -222,8 +260,14 @@ export function openLandMemberApplyForm(player: Player, _land: ILand) {
   const allPlayerNames = allPlayer.map((player) => player.name);
   form.title("领地成员申请");
 
-  form.dropdown(color.white("选择玩家"), allPlayerNames, 0);
-  form.textField(color.white("或通过玩家名称添加（二选一，优先第二个）"), color.gray("输入玩家名称"), "");
+  form.dropdown(color.white("选择玩家"), allPlayerNames, {
+    defaultValueIndex: 0,
+    tooltip: "选择要添加到领地的玩家",
+  });
+  form.textField(color.white("或通过玩家名称添加（二选一，优先第二个）"), color.gray("输入玩家名称"), {
+    defaultValue: "",
+    tooltip: "如果列表中没有您要添加的玩家，可以直接输入玩家名称",
+  });
   form.submitButton("确认");
 
   form.show(player).then((data) => {
@@ -471,14 +515,38 @@ export function openLandAuthConfigForm(player: Player, _land: ILand) {
   const form = new ModalFormData();
   form.title("领地公开权限的配置权限");
 
-  form.toggle(color.white("是否允许成员配置 破坏权限"), _land.config_public_auth.break);
-  form.toggle(color.white("是否允许成员配置 放置权限"), _land.config_public_auth.place);
-  form.toggle(color.white("使是否允许成员配置 功能性方块权限"), _land.config_public_auth.useBlock);
-  form.toggle(color.white("是否允许成员配置 箱子是否公开"), _land.config_public_auth.isChestOpen);
-  form.toggle(color.white("是否允许成员配置 按钮是否公开"), _land.config_public_auth.useButton ?? false);
-  form.toggle(color.white("是否允许成员配置 实体是否允许交互"), _land.config_public_auth.useEntity);
-  form.toggle(color.white("是否允许成员配置 爆炸"), _land.config_public_auth.explode);
-  form.toggle(color.white("是否允许成员配置 岩浆或燃烧"), _land.config_public_auth.burn);
+  form.toggle(color.white("是否允许成员配置 破坏权限"), {
+    defaultValue: _land.config_public_auth.break,
+    tooltip: "设置是否允许成员修改领地内的破坏权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 放置权限"), {
+    defaultValue: _land.config_public_auth.place,
+    tooltip: "设置是否允许成员修改领地内的方块放置权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 功能性方块权限"), {
+    defaultValue: _land.config_public_auth.useBlock,
+    tooltip: "设置是否允许成员修改领地内的功能性方块使用权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 箱子是否公开"), {
+    defaultValue: _land.config_public_auth.isChestOpen,
+    tooltip: "设置是否允许成员修改领地内的箱子访问权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 按钮是否公开"), {
+    defaultValue: _land.config_public_auth.useButton ?? false,
+    tooltip: "设置是否允许成员修改领地内的按钮使用权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 实体是否允许交互"), {
+    defaultValue: _land.config_public_auth.useEntity,
+    tooltip: "设置是否允许成员修改领地内的实体交互权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 爆炸"), {
+    defaultValue: _land.config_public_auth.explode,
+    tooltip: "设置是否允许成员修改领地内的爆炸保护设置",
+  });
+  form.toggle(color.white("是否允许成员配置 岩浆或燃烧"), {
+    defaultValue: _land.config_public_auth.burn,
+    tooltip: "设置是否允许成员修改领地内的燃烧保护设置",
+  });
   form.submitButton("确认");
 
   form.show(player).then((data) => {

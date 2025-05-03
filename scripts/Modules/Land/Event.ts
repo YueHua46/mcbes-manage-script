@@ -1,6 +1,6 @@
 import { color } from "../../utils/color";
 import { world, system, Entity, Player, BlockComponent, BlockVolume, System, EquipmentSlot } from "@minecraft/server";
-import { debounce, SystemLog } from "../../utils/utils";
+import { debounce, isAdmin, SystemLog } from "../../utils/utils";
 import particle from "../Particle";
 import land, { ILand } from "./Land";
 import { useNotify } from "../../hooks/hooks";
@@ -140,7 +140,7 @@ world.beforeEvents.playerPlaceBlock.subscribe((event) => {
   const { isInside, insideLand } = land.testLand(block.location, block.dimension.id);
   if (!isInside || !insideLand) return;
   if (insideLand.owner === player.name) return;
-  if (player.hasTag("admin") || player.isOp()) return;
+  if (isAdmin(player)) return;
   if (insideLand.members.includes(player.name)) return;
   if (insideLand.public_auth.place) return;
   event.cancel = true;
@@ -157,7 +157,7 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
   const { isInside, insideLand } = land.testLand(block.location, block.dimension.id);
   if (!isInside || !insideLand) return;
   if (insideLand.owner === player.name) return;
-  if (player.hasTag("admin") || player.isOp()) return;
+  if (isAdmin(player)) return;
   if (insideLand.members.includes(player.name)) return;
   // 交互方块为箱子时判断权限是否开放
   const chests = [
@@ -254,7 +254,7 @@ world.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { isInside, insideLand } = land.testLand(block.location, block.dimension.id);
   if (!isInside || !insideLand) return;
   if (insideLand.owner === player.name) return;
-  if (player.hasTag("admin") || player.isOp()) return;
+  if (isAdmin(player)) return;
   if (insideLand.public_auth.break) return;
   if (insideLand.members.includes(player.name)) return;
   event.cancel = true;
@@ -271,7 +271,7 @@ world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
   const { isInside, insideLand } = land.testLand(target.location, target.dimension.id);
   if (!isInside || !insideLand) return;
   if (insideLand.owner === player.name) return;
-  if (player.hasTag("admin") || player.isOp()) return;
+  if (isAdmin(player)) return;
   if (insideLand.public_auth.useEntity) return;
   if (insideLand.members.includes(player.name)) return;
 
@@ -337,7 +337,7 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
   );
   if (!isInside || !insideLand) return;
   if (insideLand.owner === player.name) return;
-  if (player.hasTag("admin") || player.isOp()) return;
+  if (isAdmin(player)) return;
   if (insideLand.public_auth.break) return;
   if (insideLand.members.includes(player.name)) return;
   if (banItems.includes(itemStack?.typeId ?? "")) {

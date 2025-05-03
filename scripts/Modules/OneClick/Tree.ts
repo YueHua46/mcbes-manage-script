@@ -17,7 +17,7 @@ import { splitGroups, getRadiusRange, calcGameTicks } from "@mcbe-mods/utils";
 import setting from "../System/Setting";
 
 function isSurvivalPlayer(dimension: Dimension, player: Player) {
-  return dimension.getPlayers({ gameMode: GameMode.survival }).some((p) => p.name === player.name);
+  return dimension.getPlayers({ gameMode: GameMode.Survival }).some((p) => p.name === player.name);
 }
 
 const isStrippedLog = (typeId: string) => typeId.includes("stripped_");

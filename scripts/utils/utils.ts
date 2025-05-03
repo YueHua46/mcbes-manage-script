@@ -1,10 +1,12 @@
 import {
+  CommandPermissionLevel,
   EnchantmentType,
   ItemComponentTypes,
   ItemDurabilityComponent,
   ItemLockMode,
   ItemStack,
   Player,
+  PlayerPermissionLevel,
   system,
   world,
 } from "@minecraft/server";
@@ -55,8 +57,16 @@ export function getDiamensionName(dimention: string) {
 }
 
 // 判断用户是否为管理员
-export function isAdmin(player: Player) {
-  return player.isOp() || player.hasTag("admin");
+export function isAdmin(player: Player): boolean {
+  if (
+    player.playerPermissionLevel === PlayerPermissionLevel.Operator ||
+    player.commandPermissionLevel === CommandPermissionLevel.Admin ||
+    player.hasTag("admin")
+  ) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 export function toNumber(str: string) {

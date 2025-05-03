@@ -278,7 +278,10 @@ export function openMuteChatForm(player: Player) {
     player.setDynamicProperty("Chat", true);
   }
   const _isOpenChat = JSON.parse(player.getDynamicProperty("Chat") as string) as boolean;
-  form.toggle("§w是否开启聊天栏", _isOpenChat);
+  form.toggle("§w是否开启聊天栏", {
+    defaultValue: _isOpenChat,
+    tooltip: `§a当前状态: ${_isOpenChat ? "§a开启" : "§c关闭"}`,
+  });
   form.submitButton("§w确认");
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;

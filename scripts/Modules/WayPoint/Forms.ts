@@ -110,8 +110,14 @@ export const openWayPointUpdateForm = (
   const form = new ModalFormData();
 
   form.title("编辑坐标点");
-  form.textField("坐标点名称", "请输入坐标点名称（不允许重复）", pointName);
-  form.toggle("是否更新坐标为当前坐标", false);
+  form.textField("坐标点名称", "请输入坐标点名称（不允许重复）", {
+    defaultValue: pointName,
+    tooltip: "请输入坐标点名称（不允许重复）",
+  });
+  form.toggle("是否更新坐标为当前坐标", {
+    defaultValue: false,
+    tooltip: "是否更新坐标为当前坐标",
+  });
   form.submitButton("确定");
 
   form.show(player).then((data) => {

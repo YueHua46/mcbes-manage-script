@@ -1,7 +1,7 @@
 import { ActionFormData } from "@minecraft/server-ui";
 import { typeIdToID, typeIdToDataId } from "./typeIds";
 import { BlockTypes, ItemStack, ItemTypes, Player, RawMessage, system, world } from "@minecraft/server";
-import Config from "./Configuration";
+import config from "./Configuration";
 import { TextureList } from "./textureList";
 import Setting from "./Setting";
 
@@ -28,6 +28,30 @@ import Setting from "./Setting";
 //   number_of_1_16_100_items += MCEItems.length;
 // });
 
+system.run(() => {
+  // 自动生成 custom_content：筛选所有非原版、非方块、非生成蛋、无旧版/新版映射的自定义物品
+  const custom_content = {};
+  const allItems = ItemTypes.getAll(); // 获取所有注册物品 ([learn.microsoft.com](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/itemtypes?view=minecraft-bedrock-stable&utm_source=chatgpt.com))
+  const customCandidates = allItems.filter((item) => {
+    if (item.id.startsWith("minecraft:")) return false; // 排除原版 ([jaylydev.github.io](https://jaylydev.github.io/scriptapi-docs/latest/classes/_minecraft_server.ItemTypes-1.html?utm_source=chatgpt.com))
+    if (BlockTypes.get(item.id)) return false; // 排除方块 ([learn.microsoft.com](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/blocktypes?view=minecraft-bedrock-stable&utm_source=chatgpt.com))
+    if (item.id.endsWith("_spawn_egg")) return false; // 排除生成蛋
+    // 排除在映射表中的旧版 ID 与新版 DataId
+    return typeIdToDataId.get(item.id) === undefined && typeIdToID.get(item.id) === undefined;
+  });
+  for (const item of customCandidates) {
+    (custom_content as { [key: string]: { texture: string; type: string } })[item.id] = {
+      texture: `textures/items/${item.id.split(":")[1]}`,
+      type: "item",
+    };
+  }
+  const number_of_custom_items = customCandidates.length;
+  const custom_content_keys = new Set(Object.keys(custom_content));
+  config.set("custom_content", custom_content);
+  config.set("number_of_custom_items", number_of_custom_items);
+  config.set("custom_content_keys", custom_content_keys);
+});
+
 /**
  *将库存插槽打开/关闭的逻辑。如果您在RP/ui/_global_variables.json side中使用了禁用的库存，则仅将其设置为false！
  *禁用此功能也可能会减少打开滞后的形式。
@@ -38,27 +62,27 @@ const inventory_enabled = true;
  *您可以引用一个原版纹理图标，该图标与其他项目相同。
  *...或引用纹理路径，它可以消除附魔的闪烁和3D块渲染能力。
  */
-const custom_content = {
-  "yuehua:sm": {
-    texture: "textures/items/sm",
-    type: "item",
-  },
-  "pao:claimblock1": {
-    texture: "pao:claimblock1",
-    type: "item",
-  },
-  "pao:claimblock10": {
-    texture: "pao:claimblock10",
-    type: "item",
-  },
-  "pao:claimblock100": {
-    texture: "pao:claimblock100",
-    type: "item",
-  },
-};
+// const custom_content = {
+//   "yuehua:sm": {
+//     texture: "textures/items/sm",
+//     type: "item",
+//   },
+//   "pao:claimblock1": {
+//     texture: "pao:claimblock1",
+//     type: "item",
+//   },
+//   "pao:claimblock10": {
+//     texture: "pao:claimblock10",
+//     type: "item",
+//   },
+//   "pao:claimblock100": {
+//     texture: "pao:claimblock100",
+//     type: "item",
+//   },
+// };
 //块被排除在计数之外，因为它们不会移动原版ID。
-const number_of_custom_items = Object.values(custom_content).filter((v) => v.type === "item").length;
-const custom_content_keys = new Set(Object.keys(custom_content));
+// const number_of_custom_items = Object.values(custom_content).filter((v) => v.type === "item").length;
+// const custom_content_keys = new Set(Object.keys(custom_content));
 const sizes = new Map([
   ["single", [`§c§h§e§s§t§s§m§a§l§l§r`, 27]],
   ["double", [`§c§h§e§s§t§l§a§r§g§e§r`, 54]],
@@ -113,34 +137,6 @@ export default class ChestFormData {
    * @param enchanted 是否有附魔效果
    * @returns 当前ChestFormData实例，用于链式调用
    */
-  // button(
-  //   slot: number,
-  //   itemName?: string,
-  //   itemDesc?: string[],
-  //   texture?: string,
-  //   stackSize: number = 1,
-  //   enchanted: boolean = false
-  // ): ChestFormData {
-  //   // 获取自定义物品数量，用于ID计算
-  //   const numberCustomItems = Setting.get("NumberOf_1_16_100_Items") ?? number_of_1_16_100_items;
-  //   // 获取物品ID
-  //   const ID = typeIdToDataId.get(texture || "") ?? typeIdToID.get(texture || "");
-
-  //   // 设置按钮数据
-  //   this.#buttonArray.splice(slot, 1, [
-  //     // 格式化按钮文本，包含堆叠数量、物品名称和描述
-  //     `stack#${Math.min(Math.max(stackSize, 1) || 1, 99)
-  //       .toString()
-  //       .padStart(2, "0")}§r${itemName ?? ""}§r${itemDesc?.length ? `\n§r${itemDesc.join("\n§r")}` : ""}`,
-  //     // 计算物品ID或使用纹理路径
-  //     ID !== undefined
-  //       ? (ID + (ID < 256 ? 0 : numberCustomItems)) * 65536 + (enchanted ? 32768 : 0)
-  //       : texture
-  //       ? TextureList[texture] ?? texture
-  //       : undefined,
-  //   ]);
-  //   return this;
-  // }
 
   button(
     slot: number,
@@ -151,6 +147,10 @@ export default class ChestFormData {
     durability = 0,
     enchanted = false
   ) {
+    const custom_content = config.get("custom_content");
+    const number_of_custom_items = config.get("number_of_custom_items");
+    const custom_content_keys = config.get("custom_content_keys");
+
     const targetTexture = custom_content_keys.has(texture)
       ? (custom_content as { [key: string]: { texture: string } })[texture]?.texture
       : texture;
@@ -162,11 +162,14 @@ export default class ChestFormData {
         },
       ],
     };
+    // 添加物品名称
     if (typeof itemName === "string") {
       buttonRawtext.rawtext.push({ text: itemName ? `${itemName}§r` : "§r" });
     } else if (typeof itemName === "object" && "rawtext" in itemName) {
       buttonRawtext.rawtext.push(...(itemName as { rawtext: { text: string }[] }).rawtext, { text: "§r" });
     } else return;
+
+    // 添加物品描述（lore）
     if (Array.isArray(itemDesc) && itemDesc.length > 0) {
       for (const obj of itemDesc) {
         if (typeof obj === "string") {
@@ -176,6 +179,7 @@ export default class ChestFormData {
         }
       }
     }
+
     this.#buttonArray.splice(slot, 1, [
       buttonRawtext as RawMessage, // 直接传对象
       ID === undefined
@@ -193,6 +197,10 @@ export default class ChestFormData {
    * @returns 当前ChestFormData实例，用于链式调用
    */
   pattern(pattern: any[], key: any) {
+    const custom_content = config.get("custom_content");
+    const number_of_custom_items = config.get("number_of_custom_items");
+    const custom_content_keys = config.get("custom_content_keys");
+
     for (let i = 0; i < pattern.length; i++) {
       const row = pattern[i];
       for (let j = 0; j < row.length; j++) {
@@ -251,6 +259,10 @@ export default class ChestFormData {
   //   return form.show(player);
   // }
   show(player: Player) {
+    const custom_content = config.get("custom_content");
+    const number_of_custom_items = config.get("number_of_custom_items");
+    const custom_content_keys = config.get("custom_content_keys");
+
     const form = new ActionFormData().title(this.#titleText);
     this.#buttonArray.forEach((button) => {
       form.button(button[0], button[1]?.toString());

@@ -161,7 +161,11 @@ function openChestShopByCategoryForm(player: Player, categoryName: string, page:
 function openBuyQuantityForm(player: Player, product: IProduct, categoryName: string, page: number) {
   const form = new ModalFormData();
   form.title(`购买 ${product.name}`);
-  form.slider("购买数量", 1, product.stock, 1, 1);
+  form.slider("购买数量", 1, product.stock, {
+    defaultValue: 1,
+    tooltip: "购买数量",
+    valueStep: 1,
+  });
   form.submitButton("确认");
 
   form.show(player).then((data) => {

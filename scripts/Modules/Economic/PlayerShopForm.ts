@@ -122,12 +122,23 @@ export function openPersonalItemListForm(player: Player) {
 function openListItemConfirmForm(player: Player, item: ItemStack, slot: number) {
   const form = new ModalFormData();
   form.title("上架物品确认");
-
-  const itemName = item.typeId.split(":")[1] || item.typeId;
-  form.textField(color.white("物品名称"), color.gray("物品显示名称"), itemName);
-  form.textField(color.white("价格"), color.gray("请输入物品价格"), "1");
-  form.textField(color.white("数量"), color.gray("请输入上架数量(最大" + item.amount + ")"), item.amount.toString());
-  form.textField(color.white("描述"), color.gray("物品描述(可选)"), "");
+  const localKey = item.localizationKey;
+  form.textField(color.white("物品名称"), color.gray("物品显示名称"), {
+    defaultValue: item.nameTag || "",
+    tooltip: "给商品起一个吸引人的名称",
+  });
+  form.textField(color.white("价格"), color.gray("请输入物品价格"), {
+    defaultValue: "1",
+    tooltip: "设置合理的价格可以更快售出商品",
+  });
+  form.textField(color.white("数量"), color.gray("请输入上架数量(最大" + item.amount + ")"), {
+    defaultValue: item.amount.toString(),
+    tooltip: "你最多可以上架 " + item.amount + " 个该物品",
+  });
+  form.textField(color.white("描述"), color.gray("物品描述(可选)"), {
+    defaultValue: "",
+    tooltip: "添加描述可以让买家更了解你的商品",
+  });
   form.submitButton("确认上架");
 
   form.show(player).then((data) => {
@@ -277,7 +288,7 @@ function openUnlistItemConfirmForm(player: Player, item: IShopItem, returnCallba
       `${color.yellow("物品名称:")} ${color.green(item.displayName)}\n` +
       `${color.yellow("价格:")} ${color.green(item.price + "")}\n` +
       `${color.yellow("数量:")} ${color.green(item.amount + "")}\n` +
-      `${color.yellow("描述:")} ${color.green(item.description || "无")}\n\n`
+      `${color.yellow("描述:")} ${color.green((item.description || "无") as string)}\n\n`
   );
   form.button("§w确认下架", "textures/icons/accept");
   form.button("§w取消", "textures/icons/deny");
@@ -389,7 +400,7 @@ function openBuyItemConfirmForm(player: Player, item: IShopItem, returnCallback:
       `${color.yellow("数量:")} ${color.green(item.amount + "")}\n` +
       `${color.yellow("卖家:")} ${color.green(item.seller)}\n` +
       `${color.yellow("上架时间:")} ${color.green(item.listTime)}\n` +
-      `${color.yellow("描述:")} ${color.green(item.description || "无")}\n\n`
+      `${color.yellow("描述:")} ${color.green((item.description || "无") as string)}\n\n`
   );
   form.button("§w确认购买", "textures/icons/accept");
   form.button("§w取消", "textures/icons/deny");

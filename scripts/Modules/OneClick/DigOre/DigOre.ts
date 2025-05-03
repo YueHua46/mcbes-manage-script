@@ -20,7 +20,7 @@ import pickaxe_level from "./PickaxeLevel";
 import ore_map from "./Ore_Map";
 
 const isSurvivalPlayer = (dimension: Dimension, player: Player) =>
-  dimension.getPlayers({ gameMode: GameMode.survival }).some((p) => p.name === player.name);
+  dimension.getPlayers({ gameMode: GameMode.Survival }).some((p) => p.name === player.name);
 
 world.afterEvents.playerBreakBlock.subscribe(async (e) => {
   if (!setting.getState("enableDigOreOneClick")) return;
@@ -145,7 +145,7 @@ async function digOre(player: Player, dimension: Dimension, location: Vector3, b
 
       // spawn experience orbs
       for (let i = 0; i < oreMap.xp; i++) {
-        dimension.spawnEntity("xp_orb", player.location);
+        dimension.spawnEntity("minecraft:xp_orb", player.location);
       }
 
       // Generate aggregated drops based on the number of item drops to reduce the number of physical drops in the game

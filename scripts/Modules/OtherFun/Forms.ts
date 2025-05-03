@@ -111,7 +111,10 @@ export const openPrefixForm = (player: Player) => {
   const form = new ModalFormData();
 
   form.title("§w修改名称前缀");
-  form.dropdown("§w选择名称前缀", ["", "", "", ""], 0);
+  form.dropdown("§w选择名称前缀", ["", "", "", ""], {
+    defaultValueIndex: 0,
+    tooltip: "选择名称前缀",
+  });
   form.submitButton("§w确认");
 
   form.show(player).then((data) => {
@@ -225,8 +228,14 @@ export const openLeaveMessageListForm = (player: Player, page: number = 1) => {
 export const openAddLeaveMessageForm = (player: Player) => {
   const form = new ModalFormData();
   form.title("§w添加留言");
-  form.textField("标题", "", "");
-  form.textField("内容", "", "");
+  form.textField("标题", "", {
+    defaultValue: "",
+    tooltip: "请输入标题",
+  });
+  form.textField("内容", "", {
+    defaultValue: "",
+    tooltip: "请输入内容",
+  });
   form.submitButton("§w确定");
   form.show(player).then((data) => {
     if (data.cancelationReason) return;

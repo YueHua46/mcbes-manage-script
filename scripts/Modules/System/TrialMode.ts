@@ -1,6 +1,7 @@
 import { GameMode, Player, system, world } from "@minecraft/server";
 import setting, { defaultSetting } from "./Setting";
 import { color } from "../../utils/color";
+import { isAdmin } from "../../utils/utils";
 
 const playerTimerIds = new Map<string, number>();
 
@@ -16,7 +17,7 @@ function initPlayerTimer(player: Player) {
   }
 
   // 如果玩家是管理员，或是正式会员，则跳过
-  if (player.isOp() || player.hasTag("admin") || player.hasTag("vip")) {
+  if (isAdmin(player) || player.hasTag("vip")) {
     return;
   }
 
@@ -27,7 +28,7 @@ function initPlayerTimer(player: Player) {
         "如需继续游玩，请联系管理员申请正式会员！"
       )}`
     );
-    player.setGameMode(GameMode.adventure);
+    player.setGameMode(GameMode.Adventure);
     return;
   }
 
@@ -60,7 +61,7 @@ function initPlayerTimer(player: Player) {
         )}`
       );
       // 设置为冒险模式
-      player.setGameMode(GameMode.adventure);
+      player.setGameMode(GameMode.Adventure);
       // 取消计时
       system.clearRun(timerId);
       playerTimerIds.delete(player.name);

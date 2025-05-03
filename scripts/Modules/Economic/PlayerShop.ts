@@ -13,7 +13,7 @@ export interface IShopItem {
   displayName: string;
   price: number;
   amount: number;
-  description?: string;
+  description?: string | string[];
   seller: string;
   listTime: string;
 }
