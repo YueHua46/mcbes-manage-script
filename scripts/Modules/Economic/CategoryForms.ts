@@ -2,284 +2,14 @@ import { Player } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../utils/color";
 import { openDialogForm, openConfirmDialogForm } from "../Forms/Dialog";
-import productCategory from "./ProcuctCategory";
+import productCategory, { IProduct } from "./ProcuctCategory";
 import { openEconomyMenuForm } from "./Forms";
-
-// 商品类别管理主菜单
-export function openCategoryManageForm(player: Player) {
-  const form = new ActionFormData();
-  form.title("§w商品类别管理");
-
-  const buttons = [
-    {
-      text: "§w查看所有商品类别",
-      icon: "textures/ui/icon_recipe_item",
-      action: () => openCategoryListForm(player),
-    },
-    {
-      text: "§w添加商品类别",
-      icon: "textures/icons/add",
-      action: () => openAddCategoryForm(player),
-    },
-    {
-      text: "§w删除商品类别",
-      icon: "textures/ui/icon_recipe_item",
-      action: () => openDeleteCategoryForm(player),
-    },
-    {
-      text: "§w返回",
-      icon: "textures/icons/back",
-      action: () => openEconomyMenuForm(player),
-    },
-  ];
-
-  buttons.forEach(({ text, icon }) => form.button(text, icon));
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
-    if (typeof data.selection === "number") {
-      buttons[data.selection].action();
-    }
-  });
-}
-
-// 添加商品类别表单
-function openAddCategoryForm(player: Player) {
-  const form = new ModalFormData();
-  form.title("§w添加商品类别");
-
-  form.textField("§类别名称", "请输入类别名称(如: 食物、武器、材料)", "");
-  form.textField("§w类别描述", "请输入类别描述", "");
-  form.textField("§w类别对应的图标", "（可选）请输入类别显示物品图标，格式类似：minecraft:diamond_ore", "");
-
-  form.submitButton("§w确认添加");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
-
-    const { formValues } = data;
-    if (formValues?.[0] && formValues?.[1]) {
-      const result = productCategory.createCategory({
-        name: formValues[0].toString(),
-        description: formValues[1]?.toString(),
-        icon: formValues[2].toString() || productCategory.defaultIcon,
-        createdBy: player.name,
-      });
-
-      if (typeof result === "string") {
-        openDialogForm(
-          player,
-          {
-            title: "添加失败",
-            desc: color.red(result),
-          },
-          () => openAddCategoryForm(player)
-        );
-      } else {
-        openDialogForm(
-          player,
-          {
-            title: "添加成功",
-            desc: color.green("商品类别添加成功！"),
-          },
-          () => openCategoryManageForm(player)
-        );
-      }
-    } else {
-      openDialogForm(
-        player,
-        {
-          title: "添加失败",
-          desc: color.red("类别名称和描述不能为空！"),
-        },
-        () => openAddCategoryForm(player)
-      );
-    }
-  });
-}
-
-// 删除商品类别表单
-function openDeleteCategoryForm(player: Player) {
-  const form = new ActionFormData();
-  form.title("§w删除商品类别");
-
-  const categories = productCategory.getCategories();
-  categories.forEach((category) => {
-    form.button(`§w${category.name}\n§7${category.description || "无描述"}`, category.icon);
-  });
-
-  form.button("§w返回", "textures/icons/back");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
-
-    const selectionIndex = data.selection;
-    if (selectionIndex === undefined) return;
-
-    const category = categories[selectionIndex];
-    if (category) {
-      openConfirmDialogForm(
-        player,
-        "删除确认",
-        `${color.red(`确定要删除商品类别 ${color.green(category.name)} ${color.red("吗？")}`)}`,
-        () => {
-          const result = productCategory.deleteCategory(category.name);
-          if (typeof result === "string") {
-            openDialogForm(
-              player,
-              {
-                title: "删除失败",
-                desc: color.red(result),
-              },
-              () => openDeleteCategoryForm(player)
-            );
-          }
-        }
-      );
-    }
-  });
-}
-
-// 商品类别详情表单
-function openCategoryDetailForm(player: Player, categoryId: string) {
-  const category = productCategory.getCategory(categoryId);
-  if (!category) {
-    return openDialogForm(
-      player,
-      {
-        title: "错误",
-        desc: color.red("商品类别不存在！"),
-      },
-      () => openCategoryListForm(player)
-    );
-  }
-
-  const form = new ActionFormData();
-  form.title("§w商品类别详情");
-
-  form.body(
-    `§a类别名称: §e${category.name}\n` +
-      `§a类别描述: §e${category.description || "无"}\n` +
-      `§a创建时间: §e${category.created}\n` +
-      `§a修改时间: §e${category.modified}\n` +
-      `§a创建者: §e${category.createdBy || "未知"}`
-  );
-
-  form.button("§w编辑", "textures/icons/edit2");
-  form.button("§w删除", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
-
-    switch (data.selection) {
-      case 0:
-        openEditCategoryForm(player, categoryId);
-        break;
-      case 1:
-        openConfirmDialogForm(
-          player,
-          "删除确认",
-          `${color.red("确定要删除商品类别")} ${color.green(category.name)} ${color.red("吗？")}`,
-          () => {
-            const result = productCategory.deleteCategory(categoryId);
-            if (typeof result === "string") {
-              openDialogForm(
-                player,
-                {
-                  title: "删除失败",
-                  desc: color.red(result),
-                },
-                () => openCategoryDetailForm(player, categoryId)
-              );
-            } else {
-              openDialogForm(
-                player,
-                {
-                  title: "删除成功",
-                  desc: color.green("商品类别删除成功！"),
-                },
-                () => openCategoryListForm(player)
-              );
-            }
-          }
-        );
-        break;
-      case 2:
-        openCategoryListForm(player);
-        break;
-    }
-  });
-}
-
-// 编辑商品类别表单
-function openEditCategoryForm(player: Player, categoryId: string) {
-  const category = productCategory.getCategory(categoryId);
-  if (!category) {
-    return openDialogForm(
-      player,
-      {
-        title: "错误",
-        desc: color.red("商品类别不存在！"),
-      },
-      () => openCategoryListForm(player)
-    );
-  }
-
-  const form = new ModalFormData();
-  form.title("§w编辑商品类别");
-
-  form.textField("§w类别名称", "请输入类别名称", category.name);
-  form.textField("§w类别描述", "请输入类别描述", category.description || "");
-  form.textField("§w类别图标", "请输入类别图标路径", category.icon || productCategory.defaultIcon);
-
-  form.submitButton("§w确认修改");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
-
-    const { formValues } = data;
-    if (formValues?.[0]) {
-      const result = productCategory.updateCategory({
-        name: categoryId,
-        description: formValues[1]?.toString(),
-        icon: formValues[2]?.toString() || productCategory.defaultIcon,
-      });
-
-      if (typeof result === "string") {
-        openDialogForm(
-          player,
-          {
-            title: "修改失败",
-            desc: color.red(result),
-          },
-          () => openEditCategoryForm(player, categoryId)
-        );
-      } else {
-        openDialogForm(
-          player,
-          {
-            title: "修改成功",
-            desc: color.green("商品类别修改成功！"),
-          },
-          () => openCategoryDetailForm(player, categoryId)
-        );
-      }
-    } else {
-      openDialogForm(
-        player,
-        {
-          title: "修改失败",
-          desc: color.red("类别名称不能为空！"),
-        },
-        () => openEditCategoryForm(player, categoryId)
-      );
-    }
-  });
-}
+import ChestFormData from "../ChestUI/ChestForms";
+import enconomic from "./Economic";
+import { emojiKeyToEmojiPath } from "../../utils/utils";
 
 // 打开商品类别列表表单
-function openCategoryListForm(player: Player, page: number = 1) {
+export function openCategoryListForm(player: Player, page: number = 1) {
   const form = new ActionFormData();
   form.title("§w商品类别列表");
 
@@ -299,7 +29,7 @@ function openCategoryListForm(player: Player, page: number = 1) {
   currentPageCategories.forEach((category) => {
     form.button(
       `§w${category.name}\n§7${category.description || "无描述"}`,
-      category.icon || "textures/ui/icon_recipe_item"
+      emojiKeyToEmojiPath(category.icon as string) || emojiKeyToEmojiPath(productCategory.defaultIcon)
     );
   });
 
@@ -307,13 +37,13 @@ function openCategoryListForm(player: Player, page: number = 1) {
   let nextButtonIndex = currentPageCategories.length;
 
   if (page > 1) {
-    form.button("§w上一页", "textures/ui/arrow_left");
+    form.button("§w上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
 
   if (page < totalPages) {
-    form.button("§w下一页", "textures/ui/arrow_right");
+    form.button("§w下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 
@@ -327,7 +57,7 @@ function openCategoryListForm(player: Player, page: number = 1) {
 
     if (selectionIndex < currentPageCategories.length) {
       // 选择了某个类别
-      openCategoryDetailForm(player, currentPageCategories[selectionIndex].name);
+      openChestShopByCategoryForm(player, currentPageCategories[selectionIndex].name);
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
       // 上一页
       openCategoryListForm(player, page - 1);
@@ -336,10 +66,225 @@ function openCategoryListForm(player: Player, page: number = 1) {
       openCategoryListForm(player, page + 1);
     } else {
       // 返回
-      openCategoryManageForm(player);
+      openEconomyMenuForm(player);
     }
   });
 }
 
-// 导出所有表单函数
-export { openCategoryListForm, openAddCategoryForm };
+// 打开对应商品类别的所有物品的ChestUI表单
+function openChestShopByCategoryForm(player: Player, categoryName: string, page: number = 1) {
+  const category = productCategory.getCategory(categoryName);
+  if (!category) {
+    return openDialogForm(
+      player,
+      {
+        title: "打开失败",
+        desc: color.red(`§c商品类别 ${categoryName} 不存在！`),
+      },
+      () => openCategoryListForm(player)
+    );
+  }
+
+  // 获取该类别下的所有商品
+  const products = productCategory.getProductsByCategory(categoryName);
+
+  if (!products || products.length === 0) {
+    return openDialogForm(
+      player,
+      {
+        title: "打开失败",
+        desc: color.red(
+          `§c类别 ${color.yellow(categoryName)} ${color.red("下不存在任何商品！请联系管理员添加商品。")}`
+        ),
+      },
+      () => openCategoryListForm(player)
+    );
+  }
+
+  // 计算分页
+  const itemsPerPage = 45; // 箱子UI每页最多显示45个物品
+  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const startIndex = (page - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, products.length);
+  const currentPageProducts = products.slice(startIndex, endIndex);
+
+  const chestForm = new ChestFormData("shop");
+  chestForm.title(`${category.name} - 商品列表 (第${page}/${totalPages}页)`);
+
+  // 添加商品到ChestUI
+  for (let i = 0; i < currentPageProducts.length; i++) {
+    const product = currentPageProducts[i];
+    chestForm.button(i, product.name, [`价格: ${product.price} 金币/个`, "点击购买"], product.itemId, 1);
+  }
+
+  // 添加导航按钮
+  if (page > 1) {
+    chestForm.button(45, "上一页", ["查看上一页商品"], "textures/icons/left_arrow", 1);
+  }
+
+  chestForm.button(49, "返回", ["返回类别列表"], "textures/icons/back", 1);
+
+  if (page < totalPages) {
+    chestForm.button(53, "下一页", ["查看下一页商品"], "textures/icons/right_arrow", 1);
+  }
+
+  // 显示ChestUI并处理购买逻辑
+  chestForm.show(player).then((response) => {
+    if (response.canceled) {
+      openCategoryListForm(player);
+      return;
+    }
+
+    const selection = response.selection;
+
+    // 处理导航按钮
+    if (selection === 45 && page > 1) {
+      // 上一页
+      return openChestShopByCategoryForm(player, categoryName, page - 1);
+    } else if (selection === 49) {
+      // 返回
+      return openCategoryListForm(player);
+    } else if (selection === 53 && page < totalPages) {
+      // 下一页
+      return openChestShopByCategoryForm(player, categoryName, page + 1);
+    }
+
+    // 处理商品购买
+    if (selection !== undefined && selection < currentPageProducts.length) {
+      const selectedProduct = currentPageProducts[selection];
+      openBuyQuantityForm(player, selectedProduct, categoryName, page);
+    }
+  });
+}
+
+// 打开购买数量选择表单
+function openBuyQuantityForm(player: Player, product: IProduct, categoryName: string, page: number) {
+  const form = new ModalFormData();
+  form.title(`购买 ${product.name}`);
+  form.slider("购买数量", 1, product.stock, 1, 1);
+  form.submitButton("确认");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return openChestShopByCategoryForm(player, categoryName, page);
+
+    const { formValues } = data;
+    if (formValues) {
+      const quantity = formValues[0] as number;
+      const totalPrice = product.price * quantity;
+
+      // 显示确认购买表单
+      openConfirmPurchaseForm(player, product, quantity, totalPrice, categoryName, page);
+    }
+  });
+}
+
+// 打开确认购买表单
+function openConfirmPurchaseForm(
+  player: Player,
+  product: any,
+  quantity: number,
+  totalPrice: number,
+  categoryName: string,
+  page: number
+) {
+  const form = new ActionFormData();
+  form.title("确认购买");
+  form.body(`您确定要购买 ${quantity} 个 ${product.name} 吗？\n\n总价: ${totalPrice} 金币`);
+  form.button("确认购买", "textures/ui/confirm");
+  form.button("取消", "textures/ui/cancel");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return openChestShopByCategoryForm(player, categoryName, page);
+
+    if (data.selection === 0) {
+      // 确认购买
+      processPurchase(player, product, quantity, totalPrice, categoryName, page);
+    } else {
+      // 取消购买
+      openChestShopByCategoryForm(player, categoryName, page);
+    }
+  });
+}
+
+// 处理购买逻辑
+function processPurchase(
+  player: Player,
+  product: any,
+  quantity: number,
+  totalPrice: number,
+  categoryName: string,
+  page: number
+) {
+  // 检查玩家余额
+  const wallet = enconomic.getWallet(player.name);
+  if (wallet.gold < totalPrice) {
+    openDialogForm(
+      player,
+      {
+        title: "购买失败",
+        desc: color.red(`余额不足！需要 ${totalPrice} 金币，但你只有 ${wallet.gold} 金币。`),
+      },
+      () => openChestShopByCategoryForm(player, categoryName, page)
+    );
+    return;
+  }
+
+  // 检查商品库存
+  if (product.stock !== undefined && product.stock < quantity) {
+    openDialogForm(
+      player,
+      {
+        title: "购买失败",
+        desc: color.red(`库存不足！当前库存: ${product.stock}，您想购买: ${quantity}`),
+      },
+      () => openChestShopByCategoryForm(player, categoryName, page)
+    );
+    return;
+  }
+
+  // 扣除金币
+  const result = enconomic.transfer(player.name, "server", totalPrice, `购买商品: ${product.name} x${quantity}`);
+
+  if (result) {
+    // 给予物品
+    try {
+      player.runCommand(`give @s ${product.itemId} ${quantity}`);
+
+      // 更新库存
+      if (product.stock !== undefined) {
+        product.stock -= quantity;
+        productCategory.updateProduct(categoryName, product.name, product);
+      }
+
+      openDialogForm(
+        player,
+        {
+          title: "购买成功",
+          desc: color.green(`成功购买 ${product.name} x${quantity}，花费 ${totalPrice} 金币`),
+        },
+        () => openChestShopByCategoryForm(player, categoryName, page)
+      );
+    } catch (error) {
+      // 如果给予物品失败，退还金币
+      enconomic.transfer("server", player.name, totalPrice, `购买商品: ${product.name} 退款`);
+
+      openDialogForm(
+        player,
+        {
+          title: "购买失败",
+          desc: color.red("物品发放失败，已退款"),
+        },
+        () => openChestShopByCategoryForm(player, categoryName, page)
+      );
+    }
+  } else {
+    openDialogForm(
+      player,
+      {
+        title: "购买失败",
+        desc: color.red("交易处理失败"),
+      },
+      () => openChestShopByCategoryForm(player, categoryName, page)
+    );
+  }
+}

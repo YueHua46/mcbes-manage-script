@@ -543,12 +543,12 @@ export const openLandDetailForm = (
       },
       {
         text: "领地转让",
-        icon: "textures/ui/arrow_right",
+        icon: "textures/icons/right_arrow",
         action: () => openLandTransferForm(player, landData),
       },
       {
         text: "领地公开权限的配置权限",
-        icon: "textures/ui/arrow_right",
+        icon: "textures/icons/right_arrow",
         action: () => openLandAuthConfigForm(player, landData),
       },
       {
@@ -673,12 +673,12 @@ export function openLandListForm(player: Player, isAdmin: boolean = false, page:
     let previousButtonIndex = currentPageLands.length;
     let nextButtonIndex = currentPageLands.length;
     if (page > 1) {
-      form.button("上一页", "textures/ui/arrow_left");
+      form.button("上一页", "textures/icons/left_arrow");
       previousButtonIndex++;
       nextButtonIndex++;
     }
     if (page < totalPages) {
-      form.button("下一页", "textures/ui/arrow_right");
+      form.button("下一页", "textures/icons/right_arrow");
       nextButtonIndex++;
     }
 
@@ -718,11 +718,11 @@ function createLandManageForm() {
   const buttons = [
     {
       text: "§w领地列表",
-      icon: "textures/ui/Scaffolding",
+      icon: "textures/packs/14321662",
     },
     {
       text: "§w领地申请",
-      icon: "textures/ui/warning_sad_steve",
+      icon: "textures/packs/13305226",
     },
     {
       text: "§w返回",
@@ -792,13 +792,13 @@ export const openPlayerLandListForm = (
   let nextButtonIndex = currentPageLands.length;
 
   if (page > 1) {
-    form.button("§w上一页", "textures/ui/arrow_left");
+    form.button("§w上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
 
   if (page < totalPages) {
-    form.button("§w下一页", "textures/ui/arrow_right");
+    form.button("§w下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 
@@ -859,13 +859,13 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1) =>
   let nextButtonIndex = currentPagePlayers.length;
 
   if (page > 1) {
-    form.button("§w上一页", "textures/ui/arrow_left");
+    form.button("§w上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
 
   if (page < totalPages) {
-    form.button("§w下一页", "textures/ui/arrow_right");
+    form.button("§w下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 

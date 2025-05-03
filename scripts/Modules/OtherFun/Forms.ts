@@ -179,12 +179,12 @@ export const openLeaveMessageListForm = (player: Player, page: number = 1) => {
   let previousButtonIndex = currentPageMessages.length;
   let nextButtonIndex = currentPageMessages.length;
   if (page > 1) {
-    form.button("上一页", "textures/ui/arrow_left");
+    form.button("上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
   if (page < totalPages) {
-    form.button("下一页", "textures/ui/arrow_right");
+    form.button("下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 

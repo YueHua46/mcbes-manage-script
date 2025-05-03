@@ -23,32 +23,32 @@ const menuItems: MenuItem[] = [
   {
     id: "player",
     text: "§w玩家操作",
-    icon: "textures/icons/player_actions",
+    icon: "textures/ui/multiplayer_glyph_color",
     action: openPlayerActionForm,
   },
   {
     id: "wayPoint",
     text: "§w坐标点管理",
-    icon: "textures/icons/waypoint",
+    icon: "textures/packs/027-location",
     action: openWayPointMenuForms,
   },
   {
     id: "land",
     text: "§w领地管理",
-    icon: "textures/ui/icon_recipe_nature",
+    icon: "textures/packs/12751922",
     action: openLandManageForms,
   },
   // 添加经济系统菜单项
   {
     id: "economy",
     text: "§w经济系统",
-    icon: "textures/ui/MCoin",
+    icon: "textures/packs/15174541",
     action: openEconomyMenuForm,
   },
   {
     id: "other",
     text: "§w其他功能",
-    icon: "textures/ui/icon_blackfriday",
+    icon: "textures/packs/16329407",
     action: openBaseFunctionForm,
   },
   {
@@ -60,7 +60,7 @@ const menuItems: MenuItem[] = [
   {
     id: "sm",
     text: "§w给予我服务器菜单道具",
-    icon: "textures/items/sm",
+    icon: "textures/icons/more2",
     action: (player: Player) => player.runCommand("give @s yuehua:sm"),
   },
   {
@@ -79,7 +79,7 @@ function createServerMenuForm(player: Player): ActionFormData {
   form.title("§w服务器菜单");
   form.body({
     rawtext: [
-      { text: "§a欢迎使用服务器菜单，请选择你的操作。\n" },
+      { text: "§a欢迎使用杜绝熊孩服务器插件，请选择你的操作。\n" },
       { text: "§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ" },
     ],
   });
@@ -124,7 +124,4 @@ function openServerMenuForm(player: Player) {
   });
 }
 
-export { openServerMenuForm };
-
-// 确保导出经济系统表单函数
-export { openEconomyMenuForm };
+export { openServerMenuForm, openEconomyMenuForm };

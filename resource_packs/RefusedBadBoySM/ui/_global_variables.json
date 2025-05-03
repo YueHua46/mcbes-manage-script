@@ -1,4 +1,7 @@
 {
+  "$show_inventory": true, // Set to false if don't want to show inventory. Not recommended for low end devices.
+  "$border_and_background_texture": "textures/ui/dialog_background_opaque", // Add your own texture for background and border here. Edit `textures/ui/item_background` to change slot texture.
+
   "$generic_button_text_color": [1.0, 1.0, 1.0],
 
   "$light_button_default_text_color": [0.667, 0.667, 0.667],

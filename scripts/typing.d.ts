@@ -123,4 +123,7 @@ declare class FurnaceFormData {
    */
   show(player: Player): Promise<ActionFormResponse>;
 }
+
+export type WithExtra<T, Extra> = T & Extra;
+
 export { ChestFormData, FurnaceFormData };
