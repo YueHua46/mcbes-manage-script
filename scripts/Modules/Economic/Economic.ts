@@ -27,7 +27,7 @@ export interface ITransactionLog {
   reason: string;
 }
 
-class Economic {
+export class Economic {
   private db!: Database<IUserWallet>;
   private logDb!: Database<ITransactionLog[]>;
   private static instance: Economic;
@@ -83,7 +83,7 @@ class Economic {
     this.db.set(playerName, wallet);
 
     // 记录交易
-    this.logTransaction("system", playerName, amount, reason);
+    this.logTransaction("系统", playerName, amount, reason);
 
     return true;
   }
@@ -99,7 +99,7 @@ class Economic {
     this.db.set(playerName, wallet);
 
     // 记录交易
-    this.logTransaction(playerName, "system", amount, reason);
+    this.logTransaction(playerName, "系统", amount, reason);
 
     return true;
   }
@@ -110,11 +110,12 @@ class Economic {
   }
 
   // 转账
-  transfer(fromPlayer: string, toPlayer: string, amount: number, reason: string = "转账"): boolean {
-    if (amount <= 0 || fromPlayer === toPlayer) return false;
+  transfer(fromPlayer: string, toPlayer: string, amount: number, reason: string = "转账"): string | boolean {
+    if (amount <= 0) return "无效金额";
+    if (fromPlayer === toPlayer) return "不能给自己转账";
 
     const fromWallet = this.getWallet(fromPlayer);
-    if (fromWallet.gold < amount) return false;
+    if (fromWallet.gold < amount) return "余额不足";
 
     const toWallet = this.getWallet(toPlayer);
 

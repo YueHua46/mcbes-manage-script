@@ -140,7 +140,7 @@ export default class ChestFormData {
 
   button(
     slot: number,
-    itemName: string = "物品名称",
+    itemName: string | RawMessage = "物品名称",
     itemDesc: string[],
     texture: string,
     stackSize = 1,
@@ -155,7 +155,7 @@ export default class ChestFormData {
       ? (custom_content as { [key: string]: { texture: string } })[texture]?.texture
       : texture;
     const ID = typeIdToDataId.get(targetTexture) ?? typeIdToID.get(targetTexture);
-    let buttonRawtext = {
+    let buttonRawtext: RawMessage = {
       rawtext: [
         {
           text: `stack#${String(Math.min(Math.max(stackSize, 1), 99)).padStart(2, "0")}§r`,
@@ -164,18 +164,25 @@ export default class ChestFormData {
     };
     // 添加物品名称
     if (typeof itemName === "string") {
-      buttonRawtext.rawtext.push({ text: itemName ? `${itemName}§r` : "§r" });
-    } else if (typeof itemName === "object" && "rawtext" in itemName) {
-      buttonRawtext.rawtext.push(...(itemName as { rawtext: { text: string }[] }).rawtext, { text: "§r" });
+      buttonRawtext.rawtext!.push({ text: itemName ? `${itemName}§r` : "§r" });
+    } else if (typeof itemName === "object") {
+      if ("rawtext" in itemName) {
+        buttonRawtext.rawtext!.push(...(itemName as { rawtext: { text: string }[] }).rawtext, { text: "§r" });
+      } else if ("translate" in itemName) {
+        // 处理带有 translate 属性的 RawMessage
+        buttonRawtext.rawtext!.push({ translate: (itemName as { translate: string }).translate }, { text: "§r" });
+      } else {
+        return;
+      }
     } else return;
 
     // 添加物品描述（lore）
     if (Array.isArray(itemDesc) && itemDesc.length > 0) {
       for (const obj of itemDesc) {
         if (typeof obj === "string") {
-          buttonRawtext.rawtext.push({ text: `\n${obj}` });
+          buttonRawtext.rawtext!.push({ text: `\n${obj}` });
         } else if (typeof obj === "object" && "rawtext" in obj) {
-          buttonRawtext.rawtext.push({ text: `\n` }, ...(obj as { rawtext: { text: string }[] }).rawtext);
+          buttonRawtext.rawtext!.push({ text: `\n` }, ...(obj as { rawtext: { text: string }[] }).rawtext);
         }
       }
     }
@@ -215,20 +222,22 @@ export default class ChestFormData {
         const { stackAmount = 1, durability = 0, itemName, itemDesc, enchanted = false } = data;
         const stackSize = String(Math.min(Math.max(stackAmount, 1), 99)).padStart(2, "0");
         const durValue = String(Math.min(Math.max(durability, 0), 99)).padStart(2, "0");
-        let buttonRawtext = {
+        let buttonRawtext: RawMessage = {
           rawtext: [{ text: `stack#${stackSize}§r` }],
         };
         if (typeof itemName === "string") {
-          buttonRawtext.rawtext.push({ text: `${itemName}§r` });
+          buttonRawtext.rawtext!.push({ text: `${itemName}§r` });
         } else if (itemName?.rawtext) {
-          buttonRawtext.rawtext.push(...itemName.rawtext, { text: "§r" });
+          buttonRawtext.rawtext!.push(...itemName.rawtext, { text: "§r" });
+        } else if (itemName?.translate) {
+          buttonRawtext.rawtext!.push({ translate: itemName.translate }, { text: "§r" });
         } else continue;
         if (Array.isArray(itemDesc) && itemDesc.length > 0) {
           for (const obj of itemDesc) {
             if (typeof obj === "string") {
-              buttonRawtext.rawtext.push({ text: `\n${obj}` });
+              buttonRawtext.rawtext!.push({ text: `\n${obj}` });
             } else if (obj?.rawtext) {
-              buttonRawtext.rawtext.push({ text: `\n`, ...obj.rawtext });
+              buttonRawtext.rawtext!.push({ text: `\n`, ...obj.rawtext });
             }
           }
         }

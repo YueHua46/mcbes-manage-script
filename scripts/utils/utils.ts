@@ -1,5 +1,6 @@
 import {
   CommandPermissionLevel,
+  Enchantment,
   EnchantmentType,
   ItemComponentTypes,
   ItemDurabilityComponent,
@@ -7,6 +8,7 @@ import {
   ItemStack,
   Player,
   PlayerPermissionLevel,
+  RawMessage,
   system,
   world,
 } from "@minecraft/server";
@@ -83,6 +85,80 @@ export function emojiPathToEmoji(str: string) {
 // 通过emoji key，获得emojiPath
 export function emojiKeyToEmojiPath(emojiKey: keyof typeof glyphMap) {
   return `textures/packs/${emojiKey}`;
+}
+
+/**
+ * 判断给定 ItemStack 是否存在任何附魔
+ * @param itemStack 要检测的物品
+ * @returns 存在任意附魔则返回 true，否则返回 false
+ */
+export function hasAnyEnchantment(itemStack: ItemStack): boolean {
+  // 获取附魔组件
+  const enchantable = itemStack.getComponent(ItemComponentTypes.Enchantable);
+  if (!enchantable) {
+    // 物品不可附魔
+    return false;
+  }
+
+  // 获取所有附魔列表
+  let enchants: Enchantment[];
+  try {
+    enchants = enchantable.getEnchantments();
+  } catch (err) {
+    // 读取失败（极少见），视为无附魔
+    return false;
+  }
+
+  // 列表长度 > 0 则说明存在附魔
+  return enchants.length > 0;
+}
+
+// 获得对应物品的中文displayName
+export function getItemDisplayName(itemStack: ItemStack): RawMessage {
+  const translateKey = itemStack.localizationKey;
+  const displayName: RawMessage = {
+    translate: translateKey,
+  };
+  return displayName;
+}
+
+// 获得对应物品的耐久度百分比
+export function getItemDurabilityPercent(itemStack: ItemStack): string {
+  const durability = getItemDurability(itemStack);
+  return `${Math.round(durability)}%`;
+}
+
+// 获得对应物品的所有描述信息Lore
+// export function getItemLore(itemStack: ItemStack): string[] {
+//   const lore: string[] = [];
+//   const lores = itemStack.getLore();
+//   if (displayName) {
+//     for (const line of displayName) {
+//       lore.push(line);
+//     }
+//   }
+//   return lore;
+// }
+
+/**
+ * 获得物品的耐久度
+ * @param itemStack 要检测的物品
+ * @returns 物品的耐久度
+ */
+export function getItemDurability(itemStack: ItemStack): number {
+  // 获取耐久组件
+  const durability = itemStack.getComponent(ItemComponentTypes.Durability);
+  if (!durability) {
+    // 物品没有耐久组件，返回 0
+    return 0;
+  }
+
+  // 计算耐久度
+  const maxDurability = durability.maxDurability;
+  const currentDamage = durability.damage;
+  // 计算剩余耐久度百分比
+  const durabilityPercent = ((maxDurability - currentDamage) / maxDurability) * 100;
+  return durabilityPercent;
 }
 
 export type SerializableStack = {

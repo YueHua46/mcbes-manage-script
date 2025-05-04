@@ -12,7 +12,7 @@ import Setting from "./Setting";
 let number_of_1_16_100_items = 0;
 system.run(() => {
   const experimentalItems: any[] = [];
-  const MCEItems = ["yuehua:sm", "pao:claimblock1", "pao:claimblock10", "pao:claimblock100"];
+  const MCEItems = ["yuehua:sm"];
   const items = ItemTypes.getAll().filter(
     (item) => !item.id.startsWith("minecraft:") && !item.id.endsWith("spawn_egg") && !BlockTypes.get(item.id)
   );

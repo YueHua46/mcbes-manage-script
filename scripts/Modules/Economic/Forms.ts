@@ -4,9 +4,8 @@ import { color } from "../../utils/color";
 import { openServerMenuForm } from "../Forms/Forms";
 import { openDialogForm } from "../Forms/Dialog";
 import enconomic from "./Economic";
-import ChestFormData from "../ChestUI/ChestForms";
-import { openCategoryListForm } from "./CategoryForms";
-import { openPlayerShopForm } from "./PlayerShopForm";
+import ahf from "./AuctionHouse/AuctionHouseForm";
+import { officeShopForm } from "./OfficeShop/OfficeShopForm";
 
 // 经济系统主菜单
 export function openEconomyMenuForm(player: Player) {
@@ -33,10 +32,11 @@ export function openEconomyMenuForm(player: Player) {
         openMyWalletForm(player);
         break;
       case 1:
-        openCategoryListForm(player);
+        officeShopForm.openCategoryList(player);
         break;
       case 2:
-        openPlayerShopForm(player);
+        // 显示拍卖行主界面
+        ahf.openMainMenu(player);
         break;
       case 3:
         openEconomyRankingForm(player);
