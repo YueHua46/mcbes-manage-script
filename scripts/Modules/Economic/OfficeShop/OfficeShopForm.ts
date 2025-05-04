@@ -32,7 +32,7 @@ class OfficeShopForm {
         player,
         {
           title: "商店为空",
-          desc: "当前没有任何商品类别",
+          desc: "当前没有任何商品类别，请联系管理员添加！",
         },
         () => openEconomyMenuForm(player)
       );
@@ -192,13 +192,19 @@ class OfficeShopForm {
   /** 1. 先让玩家选数量 */
   private askBuyQuantity(player: Player, item: OfficeShopItemData): void {
     const maxAmount = item.data.amount;
-    const modal = new ModalFormData()
-      .title(`购买 - ${getItemDisplayName(item.item)}`)
-      .slider("选择购买数量", 1, maxAmount, {
-        defaultValue: 1,
-        valueStep: 1,
-        tooltip: `当前最大可购买数量: ${maxAmount}`,
-      });
+    const title: RawMessage = {
+      rawtext: [
+        {
+          text: `购买 - `,
+        },
+        getItemDisplayName(item.item),
+      ],
+    };
+    const modal = new ModalFormData().title(title).slider("选择购买数量", 1, maxAmount, {
+      defaultValue: 1,
+      valueStep: 1,
+      tooltip: `当前最大可购买数量: ${maxAmount}`,
+    });
     modal
       .show(player)
       .then((res) => {
@@ -233,7 +239,14 @@ class OfficeShopForm {
     // 发物
     try {
       const inv = player.getComponent("inventory")?.container;
-      for (let i = 0; i < qty; i++) inv?.addItem(item.item);
+      if (inv?.emptySlotsCount === 0) {
+        openDialogForm(player, { title: "失败", desc: "背包已满" }, () => this.showProductDetails(player, item));
+        return;
+      }
+      const oneItem = item.item.clone();
+      oneItem.amount = 1;
+
+      for (let i = 0; i < qty; i++) inv?.addItem(oneItem);
     } catch (e) {
       console.error("发物失败", e);
     }

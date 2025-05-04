@@ -1,4 +1,4 @@
-export const monsterByGold = {
+export const monsterByGold: Record<string, any> = {
   zombie: [1, 10],
   zombie_pigman: [2, 20],
   zombie_villager: [1, 10],
@@ -36,4 +36,7 @@ export const monsterByGold = {
   breeze: [100, 200],
   bogged: [10, 20],
   blaze: [10, 20],
-}
+  endermite: [1, 5],
+  evocation_fang: [5, 10],
+  hoglin: [5, 15],
+};

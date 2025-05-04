@@ -12,7 +12,9 @@
 
 import { Entity, Player, system } from "@minecraft/server";
 import { Database } from "../Database";
-import { SystemLog } from "../../utils/utils";
+import { monsterByGold } from "./data/monsterByGold";
+import { usePlayerByName } from "../../hooks/hooks";
+import "./MonsterKillReward";
 
 export interface IUserWallet {
   name: string;
@@ -36,13 +38,7 @@ export class Economic {
   public config = {
     startingGold: 500, // 新玩家初始金币
     landPricePerBlock: 10, // 每格领地价格
-    mobKillRewards: {
-      // 不同怪物击杀奖励
-      "minecraft:zombie": { min: 5, max: 10 },
-      "minecraft:skeleton": { min: 7, max: 12 },
-      "minecraft:creeper": { min: 10, max: 15 },
-      default: { min: 3, max: 8 },
-    },
+    monsterByGod: monsterByGold,
   };
 
   private constructor() {

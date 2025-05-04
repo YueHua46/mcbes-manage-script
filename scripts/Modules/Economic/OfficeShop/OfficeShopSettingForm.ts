@@ -48,7 +48,7 @@ class OfficeShopSettingForm {
           title: "商店为空",
           desc: "当前没有任何商品类别",
         },
-        () => openEconomyMenuForm(player)
+        () => this.openOfficeShopSettingMainMenu(player)
       );
       return;
     }
