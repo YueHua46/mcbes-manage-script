@@ -3,6 +3,7 @@ import { Database } from "../../Database";
 import ItemDatabase, { Item as DbItem } from "../ItemDatabase";
 import { openDialogForm } from "../../Forms/Dialog";
 import { IAddItemToCategory, OfficeShopItemData, OfficeShopItemMetaData } from "./types";
+import { glyphKeys, glyphList } from "../../../glyphMap";
 
 // 商品类别接口定义
 export interface ICategory {
@@ -99,7 +100,7 @@ class OfficeShop {
   }
 
   // 添加商品到分类
-  addItemToCategory({ player, categoryName, item, price, cb }: IAddItemToCategory): void {
+  addItemToCategory({ player, categoryName, item, amount, price, cb }: IAddItemToCategory): void {
     const category = this.getCategory(categoryName);
     if (!category) {
       openDialogForm(player, { title: "§c错误", desc: "§c该类别不存在！" }, () => cb());
@@ -108,7 +109,7 @@ class OfficeShop {
     const itemMetaData: OfficeShopItemMetaData = {
       category: categoryName,
       price,
-      amount: item.amount,
+      amount,
       createdAt: Date.now(),
     };
     this.itemDB.add(item, itemMetaData);
@@ -123,6 +124,11 @@ class OfficeShop {
   // 删除商品
   deleteItem(data: Partial<OfficeShopItemMetaData>): void {
     this.itemDB.remove(data);
+  }
+
+  // 获得商品图标列表
+  getCategoryIcons(): [string[], string[]] {
+    return [glyphKeys, glyphList];
   }
 }
 

@@ -1,7 +1,7 @@
 import { ActionFormData } from "@minecraft/server-ui";
-import { Player } from "@minecraft/server";
+import { Player, RawMessage } from "@minecraft/server";
 
-function createErrorForm(title: string, body: string) {
+function createErrorForm(title: string | RawMessage, body: string | RawMessage) {
   const form = new ActionFormData();
   form.title(title);
   form.body(body);
@@ -9,7 +9,11 @@ function createErrorForm(title: string, body: string) {
   return form;
 }
 
-function openDialogForm(player: Player, err: { title: string; desc: string }, cb?: () => void) {
+function openDialogForm(
+  player: Player,
+  err: { title: string | RawMessage; desc: string | RawMessage },
+  cb?: () => void
+) {
   const form = createErrorForm(err.title, err.desc);
   form.show(player).then(() => {
     cb && cb();

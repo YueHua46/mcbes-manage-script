@@ -6,9 +6,11 @@ import ChestFormData from "../../ChestUI/ChestForms";
 import { openDialogForm } from "../../Forms/Dialog";
 import { color } from "@mcbe-mods/utils";
 import { getItemDisplayName, getItemDurabilityPercent, hasAnyEnchantment } from "../../../utils/utils";
+import { openEconomyMenuForm } from "../Forms";
+import { colorCodes } from "../../../utils/color";
 
 /**
- * 玩家商店UI管理类
+ * 拍卖行UI管理类
  */
 class AuctionHouseForm {
   /**
@@ -16,11 +18,12 @@ class AuctionHouseForm {
    */
   openMainMenu(player: Player): void {
     const form = new ActionFormData()
-      .title("玩家商店")
-      .body("欢迎使用玩家商店系统！")
-      .button("浏览所有商品", "textures/ui/store_icon")
-      .button("我的上架商品", "textures/ui/icon_recipe_item")
-      .button("上架新商品", "textures/ui/icon_sign");
+      .title("拍卖行")
+      .body(`${colorCodes.green}欢迎来到拍卖行！这里有全服玩家正在出售的物品。`)
+      .button("浏览所有商品", "textures/packs/12065264")
+      .button("我的上架商品", "textures/packs/16329456")
+      .button("上架新商品", "textures/packs/14827849")
+      .button("返回", "textures/icons/back");
 
     form.show(player).then((response) => {
       if (response.canceled) return;
@@ -34,6 +37,9 @@ class AuctionHouseForm {
           break;
         case 2:
           this.showListItemForm(player);
+          break;
+        case 3:
+          openEconomyMenuForm(player);
           break;
       }
     });
@@ -99,10 +105,7 @@ class AuctionHouseForm {
     }
 
     form.show(player).then((response) => {
-      if (response.canceled) {
-        this.openMainMenu(player);
-        return;
-      }
+      if (response.canceled) return;
 
       const selection = response.selection;
       if (selection === undefined) return;
@@ -185,10 +188,7 @@ class AuctionHouseForm {
     }
 
     form.show(player).then((response) => {
-      if (response.canceled) {
-        this.openMainMenu(player);
-        return;
-      }
+      if (response.canceled) return;
 
       const selection = response.selection;
       if (selection === undefined) return;
@@ -235,14 +235,11 @@ class AuctionHouseForm {
     form
       .title(`拍卖会 - 购买物品 - ${item.data.name}`)
       .body(body)
-      .button("购买", "textures/ui/icon_book_writable")
-      .button("返回", "textures/ui/arrow_left");
+      .button("购买", "textures/packs/15174544")
+      .button("返回", "textures/icons/back");
 
     form.show(player).then((response) => {
-      if (response.canceled || response.selection === 1) {
-        this.browseItems(player);
-        return;
-      }
+      if (response.canceled) return;
 
       // 购买
       if (response.selection === 0) {
@@ -261,6 +258,8 @@ class AuctionHouseForm {
         //     );
         //   }
         // });
+      } else {
+        this.browseItems(player);
       }
     });
   }
@@ -283,10 +282,11 @@ class AuctionHouseForm {
       .title(item.data.name)
       .body(body)
       .button("下架", "textures/ui/icon_trash")
-      .button("返回", "textures/ui/arrow_left");
+      .button("返回", "textures/icons/back");
 
     form.show(player).then((response) => {
-      if (response.canceled || response.selection === 1) {
+      if (response.canceled) return;
+      if (response.selection === 1) {
         this.myListedItems(player);
         return;
       }
@@ -348,7 +348,6 @@ class AuctionHouseForm {
     // 显示表单
     chestForm.show(player).then((data) => {
       if (data.canceled) {
-        this.openMainMenu(player);
         return;
       }
 
@@ -402,10 +401,7 @@ class AuctionHouseForm {
       });
 
     form.show(player).then((response) => {
-      if (response.canceled) {
-        this.showListItemForm(player);
-        return;
-      }
+      if (response.canceled) return;
 
       const [name, desc, amount, priceStr] = response.formValues as [string, string, number, string];
       if (!name) {

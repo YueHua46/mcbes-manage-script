@@ -87,6 +87,13 @@ export function emojiKeyToEmojiPath(emojiKey: keyof typeof glyphMap) {
   return `textures/packs/${emojiKey}`;
 }
 
+// 通过emoji Path，获得emoji key
+export function emojiPathToEmojiKey(str: string) {
+  const splitLen = str.split("/").length;
+  const emojiKey = str.split("/")[splitLen - 1];
+  return emojiKey as keyof typeof glyphMap;
+}
+
 /**
  * 判断给定 ItemStack 是否存在任何附魔
  * @param itemStack 要检测的物品

@@ -15,6 +15,7 @@ import { defaultSetting } from "./Setting";
 import { officeShopForm } from "../Economic/OfficeShop/OfficeShopForm";
 import ChestFormData from "../ChestUI/ChestForms";
 import { GlyphKey, glyphKeys, glyphList, glyphMap } from "../../glyphMap";
+import { officeShopSettingForm } from "../Economic/OfficeShop/OfficeShopSettingForm";
 
 // 创建搜索玩家领地表单
 function createSearchLandForm() {
@@ -553,7 +554,7 @@ export const openCommonSettingForm = (player: Player) => {
     },
     {
       text: "设置服务器通知",
-      icon: "textures/ui/icon_book_writable",
+      icon: "textures/packs/023-caution",
       action: () => openNotifyForms(player),
     },
     // 新增领地设置主按钮
@@ -624,7 +625,7 @@ export const openSystemSettingForm = (player: Player) => {
     {
       text: "官方商店设置",
       icon: "textures/packs/024-disco-ball",
-      action: () => officeShopForm.openCategoryList(player),
+      action: () => officeShopSettingForm.openOfficeShopSettingMainMenu(player),
     },
     {
       text: "通用系统设置",

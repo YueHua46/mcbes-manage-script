@@ -5,6 +5,7 @@ export interface IAddItemToCategory {
   player: Player;
   categoryName: string;
   item: ItemStack;
+  amount: number;
   price: number;
   cb: () => void;
 }

@@ -5,9 +5,11 @@ import ChestFormData from "../../ChestUI/ChestForms";
 import { openDialogForm } from "../../Forms/Dialog";
 import economic from "../Economic";
 import { color } from "@mcbe-mods/utils";
-import { getItemDisplayName, getItemDurability, hasAnyEnchantment } from "../../../utils/utils";
+import { emojiKeyToEmojiPath, getItemDisplayName, getItemDurability, hasAnyEnchantment } from "../../../utils/utils";
 import { OfficeShopItemData, OfficeShopItemMetaData } from "./types";
 import { openEconomyMenuForm } from "../Forms";
+import { glyphMap } from "../../../glyphMap";
+import { colorCodes } from "../../../utils/color";
 
 class OfficeShopForm {
   private static instance: OfficeShopForm;
@@ -38,56 +40,60 @@ class OfficeShopForm {
     }
 
     // 计算分页信息
-    const itemsPerPage = 45; // 箱子UI每页最多显示45个物品
+    const itemsPerPage = 8; // ActionForm每页显示8个类别
     const totalPages = Math.ceil(categories.length / itemsPerPage);
     const startIndex = (page - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, categories.length);
     const currentPageCategories = categories.slice(startIndex, endIndex);
 
-    const form = new ChestFormData("shop").title(`官方商店 - 商品类别 (第${page}/${totalPages}页)`);
+    const form = new ActionFormData().title(`官方商店 - 商品类别 (第${page}/${totalPages}页)`);
+
+    // 添加类别说明
+    form.body("请选择您要浏览的商品类别");
 
     // 填充类别
-    currentPageCategories.forEach((category, index) => {
-      const lore = [
-        `§e描述: §f${category.description || "无描述"}`,
-        `§e创建时间: §f${new Date(category.created).toLocaleString()}`,
-      ];
-
-      form.button(index, category.name, lore, category.icon || officeShop.defaultIcon, 1, 0, false);
+    currentPageCategories.forEach((category) => {
+      const buttonText = `${category.name}\n§e${category.description || "无描述"}`;
+      form.button(buttonText, category.icon || officeShop.defaultIcon);
     });
 
     // 添加导航按钮
     if (page > 1) {
-      form.button(45, "上一页", ["查看上一页"], "textures/icons/left_arrow", 1);
+      form.button("上一页", "textures/icons/left_arrow");
     }
-    form.button(49, "返回", ["返回主菜单"], "textures/icons/back", 1);
+
+    form.button("返回主菜单", "textures/icons/back");
+
     if (page < totalPages) {
-      form.button(53, "下一页", ["查看下一页"], "textures/icons/right_arrow", 1);
+      form.button("下一页", "textures/icons/right_arrow");
     }
 
     form.show(player).then((response) => {
-      if (response.canceled) {
-        this.openCategoryList(player);
-        return;
-      }
+      if (response.canceled) return;
 
       const selection = response.selection;
       if (selection === undefined) return;
 
+      // 计算导航按钮的索引位置
+      const categoryCount = currentPageCategories.length;
+      const prevPageIndex = categoryCount;
+      const backIndex = page > 1 ? prevPageIndex + 1 : prevPageIndex;
+      const nextPageIndex = page > 1 ? backIndex + 1 : backIndex + 1;
+
       // 处理导航按钮
-      if (selection === 45 && page > 1) {
+      if (page > 1 && selection === prevPageIndex) {
         // 上一页
         return this.openCategoryList(player, page - 1);
-      } else if (selection === 49) {
+      } else if (selection === backIndex) {
         // 返回
-        return this.openCategoryList(player);
-      } else if (selection === 53 && page < totalPages) {
+        return openEconomyMenuForm(player);
+      } else if (page < totalPages && selection === nextPageIndex) {
         // 下一页
         return this.openCategoryList(player, page + 1);
       }
 
       // 处理类别选择
-      if (selection < currentPageCategories.length) {
+      if (selection < categoryCount) {
         const selectedCategory = currentPageCategories[selection];
         if (selectedCategory) {
           this.openCategoryProducts(player, selectedCategory.name);
@@ -96,7 +102,7 @@ class OfficeShopForm {
     });
   }
 
-  // 打开类别商品列表
+  // 打开指定类别商品列表
   openCategoryProducts(player: Player, categoryName: string, page: number = 1): void {
     const itemDatas = officeShop.getCategoryItems(categoryName);
     const category = officeShop.getCategory(categoryName);
@@ -138,7 +144,7 @@ class OfficeShopForm {
     currentPageProducts.forEach((itemData, index) => {
       const displayName = getItemDisplayName(itemData.item);
       const lores = itemData.item.getLore();
-      const itemIconPath = `textures/ui/${itemData.item.typeId}`;
+      const itemIconPath = itemData.item.typeId;
       const amount = itemData.item.amount;
       const durability = getItemDurability(itemData.item);
       const isEnchanted = hasAnyEnchantment(itemData.item);
@@ -156,10 +162,7 @@ class OfficeShopForm {
     }
 
     form.show(player).then((response) => {
-      if (response.canceled) {
-        this.openCategoryList(player);
-        return;
-      }
+      if (response.canceled) return;
 
       const selection = response.selection;
       if (selection === undefined) return;
@@ -221,7 +224,7 @@ class OfficeShopForm {
     }
 
     // 扣款
-    const result = economic.removeGold(player.name, totalPrice, `商店购买 x${qty}`);
+    const result = economic.removeGold(player.name, totalPrice, `购买了 ${item.item.typeId.split(":")[1]} x${qty}`);
     if (typeof result === "string") {
       openDialogForm(player, { title: "失败", desc: result }, () => this.showProductDetails(player, item));
       return;
@@ -239,9 +242,19 @@ class OfficeShopForm {
     officeShop.updateItemMeta(item.data, { ...item.data, amount: item.data.amount - qty });
 
     // 成功提示
-    openDialogForm(player, { title: "成功", desc: `已购买 ${getItemDisplayName(item.item)} x${qty}` }, () =>
-      this.openCategoryProducts(player, item.data.category)
-    );
+    const displayName = getItemDisplayName(item.item);
+    const desc: RawMessage = {
+      rawtext: [
+        {
+          text: `${colorCodes.yellow}已购买 ${colorCodes.green}`,
+        },
+        displayName,
+        {
+          text: `${colorCodes.yellow} x${qty}`,
+        },
+      ],
+    };
+    openDialogForm(player, { title: "购买成功", desc }, () => this.openCategoryProducts(player, item.data.category));
   }
 
   // 展示商品详细购买页
@@ -252,24 +265,57 @@ class OfficeShopForm {
     const isEnchanted = hasAnyEnchantment(item.item);
     const wallet = economic.getWallet(player.name);
 
+    const title: RawMessage = {
+      rawtext: [
+        {
+          text: `商品详细 - `,
+        },
+        displayName,
+      ],
+    };
+
+    const body: RawMessage = {
+      rawtext: [
+        {
+          text: `${colorCodes.yellow}商品： ${colorCodes.white}`,
+        },
+        displayName,
+        {
+          text: `\n`,
+        },
+        {
+          text: `${colorCodes.yellow}描述： ${colorCodes.white}${lores.join(", ")}\n`,
+        },
+        {
+          text: `${colorCodes.yellow}单价： ${colorCodes.white}${item.data.price}\n`,
+        },
+        {
+          text: `${colorCodes.yellow}库存： ${colorCodes.white}${item.data.amount}\n`,
+        },
+        {
+          text: `${colorCodes.yellow}耐久： ${colorCodes.white}${durability}\n`,
+        },
+        {
+          text: `${colorCodes.yellow}附魔： ${colorCodes.white}${isEnchanted ? "有" : "无"}\n\n`,
+        },
+        {
+          text: `${colorCodes.yellow}余额： ${colorCodes.white}${wallet.gold}\n`,
+        },
+      ],
+    };
+
     const form = new ActionFormData()
-      .title(`商品详细 - ${displayName}`)
-      .body(
-        `§e商品: §f${displayName}\n` +
-          `§e描述: §f${lores.join("\n")}\n` +
-          `§e单价: §f${item.data.price}\n` +
-          `§e库存: §f${item.data.amount}\n` +
-          `§e耐久: §f${durability}\n` +
-          `§e附魔: §f${isEnchanted ? "有" : "无"}\n\n` +
-          `§7您的余额: §f${wallet.gold}`
-      )
-      .button("购买", "textures/ui/icon_book_writable")
-      .button("返回", "textures/ui/arrow_left");
+      .title(title)
+      .body(body)
+      .button("购买", "textures/packs/15174544")
+      .button("返回", "textures/icons/back");
 
     form
       .show(player)
       .then((res) => {
-        if (res.canceled || res.selection === 1) {
+        if (res.canceled) {
+          return;
+        } else if (res.selection === 1) {
           this.openCategoryProducts(player, item.data.category);
         } else {
           this.askBuyQuantity(player, item);
