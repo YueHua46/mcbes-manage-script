@@ -70,6 +70,18 @@ export class Economic {
     return wallet;
   }
 
+  // 获取所有玩家钱包
+  getAllWallets(): IUserWallet[] {
+    const allPlayerWallets = this.db.getAll();
+    return Object.values(allPlayerWallets);
+  }
+
+  // 获得排名前十的玩家钱包
+  getTopWallets(limit: number = 10): IUserWallet[] {
+    const allWallets = this.getAllWallets();
+    return allWallets.sort((a, b) => b.gold - a.gold).slice(0, limit);
+  }
+
   // 添加金币
   addGold(playerName: string, amount: number, reason: string = "系统奖励"): boolean {
     if (amount <= 0) return false;
