@@ -5,6 +5,9 @@ import setting from "../System/Setting";
 import { defaultSetting } from "../System/Setting";
 import { isAdmin } from "../../utils/utils";
 import { color } from "@mcbe-mods/utils";
+import economic from "../Economic/Economic";
+import { colorCodes } from "../../utils/color";
+import { openConfirmDialogForm, openDialogForm } from "../Forms/Dialog";
 
 export interface ILand {
   name: string;
@@ -57,33 +60,6 @@ class Land {
       y,
       z,
     };
-  }
-  addLand(land: ILand, player: Player) {
-    if (this.db.has(land.name)) return "领地名冲突，已存在，请尝试其他领地名称";
-    const overlaps = this.checkOverlap(land);
-    if (overlaps.length > 0) {
-      // 只提示第一个重叠的领地，也可以遍历所有重叠领地
-      const info = overlaps
-        .map(
-          (o) =>
-            `与玩家 ${color.yellow(o.owner)} ${color.red("的领地")} ${color.yellow(o.name)} ${color.red(
-              "重叠"
-            )}\n${color.red("位置")}： ${color.yellow(`${o.vectors.start.x}`)},${color.yellow(
-              `${o.vectors.start.y}`
-            )},${color.yellow(color.yellow(`${o.vectors.start.z}`))} -> ${color.yellow(
-              `${o.vectors.end.x}`
-            )},${color.yellow(`${o.vectors.end.y}`)},${color.yellow(`${o.vectors.end.z}`)}`
-        )
-        .join("\n");
-      return `领地重叠，请重新设置领地范围。\n${info}`;
-    }
-    // 检查玩家领地数量是否达到上限
-    const maxLandPerPlayer = Number(setting.getState("maxLandPerPlayer") || defaultSetting.maxLandPerPlayer);
-    if (!isAdmin(player) && this.getPlayerLandCount(land.owner) >= maxLandPerPlayer) {
-      return `您已达到最大领地数量限制(${maxLandPerPlayer})，无法创建更多领地`;
-    }
-
-    return this.createLand(land);
   }
   getLand(name: string) {
     if (!this.db.has(name)) return "领地不存在";
@@ -195,7 +171,32 @@ class Land {
   }
 
   // 创建领地时添加方块数量验证
-  createLand(landData: ILand): string | boolean {
+  async createLand(landData: ILand) {
+    const player = world.getPlayers({ name: landData.owner })[0];
+    if (this.db.has(landData.name)) return "领地名冲突，已存在，请尝试其他领地名称";
+    const overlaps = this.checkOverlap(landData);
+    if (overlaps.length > 0) {
+      // 只提示第一个重叠的领地，也可以遍历所有重叠领地
+      const info = overlaps
+        .map(
+          (o) =>
+            `与玩家 ${color.yellow(o.owner)} ${color.red("的领地")} ${color.yellow(o.name)} ${color.red(
+              "重叠"
+            )}\n${color.red("位置")}： ${color.yellow(`${o.vectors.start.x}`)},${color.yellow(
+              `${o.vectors.start.y}`
+            )},${color.yellow(color.yellow(`${o.vectors.start.z}`))} -> ${color.yellow(
+              `${o.vectors.end.x}`
+            )},${color.yellow(`${o.vectors.end.y}`)},${color.yellow(`${o.vectors.end.z}`)}`
+        )
+        .join("\n");
+      return `领地重叠，请重新设置领地范围。\n${info}`;
+    }
+    // 检查玩家领地数量是否达到上限
+    const maxLandPerPlayer = Number(setting.getState("maxLandPerPlayer") || defaultSetting.maxLandPerPlayer);
+    if (!isAdmin(player) && this.getPlayerLandCount(landData.owner) >= maxLandPerPlayer) {
+      return `您已达到最大领地数量限制(${maxLandPerPlayer})，无法创建更多领地`;
+    }
+
     // 获取领地方块上限
     const maxLandBlocks = Number(setting.getState("maxLandBlocks") || "30000");
     // 计算领地方块数量
@@ -205,9 +206,39 @@ class Land {
       return `领地方块数量(${blockCount})超过上限(${maxLandBlocks})，请重新设置领地。确保其不超过系统设置方块上限\n管理员可通过 【服务器设置】 -> 【通用系统设置】 -> 【设置领地方块上限】 来更改上限`;
     }
 
-    // 保存领地数据
+    const { cost, balance, canAfford, isCancel } = await this.confirmAndCreateLandAsync(
+      player,
+      landData.vectors.start,
+      landData.vectors.end
+    );
+
+    if (isCancel) return "领地创建已取消";
+    if (!canAfford)
+      return `${colorCodes.red}你的余额不足，无法创建领地，需要  ${colorCodes.yellow}${cost} ${colorCodes.red} 金币，你的余额为  ${colorCodes.yellow}${balance}  金币`;
+    // 支付领地创建费用
+    economic.removeGold(player.name, cost, "领地创建费用");
     this.db.set(landData.name, landData);
     return true;
+  }
+
+  // 封装成 Promise
+  confirmAndCreateLandAsync(
+    player: Player,
+    start: Vector3,
+    end: Vector3
+  ): Promise<{ canAfford: boolean; cost: number; balance: number; isCancel: boolean }> {
+    return new Promise((resolve) => {
+      const cost = economic.calculateLandPrice(start, end);
+      const balance = economic.getWallet(player.name).gold;
+      const canAfford = balance >= cost;
+      openConfirmDialogForm(
+        player,
+        "领地创建确认",
+        `你将支付 ${cost} 金币来圈地，是否继续？`,
+        () => resolve({ canAfford, cost, balance, isCancel: false }),
+        () => resolve({ canAfford, cost, balance, isCancel: true })
+      );
+    });
   }
 }
 

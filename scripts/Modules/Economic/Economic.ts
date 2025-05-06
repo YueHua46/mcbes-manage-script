@@ -10,11 +10,13 @@
  *  3. 商店，玩家可以在商店购买管理员上架的物品，按照购买物品的价格消耗金币
  */
 
-import { Entity, Player, system } from "@minecraft/server";
+import { Entity, Player, system, Vector3 } from "@minecraft/server";
 import { Database } from "../Database";
 import { monsterByGold } from "./data/monsterByGold";
 import { usePlayerByName } from "../../hooks/hooks";
 import "./MonsterKillReward";
+import Setting from "../System/Setting";
+import { Vector3Utils } from "@minecraft/math";
 
 export interface IUserWallet {
   name: string;
@@ -36,7 +38,7 @@ export class Economic {
 
   // 默认配置
   public config = {
-    startingGold: 500, // 新玩家初始金币
+    startingGold: 1000, // 新玩家初始金币
     landPricePerBlock: 10, // 每格领地价格
     monsterByGod: monsterByGold,
   };
@@ -142,13 +144,14 @@ export class Economic {
   }
 
   // 计算领地价格
-  calculateLandPrice(start: { x: number; y: number; z: number }, end: { x: number; y: number; z: number }): number {
+  calculateLandPrice(start: Vector3, end: Vector3): number {
     const xSize = Math.abs(end.x - start.x) + 1;
     const ySize = Math.abs(end.y - start.y) + 1;
     const zSize = Math.abs(end.z - start.z) + 1;
 
     const totalBlocks = xSize * ySize * zSize;
-    return totalBlocks * this.config.landPricePerBlock;
+    console.warn(`计算领地价格: ${totalBlocks} * ${Number(Setting.getState("land1BlockPerPrice"))}`);
+    return totalBlocks * Number(Setting.getState("land1BlockPerPrice"));
   }
 
   // 记录交易日志

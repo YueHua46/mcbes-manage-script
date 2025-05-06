@@ -1,5 +1,5 @@
 import { GameMode, Player, world } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../utils/color";
 import setting, { IModules, IValueType } from "./Setting";
 import { useNotify } from "../../hooks/hooks";
@@ -17,6 +17,8 @@ import ChestFormData from "../ChestUI/ChestForms";
 import { GlyphKey, glyphKeys, glyphList, glyphMap } from "../../glyphMap";
 import { officeShopSettingForm } from "../Economic/OfficeShop/OfficeShopSettingForm";
 import { memberManager } from "./TrialMode";
+import economic from "../Economic/Economic";
+import { landAreas } from "../Land/Event";
 
 // 创建搜索玩家领地表单
 function createSearchLandForm() {
@@ -187,7 +189,7 @@ export const openLandManageForm = (player: Player) => {
   form.button("§w所有玩家领地管理", "textures/ui/icon_new");
   form.button("§w删除当前所在区域领地", "textures/icons/deny");
   form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
-  // form.button('§w玩家坐标点管理', 'textures/ui/icon_steve')
+  form.button("§w创建领地时每方块需花费金币管理", "textures/packs/15174544");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -215,12 +217,34 @@ export const openLandManageForm = (player: Player) => {
       case 2:
         openSearchLandForm(player);
         break;
-      // case 3:
-      //   openPlayerWayPointManageForm(player)
-      //   break
+      case 3:
+        openCreateLand1BlockPerPrice(player);
+        break;
       case 3:
         openSystemSettingForm(player);
         break;
+    }
+  });
+};
+// 打开创建领地每方块价格设置表单
+export const openCreateLand1BlockPerPrice = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("§w创建领地每方块价格设置");
+  form.textField("价格", "请输入价格");
+  form.submitButton("§w确定");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const { formValues } = data;
+    // 存在且可转换为数字
+    if (formValues?.[0] && !isNaN(toNumber(formValues?.[0] as string))) {
+      const price = formValues[0].toString();
+      setting.setState("land1BlockPerPrice", price);
+      openDialogForm(
+        player,
+        { title: "创建领地每方块价格设置成功", desc: color.green("创建领地每方块价格设置成功！") },
+        () => openSystemSettingForm(player)
+      );
     }
   });
 };

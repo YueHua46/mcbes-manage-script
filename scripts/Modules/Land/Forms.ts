@@ -103,7 +103,7 @@ function validateForm(formValues: (string | number | boolean | undefined)[], pla
 export function openLandApplyForm(player: Player) {
   const form = createLandApplyForm(player);
 
-  form.show(player).then((data) => {
+  form.show(player).then(async (data) => {
     const { formValues, cancelationReason } = data;
     if (cancelationReason === "UserClosed") return;
     if (formValues && formValues[0] && formValues[1] && formValues[2]) {
@@ -146,7 +146,7 @@ export function openLandApplyForm(player: Player) {
           },
         };
 
-        const res = land.addLand(landData, player);
+        const res = await land.createLand(landData);
         if (typeof res === "string") {
           openDialogForm(
             player,

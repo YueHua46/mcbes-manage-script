@@ -20,7 +20,13 @@ function openDialogForm(
   });
 }
 
-function openConfirmDialogForm(player: Player, title: string, desc: string, cb: () => void) {
+function openConfirmDialogForm(
+  player: Player,
+  title: string,
+  desc: string,
+  acceptCb: () => void,
+  cancelCb?: () => void
+) {
   const form = new ActionFormData();
   form.title(title);
   form.body(desc);
@@ -28,7 +34,8 @@ function openConfirmDialogForm(player: Player, title: string, desc: string, cb: 
   form.button("确认", "textures/icons/accept.png");
   form.show(player).then((res) => {
     if (res.canceled || res.cancelationReason) return;
-    res.selection === 1 && cb();
+    res.selection === 1 && acceptCb();
+    res.selection === 0 && cancelCb && cancelCb();
   });
 }
 
