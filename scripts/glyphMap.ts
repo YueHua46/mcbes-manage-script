@@ -114,7 +114,7 @@ export const socials: Record<string, string> = {
 };
 
 // 其他
-export const other: Record<string, string> = {
+export const otherGlyphMap: Record<string, string> = {
   cat: "",
   gear: "",
   wrench: "",
