@@ -9,6 +9,7 @@ import { color } from "../../utils/color";
 import leaveMessage from "./LeaveMessage";
 import { useNotify } from "../../hooks/hooks";
 import setting from "../System/Setting";
+import { namePrefixMap } from "../../glyphMap";
 
 function createServerInfoForm() {
   const form = new MessageFormData();
@@ -111,7 +112,7 @@ export const openPrefixForm = (player: Player) => {
   const form = new ModalFormData();
 
   form.title("§w修改名称前缀");
-  form.dropdown("§w选择名称前缀", ["", "", "", ""], {
+  form.dropdown("§w选择名称前缀", namePrefixMap, {
     defaultValueIndex: 0,
     tooltip: "选择名称前缀",
   });

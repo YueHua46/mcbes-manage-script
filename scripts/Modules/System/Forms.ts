@@ -16,6 +16,7 @@ import { officeShopForm } from "../Economic/OfficeShop/OfficeShopForm";
 import ChestFormData from "../ChestUI/ChestForms";
 import { GlyphKey, glyphKeys, glyphList, glyphMap } from "../../glyphMap";
 import { officeShopSettingForm } from "../Economic/OfficeShop/OfficeShopSettingForm";
+import { memberManager } from "./TrialMode";
 
 // 创建搜索玩家领地表单
 function createSearchLandForm() {
@@ -689,34 +690,34 @@ export const openAddVipMemberForm = (player: Player) => {
 };
 
 // 修改后的试玩模式主表单
-export const openTrialModeMainForm = (player: Player) => {
-  const form = new ActionFormData();
-  form.title("§w试玩模式管理");
+// export const openTrialModeMainForm = (player: Player) => {
+//   const form = new ActionFormData();
+//   form.title("§w试玩模式管理");
 
-  form.button("§w试玩模式设置", "textures/ui/permissions_visitor_hand_hover");
-  form.button("§w添加正式会员", "textures/ui/village_hero_effect");
-  form.button("§w移除正式会员", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+//   form.button("§w试玩模式设置", "textures/ui/permissions_visitor_hand_hover");
+//   form.button("§w添加正式会员", "textures/ui/village_hero_effect");
+//   form.button("§w移除正式会员", "textures/icons/deny");
+//   form.button("§w返回", "textures/icons/back");
 
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
+//   form.show(player).then((data) => {
+//     if (data.canceled || data.cancelationReason) return;
 
-    switch (data.selection) {
-      case 0:
-        openTrialModeSettingForm(player);
-        break;
-      case 1:
-        openAddVipMemberForm(player);
-        break;
-      case 2:
-        openRemoveVipMemberForm(player);
-        break;
-      case 3:
-        openCommonSettingForm(player);
-        break;
-    }
-  });
-};
+//     switch (data.selection) {
+//       case 0:
+//         openTrialModeSettingForm(player);
+//         break;
+//       case 1:
+//         openAddVipMemberForm(player);
+//         break;
+//       case 2:
+//         openRemoveVipMemberForm(player);
+//         break;
+//       case 3:
+//         openCommonSettingForm(player);
+//         break;
+//     }
+//   });
+// };
 
 // 修改原来的试玩模式设置表单（保持原有功能）
 export const openTrialModeSettingForm = (player: Player) => {
@@ -754,53 +755,53 @@ export const openTrialModeSettingForm = (player: Player) => {
 };
 
 // 新增删除VIP会员的表单
-export const openRemoveVipMemberForm = (player: Player) => {
-  const form = new ModalFormData();
-  form.title("§w删除正式会员");
+// export const openRemoveVipMemberForm = (player: Player) => {
+//   const form = new ModalFormData();
+//   form.title("§w删除正式会员");
 
-  // 获取所有VIP玩家
-  const vipPlayers = world
-    .getPlayers()
-    .filter((p) => p.hasTag("vip"))
-    .map((p) => p.name);
+//   // 获取所有VIP玩家
+//   const vipPlayers = world
+//     .getPlayers()
+//     .filter((p) => p.hasTag("vip"))
+//     .map((p) => p.name);
 
-  if (vipPlayers.length === 0) {
-    return openDialogForm(
-      player,
-      {
-        title: "删除正式会员",
-        desc: color.red("当前没有正式会员可删除"),
-      },
-      () => openTrialModeMainForm(player)
-    );
-  }
+//   if (vipPlayers.length === 0) {
+//     return openDialogForm(
+//       player,
+//       {
+//         title: "删除正式会员",
+//         desc: color.red("当前没有正式会员可删除"),
+//       },
+//       () => openTrialModeMainForm(player)
+//     );
+//   }
 
-  form.dropdown("§w选择VIP会员", vipPlayers);
-  form.submitButton("§w确认删除");
+//   form.dropdown("§w选择VIP会员", vipPlayers);
+//   form.submitButton("§w确认删除");
 
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
+//   form.show(player).then((data) => {
+//     if (data.canceled || data.cancelationReason) return;
 
-    const { formValues } = data;
-    if (formValues?.[0] !== undefined) {
-      const selectedPlayerName = vipPlayers[Number(formValues[0])];
-      const targetPlayer = world.getPlayers().find((p) => p.name === selectedPlayerName);
+//     const { formValues } = data;
+//     if (formValues?.[0] !== undefined) {
+//       const selectedPlayerName = vipPlayers[Number(formValues[0])];
+//       const targetPlayer = world.getPlayers().find((p) => p.name === selectedPlayerName);
 
-      if (targetPlayer) {
-        targetPlayer.removeTag("vip");
+//       if (targetPlayer) {
+//         targetPlayer.removeTag("vip");
 
-        openDialogForm(
-          player,
-          {
-            title: "删除成功",
-            desc: color.green(`已成功将 ${selectedPlayerName} 从正式会员中移除!`),
-          },
-          () => openTrialModeMainForm(player)
-        );
-      }
-    }
-  });
-};
+//         openDialogForm(
+//           player,
+//           {
+//             title: "删除成功",
+//             desc: color.green(`已成功将 ${selectedPlayerName} 从正式会员中移除!`),
+//           },
+//           () => openTrialModeMainForm(player)
+//         );
+//       }
+//     }
+//   });
+// };
 
 export const openMaxWayPointPerPlayerSettingForm = (player: Player) => {
   const form = new ModalFormData();
@@ -915,6 +916,202 @@ export const openOneClickMineTreeSettingForm = (player: Player) => {
       );
     } else {
       useNotify("chat", player, "§c设置失败");
+    }
+  });
+};
+
+export const openTrialModeMainForm = (player: Player) => {
+  const form = new ActionFormData();
+  form.title("§w试玩模式管理");
+
+  form.button("§w试玩模式设置", "textures/ui/settings_glyph_color_2x");
+  form.button("§w会员管理", "textures/ui/icon_multiplayer");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    switch (data.selection) {
+      case 0:
+        openTrialModeSettingForm(player);
+        break;
+      case 1:
+        openMemberManageForm(player);
+        break;
+      case 2:
+        openSystemSettingForm(player);
+        break;
+    }
+  });
+};
+
+// 添加会员管理表单
+export const openMemberManageForm = (player: Player) => {
+  const form = new ActionFormData();
+  form.title("§w会员管理");
+
+  form.button("§w添加会员", "textures/icons/add");
+  form.button("§w移除会员", "textures/icons/deny");
+  form.button("§w查看会员列表", "textures/icons/friends");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    switch (data.selection) {
+      case 0:
+        openAddMemberForm(player);
+        break;
+      case 1:
+        openRemoveMemberForm(player);
+        break;
+      case 2:
+        openMemberListForm(player);
+        break;
+      case 3:
+        openTrialModeMainForm(player);
+        break;
+    }
+  });
+};
+
+// 添加会员表单
+export const openAddMemberForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("§w添加会员");
+  form.textField("§w玩家名称", "请输入要添加为会员的玩家名称");
+  form.submitButton("§w确认");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const { formValues } = data;
+    if (formValues && formValues[0]) {
+      const playerName = formValues[0].toString();
+      const result = memberManager.addMember(playerName);
+      if (result) {
+        openDialogForm(
+          player,
+          {
+            title: "添加成功",
+            desc: color.green(`已成功将 ${color.yellow(playerName)} 添加为会员！`),
+          },
+          () => openMemberManageForm(player)
+        );
+      } else {
+        openDialogForm(
+          player,
+          {
+            title: "添加失败",
+            desc: color.red("添加会员失败，请检查玩家名称是否正确！"),
+          },
+          () => openAddMemberForm(player)
+        );
+      }
+    }
+  });
+};
+
+// 移除会员表单
+export const openRemoveMemberForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("§w移除会员");
+  form.textField("§w玩家名称", "请输入要移除会员资格的玩家名称");
+  form.submitButton("§w确认");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const { formValues } = data;
+    if (formValues && formValues[0]) {
+      const playerName = formValues[0].toString();
+      const result = memberManager.removeMember(playerName);
+      if (result) {
+        openDialogForm(
+          player,
+          {
+            title: "移除成功",
+            desc: color.green(`已成功移除 ${color.yellow(playerName)} 的会员资格！`),
+          },
+          () => openMemberManageForm(player)
+        );
+      } else {
+        openDialogForm(
+          player,
+          {
+            title: "移除失败",
+            desc: color.red("移除会员失败，请检查玩家名称是否正确！"),
+          },
+          () => openRemoveMemberForm(player)
+        );
+      }
+    }
+  });
+};
+
+// 会员列表表单
+export const openMemberListForm = (player: Player, page: number = 1) => {
+  const form = new ActionFormData();
+  form.title("§w会员列表");
+
+  const members = memberManager.getAllMembers();
+
+  if (members.length === 0) {
+    form.body(color.yellow("当前没有任何会员"));
+  } else {
+    // 分页显示
+    const pageSize = 10;
+    const totalPages = Math.ceil(members.length / pageSize);
+    const start = (page - 1) * pageSize;
+    const end = Math.min(start + pageSize, members.length);
+    const currentPageMembers = members.slice(start, end);
+
+    form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
+
+    // 显示当前页的会员
+    currentPageMembers.forEach((memberName) => {
+      form.button(memberName, "textures/ui/icon_steve");
+    });
+
+    // 添加分页按钮
+    if (page > 1) {
+      form.button("§w上一页", "textures/icons/left_arrow");
+    }
+
+    if (page < totalPages) {
+      form.button("§w下一页", "textures/icons/right_arrow");
+    }
+  }
+
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+
+    const members = memberManager.getAllMembers();
+    const pageSize = 10;
+    const totalPages = Math.ceil(members.length / pageSize);
+    const currentPageSize = Math.min(pageSize, members.length - (page - 1) * pageSize);
+
+    if (members.length === 0) {
+      // 如果没有会员，只有一个返回按钮
+      if (data.selection === 0) {
+        openMemberManageForm(player);
+      }
+    } else {
+      // 有会员的情况
+      if (data.selection && data.selection < currentPageSize) {
+        // 点击了会员名称，暂时不做任何操作，直接返回列表
+        openMemberListForm(player, page);
+      } else if (page > 1 && data.selection === currentPageSize) {
+        // 点击了上一页
+        openMemberListForm(player, page - 1);
+      } else if (
+        page < totalPages &&
+        ((page > 1 && data.selection === currentPageSize + 1) || (page === 1 && data.selection === currentPageSize))
+      ) {
+        // 点击了下一页
+        openMemberListForm(player, page + 1);
+      } else {
+        // 点击了返回
+        openMemberManageForm(player);
+      }
     }
   });
 };

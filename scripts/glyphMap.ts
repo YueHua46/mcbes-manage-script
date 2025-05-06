@@ -1,5 +1,4 @@
 // 此文件由脚本自动生成，映射 myEmojis 中的文件名到私有 Unicode
-// 此文件由脚本自动生成：文件名 → 实际私用区字符
 export const glyphMap: Record<string, string> = {
   "365880": "",
   "408136": "",
@@ -93,6 +92,36 @@ export const glyphMap: Record<string, string> = {
   wood: "",
   wood_2: "",
 };
+
+// 头像（名字前缀）
+export const namePrefixMap: string[] = ["", "", "", ""];
+
+// 欢迎语装饰
+export const welcomeGlyphs: string[] = ["", "", "", "", "", "", "", "", "", ""];
+
+// thedn装饰
+// T H E D N
+export const thendGlyphs: string[] = ["", "", "", "", ""];
+
+// socials or 其他
+export const socials: Record<string, string> = {
+  youtube: "",
+  reddit: "",
+  note: "",
+  twitter: "",
+  discord: "",
+  mcpedl: "",
+};
+
+// 其他
+export const other: Record<string, string> = {
+  cat: "",
+  gear: "",
+  wrench: "",
+};
+
+// welcome fox
+export const welcomeFoxGlyphs: string[] = [""];
 
 export const glyphKeys = Object.keys(glyphMap) as GlyphKey[];
 
