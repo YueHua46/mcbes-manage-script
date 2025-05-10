@@ -169,7 +169,7 @@ export default class ItemDatabase {
       }
     } else {
       // 如果没有实体就生成一个
-      const id = system.runInterval(() => {
+      const id = system.run(() => {
         if (this.#entities.length === 0) {
           const e = world
             .getDimension("minecraft:overworld")
@@ -185,12 +185,12 @@ export default class ItemDatabase {
 
     // 等待至少一个实体准备就绪
     await new Promise<void>((resolve) => {
-      const id = system.runInterval(() => {
+      const id = system.run(() => {
         if (this.#entities.length > 0) {
           system.clearRun(id);
           resolve();
         }
-      }, 10);
+      });
     });
 
     this.#loaded = true;
@@ -367,7 +367,7 @@ export default class ItemDatabase {
       .forEach((e) => e.remove());
 
     await new Promise<void>((resolve) => {
-      const id = system.runInterval(() => {
+      const id = system.run(() => {
         if (this.#entities.length === 0) {
           const e = world
             .getDimension("minecraft:overworld")
@@ -378,7 +378,7 @@ export default class ItemDatabase {
           system.clearRun(id);
           resolve();
         }
-      }, 10);
+      });
     });
 
     this.#itemData = {};

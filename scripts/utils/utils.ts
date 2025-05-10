@@ -7,7 +7,7 @@ import {
   ItemLockMode,
   ItemStack,
   Player,
-  PlayerPermissionLevel,
+  // PlayerPermissionLevel,
   RawMessage,
   system,
   world,
@@ -60,11 +60,7 @@ export function getDiamensionName(dimention: string) {
 
 // 判断用户是否为管理员
 export function isAdmin(player: Player): boolean {
-  if (
-    player.playerPermissionLevel === PlayerPermissionLevel.Operator ||
-    player.commandPermissionLevel === CommandPermissionLevel.Admin ||
-    player.hasTag("admin")
-  ) {
+  if (player.commandPermissionLevel === CommandPermissionLevel.Admin || player.hasTag("admin")) {
     return true;
   } else {
     return false;
