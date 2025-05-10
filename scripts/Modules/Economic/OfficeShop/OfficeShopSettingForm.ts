@@ -168,7 +168,7 @@ class OfficeShopSettingForm {
       );
       return;
     }
-    const form = new ActionFormData().title(`${category.name} - 分类管理`);
+    const form = new ActionFormData().title(`分类管理`);
 
     form.body("选择一个选项进行管理");
     form.button("分类管理", "textures/packs/035-cyclone");
@@ -206,7 +206,7 @@ class OfficeShopSettingForm {
       return;
     }
 
-    const modal = new ActionFormData().title(`${category.name} - 分类管理`);
+    const modal = new ActionFormData().title(`分类管理`);
 
     modal.button("修改分类", "textures/icons/edit");
     modal.button("删除分类", "textures/icons/deny");
@@ -240,7 +240,7 @@ class OfficeShopSettingForm {
       return;
     }
 
-    const modal = new ModalFormData().title(`${category.name} - 分类编辑`);
+    const modal = new ModalFormData().title(`分类编辑`);
 
     modal.textField("新的分类描述", "请输入新的分类描述", {
       defaultValue: category.description,
@@ -304,7 +304,7 @@ class OfficeShopSettingForm {
       return;
     }
 
-    const form = new ActionFormData().title(`${category.name} - 商品管理`);
+    const form = new ActionFormData().title(`商品管理`);
 
     form.button("查看和编辑商品", "textures/icons/edit");
     form.button("添加商品", "textures/icons/add");
@@ -362,7 +362,7 @@ class OfficeShopSettingForm {
     const endIndex = Math.min(startIndex + itemsPerPage, items.length);
     const currentPageItems = items.slice(startIndex, endIndex);
 
-    const form = new ChestFormData("shop").title(`${category.name} - 商品列表管理 (第${page}/${totalPages}页)`);
+    const form = new ChestFormData("shop").title(`商品列表管理 (第${page}/${totalPages}页)`);
 
     // 填充商品
     currentPageItems.forEach((itemData, index) => {

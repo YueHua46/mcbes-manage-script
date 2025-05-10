@@ -176,6 +176,17 @@ export class Economic {
     this.logDb.set("transactions", logs);
   }
 
+  // 设置玩家金币
+  setPlayerGold(playerName: string, amount: number): boolean {
+    if (amount < 0) return false;
+
+    const wallet = this.getWallet(playerName);
+    wallet.gold = amount;
+    this.db.set(playerName, wallet);
+
+    return true;
+  }
+
   // 获取玩家交易记录
   getPlayerTransactions(playerName: string, limit: number = 10): ITransactionLog[] {
     const allLogs = this.logDb.get("transactions") || [];

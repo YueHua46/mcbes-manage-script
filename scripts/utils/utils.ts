@@ -30,6 +30,10 @@ export function debounce(fn: Function, delay: number, player: Player) {
   fn();
 }
 
+export function isNumber(str: string | number): boolean {
+  return !isNaN(Number(str));
+}
+
 export function getNowDate() {
   // 创建一个Date对象
   const date = new Date();
