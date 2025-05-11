@@ -75,7 +75,7 @@ class AuctionHouseForm {
     // 填充商品
     currentPageItems.forEach((item, index) => {
       const lore = [
-        `§e价格: §f${item.data.price}`,
+        `§e单价: §f${item.data.price}`,
         `§e卖家: §f${item.data.playerName}`,
         `§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}`,
       ];
@@ -161,7 +161,7 @@ class AuctionHouseForm {
 
     // 填充商品
     currentPageItems.forEach((item, index) => {
-      const lore = [`§e价格: §f${item.data.price}`, `§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}`];
+      const lore = [`§e单价: §f${item.data.price}`, `§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}`];
 
       if (item.data.description) {
         lore.push(`§e描述: §f${item.data.description}`);
@@ -225,7 +225,7 @@ class AuctionHouseForm {
       rawtext: [
         getItemDisplayName(item.item),
         {
-          text: `\n§e数量: §f${item.data.amount}\n§e价格: §f${item.data.price}\n§e卖家: §f${
+          text: `\n§e数量: §f${item.data.amount}\n§e单价: §f${item.data.price}\n§e卖家: §f${
             item.data.playerName
           }\n§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}\n`,
         },
@@ -272,7 +272,7 @@ class AuctionHouseForm {
       rawtext: [
         getItemDisplayName(item.item),
         {
-          text: `\n§e数量: §f${item.data.amount}\n§e价格: §f${item.data.price}\n§e卖家: §f${
+          text: `\n§e数量: §f${item.data.amount}\n§e单价: §f${item.data.price}\n§e卖家: §f${
             item.data.playerName
           }\n§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}\n`,
         },
@@ -395,9 +395,9 @@ class AuctionHouseForm {
         valueStep: 1,
         tooltip: `数量: ${item.amount}`,
       })
-      .textField("价格", "请输入价格", {
+      .textField("单价", "请输入单价", {
         defaultValue: "1",
-        tooltip: "请输入价格",
+        tooltip: "请输入单价",
       });
 
     form.show(player).then((response) => {
@@ -422,7 +422,7 @@ class AuctionHouseForm {
           player,
           {
             title: "错误",
-            desc: "请输入有效的价格",
+            desc: "请输入有效的商品单价",
           },
           () => this.showItemListingForm(player, item, slot)
         );

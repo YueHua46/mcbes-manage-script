@@ -1,4 +1,4 @@
-import { Player, RawMessage } from "@minecraft/server";
+import { ItemStack, Player, RawMessage } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import officeShop from "./OfficeShop";
 import ChestFormData from "../../ChestUI/ChestForms";

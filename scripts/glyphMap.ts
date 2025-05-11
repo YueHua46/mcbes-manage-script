@@ -97,7 +97,7 @@ export const glyphMap: Record<string, string> = {
 export const namePrefixMap: string[] = ["", "", "", ""];
 
 // 欢迎语装饰
-export const welcomeGlyphs: string[] = ["", "", "", "", "", "", "", "", "", ""];
+export const welcomeGlyphs: string[] = ["", "", "", "", "", "", "", "", ""];
 
 // thedn装饰
 // T H E D N

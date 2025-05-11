@@ -117,7 +117,7 @@ class AuctionHouse {
         player,
         {
           title: "上架成功",
-          desc: color.green(`成功上架 ${itemData.amount} 个 ${itemData.name}，价格: ${itemData.price}`),
+          desc: color.green(`成功上架 ${itemData.amount} 个 ${itemData.name}，单价: ${itemData.price}`),
         },
         callback
       );

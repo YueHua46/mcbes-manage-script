@@ -43,5 +43,4 @@ world.afterEvents.entityDie.subscribe((event) => {
   killer.runCommand(
     `title @s actionbar ${colorCodes.yellow}击杀了 ${colorCodes.materialRedstone}${typeKey} ${colorCodes.yellow}获得了 ${colorCodes.materialGold}${reward} ${colorCodes.yellow}金币`
   );
-  killer.runCommand(`playsound random.levelup @a[tag=!vanish]`);
 });

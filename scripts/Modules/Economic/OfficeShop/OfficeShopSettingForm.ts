@@ -503,7 +503,7 @@ class OfficeShopSettingForm {
           player,
           {
             title: "错误",
-            desc: "请输入有效的价格",
+            desc: "请输入有效的单价",
           },
           () => this.openEditItemForm(player, categoryName, item)
         );
@@ -657,7 +657,7 @@ class OfficeShopSettingForm {
         defaultValue: "1",
         tooltip: "请输入商品数量",
       })
-      .textField("价格", "请输入商品单价", {
+      .textField("单价", "请输入商品单价", {
         defaultValue: "1",
         tooltip: "请输入商品单价",
       });
@@ -685,7 +685,7 @@ class OfficeShopSettingForm {
           player,
           {
             title: "错误",
-            desc: "请输入有效的价格",
+            desc: "请输入有效的商品单价",
           },
           () => this.openItemAddDetailsForm(player, categoryName, item, slot)
         );
@@ -726,7 +726,7 @@ class OfficeShopSettingForm {
                     text: ` x${amount}`,
                   },
                   {
-                    text: ` 价格: ${price}`,
+                    text: ` 单价: ${price}`,
                   },
                 ],
               },

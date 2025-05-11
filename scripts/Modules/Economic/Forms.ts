@@ -8,6 +8,7 @@ import ahf from "./AuctionHouse/AuctionHouseForm";
 import { officeShopForm } from "./OfficeShop/OfficeShopForm";
 import prefix from "../OtherFun/Prefix";
 import { usePlayerByName } from "../../hooks/hooks";
+import { otherGlyphMap } from "../../glyphMap";
 
 // 经济系统主菜单
 export function openEconomyMenuForm(player: Player) {
@@ -86,6 +87,7 @@ function openMyWalletForm(player: Player) {
 function openEconomyRankingForm(player: Player) {
   // 获取所有钱包数据
   const allWallets = enconomic.getTopWallets();
+  console.warn(`allWallets: ${JSON.stringify(allWallets)}`);
 
   // 转换为数组并按金币数量排序（从高到低）
   const sortedWallets = Object.values(allWallets).sort((a, b) => b.gold - a.gold);
@@ -107,12 +109,9 @@ function openEconomyRankingForm(player: Player) {
   // 添加前10名玩家
   top10.forEach((wallet, index) => {
     // 拿到玩家所设置的头像
-    const player = usePlayerByName(wallet.name);
-    if (player) {
-      const namePrefix = prefix.getPrefix(player);
-      const rank = index + 1;
-      bodyText += `${namePrefix} <TOP ${rank}> §b${wallet.name}§f: §e${wallet.gold} 金币\n`;
-    }
+    const namePrefix = otherGlyphMap.cat;
+    const rank = index + 1;
+    bodyText += `${namePrefix} ${rank}. §b${wallet.name}§f: §e${wallet.gold} 金币\n`;
   });
 
   // 添加分隔线
