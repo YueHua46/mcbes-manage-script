@@ -4,6 +4,7 @@ import { openDialogForm } from "../../Forms/Dialog";
 import { color } from "@mcbe-mods/utils";
 import ItemDatabase, { Item as DbItem } from "../ItemDatabase";
 import { getItemDisplayName } from "../../../utils/utils";
+import { colorCodes } from "../../../utils/color";
 
 // 玩家商店配置
 // const PlayerShopConfig = {
@@ -117,7 +118,7 @@ class AuctionHouse {
         player,
         {
           title: "上架成功",
-          desc: color.green(`成功上架 ${itemData.amount} 个 ${itemData.name}，单价: ${itemData.price}`),
+          desc: `${colorCodes.green}成功上架 ${colorCodes.yellow}${itemData.amount} ${colorCodes.green}个 ${colorCodes.aqua}${itemData.name}${colorCodes.green}，单价: ${colorCodes.gold}${itemData.price}`,
         },
         callback
       );
@@ -170,7 +171,7 @@ class AuctionHouse {
         player,
         {
           title: "下架成功",
-          desc: color.green(`成功下架 ${entry.data.amount} 个 ${entry.data.name}`),
+          desc: `${colorCodes.green}成功下架 ${colorCodes.yellow}${entry.data.amount} ${colorCodes.green}个 ${colorCodes.aqua}${entry.data.name}`,
         },
         callback
       );
@@ -183,14 +184,23 @@ class AuctionHouse {
    * 购买物品
    * @param player 购买者
    * @param entry 商品条目
+   * @param amount 购买数量
    * @param callback 回调函数
    */
-  async buyItem(player: Player, entry: ShopItem, callback?: () => void): Promise<string | void> {
+  async buyItem(player: Player, entry: ShopItem, amount: number = 0, callback?: () => void): Promise<string | void> {
     // 检查条目是否有效
     if (!this.isValid(entry)) return "物品不存在或已被购买";
 
+    // 如果未指定数量，则购买全部
+    if (amount <= 0 || amount > entry.data.amount) {
+      amount = entry.data.amount;
+    }
+
+    // 计算总价
+    const totalPrice = entry.data.price * amount;
+
     // 检查玩家是否有足够的金钱
-    if (!economic.hasEnoughGold(player.name, entry.data.price)) return "金钱不足";
+    if (!economic.hasEnoughGold(player.name, totalPrice)) return "金钱不足";
 
     // 获取玩家背包
     const inventory = player.getComponent("inventory");
@@ -213,7 +223,7 @@ class AuctionHouse {
 
     try {
       // 转账
-      const result = economic.transfer(player.name, entry.data.playerName, entry.data.price, "购买玩家商店物品");
+      const result = economic.transfer(player.name, entry.data.playerName, totalPrice, "购买玩家商店物品");
 
       if (typeof result === "string") {
         openDialogForm(
@@ -227,24 +237,38 @@ class AuctionHouse {
         return; // 停止执行
       }
 
-      // 取回物品
-      const item = await this.takeItem(entry);
+      // 如果购买全部数量，直接取回物品
+      if (amount === entry.data.amount) {
+        // 取回物品
+        const item = await this.takeItem(entry);
+        // 添加到玩家背包
+        container.addItem(item);
+      } else {
+        // 部分购买
+        // 1. 获取原物品
+        const originalItem = entry.item.clone();
+        originalItem.amount = amount;
 
-      // 添加到玩家背包
-      container.addItem(item);
+        // 2. 更新数据库中的数量
+        entry.data.amount -= amount;
+        entry.itemDB.editData({ amount: entry.data.amount });
+
+        // 3. 添加到玩家背包
+        container.addItem(originalItem);
+      }
 
       // 显示成功消息
       openDialogForm(
         player,
         {
           title: "购买成功",
-          desc: color.green(`成功购买 ${entry.data.amount} 个 ${entry.data.name}`),
+          desc: `${colorCodes.green}成功购买 ${colorCodes.yellow}${amount} ${colorCodes.green}个 ${colorCodes.aqua}${entry.data.name}${colorCodes.green}，总价: ${colorCodes.gold}${totalPrice} ${colorCodes.yellow}金币`,
         },
         callback
       );
     } catch (error) {
       // 如果出错，尝试退款
-      economic.transfer(entry.data.playerName, player.name, entry.data.price, "购买失败退款");
+      economic.transfer(entry.data.playerName, player.name, totalPrice, "购买失败退款");
       return `购买失败: ${error}`;
     }
   }

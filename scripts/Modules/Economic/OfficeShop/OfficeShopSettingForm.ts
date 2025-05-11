@@ -16,6 +16,7 @@ import { glyphKeys } from "../../../glyphMap";
 import ChestFormData from "../../ChestUI/ChestForms";
 import { OfficeShopItemData } from "./types";
 import { openSystemSettingForm } from "../../System/Forms";
+import { colorCodes } from "../../../utils/color";
 
 class OfficeShopSettingForm {
   // 官方商店设置主菜单
@@ -481,22 +482,23 @@ class OfficeShopSettingForm {
 
     const form = new ModalFormData()
       .title(title)
-      .slider("库存数量", 1, 64, {
-        defaultValue: item.data.amount,
-        valueStep: 1,
+      .textField("库存数量", "请输入新的库存数量", {
+        defaultValue: item.data.amount.toString(),
       })
       .textField("单价", "请输入商品单价", {
         defaultValue: item.data.price.toString(),
       });
 
     form.show(player).then((res) => {
-      if (res.canceled || !res.formValues) {
+      if (res.canceled) return;
+      if (!res.formValues) {
         this.openItemManageForm(player, categoryName, item);
         return;
       }
 
-      const [newAmount, newPriceStr] = res.formValues;
+      const [newAmountStr, newPriceStr] = res.formValues;
       const newPrice = parseInt(newPriceStr as string);
+      const newAmount = parseInt(newAmountStr as string);
 
       if (isNaN(newPrice) || newPrice <= 0) {
         openDialogForm(
@@ -504,6 +506,18 @@ class OfficeShopSettingForm {
           {
             title: "错误",
             desc: "请输入有效的单价",
+          },
+          () => this.openEditItemForm(player, categoryName, item)
+        );
+        return;
+      }
+
+      if (isNaN(newAmount) || newAmount <= 0) {
+        openDialogForm(
+          player,
+          {
+            title: "错误",
+            desc: "请输入有效的库存数量",
           },
           () => this.openEditItemForm(player, categoryName, item)
         );
@@ -532,14 +546,27 @@ class OfficeShopSettingForm {
   openDeleteItemConfirmForm(player: Player, categoryName: string, item: OfficeShopItemData): void {
     const displayName = getItemDisplayName(item.item);
 
+    const body: RawMessage = {
+      rawtext: [
+        {
+          text: `${colorCodes.red}您确定要删除商品${colorCodes.yellow}  `,
+        },
+        displayName,
+        {
+          text: `${colorCodes.red}  吗？此操作不可撤销。`,
+        },
+      ],
+    };
+
     const form = new ActionFormData()
-      .title(`确认删除 - ${displayName}`)
-      .body(`您确定要删除商品 "${displayName}" 吗？此操作不可撤销。`)
-      .button("确认删除", "textures/ui/icon_trash")
+      .title(`确认删除`)
+      .body(body)
+      .button("确认删除", "textures/icons/deny")
       .button("取消", "textures/icons/back");
 
     form.show(player).then((res) => {
-      if (res.canceled || res.selection === 1) {
+      if (res.canceled) return;
+      if (res.selection === 1) {
         this.openItemManageForm(player, categoryName, item);
         return;
       }

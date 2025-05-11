@@ -75,13 +75,13 @@ class AuctionHouseForm {
     // 填充商品
     currentPageItems.forEach((item, index) => {
       const lore = [
-        `§e单价: §f${item.data.price}`,
-        `§e卖家: §f${item.data.playerName}`,
-        `§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}`,
+        `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price}`,
+        `${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}`,
+        `${colorCodes.green}上架时间: ${colorCodes.white}${new Date(item.data.createdAt).toLocaleString()}`,
       ];
 
       if (item.data.description) {
-        lore.push(`§e描述: §f${item.data.description}`);
+        lore.push(`${colorCodes.lightPurple}描述: ${colorCodes.white}${item.data.description}`);
       }
 
       form.button(
@@ -161,10 +161,13 @@ class AuctionHouseForm {
 
     // 填充商品
     currentPageItems.forEach((item, index) => {
-      const lore = [`§e单价: §f${item.data.price}`, `§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}`];
+      const lore = [
+        `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price}`,
+        `${colorCodes.green}上架时间: ${colorCodes.white}${new Date(item.data.createdAt).toLocaleString()}`,
+      ];
 
       if (item.data.description) {
-        lore.push(`§e描述: §f${item.data.description}`);
+        lore.push(`${colorCodes.lightPurple}描述: ${colorCodes.white}${item.data.description}`);
       }
 
       form.button(
@@ -220,47 +223,94 @@ class AuctionHouseForm {
    */
   showItemDetails(player: Player, item: ShopItem): void {
     const form = new ActionFormData();
+    form.title(`商品详情`);
 
-    const body: RawMessage = {
-      rawtext: [
-        getItemDisplayName(item.item),
-        {
-          text: `\n§e数量: §f${item.data.amount}\n§e单价: §f${item.data.price}\n§e卖家: §f${
-            item.data.playerName
-          }\n§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}\n`,
-        },
-      ],
-    };
+    // 构建商品详情信息
+    let bodyText = `${colorCodes.yellow}${item.data.name}\n\n`;
+    bodyText += `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price} 金币\n`;
+    bodyText += `${colorCodes.gold}数量: ${colorCodes.yellow}${item.data.amount}\n`;
+    bodyText += `${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}\n`;
+    bodyText += `${colorCodes.green}上架时间: ${colorCodes.white}${new Date(item.data.createdAt).toLocaleString()}\n`;
 
-    form
-      .title(`拍卖会 - 购买物品 - ${item.data.name}`)
-      .body(body)
-      .button("购买", "textures/packs/15174544")
-      .button("返回", "textures/icons/back");
+    if (item.data.description) {
+      bodyText += `\n${colorCodes.lightPurple}描述:\n${colorCodes.white}${item.data.description}`;
+    }
+
+    form.body(bodyText);
+
+    // 添加按钮
+    form.button(`${colorCodes.green}购买`, "textures/packs/15174541");
+    form.button(`${colorCodes.gray}返回`, "textures/icons/back");
 
     form.show(player).then((response) => {
       if (response.canceled) return;
 
       // 购买
       if (response.selection === 0) {
-        auctionHouse.buyItem(player, item, () => {
-          this.browseItems(player);
-        });
-        // .then((result) => {
-        //   if (typeof result === "string") {
-        //     openDialogForm(
-        //       player,
-        //       {
-        //         title: "购买失败",
-        //         desc: result,
-        //       },
-        //       () => this.showItemDetails(player, item)
-        //     );
-        //   }
-        // });
+        this.askBuyQuantity(player, item);
       } else {
         this.browseItems(player);
       }
+    });
+  }
+
+  /**
+   * 询问玩家想要购买的数量
+   */
+  private askBuyQuantity(player: Player, item: ShopItem): void {
+    const maxAmount = item.data.amount;
+    const form = new ModalFormData().title(`购买 - ${item.data.name}`).slider("请选择购买数量", 1, maxAmount, {
+      valueStep: 1,
+      defaultValue: 1,
+    });
+
+    form.show(player).then((response) => {
+      if (response.canceled) {
+        this.showItemDetails(player, item);
+        return;
+      }
+
+      const amount = response.formValues![0] as number;
+      if (amount <= 0 || amount > maxAmount) {
+        openDialogForm(
+          player,
+          {
+            title: "错误",
+            desc: "请选择有效的购买数量",
+          },
+          () => this.askBuyQuantity(player, item)
+        );
+        return;
+      }
+
+      // 计算总价
+      const totalPrice = item.data.price * amount;
+
+      // 确认购买
+      this.confirmPurchase(player, item, amount, totalPrice);
+    });
+  }
+
+  /**
+   * 确认购买
+   */
+  private confirmPurchase(player: Player, item: ShopItem, amount: number, totalPrice: number): void {
+    const form = new ActionFormData()
+      .title("确认购买")
+      .body(`您确定要购买 ${amount} 个 ${item.data.name} 吗？\n总价: ${totalPrice} 金币`)
+      .button("确认购买", "textures/packs/15174544")
+      .button("取消", "textures/ui/cancel");
+
+    form.show(player).then((response) => {
+      if (response.canceled || response.selection === 1) {
+        this.askBuyQuantity(player, item);
+        return;
+      }
+
+      // 执行购买
+      auctionHouse.buyItem(player, item, amount, () => {
+        this.browseItems(player);
+      });
     });
   }
 
@@ -272,16 +322,16 @@ class AuctionHouseForm {
       rawtext: [
         getItemDisplayName(item.item),
         {
-          text: `\n§e数量: §f${item.data.amount}\n§e单价: §f${item.data.price}\n§e卖家: §f${
+          text: `\n\n§e数量: §f${item.data.amount}\n§e单价: §f${item.data.price}\n§e卖家: §f${
             item.data.playerName
           }\n§e上架时间: §f${new Date(item.data.createdAt).toLocaleString()}\n`,
         },
       ],
     };
     const form = new ActionFormData()
-      .title(item.data.name)
+      .title(`商品详细`)
       .body(body)
-      .button("下架", "textures/ui/icon_trash")
+      .button("下架", "textures/icons/deny")
       .button("返回", "textures/icons/back");
 
     form.show(player).then((response) => {
