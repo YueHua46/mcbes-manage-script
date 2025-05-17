@@ -19,6 +19,7 @@ import { officeShopSettingForm } from "../Economic/OfficeShop/OfficeShopSettingF
 import { memberManager } from "./TrialMode";
 import economic from "../Economic/Economic";
 import { landAreas } from "../Land/Event";
+import monitorLog from "../Monitor/MonitorLog";
 
 // 创建搜索玩家领地表单
 function createSearchLandForm() {
@@ -661,6 +662,11 @@ export const openSystemSettingForm = (player: Player) => {
       text: "通用系统设置",
       icon: "textures/ui/settings_glyph_color_2x",
       action: () => openCommonSettingForm(player),
+    },
+    {
+      text: "监控日志管理（仅限VPS服务器，详细使用方式必须看视频教程来操作）",
+      icon: "textures/ui/settings_glyph_color",
+      action: () => monitorLog.openMonitorLogMenu(player),
     },
   ];
 
