@@ -20,10 +20,10 @@ setupEnvironment(path.resolve(__dirname, ".env"));
 const projectName = getOrThrowFromProcess("PROJECT_NAME");
 const bundleTaskOptions: BundleTaskParameters = {
   entryPoint: path.join(__dirname, "./scripts/main.ts"),
-  external: ["@minecraft/server", "@minecraft/server-ui"],
+  external: ["@minecraft/server", "@minecraft/server-ui", "@minecraft/server-net"],
   outfile: path.resolve(__dirname, "./dist/scripts/main.js"),
   minifyWhitespace: false,
-  sourcemap: true,
+  sourcemap: false,
   outputSourcemapPath: path.resolve(__dirname, "./dist/debug"),
 };
 const copyTaskOptions: CopyTaskParameters = {
@@ -36,7 +36,12 @@ const mcaddonTaskOptions: ZipTaskParameters = {
   outputFile: `./dist/packages/${projectName}.mcaddon`,
 };
 task("lint", coreLint(["scripts/**/*.ts"], argv().fix));
-task("typescript", tscTask());
+task(
+  "typescript",
+  tscTask({
+    sourceMap: false,
+  })
+);
 task("bundle", bundleTask(bundleTaskOptions));
 task("build", series("typescript", "bundle"));
 task("clean-local", cleanTask(DEFAULT_CLEAN_DIRECTORIES));
@@ -53,3 +58,9 @@ task(
 );
 task("createMcaddonFile", mcaddonTask(mcaddonTaskOptions));
 task("mcaddon", series("clean-local", "build", "createMcaddonFile"));
+// task("clean-maps", () => {
+//   return Promise.resolve().then(() => {
+//     const { sync } = require("rimraf");
+//     sync("lib/**/*.map");
+//   });
+// });
