@@ -21,7 +21,8 @@
     "baseUrl": "behavior_packs/",
     "listFiles": false,
     "noEmitHelpers": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "lib": ["es2017", "dom"]
   },
   "include": [
     "scripts/**/*"
