@@ -6,6 +6,8 @@ import { openDialogForm } from "../Forms/Dialog";
 import enconomic from "./Economic";
 import ahf from "./AuctionHouse/AuctionHouseForm";
 import { officeShopForm } from "./OfficeShop/OfficeShopForm";
+import sellItemsForm from "./SellItems/SellItemsForm";
+import transferForm from "./Transfer/TransferForm";
 import prefix from "../OtherFun/Prefix";
 import { usePlayerByName } from "../../hooks/hooks";
 import { otherGlyphMap } from "../../glyphMap";
@@ -24,6 +26,8 @@ export function openEconomyMenuForm(player: Player) {
   form.button("§w钱包", "textures/packs/13107521");
   form.button("§w商店", "textures/icons/loot");
   form.button("§w拍卖行", "textures/packs/15360196");
+  form.button("§w出售物品", "textures/packs/15174541");
+  form.button("§w转账", "textures/packs/15174556");
   form.button("§w排行榜", "textures/packs/004-trophy");
   form.button("§w返回", "textures/icons/back");
 
@@ -42,9 +46,17 @@ export function openEconomyMenuForm(player: Player) {
         ahf.openMainMenu(player);
         break;
       case 3:
-        openEconomyRankingForm(player);
+        // 显示出售物品界面
+        sellItemsForm.openSellItemsMenu(player);
         break;
       case 4:
+        // 显示转账界面
+        transferForm.openTransferMenu(player);
+        break;
+      case 5:
+        openEconomyRankingForm(player);
+        break;
+      case 6:
         openServerMenuForm(player);
         break;
     }
@@ -55,11 +67,16 @@ export function openEconomyMenuForm(player: Player) {
 function openMyWalletForm(player: Player) {
   const wallet = enconomic.getWallet(player.name);
   const transactions = enconomic.getPlayerTransactions(player.name, 5);
+  const dailyLimit = enconomic.getDailyGoldLimit();
+  const remainingLimit = enconomic.getRemainingDailyLimit(player.name);
 
   const form = new ActionFormData();
   form.title("§w我的钱包");
 
-  let bodyText = `§a当前余额: §e${wallet.gold} 金币\n\n§a最近交易记录:\n`;
+  let bodyText = `§a当前余额: §e${wallet.gold} 金币\n`;
+  bodyText += `§a今日已获得: §e${wallet.dailyEarned} / ${dailyLimit} 金币\n`;
+  bodyText += `§a今日剩余额度: §e${remainingLimit} 金币\n\n`;
+  bodyText += `§a最近交易记录:\n`;
 
   if (transactions.length === 0) {
     bodyText += "§7暂无交易记录";

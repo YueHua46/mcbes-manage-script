@@ -27,7 +27,9 @@ export type IModules =
   | "backToDeath" // 回到上一次死亡地点
   | "enableTreeCutOneClick" // 新增一键砍树开关
   | "enableDigOreOneClick" // 新增一键挖矿开关
-  | "land1BlockPerPrice";
+  | "land1BlockPerPrice"
+  | "daily_gold_limit"
+  | "startingGold";
 
 export type IValueType = boolean | string;
 
@@ -55,6 +57,8 @@ export const defaultSetting = {
   enableTreeCutOneClick: true, // 新增一键砍树开关
   enableDigOreOneClick: true, // 新增一键挖矿开关
   land1BlockPerPrice: "2", // 创建领地时一个方块需要花费的金币
+  daily_gold_limit: "100000", // 每日金币获取上限
+  startingGold: "500", // 新玩家初始金币
 };
 
 export class ServerSetting {
@@ -95,6 +99,8 @@ export class ServerSetting {
     this.db.set("enableTreeCutOneClick", defaultSetting.enableTreeCutOneClick); // 初始化一键砍树开关
     this.db.set("enableDigOreOneClick", defaultSetting.enableDigOreOneClick); // 初始化一键挖矿开关
     this.db.set("land1BlockPerPrice", defaultSetting.land1BlockPerPrice); // 新增地一块的价格
+    this.db.set("daily_gold_limit", defaultSetting.daily_gold_limit); // 新增每日金币获取上限
+    this.db.set("startingGold", defaultSetting.startingGold); // 新增新玩家初始金币
   }
   getState(module: IModules) {
     if (this.db.get(module) === undefined) {

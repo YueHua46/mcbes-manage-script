@@ -663,11 +663,12 @@ export const openSystemSettingForm = (player: Player) => {
       icon: "textures/ui/settings_glyph_color_2x",
       action: () => openCommonSettingForm(player),
     },
-    {
-      text: "监控日志管理（仅限VPS服务器，详细使用方式必须看视频教程来操作）",
-      icon: "textures/ui/settings_glyph_color",
-      action: () => monitorLog.openMonitorLogMenu(player),
-    },
+    // TODO: 监控日志管理
+    // {
+    //   text: "监控日志管理（仅限VPS服务器，详细使用方式必须看视频教程来操作）",
+    //   icon: "textures/ui/settings_glyph_color",
+    //   action: () => monitorLog.openMonitorLogMenu(player),
+    // },
   ];
 
   buttons.forEach(({ text, icon }) => form.button(text, icon));
@@ -1156,7 +1157,9 @@ export const openEconomyMenuForm = (player: Player) => {
   const form = new ActionFormData();
   form.title("§w经济系统管理");
 
-  form.button("§w管理玩家金币数量", "textures/packs/15174556");
+  form.button("§w设置玩家金币数量", "textures/packs/15174556");
+  form.button("§w设置玩家可获得的每日金币上限", "textures/packs/15174556");
+  form.button("§w设置新玩家初始金币数量", "textures/packs/15174556");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -1166,7 +1169,13 @@ export const openEconomyMenuForm = (player: Player) => {
         openSetPlayerMoneyForm(player);
         break;
       case 1:
-        openCommonSettingForm(player);
+        openManageDailyGoldLimitForm(player);
+        break;
+      case 2:
+        openSetStartingGoldForm(player);
+        break;
+      case 3:
+        openEconomyMenuForm(player);
         break;
     }
   });
@@ -1239,5 +1248,102 @@ export const openSetPlayerMoneyForm = (player: Player) => {
         );
       }
     }
+  });
+};
+
+// 设置玩家默认金币数量
+export const openSetStartingGoldForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("§w设置新玩家默认金币数量");
+  form.textField("§w金币数量", "请输入要设置的金币数量", {
+    defaultValue: "500",
+  });
+  form.submitButton("§w确认");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+
+    const amount = parseInt(data.formValues?.[0] as string);
+    if (isNaN(amount) || amount <= 0) {
+      openDialogForm(player, {
+        title: "设置失败",
+        desc: color.red("请输入有效的正整数！"),
+      });
+    }
+
+    setting.setState("startingGold", amount.toString());
+    openDialogForm(player, {
+      title: "设置成功",
+      desc: color.green(`已成功将新玩家默认金币数量设置为 ${color.yellow(amount.toString())}`),
+    });
+  });
+};
+// 管理每日金币上限的表单
+export const openManageDailyGoldLimitForm = (player: Player) => {
+  const currentLimit = economic.getDailyGoldLimit();
+
+  const form = new ActionFormData();
+  form.title("§w管理每日金币上限");
+  form.body(
+    `§a当前每日金币上限: §e${currentLimit} §a金币\n\n§a此限制适用于所有玩家，每天零点自动重置\n§a只计算出售物品和击杀怪物获得的金币\n§a玩家之间的转账不计入每日限制`
+  );
+
+  form.button("§w修改每日金币上限", "textures/packs/15174556");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((response) => {
+    if (response.canceled) return;
+
+    switch (response.selection) {
+      case 0:
+        openSetDailyLimitForm(player);
+        break;
+      case 1:
+        openEconomyMenuForm(player);
+        break;
+    }
+  });
+};
+
+// 设置每日金币上限表单
+export const openSetDailyLimitForm = (player: Player) => {
+  const currentLimit = economic.getDailyGoldLimit();
+
+  const form = new ModalFormData();
+  form.title("§w设置每日金币上限");
+  form.textField(`§a当前每日金币上限: §e${currentLimit} §a金币\n§a请输入新的每日金币上限:`, "输入数字", {
+    defaultValue: currentLimit.toString(),
+  });
+
+  form.show(player).then((response) => {
+    if (response.canceled) {
+      openManageDailyGoldLimitForm(player);
+      return;
+    }
+
+    const limitStr = response.formValues?.[0] as string;
+    const limit = parseInt(limitStr);
+
+    if (isNaN(limit) || limit < 0) {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: "§c请输入有效的数字，且不能小于0",
+        },
+        () => openSetDailyLimitForm(player)
+      );
+      return;
+    }
+
+    economic.setGlobalDailyLimit(limit);
+    openDialogForm(
+      player,
+      {
+        title: "设置成功",
+        desc: `§a每日金币上限已设置为: §e${limit} §a金币`,
+      },
+      () => openManageDailyGoldLimitForm(player)
+    );
   });
 };
