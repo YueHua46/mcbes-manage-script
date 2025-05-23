@@ -2,7 +2,7 @@ import { GameMode, Player, world } from "@minecraft/server";
 import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/server-ui";
 import { color, colorCodes } from "../../utils/color";
 import setting, { IModules, IValueType } from "./Setting";
-import { useNotify, usePlayerByName } from "../../hooks/hooks";
+import { useGetAllPlayer, useNotify, usePlayerByName } from "../../hooks/hooks";
 import { openAllPlayerLandManageForm, openLandDetailForm, openLandListForm } from "../Land/Forms";
 import land, { ILand } from "../Land/Land";
 import { openConfirmDialogForm, openDialogForm } from "../Forms/Dialog";
@@ -1183,13 +1183,14 @@ export const openEconomyMenuForm = (player: Player) => {
 
 // 设置玩家金币数量表单
 export const openSetPlayerMoneyForm = (player: Player) => {
-  const playerList = world.getPlayers();
+  const allPlayer = useGetAllPlayer();
+  const allPlayerNames = allPlayer.map((player) => player.name);
 
   const form = new ModalFormData();
   form.title("§w管理玩家金币数量");
   form.dropdown(
     "§w玩家选择（和玩家名称二选一即可）",
-    playerList.map((player) => ` ${player.name}`),
+    allPlayerNames,
     {
       defaultValueIndex: 0,
       tooltip: "选择要设置金币数量的玩家",
@@ -1209,44 +1210,32 @@ export const openSetPlayerMoneyForm = (player: Player) => {
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
     const { formValues } = data;
-    console.warn(`formValues: ${formValues?.[0]}, ${formValues?.[1]}, ${formValues?.[2]}, ${formValues?.[3]}`);
-    if (formValues && (isNumber(formValues?.[0] as number) || formValues[1]) && isNumber(formValues[2] as number)) {
-      const playerIndex = formValues[0] as number;
-      const playerName = formValues[1]?.toString();
-      const operationType = formValues[2] as number;
-      const amount = parseInt(formValues[3]?.toString() || "0");
+    if (formValues) {
+      // 获取玩家名称（二选一结果）
+      const selectPlayerName = allPlayer[Number(formValues?.[0])].name;
+      const inputPlayerName = formValues?.[1] as string;
+
+      const playerName = inputPlayerName || selectPlayerName;
+      const amount = parseInt(formValues[3]?.toString() ?? "0");
+      const operation = formValues[2]?.toString() ?? "0";
 
       if (isNaN(amount) || amount <= 0) {
-        openDialogForm(
-          player,
-          {
-            title: "设置失败",
-            desc: color.red("请输入有效的正整数！"),
-          },
-          () => openSetPlayerMoneyForm(player)
-        );
-        return;
+        openDialogForm(player, {
+          title: "设置失败",
+          desc: color.red("请输入有效的正整数！"),
+        });
       }
 
-      const targetPlayer = playerIndex !== -1 ? playerList[playerIndex] : usePlayerByName(playerName || "");
-      console.warn(
-        `playerIndex: ${playerIndex}, playerName: ${playerName}, operationType: ${operationType}, amount: ${amount}`
-      );
-      if (targetPlayer) {
-        const { gold: currentGold } = economic.getWallet(targetPlayer.name);
-        const newMoney = operationType === 0 ? currentGold + amount : currentGold - amount;
-
-        economic.setPlayerGold(targetPlayer.name, newMoney);
-
-        openDialogForm(
-          player,
-          {
-            title: "设置成功",
-            desc: `${colorCodes.green}已成功将 ${colorCodes.yellow}${targetPlayer.name} ${colorCodes.green}的金币数量从 ${colorCodes.yellow}${currentGold} ${colorCodes.green}设置为 ${colorCodes.yellow}${newMoney}`,
-          },
-          () => openSetPlayerMoneyForm(player)
-        );
+      if (operation === "0") {
+        economic.addGold(playerName, amount, "管理员增加金币数量");
+      } else if (operation === "1") {
+        economic.removeGold(playerName, amount, "管理员减少金币数量");
       }
+
+      openDialogForm(player, {
+        title: "设置成功",
+        desc: color.green(`已成功将 ${color.yellow(playerName)} 的金币数量设置为 ${color.yellow(amount.toString())}`),
+      }, () => openEconomyMenuForm(player));
     }
   });
 };
