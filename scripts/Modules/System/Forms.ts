@@ -1175,7 +1175,7 @@ export const openEconomyMenuForm = (player: Player) => {
         openSetStartingGoldForm(player);
         break;
       case 3:
-        openEconomyMenuForm(player);
+        openSystemSettingForm(player);
         break;
     }
   });
@@ -1233,8 +1233,8 @@ export const openSetPlayerMoneyForm = (player: Player) => {
       }
 
       openDialogForm(player, {
-        title: "设置成功",
-        desc: color.green(`已成功将 ${color.yellow(playerName)} 的金币数量设置为 ${color.yellow(amount.toString())}`),
+        title: "操作成功",
+        desc: color.green(`已成功将 ${color.yellow(playerName)} 的金币 ${operation === "0" ? "增加" : "减少"} ${color.yellow(amount.toString())}`),
       }, () => openEconomyMenuForm(player));
     }
   });
