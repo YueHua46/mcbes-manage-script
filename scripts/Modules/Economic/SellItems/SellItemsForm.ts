@@ -8,6 +8,7 @@ import { openEconomyMenuForm } from "../Forms";
 import { colorCodes } from "../../../utils/color";
 import { itemsByGold } from "../data/itemsByGold";
 import setting from "../../System/Setting";
+import itemPriceDb from "../ItemPriceDatabase";
 
 /**
  * 物品出售系统UI管理类
@@ -477,8 +478,8 @@ class SellItemsForm {
    * 获取物品的价格
    */
   private getItemPrice(item: ItemStack): number {
-    // 从itemsByGold.json中获取物品价格
-    const price = (itemsByGold as Record<string, number>)[item.typeId] || 0;
+    // 从数据库获取物品价格
+    const price = itemPriceDb.getPrice(item.typeId);
 
     // 如果物品没有定价，给一个默认价格
     return price > 0 ? price : 1;

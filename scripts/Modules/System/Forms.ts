@@ -20,6 +20,7 @@ import { memberManager } from "./TrialMode";
 import economic from "../Economic/Economic";
 import { landAreas } from "../Land/Event";
 import monitorLog from "../Monitor/MonitorLog";
+import itemPriceDb from "../Economic/ItemPriceDatabase";
 
 // 创建搜索玩家领地表单
 function createSearchLandForm() {
@@ -1157,13 +1158,14 @@ export const openEconomyMenuForm = (player: Player) => {
   const form = new ActionFormData();
   form.title("§w经济系统管理");
 
-  form.button("§w设置玩家金币数量", "textures/packs/15174556");
-  form.button("§w设置玩家可获得的每日金币上限", "textures/packs/15174556");
-  form.button("§w设置新玩家初始金币数量", "textures/packs/15174556");
+  form.button("§w设置玩家金币数量", "textures/packs/13107521");
+  form.button("§w设置玩家可获得的每日金币上限", "textures/packs/004-trophy");
+  form.button("§w设置新玩家初始金币数量", "textures/packs/15174541");
+  form.button("§w物品出售价格管理", "textures/packs/12065264");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
+    if (data.canceled) return;
     switch (data.selection) {
       case 0:
         openSetPlayerMoneyForm(player);
@@ -1175,11 +1177,109 @@ export const openEconomyMenuForm = (player: Player) => {
         openSetStartingGoldForm(player);
         break;
       case 3:
+        openItemPriceManageForm(player);
+        break;
+      case 4:
         openSystemSettingForm(player);
         break;
     }
   });
 };
+
+// 物品价格管理主界面
+function openItemPriceManageForm(player: Player) {
+  const form = new ActionFormData()
+    .title("§w物品出售价格管理")
+    .body("§a请选择要进行的操作")
+    .button("§w浏览物品出售价格列表", "textures/packs/12065264")
+    .button("§w调整物品出售时价格", "textures/icons/edit")
+    .button("§w返回", "textures/icons/back");
+
+  form.show(player).then((res) => {
+    if (res.canceled) return;
+    switch (res.selection) {
+      case 0:
+        showAllItemPrices(player);
+        break;
+      case 1:
+        openModifyItemPriceForm(player);
+        break;
+      case 2:
+        openEconomyMenuForm(player);
+        break;
+    }
+  });
+}
+
+// 显示所有物品价格
+function showAllItemPrices(player: Player) {
+  const messageForm = new MessageFormData();
+  messageForm.title("物品价格列表");
+  const prices = itemPriceDb.getAllPrices();
+  let messageBody = "§e========物品价格列表========\n\n";
+  Object.entries(prices).forEach(([itemId, price]) => {
+    messageBody += `§b${itemId}§f: §e${price} §f金币\n`;
+  });
+  messageBody += "§e========物品价格列表========\n\n";
+
+  messageForm.body(messageBody);
+  messageForm.button1("§w确定");
+  messageForm.button2("§w返回");
+  messageForm.show(player).then((res) => {
+    if (res.canceled) return;
+    if (res.selection === 0 || res.selection === 1) {
+      openItemPriceManageForm(player);
+    }
+  });
+}
+
+// 修改物品价格表单
+function openModifyItemPriceForm(player: Player) {
+  const form = new ModalFormData()
+    .title("修改物品价格")
+    .textField("§a物品ID", "例如: minecraft:diamond")
+    .textField("§a出售价格", "请输入单个物品的出售价格");
+
+  form.show(player).then((res) => {
+    if (res.canceled) return;
+    const [itemId, priceStr] = res.formValues as [string, string];
+    const price = parseInt(priceStr);
+
+    if (!itemId) {
+      openDialogForm(
+        player,
+        {
+          title: "错误",
+          desc: "§c请输入有效的物品ID",
+        },
+        () => openModifyItemPriceForm(player)
+      );
+      return;
+    }
+
+    if (isNaN(price) || price < 0) {
+      openDialogForm(
+        player,
+        {
+          title: "错误",
+          desc: "§c请输入有效的价格",
+        },
+        () => openModifyItemPriceForm(player)
+      );
+      return;
+    }
+
+    itemPriceDb.setPrice(itemId, price);
+    openDialogForm(
+      player,
+      {
+        title: "成功",
+        desc: `§a成功设置 §b${itemId} §a的价格为 §e${price} §a金币`,
+      },
+      () => openItemPriceManageForm(player)
+    );
+  });
+}
 
 // 设置玩家金币数量表单
 export const openSetPlayerMoneyForm = (player: Player) => {
@@ -1188,14 +1288,10 @@ export const openSetPlayerMoneyForm = (player: Player) => {
 
   const form = new ModalFormData();
   form.title("§w管理玩家金币数量");
-  form.dropdown(
-    "§w玩家选择（和玩家名称二选一即可）",
-    allPlayerNames,
-    {
-      defaultValueIndex: 0,
-      tooltip: "选择要设置金币数量的玩家",
-    }
-  );
+  form.dropdown("§w玩家选择（和玩家名称二选一即可）", allPlayerNames, {
+    defaultValueIndex: 0,
+    tooltip: "选择要设置金币数量的玩家",
+  });
   form.textField("§w玩家名称（和玩家选择二选一即可）", "请输入要设置金币数量的玩家名称");
   form.dropdown("§w操作类型", ["§w增加", "§w减少"], {
     defaultValueIndex: 0,
@@ -1232,10 +1328,18 @@ export const openSetPlayerMoneyForm = (player: Player) => {
         economic.removeGold(playerName, amount, "管理员减少金币数量");
       }
 
-      openDialogForm(player, {
-        title: "操作成功",
-        desc: color.green(`已成功将 ${color.yellow(playerName)} 的金币 ${operation === "0" ? "增加" : "减少"} ${color.yellow(amount.toString())}`),
-      }, () => openEconomyMenuForm(player));
+      openDialogForm(
+        player,
+        {
+          title: "操作成功",
+          desc: color.green(
+            `已成功将 ${color.yellow(playerName)} 的金币 ${operation === "0" ? "增加" : "减少"} ${color.yellow(
+              amount.toString()
+            )}`
+          ),
+        },
+        () => openEconomyMenuForm(player)
+      );
     }
   });
 };
