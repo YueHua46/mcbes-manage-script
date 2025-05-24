@@ -200,11 +200,7 @@ class OfficeShopForm {
         getItemDisplayName(item.item),
       ],
     };
-    const modal = new ModalFormData().title(title).slider("选择购买数量", 1, maxAmount, {
-      defaultValue: 1,
-      valueStep: 1,
-      tooltip: `当前最大可购买数量: ${maxAmount}`,
-    });
+    const modal = new ModalFormData().title(title).textField(`请输入购买数量`, "1");
     modal
       .show(player)
       .then((res) => {

@@ -180,7 +180,6 @@ export class Economic {
       if (reason.includes("玩家转账") || reason.includes("购买玩家商店物品")) {
         ignoreDailyLimit = true;
       }
-
       if (!ignoreDailyLimit && wallet.dailyEarned >= this.DAILY_GOLD_LIMIT) {
         // 检查今日提示次数是否已达到3次
         if (wallet.dailyLimitNotifyCount < 3) {
