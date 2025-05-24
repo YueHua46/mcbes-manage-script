@@ -228,6 +228,13 @@ class Land {
     end: Vector3
   ): Promise<{ canAfford: boolean; cost: number; balance: number; isCancel: boolean }> {
     return new Promise((resolve) => {
+      // 如果经济系统关闭,直接返回可以创建
+      if (!setting.getState("economy")) {
+        resolve({ canAfford: true, cost: 0, balance: 0, isCancel: false });
+        return;
+      }
+
+      // 原有逻辑保持不变
       const cost = economic.calculateLandPrice(start, end);
       const balance = economic.getWallet(player.name).gold;
       const canAfford = balance >= cost;

@@ -2,9 +2,13 @@ import { world, Entity, Player, RawMessage } from "@minecraft/server"; // Bedroc
 import economic from "./Economic"; // 你已封装的经济系统单例
 import { monsterByGold } from "./data/monsterByGold";
 import { colorCodes } from "../../utils/color";
+import setting from "../System/Setting";
 
 // 订阅"实体死亡后"事件信号（AfterEvent，不可取消）:contentReference[oaicite:1]{index=1}
 world.afterEvents.entityDie.subscribe((event) => {
+  // 如果经济系统关闭,直接返回
+  if (!setting.getState("economy")) return;
+
   const { deadEntity, damageSource } = event;
 
   // 检查是否是玩家击杀

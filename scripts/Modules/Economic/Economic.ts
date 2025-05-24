@@ -162,6 +162,13 @@ export class Economic {
   }
 
   /**
+   * 检查经济系统是否启用
+   */
+  private isEconomyEnabled(): boolean {
+    return setting.getState("economy") === true;
+  }
+
+  /**
    * 添加金币
    * @param name 玩家名称
    * @param amount 金额
@@ -170,6 +177,8 @@ export class Economic {
    * @returns 实际添加的金额
    */
   addGold(playerName: string, amount: number, reason: string, ignoreDailyLimit: boolean = false): number {
+    if (!this.isEconomyEnabled()) return 0;
+
     if (amount <= 0) return 0;
 
     const wallet = this.getWallet(playerName);
@@ -242,6 +251,8 @@ export class Economic {
 
   // 扣除金币
   removeGold(playerName: string, amount: number, reason: string = "系统消费"): boolean {
+    if (!this.isEconomyEnabled()) return true;
+
     if (amount <= 0) return false;
 
     const wallet = this.getWallet(playerName);
@@ -263,6 +274,8 @@ export class Economic {
 
   // 转账
   transfer(fromPlayer: string, toPlayer: string, amount: number, reason: string = "转账"): string | boolean {
+    if (!this.isEconomyEnabled()) return true;
+
     if (amount <= 0) return "无效金额";
     if (fromPlayer === toPlayer) return "不能给自己转账";
 

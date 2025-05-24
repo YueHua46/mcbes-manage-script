@@ -294,6 +294,11 @@ export const openFunctionSwitchForm = (player: Player) => {
       state: setting.getState("wayPoint") ?? true,
     },
     {
+      text: "§w经济系统",
+      id: "economy",
+      state: setting.getState("economy") ?? true,
+    },
+    {
       text: "§w其他功能",
       id: "other",
       state: setting.getState("other") ?? true,
