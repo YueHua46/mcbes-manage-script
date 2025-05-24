@@ -77,12 +77,7 @@ function createServerMenuForm(player: Player): ActionFormData {
 
   const form = new ActionFormData();
   form.title("§w服务器菜单");
-  form.body({
-    rawtext: [
-      { text: "§a欢迎使用杜绝熊孩服务器插件，请选择你的操作。\n" },
-      { text: "§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ" },
-    ],
-  });
+  form.body("");
 
   menuItems
     .filter(({ id }) => {

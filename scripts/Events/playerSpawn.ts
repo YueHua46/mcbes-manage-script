@@ -1,4 +1,4 @@
-import { world } from "@minecraft/server";
+import { RawMessage, world } from "@minecraft/server";
 import setting from "../Modules/System/Setting";
 
 world.afterEvents.playerSpawn.subscribe((event) => {
@@ -13,6 +13,7 @@ world.afterEvents.playerSpawn.subscribe((event) => {
     );
     player?.runCommand("give @s yuehua:sm");
   }
+
   if (!worldInit) {
     world.setDynamicProperty("init", true);
     setting.init();

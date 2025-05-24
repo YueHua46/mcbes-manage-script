@@ -40,10 +40,14 @@ world.afterEvents.playerBreakBlock.subscribe(async (e) => {
  */
 // eslint-disable-next-line max-statements
 async function digOre(player: Player, dimension: Dimension, location: Vector3, blockTypeId: string) {
+  // 检测是否为空手，空手直接返回
   const equipmentInventory = player.getComponent(EntityEquippableComponent.componentId) as EntityEquippableComponent;
   if (!equipmentInventory) return;
 
   const mainHand = equipmentInventory.getEquipmentSlot(EquipmentSlot.Mainhand);
+
+  // 检查主手槽位是否有效且包含物品
+  if (!mainHand || !mainHand.hasItem()) return;
 
   try {
     const currentSlotItem = mainHand.getItem();
