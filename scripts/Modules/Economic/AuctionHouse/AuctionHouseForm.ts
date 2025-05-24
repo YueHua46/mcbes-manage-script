@@ -259,10 +259,7 @@ class AuctionHouseForm {
    */
   private askBuyQuantity(player: Player, item: ShopItem): void {
     const maxAmount = item.data.amount;
-    const form = new ModalFormData().title(`购买 - ${item.data.name}`).slider("请选择购买数量", 1, maxAmount, {
-      valueStep: 1,
-      defaultValue: 1,
-    });
+    const form = new ModalFormData().title(`购买 - ${item.data.name}`).textField("请选择购买数量", "1");
 
     form.show(player).then((response) => {
       if (response.canceled) {
