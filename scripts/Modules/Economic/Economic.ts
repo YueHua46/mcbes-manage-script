@@ -30,6 +30,7 @@ export interface IUserWallet {
 export interface IUserWalletWithDailyLimit extends IUserWallet {
   dailyEarned: number; // 今日已获得的金币数量
   lastResetDate: string; // 上次重置日期 (YYYY-MM-DD 格式)
+  dailyLimitNotifyCount: number; // 今日已提示达到上限的次数
 }
 
 // 交易记录接口
@@ -87,10 +88,10 @@ export class Economic {
     const allWallets = this.db.getAll() as Record<string, IUserWalletWithDailyLimit>;
 
     for (const [name, wallet] of Object.entries(allWallets)) {
-      // 如果日期不同，重置每日获取量
       if (wallet.lastResetDate !== today) {
         wallet.dailyEarned = 0;
         wallet.lastResetDate = today;
+        wallet.dailyLimitNotifyCount = 0; // 重置提示次数
         this.db.set(name, wallet);
       }
     }
@@ -116,6 +117,7 @@ export class Economic {
       gold: this.DEFAULT_GOLD,
       dailyEarned: 0,
       lastResetDate: this.getCurrentDateString(),
+      dailyLimitNotifyCount: 0,
     };
     this.db.set(name, wallet);
     return wallet;
@@ -180,16 +182,21 @@ export class Economic {
       }
 
       if (!ignoreDailyLimit && wallet.dailyEarned >= this.DAILY_GOLD_LIMIT) {
-        // 已达到每日上限，通知玩家
-        const player = usePlayerByName(playerName);
-        if (player) {
-          player.sendMessage({
-            rawtext: [
-              {
-                text: `${colorCodes.red}您已达到今日金币获取上限 ${colorCodes.gold}${this.DAILY_GOLD_LIMIT} ${colorCodes.red}金币，无法获得更多金币！`,
-              },
-            ],
-          });
+        // 检查今日提示次数是否已达到3次
+        if (wallet.dailyLimitNotifyCount < 3) {
+          const player = usePlayerByName(playerName);
+          if (player) {
+            player.sendMessage({
+              rawtext: [
+                {
+                  text: `${colorCodes.red}您已达到今日金币获取上限 ${colorCodes.gold}${this.DAILY_GOLD_LIMIT} ${colorCodes.red}金币，无法获得更多金币！`,
+                },
+              ],
+            });
+            // 增加提示次数
+            wallet.dailyLimitNotifyCount++;
+            this.db.set(playerName, wallet);
+          }
         }
         return 0;
       }
@@ -199,16 +206,21 @@ export class Economic {
       if (!ignoreDailyLimit && amount > remainingLimit) {
         amount = remainingLimit;
 
-        // 通知玩家已达到上限
-        const player = usePlayerByName(playerName);
-        if (player) {
-          player.sendMessage({
-            rawtext: [
-              {
-                text: `${colorCodes.yellow}您已达到今日金币获取上限 ${colorCodes.gold}${this.DAILY_GOLD_LIMIT} ${colorCodes.yellow}金币！`,
-              },
-            ],
-          });
+        // 检查今日提示次数是否已达到3次
+        if (wallet.dailyLimitNotifyCount < 3) {
+          const player = usePlayerByName(playerName);
+          if (player) {
+            player.sendMessage({
+              rawtext: [
+                {
+                  text: `${colorCodes.yellow}您已达到今日金币获取上限 ${colorCodes.gold}${this.DAILY_GOLD_LIMIT} ${colorCodes.yellow}金币！`,
+                },
+              ],
+            });
+            // 增加提示次数
+            wallet.dailyLimitNotifyCount++;
+            this.db.set(playerName, wallet);
+          }
         }
       }
     }
