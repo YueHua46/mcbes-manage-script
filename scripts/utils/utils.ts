@@ -8,7 +8,6 @@ import {
   ItemStack,
   Player,
   PlayerPermissionLevel,
-  // PlayerPermissionLevel,
   RawMessage,
   system,
   world,
