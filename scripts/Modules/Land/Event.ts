@@ -15,8 +15,6 @@ import particle from "../Particle";
 import land, { ILand } from "./Land";
 import { useNotify } from "../../hooks/hooks";
 import { MinecraftBlockTypes } from "../../types";
-import economic from "../Economic/Economic";
-import { openDialogForm } from "../Forms/Dialog";
 
 interface LandArea {
   start?: { x: number; y: number; z: number };
@@ -213,7 +211,52 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
     MinecraftBlockTypes.WoodenButton,
     MinecraftBlockTypes.Lever,
   ];
-
+  // 交互方块为锻造类得功能性方块
+  const smelting = [
+    MinecraftBlockTypes.Furnace,
+    MinecraftBlockTypes.BlastFurnace,
+    MinecraftBlockTypes.Smoker,
+    MinecraftBlockTypes.Campfire,
+    MinecraftBlockTypes.SmithingTable,
+    MinecraftBlockTypes.Anvil,
+    MinecraftBlockTypes.Grindstone,
+    MinecraftBlockTypes.CartographyTable,
+    MinecraftBlockTypes.Loom,
+    // 附魔台
+    MinecraftBlockTypes.EnchantingTable,
+    // 唱片机
+    MinecraftBlockTypes.Jukebox,
+    // 信标
+    MinecraftBlockTypes.Beacon,
+    // 工作台
+    MinecraftBlockTypes.CraftingTable,
+    // 重生锚
+    MinecraftBlockTypes.RespawnAnchor,
+    // 酿造台
+    MinecraftBlockTypes.BrewingStand,
+    // 床
+    MinecraftBlockTypes.Bed,
+    // 切石机
+    MinecraftBlockTypes.Stonecutter,
+  ];
+  // 红石类功能性方块
+  const redstone = [
+    // 侦测器
+    MinecraftBlockTypes.Observer,
+    // 发射器
+    MinecraftBlockTypes.Dispenser,
+    // 阳关探测器
+    MinecraftBlockTypes.DaylightDetector,
+    MinecraftBlockTypes.DaylightDetectorInverted,
+    // 红石中继器
+    MinecraftBlockTypes.UnpoweredRepeater,
+    // 红石比较器
+    MinecraftBlockTypes.UnpoweredComparator,
+    // 漏斗
+    MinecraftBlockTypes.Hopper,
+    // 合成器
+    MinecraftBlockTypes.Crafter,
+  ];
   // 判断是否为箱子
   if (chests.includes(block.typeId as MinecraftBlockTypes)) {
     // 判断箱子权限是否开放
@@ -249,6 +292,51 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
   // 判断是否开放方块交互权限
   if (insideLand.public_auth.useBlock) {
     return;
+  }
+
+  // 判断是否为告示牌类似的
+  if (block.typeId.endsWith("sign")) {
+    if (insideLand.public_auth.useSign) {
+      return;
+    } else {
+      event.cancel = true;
+      useNotify(
+        "chat",
+        player,
+        color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
+      );
+      return;
+    }
+  }
+
+  // 判断是否为红石类功能性方块
+  if (redstone.includes(block.typeId as MinecraftBlockTypes)) {
+    if (insideLand.public_auth.useRedstone) {
+      return;
+    } else {
+      event.cancel = true;
+      useNotify(
+        "chat",
+        player,
+        color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
+      );
+      return;
+    }
+  }
+
+  // 判断是否为锻造类功能性方块
+  if (smelting.includes(block.typeId as MinecraftBlockTypes)) {
+    if (insideLand.public_auth.useSmelting) {
+      return;
+    } else {
+      event.cancel = true;
+      useNotify(
+        "chat",
+        player,
+        color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
+      );
+      return;
+    }
   }
 
   // 拒绝交互

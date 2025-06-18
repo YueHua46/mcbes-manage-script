@@ -129,6 +129,9 @@ export function openLandApplyForm(player: Player) {
             useButton: false,
             explode: false,
             burn: false,
+            useSign: false,
+            useSmelting: false,
+            useRedstone: false,
           },
           config_public_auth: {
             break: false,
@@ -139,6 +142,9 @@ export function openLandApplyForm(player: Player) {
             useButton: false,
             explode: false,
             burn: false,
+            useSign: false,
+            useSmelting: false,
+            useRedstone: false,
           },
           vectors: {
             start: landStartPosVector3 as Vector3,
@@ -193,9 +199,9 @@ export function openLandAuthForm(player: Player, myLand: ILand) {
     defaultValue: _myLand.public_auth.place,
     tooltip: "是否允许玩家放置领地内的方块",
   });
-  form.toggle(color.white("使用功能性方块权限"), {
+  form.toggle(color.white("与方块交互权限（包含可交互得各种方块：红石类、锻造类、告示牌类功能性等方块）"), {
     defaultValue: _myLand.public_auth.useBlock,
-    tooltip: "是否允许玩家使用功能性方块",
+    tooltip: "是否允许玩家与方块交互",
   });
   form.toggle(color.white("箱子是否公开"), {
     defaultValue: _myLand.public_auth.isChestOpen,
@@ -217,6 +223,19 @@ export function openLandAuthForm(player: Player, myLand: ILand) {
     defaultValue: _myLand.public_auth.burn,
     tooltip: "是否允许玩家岩浆或燃烧",
   });
+  form.toggle(color.white("告示牌是否公开"), {
+    defaultValue: _myLand.public_auth.useSign,
+    tooltip: "是否允许玩家使用告示牌",
+  });
+  form.toggle(color.white("锻造类方块是否公开"), {
+    defaultValue: _myLand.public_auth.useSmelting,
+    tooltip: "是否允许玩家使用锻造台、熔炉等方块",
+  });
+  form.toggle(color.white("红石类方块是否公开"), {
+    defaultValue: _myLand.public_auth.useRedstone,
+    tooltip: "是否允许玩家使用红石相关方块",
+  });
+
   form.submitButton("确认");
 
   form.show(player).then((data) => {
@@ -232,6 +251,9 @@ export function openLandAuthForm(player: Player, myLand: ILand) {
       useEntity: formValues?.[5] as boolean,
       explode: formValues?.[6] as boolean,
       burn: formValues?.[7] as boolean,
+      useSign: formValues?.[8] as boolean,
+      useSmelting: formValues?.[9] as boolean,
+      useRedstone: formValues?.[10] as boolean,
     };
 
     land.db.set(_myLand.name, {
@@ -547,6 +569,18 @@ export function openLandAuthConfigForm(player: Player, _land: ILand) {
     defaultValue: _land.config_public_auth.burn,
     tooltip: "设置是否允许成员修改领地内的燃烧保护设置",
   });
+  form.toggle(color.white("是否允许成员配置 告示牌是否公开"), {
+    defaultValue: _land.config_public_auth.useSign,
+    tooltip: "设置是否允许成员修改领地内的告示牌使用权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 锻造类方块是否公开"), {
+    defaultValue: _land.config_public_auth.useSmelting,
+    tooltip: "设置是否允许成员修改领地内的锻造台、熔炉等方块使用权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 红石类方块是否公开"), {
+    defaultValue: _land.config_public_auth.useRedstone,
+    tooltip: "设置是否允许成员修改领地内的红石相关方块使用权限设置",
+  });
   form.submitButton("确认");
 
   form.show(player).then((data) => {
@@ -562,6 +596,9 @@ export function openLandAuthConfigForm(player: Player, _land: ILand) {
       useEntity: formValues?.[5] as boolean,
       explode: formValues?.[6] as boolean,
       burn: formValues?.[7] as boolean,
+      useSign: formValues?.[8] as boolean,
+      useSmelting: formValues?.[9] as boolean,
+      useRedstone: formValues?.[10] as boolean,
     };
 
     land.db.set(_land.name, {

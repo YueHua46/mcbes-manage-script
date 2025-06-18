@@ -15,14 +15,17 @@ export interface ILand {
   members: string[];
   dimension: MinecraftDimensionTypes;
   public_auth: {
-    break: boolean;
-    place: boolean;
-    useBlock: boolean;
-    isChestOpen: boolean;
-    useEntity: boolean;
-    useButton: boolean;
-    explode: boolean;
-    burn: boolean;
+    break: boolean; // 破坏权限
+    place: boolean; // 放置权限
+    useBlock: boolean; // 方块交互权限（概括包含所有方块交互权限）
+    isChestOpen: boolean; // 箱子权限
+    useEntity: boolean; // 实体交互权限
+    useButton: boolean; // 按钮权限
+    explode: boolean; // 爆炸权限
+    burn: boolean; // 燃烧权限
+    useSign: boolean; // 告示牌权限
+    useSmelting: boolean; // 锻造类功能性方块权限
+    useRedstone: boolean; // 红石类功能性方块权限
   };
   // 领地公开权限的配置权限
   config_public_auth: {
@@ -34,6 +37,9 @@ export interface ILand {
     useButton: boolean;
     explode: boolean;
     burn: boolean;
+    useSign: boolean; // 告示牌权限
+    useSmelting: boolean; // 锻造类功能性方块权限
+    useRedstone: boolean; // 红石类功能性方块权限
   };
   vectors: {
     start: Vector3;
