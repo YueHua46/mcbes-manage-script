@@ -57,6 +57,9 @@ export class Economic {
       // 初始化配置
       this.DAILY_GOLD_LIMIT = Number(setting.getState("daily_gold_limit"));
       this.DEFAULT_GOLD = Number(setting.getState("startingGold"));
+
+      // 在服务器启动时修复无效的金币数据
+      this.fixInvalidGoldData();
     });
 
     // 设置每日重置定时器
@@ -146,6 +149,38 @@ export class Economic {
       this.db.set(playerName, wallet);
     }
 
+    // 验证和修复金币数据
+    let needsFix = false;
+    if (isNaN(wallet.gold) || !isFinite(wallet.gold) || wallet.gold === null || wallet.gold === undefined) {
+      console.warn(`检测到玩家 ${playerName} 的金币数据无效: ${wallet.gold}，将重置为默认值`);
+      wallet.gold = this.DEFAULT_GOLD;
+      needsFix = true;
+    }
+
+    if (isNaN(wallet.dailyEarned) || !isFinite(wallet.dailyEarned) || wallet.dailyEarned === null || wallet.dailyEarned === undefined) {
+      console.warn(`检测到玩家 ${playerName} 的每日获取量数据无效: ${wallet.dailyEarned}，将重置为0`);
+      wallet.dailyEarned = 0;
+      needsFix = true;
+    }
+
+    // 确保金币数量不为负数
+    if (wallet.gold < 0) {
+      console.warn(`检测到玩家 ${playerName} 的金币数量为负数: ${wallet.gold}，将重置为默认值`);
+      wallet.gold = this.DEFAULT_GOLD;
+      needsFix = true;
+    }
+
+    // 确保每日获取量不为负数
+    if (wallet.dailyEarned < 0) {
+      console.warn(`检测到玩家 ${playerName} 的每日获取量为负数: ${wallet.dailyEarned}，将重置为0`);
+      wallet.dailyEarned = 0;
+      needsFix = true;
+    }
+
+    if (needsFix) {
+      this.db.set(playerName, wallet);
+    }
+
     return wallet;
   }
 
@@ -179,7 +214,18 @@ export class Economic {
   addGold(playerName: string, amount: number, reason: string, ignoreDailyLimit: boolean = false): number {
     if (!this.isEconomyEnabled()) return 0;
 
-    if (amount <= 0) return 0;
+    // 验证金币数量是否有效
+    if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
+      console.warn(`尝试添加无效的金币数量: ${amount} 给玩家: ${playerName}`);
+      return 0;
+    }
+
+    // 验证金币数量是否超过JavaScript安全整数范围
+    const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+    if (amount > MAX_SAFE_INTEGER) {
+      console.warn(`添加金币数量超过最大安全整数范围: ${amount} 给玩家: ${playerName}`);
+      return 0;
+    }
 
     const wallet = this.getWallet(playerName);
 
@@ -253,7 +299,18 @@ export class Economic {
   removeGold(playerName: string, amount: number, reason: string = "系统消费"): boolean {
     if (!this.isEconomyEnabled()) return true;
 
-    if (amount <= 0) return false;
+    // 验证金币数量是否有效
+    if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
+      console.warn(`尝试扣除无效的金币数量: ${amount} 从玩家: ${playerName}`);
+      return false;
+    }
+
+    // 验证金币数量是否超过JavaScript安全整数范围
+    const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+    if (amount > MAX_SAFE_INTEGER) {
+      console.warn(`扣除金币数量超过最大安全整数范围: ${amount} 从玩家: ${playerName}`);
+      return false;
+    }
 
     const wallet = this.getWallet(playerName);
     if (wallet.gold < amount) return false;
@@ -276,7 +333,19 @@ export class Economic {
   transfer(fromPlayer: string, toPlayer: string, amount: number, reason: string = "转账"): string | boolean {
     if (!this.isEconomyEnabled()) return true;
 
-    if (amount <= 0) return "无效金额";
+    // 验证金币数量是否有效
+    if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
+      console.warn(`尝试转账无效的金币数量: ${amount} 从玩家: ${fromPlayer} 到玩家: ${toPlayer}`);
+      return "无效金额";
+    }
+
+    // 验证金币数量是否超过JavaScript安全整数范围
+    const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+    if (amount > MAX_SAFE_INTEGER) {
+      console.warn(`转账金币数量超过最大安全整数范围: ${amount} 从玩家: ${fromPlayer} 到玩家: ${toPlayer}`);
+      return "转账金额过大";
+    }
+
     if (fromPlayer === toPlayer) return "不能给自己转账";
 
     const fromWallet = this.getWallet(fromPlayer);
@@ -333,7 +402,24 @@ export class Economic {
 
   // 设置玩家金币
   setPlayerGold(playerName: string, amount: number): boolean {
-    if (amount < 0) return false;
+    // 验证金币数量是否有效
+    if (isNaN(amount) || !isFinite(amount) || amount < 0) {
+      console.warn(`尝试设置无效的金币数量: ${amount} 给玩家: ${playerName}`);
+      return false;
+    }
+
+    // 验证金币数量是否超过JavaScript安全整数范围
+    const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER; // 2^53 - 1
+    if (amount > MAX_SAFE_INTEGER) {
+      console.warn(`金币数量超过最大安全整数范围: ${amount} 给玩家: ${playerName}`);
+      return false;
+    }
+
+    // 额外验证：检查是否为整数
+    if (!Number.isInteger(amount)) {
+      console.warn(`金币数量必须为整数: ${amount} 给玩家: ${playerName}`);
+      return false;
+    }
 
     const wallet = this.getWallet(playerName);
     wallet.gold = amount;
@@ -411,6 +497,58 @@ export class Economic {
     wallet.lastResetDate = this.getCurrentDateString();
     this.db.set(playerName, wallet);
   }
+
+  /**
+   * 检查并修复所有玩家钱包中的无效金币数据
+   * 这个方法会修复NaN、Null、undefined等无效值
+   */
+  fixInvalidGoldData(): void {
+    const allWallets = this.db.getAll() as Record<string, IUserWalletWithDailyLimit>;
+    let fixedCount = 0;
+
+    for (const [name, wallet] of Object.entries(allWallets)) {
+      let needsFix = false;
+
+      // 检查金币数据是否有效
+      if (isNaN(wallet.gold) || !isFinite(wallet.gold) || wallet.gold === null || wallet.gold === undefined) {
+        console.warn(`检测到玩家 ${name} 的金币数据无效: ${wallet.gold}，将重置为默认值`);
+        wallet.gold = this.DEFAULT_GOLD;
+        needsFix = true;
+      }
+
+      // 检查每日获取量是否有效
+      if (isNaN(wallet.dailyEarned) || !isFinite(wallet.dailyEarned) || wallet.dailyEarned === null || wallet.dailyEarned === undefined) {
+        console.warn(`检测到玩家 ${name} 的每日获取量数据无效: ${wallet.dailyEarned}，将重置为0`);
+        wallet.dailyEarned = 0;
+        needsFix = true;
+      }
+
+      // 确保金币数量不为负数
+      if (wallet.gold < 0) {
+        console.warn(`检测到玩家 ${name} 的金币数量为负数: ${wallet.gold}，将重置为默认值`);
+        wallet.gold = this.DEFAULT_GOLD;
+        needsFix = true;
+      }
+
+      // 确保每日获取量不为负数
+      if (wallet.dailyEarned < 0) {
+        console.warn(`检测到玩家 ${name} 的每日获取量为负数: ${wallet.dailyEarned}，将重置为0`);
+        wallet.dailyEarned = 0;
+        needsFix = true;
+      }
+
+      if (needsFix) {
+        this.db.set(name, wallet);
+        fixedCount++;
+      }
+    }
+
+    if (fixedCount > 0) {
+      console.warn(`修复了 ${fixedCount} 个玩家的无效金币数据`);
+    }
+  }
+
+
 }
 
 const economic = Economic.getInstance();
