@@ -3,4 +3,5 @@ import server from "./Modules/Server";
 import "./Events/index";
 import "./Modules/OneClick/DigOre/DigOre";
 import "./Modules/OneClick/Tree";
+import "./Modules/Player/NameDisplay"; // 添加玩家名字显示模块
 // import "./Modules/Monitor/MonitorEvents"; // 添加监控事件模块

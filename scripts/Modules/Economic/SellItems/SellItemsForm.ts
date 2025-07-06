@@ -480,9 +480,7 @@ class SellItemsForm {
   private getItemPrice(item: ItemStack): number {
     // 从数据库获取物品价格
     const price = itemPriceDb.getPrice(item.typeId);
-
-    // 如果物品没有定价，给一个默认价格
-    return price > 0 ? price : 1;
+    return price;
   }
 }
 
