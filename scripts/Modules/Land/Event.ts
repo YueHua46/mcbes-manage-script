@@ -121,7 +121,7 @@ system.runInterval(() => {
       useNotify(
         "actionbar",
         p,
-        `${color.yellow("您已进入")} ${color.green(insideLand.owner)} ${color.yellow("的领地")}`
+        `${color.yellow("您已进入")} ${color.green(insideLand.owner)} ${color.yellow("的领地")} ${color.aqua("『")}${color.lightPurple(insideLand.name)}${color.aqua("』")}`
       );
       try {
         particle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
@@ -133,7 +133,7 @@ system.runInterval(() => {
         useNotify(
           "actionbar",
           p,
-          `${color.yellow("您已离开")} ${color.green(landData.owner)} ${color.yellow("的领地")}`
+          `${color.yellow("您已离开")} ${color.green(landData.owner)} ${color.yellow("的领地")} ${color.aqua("『")}${color.lightPurple(landData.name)}${color.aqua("』")}`
         );
         try {
           particle.createLandParticleArea(p, [landData.vectors.start, landData.vectors.end]);
