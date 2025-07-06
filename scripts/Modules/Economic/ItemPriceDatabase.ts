@@ -26,6 +26,16 @@ export class ItemPriceDatabase {
     console.warn("[ItemPriceDatabase] 初始化默认出售物品价格完成");
   }
 
+  // 强制重置所有价格为默认值（公开方法，用于管理界面）
+  resetToDefaultPrices() {
+    console.warn("[ItemPriceDatabase] 开始重置所有物品价格为默认值");
+    Object.entries(itemsByGold).forEach(([itemId, price]) => {
+      this.setPrice(itemId, price);
+      console.warn(`[ItemPriceDatabase] 重置物品价格: ${itemId} = ${price}`);
+    });
+    console.warn("[ItemPriceDatabase] 重置所有物品价格完成");
+  }
+
   getPrice(itemId: string): number {
     const price = this.db.get(itemId) as unknown as number;
     return price || 0;
