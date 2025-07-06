@@ -5,6 +5,7 @@ import { useGetAllPlayer } from "../../hooks/hooks";
 import { color } from "../../utils/color";
 import PlayerSetting, { EFunNames, nameColors } from "./PlayerSetting";
 import { openDialogForm } from "../Forms/Dialog";
+import { namePrefixMap } from "../../glyphMap";
 
 // 创建传送请求表单
 function createRequestTpaForm(title: string, requestPlayer: Player, targetPlayer: Player, type: "to" | "come") {
@@ -115,7 +116,7 @@ function createPlayerActionForm() {
   form.title("§w玩家操作");
   form.button("§wTPA玩家传送", "textures/ui/enable_editor");
   form.button("§w聊天栏配置", "textures/icons/chat");
-  form.button("§w名字显示设置", "textures/icons/customization");
+  form.button("§w名字显示设置", "textures/icons/usertrue");
   form.button("§w返回", "textures/icons/back");
   return form;
 }
@@ -301,42 +302,52 @@ export function openMuteChatForm(player: Player) {
 export function openPlayerDisplaySettingsForm(player: Player) {
   const form = new ActionFormData();
   form.title("§w名字显示设置");
-  
+
   const currentSettings = PlayerSetting.getPlayerDisplaySettings(player);
-  const colorName = nameColors[currentSettings.nameColor] || '白色';
-  const alias = currentSettings.alias || '无';
-  
+  const colorName = nameColors[currentSettings.nameColor as keyof typeof nameColors] || "§f白色";
+  const alias = currentSettings.alias || "无";
+  const avatarIndex = PlayerSetting.getPlayerAvatarIndex(player);
+
   form.body({
     rawtext: [
       { text: `§a当前设置:\n` },
+      { text: `§a头像: ${currentSettings.avatar} (第${avatarIndex + 1}个)\n` },
       { text: `§a名字颜色: ${currentSettings.nameColor}${colorName}\n` },
-      { text: `§a别名: §f${alias}\n\n` },
+      { text: `§a别名: §f${alias}\n` },
       { text: `§a预览: ${PlayerSetting.getPlayerDisplayName(player)}\n` },
     ],
   });
-  
-  form.button("§w设置名字颜色", "textures/icons/color_wheel");
-  form.button("§w设置别名", "textures/icons/edit");
-  form.button("§w重置设置", "textures/icons/reset");
+
+  form.button("§w设置头像", "textures/icons/pixel_003");
+  form.button("§w设置名字颜色", "textures/icons/pixel_002");
+  form.button("§w设置别名", "textures/icons/pixel_001");
+  form.button("§w重置设置", "textures/icons/pixel_006");
   form.button("§w返回", "textures/icons/back");
-  
+
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
     switch (data.selection) {
       case 0:
-        openNameColorSettingsForm(player);
+        openAvatarSettingsForm(player);
         break;
       case 1:
-        openAliasSettingsForm(player);
+        openNameColorSettingsForm(player);
         break;
       case 2:
+        openAliasSettingsForm(player);
+        break;
+      case 3:
         PlayerSetting.resetPlayerDisplaySettings(player);
+        // 立即更新名字显示
+        import("../Player/NameDisplay").then(({ default: nameDisplay }) => {
+          nameDisplay.forceUpdatePlayerNameDisplay(player);
+        });
         openDialogForm(player, {
           title: "设置重置",
           desc: "§a名字显示设置已重置为默认值！",
         });
         break;
-      case 3:
+      case 4:
         openPlayerActionForm(player);
         break;
     }
@@ -347,7 +358,7 @@ export function openPlayerDisplaySettingsForm(player: Player) {
 export function openNameColorSettingsForm(player: Player) {
   const form = new ActionFormData();
   form.title("§w设置名字颜色");
-  
+
   const currentColor = PlayerSetting.getPlayerNameColor(player);
   form.body({
     rawtext: [
@@ -355,29 +366,33 @@ export function openNameColorSettingsForm(player: Player) {
       { text: `§a当前颜色: ${currentColor}${nameColors[currentColor]}\n` },
     ],
   });
-  
+
   // 添加颜色选项
   const colorEntries = Object.entries(nameColors);
   colorEntries.forEach(([code, name]) => {
-    form.button(`${code}${name}`, "textures/icons/color_wheel");
+    form.button(`${code}${name}`);
   });
-  
+
   form.button("§w返回", "textures/icons/back");
-  
+
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
-    
+
     if (data.selection === colorEntries.length) {
       // 返回按钮
       openPlayerDisplaySettingsForm(player);
       return;
     }
-    
-    if (typeof data.selection === 'number' && data.selection < colorEntries.length) {
+
+    if (typeof data.selection === "number" && data.selection < colorEntries.length) {
       const selectedColor = colorEntries[data.selection][0];
       const colorName = colorEntries[data.selection][1];
-      
+
       PlayerSetting.setPlayerNameColor(player, selectedColor);
+      // 立即更新名字显示
+      import("../Player/NameDisplay").then(({ default: nameDisplay }) => {
+        nameDisplay.forceUpdatePlayerNameDisplay(player);
+      });
       openDialogForm(player, {
         title: "设置成功",
         desc: `§a名字颜色已设置为 ${selectedColor}${colorName}§a！`,
@@ -390,18 +405,20 @@ export function openNameColorSettingsForm(player: Player) {
 export function openAliasSettingsForm(player: Player) {
   const form = new ModalFormData();
   form.title("§w设置别名");
-  
+
   const currentAlias = PlayerSetting.getPlayerAlias(player);
-  form.textField("§w输入你的别名", "请输入别名(最多20个字符)", currentAlias);
+  form.textField("§w别名", "请输入别名(最多20个字符)", {
+    defaultValue: currentAlias,
+  });
   form.submitButton("§w确认");
-  
+
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
-    
+
     const { formValues } = data;
     if (formValues) {
       const alias = formValues[0] as string;
-      
+
       if (alias.length > 20) {
         openDialogForm(player, {
           title: "设置失败",
@@ -409,10 +426,14 @@ export function openAliasSettingsForm(player: Player) {
         });
         return;
       }
-      
+
       const success = PlayerSetting.setPlayerAlias(player, alias);
       if (success) {
         const finalAlias = PlayerSetting.getPlayerAlias(player);
+        // 立即更新名字显示
+        import("../Player/NameDisplay").then(({ default: nameDisplay }) => {
+          nameDisplay.forceUpdatePlayerNameDisplay(player);
+        });
         openDialogForm(player, {
           title: "设置成功",
           desc: finalAlias ? `§a别名已设置为: §f${finalAlias}` : "§a别名已清空！",
@@ -422,6 +443,53 @@ export function openAliasSettingsForm(player: Player) {
           title: "设置失败",
           desc: "§c设置别名失败，请检查输入内容！",
         });
+      }
+    }
+  });
+}
+
+// 头像设置表单
+export function openAvatarSettingsForm(player: Player) {
+  const form = new ModalFormData();
+  form.title("§w设置头像");
+
+  const currentAvatarIndex = PlayerSetting.getPlayerAvatarIndex(player);
+  const avatarOptions = namePrefixMap.map((avatar: string, index: number) => `${avatar} 头像${index + 1}`);
+
+  form.dropdown("§w选择头像", avatarOptions, {
+    defaultValueIndex: currentAvatarIndex,
+    tooltip: "选择你喜欢的头像",
+  });
+
+  form.submitButton("§w确认");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason || data.canceled) return;
+    const { formValues } = data;
+    if (formValues) {
+      const selectedIndex = formValues[0] as number;
+      if (PlayerSetting.setPlayerAvatar(player, selectedIndex)) {
+        // 立即更新名字显示
+        import("../Player/NameDisplay").then(({ default: nameDisplay }) => {
+          nameDisplay.forceUpdatePlayerNameDisplay(player);
+        });
+        openDialogForm(
+          player,
+          {
+            title: "头像设置成功",
+            desc: `§a头像设置成功！\n§a当前头像: ${namePrefixMap[selectedIndex]}`,
+          },
+          () => openPlayerDisplaySettingsForm(player)
+        );
+      } else {
+        openDialogForm(
+          player,
+          {
+            title: "设置失败",
+            desc: "§c头像设置失败，请重试！",
+          },
+          () => openPlayerDisplaySettingsForm(player)
+        );
       }
     }
   });

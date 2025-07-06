@@ -1,36 +1,40 @@
-import { Player } from '@minecraft/server'
+import { Player } from "@minecraft/server";
+import { namePrefixMap } from "../../glyphMap";
 
 export enum EFunNames {
-  TPA = 'TPA',
-  Chat = 'Chat',
+  TPA = "TPA",
+  Chat = "Chat",
 }
 
 // 支持的颜色列表
-export const nameColors = {
-  '§0': '黑色',
-  '§1': '深蓝色',
-  '§2': '深绿色',
-  '§3': '深青色',
-  '§4': '深红色',
-  '§5': '深紫色',
-  '§6': '金色',
-  '§7': '灰色',
-  '§8': '深灰色',
-  '§9': '蓝色',
-  '§a': '绿色',
-  '§b': '青色',
-  '§c': '红色',
-  '§d': '紫色',
-  '§e': '黄色',
-  '§f': '白色',
-  '§g': '暗黄色',
-  '§h': '彩色',
-  '§r': '重置',
-}
+export const nameColors: Record<string, string> = {
+  "§0": "黑色",
+  "§1": "深蓝色",
+  "§2": "深绿色",
+  "§3": "深青色",
+  "§4": "深红色",
+  "§5": "深紫色",
+  "§6": "金色",
+  "§7": "灰色",
+  "§8": "深灰色",
+  "§9": "蓝色",
+  "§a": "绿色",
+  "§b": "青色",
+  "§c": "红色",
+  "§d": "紫色",
+  "§e": "黄色",
+  "§f": "白色",
+  "§g": "暗黄色",
+  "§h": "彩色",
+  "§r": "重置",
+};
+
+export type TNameColor = keyof typeof nameColors;
 
 export interface IPlayerDisplaySettings {
   nameColor: string;
   alias: string;
+  avatar: string; // 新增头像字段
 }
 
 class PlayerSetting {
@@ -39,11 +43,11 @@ class PlayerSetting {
   turnPlayerFunction(funName: EFunNames, player: Player, value?: boolean) {
     switch (funName) {
       case EFunNames.TPA:
-        player.setDynamicProperty('TPA', value)
-        break
+        player.setDynamicProperty("TPA", value);
+        break;
       case EFunNames.Chat:
-        player.setDynamicProperty('Chat', value)
-        break
+        player.setDynamicProperty("Chat", value);
+        break;
     }
   }
 
@@ -52,14 +56,14 @@ class PlayerSetting {
     if (!nameColors.hasOwnProperty(colorCode)) {
       return false;
     }
-    
-    player.setDynamicProperty('nameColor', colorCode);
+
+    player.setDynamicProperty("nameColor", colorCode);
     return true;
   }
 
   // 获取玩家名字显示颜色
   getPlayerNameColor(player: Player): string {
-    return player.getDynamicProperty('nameColor') as string || '§f'; // 默认白色
+    return (player.getDynamicProperty("nameColor") as string) || "§f"; // 默认白色
   }
 
   // 设置玩家别名
@@ -68,35 +72,56 @@ class PlayerSetting {
     if (alias.length > 20) {
       return false;
     }
-    
+
     // 过滤掉一些不合适的字符
-    const cleanAlias = alias.replace(/[§]/g, '').trim();
+    const cleanAlias = alias.replace(/[§]/g, "").trim();
     if (cleanAlias.length === 0) {
       // 如果别名为空，则清除别名
-      player.setDynamicProperty('alias', '');
+      player.setDynamicProperty("alias", "");
     } else {
-      player.setDynamicProperty('alias', cleanAlias);
+      player.setDynamicProperty("alias", cleanAlias);
     }
-    
+
     return true;
   }
 
   // 获取玩家别名
   getPlayerAlias(player: Player): string {
-    return player.getDynamicProperty('alias') as string || '';
+    return (player.getDynamicProperty("alias") as string) || "";
   }
 
-  // 获取玩家显示名称（包含颜色和别名）
+  // 设置玩家头像
+  setPlayerAvatar(player: Player, avatarIndex: number): boolean {
+    if (avatarIndex < 0 || avatarIndex >= namePrefixMap.length) {
+      return false;
+    }
+    player.setDynamicProperty("avatar", avatarIndex.toString());
+    return true;
+  }
+
+  // 获取玩家头像
+  getPlayerAvatar(player: Player): string {
+    const avatarIndex = parseInt(player.getDynamicProperty("avatar") as string) || 0;
+    return namePrefixMap[avatarIndex] || namePrefixMap[0];
+  }
+
+  // 获取玩家头像索引
+  getPlayerAvatarIndex(player: Player): number {
+    return parseInt(player.getDynamicProperty("avatar") as string) || 0;
+  }
+
+  // 获取玩家显示名称（包含颜色、头像和别名）
   getPlayerDisplayName(player: Player): string {
     const nameColor = this.getPlayerNameColor(player);
     const alias = this.getPlayerAlias(player);
-    
+    const avatar = this.getPlayerAvatar(player);
+
     if (alias) {
-      // 如果有别名，显示格式：[别名] 真实名字
-      return `§7[${nameColor}${alias}§7] ${nameColor}${player.name}`;
+      // 如果有别名，显示格式：头像+名字，下方显示别名
+      return `${avatar} ${nameColor}${player.name}\n§8${alias}`;
     } else {
-      // 如果没有别名，只显示彩色名字
-      return `${nameColor}${player.name}`;
+      // 如果没有别名，只显示头像+游戏名
+      return `${avatar} ${nameColor}${player.name}`;
     }
   }
 
@@ -105,14 +130,16 @@ class PlayerSetting {
     return {
       nameColor: this.getPlayerNameColor(player),
       alias: this.getPlayerAlias(player),
+      avatar: this.getPlayerAvatar(player),
     };
   }
 
   // 重置玩家显示设置
   resetPlayerDisplaySettings(player: Player): void {
-    player.setDynamicProperty('nameColor', '§f');
-    player.setDynamicProperty('alias', '');
+    player.setDynamicProperty("nameColor", "§f");
+    player.setDynamicProperty("alias", "");
+    player.setDynamicProperty("avatar", "0");
   }
 }
 
-export default new PlayerSetting()
+export default new PlayerSetting();

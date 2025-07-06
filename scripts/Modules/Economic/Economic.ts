@@ -157,7 +157,12 @@ export class Economic {
       needsFix = true;
     }
 
-    if (isNaN(wallet.dailyEarned) || !isFinite(wallet.dailyEarned) || wallet.dailyEarned === null || wallet.dailyEarned === undefined) {
+    if (
+      isNaN(wallet.dailyEarned) ||
+      !isFinite(wallet.dailyEarned) ||
+      wallet.dailyEarned === null ||
+      wallet.dailyEarned === undefined
+    ) {
       console.warn(`检测到玩家 ${playerName} 的每日获取量数据无效: ${wallet.dailyEarned}，将重置为0`);
       wallet.dailyEarned = 0;
       needsFix = true;
@@ -517,7 +522,12 @@ export class Economic {
       }
 
       // 检查每日获取量是否有效
-      if (isNaN(wallet.dailyEarned) || !isFinite(wallet.dailyEarned) || wallet.dailyEarned === null || wallet.dailyEarned === undefined) {
+      if (
+        isNaN(wallet.dailyEarned) ||
+        !isFinite(wallet.dailyEarned) ||
+        wallet.dailyEarned === null ||
+        wallet.dailyEarned === undefined
+      ) {
         console.warn(`检测到玩家 ${name} 的每日获取量数据无效: ${wallet.dailyEarned}，将重置为0`);
         wallet.dailyEarned = 0;
         needsFix = true;
@@ -547,8 +557,6 @@ export class Economic {
       console.warn(`修复了 ${fixedCount} 个玩家的无效金币数据`);
     }
   }
-
-
 }
 
 const economic = Economic.getInstance();
