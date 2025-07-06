@@ -311,14 +311,14 @@ export function openPlayerDisplaySettingsForm(player: Player) {
   form.body({
     rawtext: [
       { text: `§a当前设置:\n` },
-      { text: `§a头像: ${currentSettings.avatar} (第${avatarIndex + 1}个)\n` },
+      // { text: `§a头像: ${currentSettings.avatar} (第${avatarIndex + 1}个)\n` },
       { text: `§a名字颜色: ${currentSettings.nameColor}${colorName}\n` },
       { text: `§a别名: §f${alias}\n` },
       { text: `§a预览: ${PlayerSetting.getPlayerDisplayName(player)}\n` },
     ],
   });
 
-  form.button("§w设置头像", "textures/icons/pixel_003");
+  // form.button("§w设置头像", "textures/icons/pixel_003");
   form.button("§w设置名字颜色", "textures/icons/pixel_002");
   form.button("§w设置别名", "textures/icons/pixel_001");
   form.button("§w重置设置", "textures/icons/pixel_006");
@@ -327,16 +327,16 @@ export function openPlayerDisplaySettingsForm(player: Player) {
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
     switch (data.selection) {
+      // case 0:
+      //   openAvatarSettingsForm(player);
+      //   break;
       case 0:
-        openAvatarSettingsForm(player);
-        break;
-      case 1:
         openNameColorSettingsForm(player);
         break;
-      case 2:
+      case 1:
         openAliasSettingsForm(player);
         break;
-      case 3:
+      case 2:
         PlayerSetting.resetPlayerDisplaySettings(player);
         // 立即更新名字显示
         import("../Player/NameDisplay").then(({ default: nameDisplay }) => {
@@ -347,7 +347,7 @@ export function openPlayerDisplaySettingsForm(player: Player) {
           desc: "§a名字显示设置已重置为默认值！",
         });
         break;
-      case 4:
+      case 3:
         openPlayerActionForm(player);
         break;
     }

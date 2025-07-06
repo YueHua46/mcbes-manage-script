@@ -117,11 +117,11 @@ class PlayerSetting {
     const avatar = this.getPlayerAvatar(player);
 
     if (alias) {
-      // 如果有别名，显示格式：头像+名字，下方显示别名
-      return `${avatar} ${nameColor}${player.name}\n§8${alias}`;
+      // 如果有别名，显示格式：头像+名字，下方显示别名（使用相同颜色）
+      return `${nameColor}${player.name}\n${nameColor}[${alias}]`;
     } else {
       // 如果没有别名，只显示头像+游戏名
-      return `${avatar} ${nameColor}${player.name}`;
+      return `${nameColor}${player.name}`;
     }
   }
 
