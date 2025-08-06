@@ -121,7 +121,9 @@ system.runInterval(() => {
       useNotify(
         "actionbar",
         p,
-        `${color.yellow("您已进入")} ${color.green(insideLand.owner)} ${color.yellow("的领地")} ${color.aqua("『")}${color.lightPurple(insideLand.name)}${color.aqua("』")}`
+        `${color.yellow("您已进入")} ${color.green(insideLand.owner)} ${color.yellow("的领地")} ${color.aqua(
+          "『"
+        )}${color.lightPurple(insideLand.name)}${color.aqua("』")}`
       );
       try {
         particle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
@@ -133,7 +135,9 @@ system.runInterval(() => {
         useNotify(
           "actionbar",
           p,
-          `${color.yellow("您已离开")} ${color.green(landData.owner)} ${color.yellow("的领地")} ${color.aqua("『")}${color.lightPurple(landData.name)}${color.aqua("』")}`
+          `${color.yellow("您已离开")} ${color.green(landData.owner)} ${color.yellow("的领地")} ${color.aqua(
+            "『"
+          )}${color.lightPurple(landData.name)}${color.aqua("』")}`
         );
         try {
           particle.createLandParticleArea(p, [landData.vectors.start, landData.vectors.end]);
@@ -463,8 +467,9 @@ system.runInterval(() => {
     if (landData.public_auth.burn) continue;
 
     try {
-      clearLandFireByFill(landData);
+      // clearLandFireByFill(landData);
       // BUG: 不管是getBlocks和fill的情况，在玩家离领地区块较远时，会报错，getBlocks会无法读取领地内方块，fill则显示无法在世界外放置方块
+      clearLandFireByGetBlocks(landData);
     } catch (error) {}
   }
 }, 20);

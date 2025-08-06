@@ -306,7 +306,7 @@ export function openPlayerDisplaySettingsForm(player: Player) {
   const currentSettings = PlayerSetting.getPlayerDisplaySettings(player);
   const colorName = nameColors[currentSettings.nameColor as keyof typeof nameColors] || "§f白色";
   const alias = currentSettings.alias || "无";
-  const avatarIndex = PlayerSetting.getPlayerAvatarIndex(player);
+  // const avatarIndex = PlayerSetting.getPlayerAvatarIndex(player);
 
   form.body({
     rawtext: [
@@ -449,48 +449,48 @@ export function openAliasSettingsForm(player: Player) {
 }
 
 // 头像设置表单
-export function openAvatarSettingsForm(player: Player) {
-  const form = new ModalFormData();
-  form.title("§w设置头像");
+// export function openAvatarSettingsForm(player: Player) {
+//   const form = new ModalFormData();
+//   form.title("§w设置头像");
 
-  const currentAvatarIndex = PlayerSetting.getPlayerAvatarIndex(player);
-  const avatarOptions = namePrefixMap.map((avatar: string, index: number) => `${avatar} 头像${index + 1}`);
+//   const currentAvatarIndex = PlayerSetting.getPlayerAvatarIndex(player);
+//   const avatarOptions = namePrefixMap.map((avatar: string, index: number) => `${avatar} 头像${index + 1}`);
 
-  form.dropdown("§w选择头像", avatarOptions, {
-    defaultValueIndex: currentAvatarIndex,
-    tooltip: "选择你喜欢的头像",
-  });
+//   form.dropdown("§w选择头像", avatarOptions, {
+//     defaultValueIndex: currentAvatarIndex,
+//     tooltip: "选择你喜欢的头像",
+//   });
 
-  form.submitButton("§w确认");
+//   form.submitButton("§w确认");
 
-  form.show(player).then((data) => {
-    if (data.cancelationReason || data.canceled) return;
-    const { formValues } = data;
-    if (formValues) {
-      const selectedIndex = formValues[0] as number;
-      if (PlayerSetting.setPlayerAvatar(player, selectedIndex)) {
-        // 立即更新名字显示
-        import("../Player/NameDisplay").then(({ default: nameDisplay }) => {
-          nameDisplay.forceUpdatePlayerNameDisplay(player);
-        });
-        openDialogForm(
-          player,
-          {
-            title: "头像设置成功",
-            desc: `§a头像设置成功！\n§a当前头像: ${namePrefixMap[selectedIndex]}`,
-          },
-          () => openPlayerDisplaySettingsForm(player)
-        );
-      } else {
-        openDialogForm(
-          player,
-          {
-            title: "设置失败",
-            desc: "§c头像设置失败，请重试！",
-          },
-          () => openPlayerDisplaySettingsForm(player)
-        );
-      }
-    }
-  });
-}
+//   form.show(player).then((data) => {
+//     if (data.cancelationReason || data.canceled) return;
+//     const { formValues } = data;
+//     if (formValues) {
+//       const selectedIndex = formValues[0] as number;
+//       if (PlayerSetting.setPlayerAvatar(player, selectedIndex)) {
+//         // 立即更新名字显示
+//         import("../Player/NameDisplay").then(({ default: nameDisplay }) => {
+//           nameDisplay.forceUpdatePlayerNameDisplay(player);
+//         });
+//         openDialogForm(
+//           player,
+//           {
+//             title: "头像设置成功",
+//             desc: `§a头像设置成功！\n§a当前头像: ${namePrefixMap[selectedIndex]}`,
+//           },
+//           () => openPlayerDisplaySettingsForm(player)
+//         );
+//       } else {
+//         openDialogForm(
+//           player,
+//           {
+//             title: "设置失败",
+//             desc: "§c头像设置失败，请重试！",
+//           },
+//           () => openPlayerDisplaySettingsForm(player)
+//         );
+//       }
+//     }
+//   });
+// }

@@ -1,4 +1,4 @@
-import { GameMode, Player, world } from "@minecraft/server";
+import { GameMode, Player, RawMessage, world } from "@minecraft/server";
 import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/server-ui";
 import { color, colorCodes } from "../../utils/color";
 import setting, { IModules, IValueType } from "./Setting";
@@ -9,7 +9,7 @@ import { openConfirmDialogForm, openDialogForm } from "../Forms/Dialog";
 import { openServerMenuForm } from "../Forms/Forms";
 import { openPlayerWayPointListForm, openWayPointListForm } from "../WayPoint/Forms";
 import { openNotifyForms } from "../Notify/Forms";
-import { emojiKeyToEmojiPath, isNumber, SystemLog, toNumber } from "../../utils/utils";
+import { emojiKeyToEmojiPath, getItemLocalizationKey, isNumber, SystemLog, toNumber } from "../../utils/utils";
 import WayPoint from "../WayPoint/WayPoint";
 import { defaultSetting } from "./Setting";
 import { officeShopForm } from "../Economic/OfficeShop/OfficeShopForm";
@@ -21,6 +21,7 @@ import economic from "../Economic/Economic";
 import { landAreas } from "../Land/Event";
 import monitorLog from "../Monitor/MonitorLog";
 import itemPriceDb from "../Economic/ItemPriceDatabase";
+import { dynamicMatchIconPath } from "../../utils/texturePath";
 
 // 创建搜索玩家领地表单
 function createSearchLandForm() {
@@ -1204,7 +1205,7 @@ function openItemPriceManageForm(player: Player) {
     .button("§w浏览自定义物品出售价格", "textures/packs/12065264")
     .button("§w手动修改物品出售价格", "textures/icons/edit")
     .button("§w搜索物品出售价格", "textures/ui/magnifyingGlass")
-    .button("§w删除所有自定义物品出售价格", "textures/icons/reset")
+    .button("§w删除所有自定义物品出售价格", "textures/icons/deny")
     .button("§w返回", "textures/icons/back");
 
   form.show(player).then((res) => {
@@ -1256,7 +1257,22 @@ function showItemPricesWithPagination(player: Player, page: number = 1) {
     const displayName = itemId.replace("minecraft:", "");
     const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
     const priceIndicator = price > defaultPrice ? "§a↑" : price < defaultPrice ? "§c↓" : "§e=";
-    form.button(`§b${displayName}\n§e${price} 金币 ${priceIndicator} 默认:${defaultPrice}`, "textures/items/paper");
+    const itemTexture = dynamicMatchIconPath(displayName);
+    // `§t${displayName}\n§e${price} 金币 ${priceIndicator} 默认:${defaultPrice}`;
+    const itemNameRawMessage: RawMessage = {
+      rawtext: [
+        {
+          text: "§t",
+        },
+        {
+          translate: getItemLocalizationKey(itemId),
+        },
+        {
+          text: `\n§e${price} 金币 ${priceIndicator} 默认:${defaultPrice}`,
+        },
+      ],
+    };
+    form.button(itemNameRawMessage, itemTexture);
   });
 
   // 添加导航按钮
@@ -1300,7 +1316,21 @@ function openEditItemPriceForm(player: Player, itemId: string, currentPrice: num
   const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
   const isCustomPrice = itemPriceDb.hasCustomPrice(itemId);
 
-  form.title(`§w编辑物品出售价格 - ${displayName}`);
+  const formTitleRawMessage: RawMessage = {
+    rawtext: [
+      {
+        text: "§w",
+      },
+      {
+        text: "编辑物品出售价格 - ",
+      },
+      {
+        translate: getItemLocalizationKey(itemId),
+      },
+    ],
+  };
+
+  form.title(formTitleRawMessage);
 
   if (isCustomPrice) {
     form.body(
@@ -1354,7 +1384,21 @@ function openModifyCustomPriceForm(player: Player, itemId: string, currentPrice:
   const displayName = itemId.replace("minecraft:", "");
   const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
 
-  form.title(`§w设置自定义物品出售价格 - ${displayName}`);
+  const formTitleRawMessage: RawMessage = {
+    rawtext: [
+      {
+        text: "§w",
+      },
+      {
+        text: "设置自定义物品出售价格 - ",
+      },
+      {
+        translate: getItemLocalizationKey(itemId),
+      },
+    ],
+  };
+
+  form.title(formTitleRawMessage);
   form.textField(
     `§a默认物品出售价格: §e${defaultPrice} §a金币\n§a当前自定义物品出售价格: §e${currentPrice} §a金币\n§a请输入新的自定义物品出售价格:`,
     "输入新的价格",
@@ -1457,8 +1501,21 @@ function showSearchResults(player: Player, searchTerm: string) {
   matchedItems.forEach(({ itemId, price, isCustom }) => {
     const displayName = itemId.replace("minecraft:", "");
     const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
-    const priceIndicator = isCustom ? (price > defaultPrice ? "§a↑" : price < defaultPrice ? "§c↓" : "§e=") : "§7默认";
-    form.button(`§b${displayName}\n§e${price} 金币 ${priceIndicator}`, "textures/items/paper");
+    const priceIndicator = isCustom ? (price > defaultPrice ? "§a↑" : price < defaultPrice ? "§c↓" : "§e=") : "§6默认";
+    const itemNameRawMessage: RawMessage = {
+      rawtext: [
+        {
+          text: "§t",
+        },
+        {
+          translate: getItemLocalizationKey(itemId),
+        },
+        {
+          text: `\n§e${price} 金币 ${priceIndicator}`,
+        },
+      ],
+    };
+    form.button(itemNameRawMessage, dynamicMatchIconPath(displayName));
   });
 
   form.button("§w返回搜索", "textures/icons/back");
@@ -1489,8 +1546,8 @@ function openResetPricesConfirmForm(player: Player) {
     `§c警告：此操作将删除所有自定义物品出售价格！\n§c当前有 ${customPricesCount} 个自定义物品出售价格将被删除！\n§c删除后所有物品将恢复使用默认物品出售价格！\n§e是否确认继续？`
   );
 
-  form.button("§c确认删除", "textures/ui/realms_red_x");
-  form.button("§a取消", "textures/ui/cancel");
+  form.button("§c确认删除", "textures/icons/deny");
+  form.button("§a取消", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled || res.selection === 1) {

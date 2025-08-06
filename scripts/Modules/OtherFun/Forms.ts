@@ -3,13 +3,13 @@ import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/serve
 import { openServerMenuForm } from "../Forms/Forms";
 import { RandomTp } from "./RandomTp";
 import server from "../Server";
-import prefix from "./Prefix";
+// import prefix from "./Prefix"; // 前缀功能已移除
 import { openDialogForm } from "../Forms/Dialog";
 import { color } from "../../utils/color";
 import leaveMessage from "./LeaveMessage";
 import { useNotify } from "../../hooks/hooks";
 import setting from "../System/Setting";
-import { namePrefixMap } from "../../glyphMap";
+// import { namePrefixMap } from "../../glyphMap"; // 前缀功能已移除
 
 function createServerInfoForm() {
   const form = new MessageFormData();
@@ -53,7 +53,7 @@ export function openBaseFunctionForm(player: Player) {
   const form = new ActionFormData();
   const buttons = [
     { text: "§w留言板", icon: "textures/ui/mute_off", action: () => openLeaveMessageForms(player) },
-    { text: "§w修改名称前缀", icon: "textures/ui/icon_panda", action: () => openPrefixForm(player) },
+    // { text: "§w修改名称前缀", icon: "textures/ui/icon_panda", action: () => openPrefixForm(player) }, // 前缀功能已移除
   ];
 
   // 根据设置决定是否添加随机传送按钮
@@ -108,32 +108,33 @@ export function openBaseFunctionForm(player: Player) {
   });
 }
 
-export const openPrefixForm = (player: Player) => {
-  const form = new ModalFormData();
+// 前缀功能已移除
+// export const openPrefixForm = (player: Player) => {
+//   const form = new ModalFormData();
 
-  form.title("§w修改名称前缀");
-  form.dropdown("§w选择名称前缀", namePrefixMap, {
-    defaultValueIndex: 0,
-    tooltip: "选择名称前缀",
-  });
-  form.submitButton("§w确认");
+//   form.title("§w修改名称前缀");
+//   form.dropdown("§w选择名称前缀", namePrefixMap, {
+//     defaultValueIndex: 0,
+//     tooltip: "选择名称前缀",
+//   });
+//   form.submitButton("§w确认");
 
-  form.show(player).then((data) => {
-    if (data.cancelationReason) return;
-    const { formValues } = data;
-    if (formValues) {
-      prefix.setPrefix(player, Number(formValues[0]));
-      openDialogForm(
-        player,
-        {
-          title: "前缀修改成功",
-          desc: color.green("前缀修改成功！"),
-        },
-        () => openBaseFunctionForm(player)
-      );
-    }
-  });
-};
+//   form.show(player).then((data) => {
+//     if (data.cancelationReason) return;
+//     const { formValues } = data;
+//     if (formValues) {
+//       prefix.setPrefix(player, Number(formValues[0]));
+//       openDialogForm(
+//         player,
+//         {
+//           title: "前缀修改成功",
+//           desc: color.green("前缀修改成功！"),
+//         },
+//         () => openBaseFunctionForm(player)
+//       );
+//     }
+//   });
+// };
 
 // 留言板
 export const openLeaveMessageForms = (player: Player) => {

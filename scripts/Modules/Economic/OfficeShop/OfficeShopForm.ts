@@ -200,12 +200,31 @@ class OfficeShopForm {
         getItemDisplayName(item.item),
       ],
     };
-    const modal = new ModalFormData().title(title).textField(`请输入购买数量`, "1");
+    const modal = new ModalFormData().title(title).textField(`请输入购买数量`, "1", {
+      defaultValue: "1",
+    });
     modal
       .show(player)
       .then((res) => {
         if (!res.formValues) return;
-        const qty = res.formValues[0] as number;
+
+        // 修复：正确处理textField返回的字符串值
+        const qtyStr = res.formValues[0] as string;
+        if (!qtyStr || qtyStr.trim() === "") {
+          openDialogForm(player, { title: "错误", desc: "请输入有效的购买数量" }, () =>
+            this.askBuyQuantity(player, item)
+          );
+          return;
+        }
+
+        const qty = parseInt(qtyStr);
+        if (isNaN(qty) || qty <= 0) {
+          openDialogForm(player, { title: "错误", desc: "请输入有效的购买数量" }, () =>
+            this.askBuyQuantity(player, item)
+          );
+          return;
+        }
+
         this.executePurchase(player, item, qty);
       })
       .catch(console.error);

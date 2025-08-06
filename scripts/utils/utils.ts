@@ -249,3 +249,9 @@ export function generateStackData(stackData: SerializableStack): ItemStack {
   }
   return itemStack;
 }
+
+// 获取一个物品的localizationKey
+export function getItemLocalizationKey(itemId: string): string {
+  const stack = new ItemStack(itemId, 1);
+  return stack.localizationKey;
+}

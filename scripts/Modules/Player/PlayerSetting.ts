@@ -90,37 +90,36 @@ class PlayerSetting {
     return (player.getDynamicProperty("alias") as string) || "";
   }
 
-  // 设置玩家头像
-  setPlayerAvatar(player: Player, avatarIndex: number): boolean {
-    if (avatarIndex < 0 || avatarIndex >= namePrefixMap.length) {
-      return false;
-    }
-    player.setDynamicProperty("avatar", avatarIndex.toString());
-    return true;
-  }
+  // 设置玩家头像（已注释掉，不再使用）
+  // setPlayerAvatar(player: Player, avatarIndex: number): boolean {
+  //   if (avatarIndex < 0 || avatarIndex >= namePrefixMap.length) {
+  //     return false;
+  //   }
+  //   player.setDynamicProperty("avatar", avatarIndex.toString());
+  //   return true;
+  // }
 
-  // 获取玩家头像
-  getPlayerAvatar(player: Player): string {
-    const avatarIndex = parseInt(player.getDynamicProperty("avatar") as string) || 0;
-    return namePrefixMap[avatarIndex] || namePrefixMap[0];
-  }
+  // 获取玩家头像（已注释掉，不再使用）
+  // getPlayerAvatar(player: Player): string {
+  //   const avatarIndex = parseInt(player.getDynamicProperty("avatar") as string) || 0;
+  //   return namePrefixMap[avatarIndex] || namePrefixMap[0];
+  // }
 
-  // 获取玩家头像索引
-  getPlayerAvatarIndex(player: Player): number {
-    return parseInt(player.getDynamicProperty("avatar") as string) || 0;
-  }
+  // 获取玩家头像索引（已注释掉，不再使用）
+  // getPlayerAvatarIndex(player: Player): number {
+  //   return parseInt(player.getDynamicProperty("avatar") as string) || 0;
+  // }
 
-  // 获取玩家显示名称（包含颜色、头像和别名）
+  // 获取玩家显示名称（包含颜色和别名）
   getPlayerDisplayName(player: Player): string {
     const nameColor = this.getPlayerNameColor(player);
     const alias = this.getPlayerAlias(player);
-    const avatar = this.getPlayerAvatar(player);
 
     if (alias) {
-      // 如果有别名，显示格式：头像+名字，下方显示别名（使用相同颜色）
-      return `${nameColor}${player.name}\n${nameColor}[${alias}]`;
+      // 如果有别名，显示格式：[别名] 玩家名
+      return `${nameColor}[${alias}] ${player.name}`;
     } else {
-      // 如果没有别名，只显示头像+游戏名
+      // 如果没有别名，只显示游戏名
       return `${nameColor}${player.name}`;
     }
   }
@@ -130,7 +129,7 @@ class PlayerSetting {
     return {
       nameColor: this.getPlayerNameColor(player),
       alias: this.getPlayerAlias(player),
-      avatar: this.getPlayerAvatar(player),
+      avatar: "", // 头像功能已移除
     };
   }
 

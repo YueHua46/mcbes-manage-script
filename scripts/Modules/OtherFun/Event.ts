@@ -1,20 +1,34 @@
 import { EntityComponentTypes, Player, system, world } from "@minecraft/server";
 import { color } from "../../utils/color";
-import prefix from "./Prefix";
+// import prefix from "./Prefix"; // 注释掉prefix功能
 import { useGetAllPlayer } from "../../hooks/hooks";
 import setting from "../System/Setting";
+import playerSetting from "../Player/PlayerSetting";
 
-// name prefix
+// 聊天消息处理
 world.beforeEvents.chatSend.subscribe((e) => {
   const { message, sender } = e;
   e.cancel = true;
-  const _prefix = prefix.getPrefix(sender);
 
-  if (!_prefix) prefix.initPrefix(sender);
-
-  const allPlayers = useGetAllPlayer();
+  // 获取玩家别名
+  const alias = playerSetting.getPlayerAlias(sender);
   const playerNameColor = setting.getState("playerNameColor");
   const playerChatColor = setting.getState("playerChatColor");
+
+  // 调试信息
+  // console.warn(`聊天事件触发 - 玩家: ${sender.name}, 别名: ${alias}, 消息: ${message}`);
+
+  // 构建显示格式：[别名] 玩家名：消息 或 玩家名：消息
+  let displayText = "";
+  if (alias) {
+    displayText = `${playerNameColor}[${alias}] ${sender.name}： ${playerChatColor}${message}`;
+  } else {
+    displayText = `${playerNameColor}${sender.name}： ${playerChatColor}${message}`;
+  }
+
+  // console.warn(`显示文本: ${displayText}`);
+
+  const allPlayers = useGetAllPlayer();
   allPlayers.forEach((player) => {
     const isOpenChat = player.getDynamicProperty("Chat") as boolean | undefined;
     if (typeof isOpenChat === "undefined") {
@@ -22,7 +36,7 @@ world.beforeEvents.chatSend.subscribe((e) => {
       player.sendMessage({
         rawtext: [
           {
-            text: `[${_prefix}] ${playerNameColor}${sender.name}： ${playerChatColor}${message}`,
+            text: displayText,
           },
         ],
       });
@@ -35,7 +49,7 @@ world.beforeEvents.chatSend.subscribe((e) => {
       player.sendMessage({
         rawtext: [
           {
-            text: `[${_prefix}] ${playerNameColor}${sender.name}： ${playerChatColor}${message}`,
+            text: displayText,
           },
         ],
       });
@@ -43,12 +57,18 @@ world.beforeEvents.chatSend.subscribe((e) => {
   });
 });
 
-// name prefix
+// 玩家生成时设置显示名称
 world.afterEvents.playerSpawn.subscribe((e) => {
   const { player } = e;
-  const _prefix = prefix.getPrefix(player);
-  if (!_prefix) prefix.initPrefix(player);
-  player.nameTag = `${_prefix} ${color.aqua(player.name)}`;
+  // 使用玩家的显示名称（包含别名）设置nameTag
+  const alias = playerSetting.getPlayerAlias(player);
+  const nameColor = playerSetting.getPlayerNameColor(player);
+
+  if (alias) {
+    player.nameTag = `${nameColor}[${alias}] ${player.name}`;
+  } else {
+    player.nameTag = `${nameColor}${player.name}`;
+  }
 });
 
 // lastDeath
