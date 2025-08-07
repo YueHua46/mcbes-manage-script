@@ -270,7 +270,7 @@ class OfficeShopForm {
     officeShop.updateItemMeta(item.data, { ...item.data, amount: item.data.amount - qty });
 
     // 如果库存为空，则删除该商品。
-    console.warn(`当前库存：${item.data.amount}`);
+    // console.warn(`当前库存：${item.data.amount}`);
     if (item.data.amount === 0) {
       officeShop.deleteItem(item.data);
     }

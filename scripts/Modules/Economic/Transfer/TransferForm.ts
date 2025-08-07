@@ -265,7 +265,7 @@ class TransferForm {
         }
       } catch (error) {
         // 通知失败不影响主流程
-        console.warn("通知接收方失败:", error);
+        // console.warn("通知接收方失败:", error);
       }
     }
   }

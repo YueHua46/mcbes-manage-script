@@ -46,7 +46,7 @@ export class NameDisplay {
       const displayName = PlayerSetting.getPlayerDisplayName(player);
       player.nameTag = displayName;
     } catch (error) {
-      console.warn(`更新玩家 ${player.name} 的名字显示时发生错误:`, error);
+      // console.warn(`更新玩家 ${player.name} 的名字显示时发生错误:`, error);
     }
   }
 
@@ -73,7 +73,7 @@ export class NameDisplay {
     try {
       player.nameTag = player.name;
     } catch (error) {
-      console.warn(`重置玩家 ${player.name} 的名字显示时发生错误:`, error);
+      // console.warn(`重置玩家 ${player.name} 的名字显示时发生错误:`, error);
     }
   }
 

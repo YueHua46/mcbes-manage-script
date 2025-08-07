@@ -15,7 +15,7 @@ world.afterEvents.entityDie.subscribe((event) => {
   if (damageSource.damagingEntity?.typeId === "minecraft:player") {
     const player = damageSource.damagingEntity as Player;
     const entityType = deadEntity.typeId;
-    console.warn(`击杀怪物 ${entityType}`);
+    // console.warn(`击杀怪物 ${entityType}`);
     const fullType = deadEntity.typeId;
     const monsterName = fullType.includes(":") ? fullType.split(":")[1] : fullType;
 
@@ -26,7 +26,7 @@ world.afterEvents.entityDie.subscribe((event) => {
       const min = reward[0] || 0;
       const max = reward[1] || min;
       const amount = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.warn(`amount -> ${amount}`);
+      // console.warn(`amount -> ${amount}`);
       if (amount > 0) {
         // 添加金币（应用每日限制）
         const actualEarned = economic.addGold(player.name, amount, `击杀怪物 ${monsterName}`);

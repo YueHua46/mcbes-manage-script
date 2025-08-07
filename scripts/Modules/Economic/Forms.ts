@@ -104,7 +104,7 @@ function openMyWalletForm(player: Player) {
 function openEconomyRankingForm(player: Player) {
   // 获取所有钱包数据
   const allWallets = enconomic.getTopWallets();
-  console.warn(`allWallets: ${JSON.stringify(allWallets)}`);
+  // console.warn(`allWallets: ${JSON.stringify(allWallets)}`);
 
   // 转换为数组并按金币数量排序（从高到低）
   const sortedWallets = Object.values(allWallets).sort((a, b) => b.gold - a.gold);

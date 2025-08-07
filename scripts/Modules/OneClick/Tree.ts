@@ -78,7 +78,7 @@ function consumeAxeDurability(player: Player, logLocations: Vector3[]) {
     mainHand.setItem(item);
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.warn("tree cut error:", error);
+    // console.warn("tree cut error:", error);
   } finally {
     system.runTimeout(() => {
       if (mainHand) mainHand.lockMode = ItemLockMode.none;
@@ -201,9 +201,9 @@ world.afterEvents.playerBreakBlock.subscribe(async (e) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const err = error as any;
     /* eslint-disable no-console */
-    console.log("error", err);
-    console.log("error.stack", err && err.stack);
-    console.log("error.message", err && err.message);
+    // console.log("error", err);
+    // console.log("error.stack", err && err.stack);
+    // console.log("error.message", err && err.message);
     /* eslint-enable no-console */
   }
 });
