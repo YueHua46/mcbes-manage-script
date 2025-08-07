@@ -43,6 +43,7 @@ const isMoving = (entity: Entity) => {
 export const landAreas = new Map<string, LandArea>();
 
 system.runInterval(() => {
+  // 清除过期的领地标记坐标点
   landAreas.forEach((landArea, playerId) => {
     if (landArea.lastChangeTime < Date.now() - 1000 * 60 * 10) {
       const player = world.getPlayers().find((p) => p.name === playerId);
@@ -66,6 +67,23 @@ system.runInterval(() => {
       }
     }
   });
+
+  // 清除所有领地内的燃烧方块
+  const lands = land.getLandList();
+  for (const land in lands) {
+    const landData = lands[land];
+    // 修复旧存档burn权限初始化问题
+    if (landData.public_auth.burn === undefined) {
+      landData.public_auth.burn = false;
+    }
+    if (landData.public_auth.burn) continue;
+
+    try {
+      // clearLandFireByFill(landData);
+      // BUG: 不管是getBlocks和fill的情况，在玩家离领地区块较远时，会报错，getBlocks会无法读取领地内方块，fill则显示无法在世界外放置方块
+      clearLandFireByGetBlocks(landData);
+    } catch (error) {}
+  }
 }, 20);
 
 world.afterEvents.entityHitBlock.subscribe((event) => {
@@ -167,7 +185,7 @@ world.beforeEvents.playerPlaceBlock.subscribe((event) => {
 
 // 玩家与领地方块交互
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
-  const { player, block } = event;
+  const { player, block, itemStack } = event;
   const { isInside, insideLand } = land.testLand(block.location, block.dimension.id);
   if (!isInside || !insideLand) return;
   if (insideLand.owner === player.name) return;
@@ -261,6 +279,12 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
     // 合成器
     MinecraftBlockTypes.Crafter,
   ];
+  const fireItems = [
+    "minecraft:fire_charge",
+    "minecraft:flint_and_steel",
+    "minecraft:water_bucket",
+    "minecraft:lava_bucket",
+  ];
   // 判断是否为箱子
   if (chests.includes(block.typeId as MinecraftBlockTypes)) {
     // 判断箱子权限是否开放
@@ -291,11 +315,6 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
       );
       return;
     }
-  }
-
-  // 判断是否开放方块交互权限
-  if (insideLand.public_auth.useBlock) {
-    return;
   }
 
   // 判断是否为告示牌类似的
@@ -341,6 +360,25 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
       );
       return;
     }
+  }
+
+  // 判断是否为火焰物品
+  if (fireItems.includes(itemStack?.typeId ?? "")) {
+    if (insideLand.public_auth.burn) {
+      return;
+    }
+    event.cancel = true;
+    useNotify(
+      "chat",
+      player,
+      color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
+    );
+    return;
+  }
+
+  // 判断是否开放方块交互权限
+  if (insideLand.public_auth.useBlock) {
+    return;
   }
 
   // 拒绝交互
@@ -422,57 +460,11 @@ world.beforeEvents.explosion.subscribe((event) => {
 //   }
 // )
 
-const banItems = [
-  "minecraft:fire_charge",
-  "minecraft:flint_and_steel",
-  "minecraft:water_bucket",
-  "minecraft:lava_bucket",
-];
-// 玩家使用物品与领地方块交互时
-world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
-  const { block, player, itemStack } = event;
-  const { isInside, insideLand } = land.testLand(
-    {
-      x: block.location.x,
-      y: block.location.y + 1,
-      z: block.location.z,
-    },
-    block.dimension.id
-  );
-  if (!isInside || !insideLand) return;
-  if (insideLand.owner === player.name) return;
-  if (isAdmin(player)) return;
-  if (insideLand.public_auth.break) return;
-  if (insideLand.members.includes(player.name)) return;
-  if (banItems.includes(itemStack?.typeId ?? "")) {
-    event.cancel = true;
-    useNotify(
-      "chat",
-      player,
-      color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-    );
-  }
-});
-
 // 持续检测所有领地内是否有燃烧，如果领地设置不允许燃烧，则将燃烧替换为空气
 // 燃烧包括：岩浆（lava）、流动岩浆（flowing_lava）、火（fire）、灵魂火（soul_fire）
-system.runInterval(() => {
-  const lands = land.getLandList();
-  for (const land in lands) {
-    const landData = lands[land];
-    // 修复旧存档burn权限初始化问题
-    if (landData.public_auth.burn === undefined) {
-      landData.public_auth.burn = false;
-    }
-    if (landData.public_auth.burn) continue;
+// system.runInterval(() => {
 
-    try {
-      // clearLandFireByFill(landData);
-      // BUG: 不管是getBlocks和fill的情况，在玩家离领地区块较远时，会报错，getBlocks会无法读取领地内方块，fill则显示无法在世界外放置方块
-      clearLandFireByGetBlocks(landData);
-    } catch (error) {}
-  }
-}, 20);
+// }, 20);
 
 // 通过getBlocks来清除领地内的燃烧方块
 function clearLandFireByGetBlocks(landData: ILand) {
