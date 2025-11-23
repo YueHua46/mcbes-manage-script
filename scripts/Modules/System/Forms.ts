@@ -7,7 +7,7 @@ import { openAllPlayerLandManageForm, openLandDetailForm, openLandListForm } fro
 import land, { ILand } from "../Land/Land";
 import { openConfirmDialogForm, openDialogForm } from "../Forms/Dialog";
 import { openServerMenuForm } from "../Forms/Forms";
-import { openPlayerWayPointListForm, openWayPointListForm } from "../WayPoint/Forms";
+import { openPlayerWayPointListForm, openSearchWayPointForm, openWayPointListForm } from "../WayPoint/Forms";
 import { openNotifyForms } from "../Notify/Forms";
 import { emojiKeyToEmojiPath, getItemLocalizationKey, isNumber, SystemLog, toNumber } from "../../utils/utils";
 import WayPoint from "../WayPoint/WayPoint";
@@ -112,6 +112,60 @@ const openSearchResultsForm = (player: Player, lands: ILand[], playerName: strin
   });
 };
 
+// 打开搜索玩家坐标点表单
+export const openSearchPlayerWayPointForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("搜索玩家坐标点");
+  form.textField("玩家名称", "请输入要搜索的玩家名称");
+  form.submitButton("搜索");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const { formValues } = data;
+    if (formValues?.[0]) {
+      const playerName = formValues[0].toString();
+      const wayPoints = WayPoint.getPointsByPlayer(playerName);
+      if (wayPoints.length === 0) {
+        openDialogForm(
+          player,
+          {
+            title: "搜索结果",
+            desc: color.red("未找到该玩家的坐标点或该玩家不存在"),
+          },
+          () => openSearchPlayerWayPointForm(player)
+        );
+      } else {
+        openPlayerWayPointListForm(player, playerName, 1, true, () => openWayPointManageMenu(player));
+      }
+    }
+  });
+};
+
+// 坐标点管理菜单
+export const openWayPointManageMenu = (player: Player) => {
+  const form = new ActionFormData();
+  form.title("§w坐标点管理");
+
+  form.button("§w所有玩家坐标点管理", "textures/packs/14321635");
+  form.button("§w搜索玩家坐标点管理", "textures/ui/magnifyingGlass");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    switch (data.selection) {
+      case 0:
+        openPlayerWayPointManageForm(player);
+        break;
+      case 1:
+        openSearchPlayerWayPointForm(player);
+        break;
+      case 2:
+        openSystemSettingForm(player);
+        break;
+    }
+  });
+};
+
 // 打开玩家坐标点管理表单
 export const openPlayerWayPointManageForm = (player: Player, page: number = 1) => {
   const form = new ActionFormData();
@@ -170,7 +224,7 @@ export const openPlayerWayPointManageForm = (player: Player, page: number = 1) =
     if (selectionIndex < currentPagePlayersCount) {
       // 选择了某个玩家
       const selectedPlayerName = currentPagePlayers[selectionIndex];
-      openPlayerWayPointListForm(player, selectedPlayerName, 1, () => openPlayerWayPointManageForm(player, page));
+      openPlayerWayPointListForm(player, selectedPlayerName, 1, true, () => openPlayerWayPointManageForm(player, page));
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
       // 点击了"上一页"
       openPlayerWayPointManageForm(player, page - 1);
@@ -179,7 +233,7 @@ export const openPlayerWayPointManageForm = (player: Player, page: number = 1) =
       openPlayerWayPointManageForm(player, page + 1);
     } else if ((page === 1 && selectionIndex === nextButtonIndex) || (page > 1 && selectionIndex === nextButtonIndex)) {
       // 点击了"返回"
-      openSystemSettingForm(player);
+      openWayPointManageMenu(player);
     }
   });
 };
@@ -191,7 +245,7 @@ export const openLandManageForm = (player: Player) => {
 
   form.button("§w所有玩家领地管理", "textures/ui/icon_new");
   form.button("§w删除当前所在区域领地", "textures/icons/deny");
-  form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
+  // form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
   form.button("§w创建领地时每方块需花费金币管理", "textures/packs/15174544");
   form.button("§w返回", "textures/icons/back");
 
@@ -218,12 +272,9 @@ export const openLandManageForm = (player: Player) => {
         });
         break;
       case 2:
-        openSearchLandForm(player);
-        break;
-      case 3:
         openCreateLand1BlockPerPrice(player);
         break;
-      case 4:
+      case 3:
         openSystemSettingForm(player);
         break;
     }
@@ -646,9 +697,9 @@ export const openSystemSettingForm = (player: Player) => {
       action: () => openFunctionSwitchForm(player),
     },
     {
-      text: "所有玩家坐标点管理",
+      text: "坐标点管理",
       icon: "textures/packs/14321635",
-      action: () => openPlayerWayPointManageForm(player),
+      action: () => openWayPointManageMenu(player),
     },
     {
       text: "经济管理",

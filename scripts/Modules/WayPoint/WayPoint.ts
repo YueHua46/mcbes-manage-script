@@ -141,6 +141,17 @@ class WayPoint {
     return Array.from(new Set(this.db.values().map((p) => p.playerName)));
   }
 
+  // 删除指定玩家的所有坐标点
+  deletePlayerPoints(playerName: string) {
+    const points = this.getPointsByPlayer(playerName);
+    let count = 0;
+    for (const point of points) {
+      this.db.delete(point.name);
+      count++;
+    }
+    return count;
+  }
+
   // 切换坐标点是否收藏
   toggleStar(pointName: string, isStarred: boolean) {
     const wayPoint = this.db.get(pointName);

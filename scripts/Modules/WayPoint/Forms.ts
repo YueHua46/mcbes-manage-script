@@ -12,6 +12,27 @@ import { getDiamensionName } from "../../utils/utils";
 // Constants
 const ITEMS_PER_PAGE = 10;
 
+// 删除玩家所有坐标点确认
+export function openDeleteAllPointsConfirmForm(player: Player, targetPlayerName: string, returnForm?: () => void) {
+  openConfirmDialogForm(
+    player,
+    "删除所有坐标点",
+    `是否确定删除玩家 ${color.yellow(targetPlayerName)} 的所有坐标点？\n${color.red("此操作不可恢复！")}`,
+    () => {
+      const count = wayPoint.deletePlayerPoints(targetPlayerName);
+      openDialogForm(
+        player,
+        {
+          title: "删除成功",
+          desc: color.green(`已成功删除玩家 ${targetPlayerName} 的 ${count} 个坐标点！`),
+        },
+        returnForm
+      );
+    },
+    returnForm
+  );
+}
+
 // 打开搜索指定用户坐标点表单
 export const openSearchWayPointForm = (player: Player) => {
   const form = new ModalFormData();
@@ -68,6 +89,14 @@ const openSearchResultsForm = (player: Player, wayPoints: IWayPoint[], playerNam
     nextButtonIndex++;
   }
 
+  let deleteButtonIndex = -1;
+  // 只有在有坐标点时才显示删除按钮
+  if (wayPoints.length > 0) {
+    form.button("§c一键删除所有坐标点", "textures/ui/trash");
+    deleteButtonIndex = nextButtonIndex;
+    nextButtonIndex++;
+  }
+
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
   form.button("返回", "textures/icons/back");
 
@@ -90,10 +119,19 @@ const openSearchResultsForm = (player: Player, wayPoints: IWayPoint[], playerNam
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
       // 选择的是“上一页”
       openSearchResultsForm(player, wayPoints, playerName, page - 1);
-    } else if (selectionIndex === nextButtonIndex - 1 && page < totalPages) {
-      // 选择的是“下一页”
+    } else if (selectionIndex === nextButtonIndex - 1 && page < totalPages && deleteButtonIndex === -1) {
+      // 选择的是“下一页” (No delete button)
       openSearchResultsForm(player, wayPoints, playerName, page + 1);
-    } else if (selectionIndex === nextButtonIndex) {
+    } else if (selectionIndex === nextButtonIndex - 2 && page < totalPages && deleteButtonIndex !== -1) {
+      // 选择的是“下一页” (With delete button)
+      openSearchResultsForm(player, wayPoints, playerName, page + 1);
+    } else if (deleteButtonIndex !== -1 && selectionIndex === deleteButtonIndex) {
+      // 选择的是“一键删除所有坐标点”
+      openDeleteAllPointsConfirmForm(player, playerName, () => openWayPointMenuForms(player));
+    } else if (
+      (deleteButtonIndex === -1 && selectionIndex === nextButtonIndex) ||
+      (deleteButtonIndex !== -1 && selectionIndex === nextButtonIndex)
+    ) {
       // 选择的是“返回”
       openWayPointMenuForms(player);
     }
@@ -425,12 +463,13 @@ export const openPlayerWayPointListForm = (
   player: Player,
   targetPlayerName: string,
   page: number = 1,
+  isAdmin: boolean = false,
   returnForm?: () => void
 ) => {
   const form = new ActionFormData();
   form.title(`${color.blue(targetPlayerName)}的坐标点列表`);
 
-  // 获取该玩家的所有坐标点（包括私有和公开的)}
+  // 获取该玩家的所有坐标点（包括私有和公开的)
   const privatePoints = wayPoint.getPointsByPlayer(targetPlayerName).filter((p) => p.type === "private");
   const publicPoints = wayPoint.getPointsByPlayer(targetPlayerName).filter((p) => p.type === "public");
   const allPoints = [...privatePoints, ...publicPoints];
@@ -468,6 +507,14 @@ export const openPlayerWayPointListForm = (
     nextButtonIndex++;
   }
 
+  let deleteButtonIndex = -1;
+  // 只有在有坐标点且是管理员时才显示删除按钮
+  if (isAdmin && allPoints.length > 0) {
+    form.button("§c一键删除所有坐标点", "textures/ui/trash");
+    deleteButtonIndex = nextButtonIndex;
+    nextButtonIndex++;
+  }
+
   form.button("§w返回", "textures/icons/back");
   form.body(
     `第 ${page} 页 / 共 ${totalPages} 页\n§7总计: ${allPoints.length} 个坐标点 (私有: ${privatePoints.length}, 公开: ${publicPoints.length})`
@@ -490,15 +537,23 @@ export const openPlayerWayPointListForm = (
         true,
         selectedPoint.type === "public" ? "public" : "private",
         () => {
-          openPlayerWayPointListForm(player, targetPlayerName, page, returnForm);
+          openPlayerWayPointListForm(player, targetPlayerName, page, isAdmin, returnForm);
         }
       );
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
       // 点击了"上一页"
-      openPlayerWayPointListForm(player, targetPlayerName, page - 1, returnForm);
-    } else if (selectionIndex === nextButtonIndex - 1 && page < totalPages) {
-      // 点击了"下一页"
-      openPlayerWayPointListForm(player, targetPlayerName, page + 1, returnForm);
+      openPlayerWayPointListForm(player, targetPlayerName, page - 1, isAdmin, returnForm);
+    } else if (selectionIndex === nextButtonIndex - 1 && page < totalPages && deleteButtonIndex === -1) {
+      // 点击了"下一页" (No delete button)
+      openPlayerWayPointListForm(player, targetPlayerName, page + 1, isAdmin, returnForm);
+    } else if (selectionIndex === nextButtonIndex - 2 && page < totalPages && deleteButtonIndex !== -1) {
+      // 点击了"下一页" (With delete button)
+      openPlayerWayPointListForm(player, targetPlayerName, page + 1, isAdmin, returnForm);
+    } else if (deleteButtonIndex !== -1 && selectionIndex === deleteButtonIndex) {
+      // 选择的是“一键删除所有坐标点”
+      openDeleteAllPointsConfirmForm(player, targetPlayerName, () => {
+        if (returnForm) returnForm();
+      });
     } else {
       // 点击了"返回"
       if (returnForm) {

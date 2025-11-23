@@ -4,7 +4,7 @@ import { Player, Vector3 } from "@minecraft/server";
 import { MinecraftDimensionTypes } from "@minecraft/vanilla-data";
 import land, { ILand } from "./Land";
 import { openServerMenuForm } from "../Forms/Forms";
-import { openDialogForm } from "../Forms/Dialog";
+import { openConfirmDialogForm, openDialogForm } from "../Forms/Dialog";
 import { landAreas } from "./Event";
 import { useFormatInfo, useFormatListInfo, useGetAllPlayer, useNotify } from "../../hooks/hooks";
 import { openLandManageForm, openSystemSettingForm } from "../System/Forms";
@@ -485,6 +485,27 @@ export function openLandDeleteForm(player: Player, _land: ILand, isAdmin: boolea
   });
 }
 
+// 删除玩家所有领地确认
+export function openDeleteAllLandsConfirmForm(player: Player, targetPlayerName: string, returnForm?: () => void) {
+  openConfirmDialogForm(
+    player,
+    "删除所有领地",
+    `是否确定删除玩家 ${color.yellow(targetPlayerName)} 的所有领地？\n${color.red("此操作不可恢复！")}`,
+    () => {
+      const count = land.deletePlayerLands(targetPlayerName);
+      openDialogForm(
+        player,
+        {
+          title: "删除成功",
+          desc: color.green(`已成功删除玩家 ${targetPlayerName} 的 ${count} 个领地！`),
+        },
+        returnForm
+      );
+    },
+    returnForm
+  );
+}
+
 // 领地转让
 export function openLandTransferForm(player: Player, _land: ILand) {
   const form = new ModalFormData();
@@ -907,6 +928,13 @@ export const openPlayerLandListForm = (
     nextButtonIndex++;
   }
 
+  let deleteButtonIndex = -1;
+  if (isAdmin && playerLands.length > 0) {
+    form.button("§c一键删除所有领地", "textures/ui/trash");
+    deleteButtonIndex = nextButtonIndex;
+    nextButtonIndex++;
+  }
+
   form.button("§w返回", "textures/icons/back");
   form.body(`第 ${page} 页 / 共 ${totalPages} 页\n§7总计: ${playerLands.length} 个领地`);
 
@@ -925,12 +953,49 @@ export const openPlayerLandListForm = (
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
       // 点击了"上一页"
       openPlayerLandListForm(player, targetPlayerName, page - 1, isAdmin, returnForm);
-    } else if (selectionIndex === nextButtonIndex - 1 && page < totalPages) {
-      // 点击了"下一页"
+    } else if (selectionIndex === nextButtonIndex - 1 && page < totalPages && deleteButtonIndex === -1) {
+      // 点击了"下一页" (No delete button)
       openPlayerLandListForm(player, targetPlayerName, page + 1, isAdmin, returnForm);
+    } else if (selectionIndex === nextButtonIndex - 2 && page < totalPages && deleteButtonIndex !== -1) {
+      // 点击了"下一页" (With delete button)
+      openPlayerLandListForm(player, targetPlayerName, page + 1, isAdmin, returnForm);
+    } else if (isAdmin && deleteButtonIndex !== -1 && selectionIndex === deleteButtonIndex) {
+      // 点击了"一键删除所有领地"
+      openDeleteAllLandsConfirmForm(player, targetPlayerName, () =>
+        openPlayerLandListForm(player, targetPlayerName, page, isAdmin, returnForm)
+      );
     } else {
       // 点击了"返回"
       if (returnForm) returnForm();
+    }
+  });
+};
+
+// 搜索玩家领地
+export const openSearchLandForm = (player: Player) => {
+  const form = new ModalFormData();
+  form.title("搜索玩家领地");
+  form.textField("玩家名称", "请输入要搜索的玩家名称");
+  form.submitButton("搜索");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const { formValues } = data;
+    if (formValues?.[0]) {
+      const playerName = formValues[0].toString();
+      const playerLands = Object.values(land.getLandList()).filter((l) => l.owner === playerName);
+      if (playerLands.length === 0) {
+        openDialogForm(
+          player,
+          {
+            title: "搜索结果",
+            desc: color.red("未找到该玩家的领地或该玩家不存在"),
+          },
+          () => openSearchLandForm(player)
+        );
+      } else {
+        openPlayerLandListForm(player, playerName, 1, true, () => openAllPlayerLandManageForm(player));
+      }
     }
   });
 };
@@ -950,6 +1015,9 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1) =>
   const end = Math.min(start + pageSize, players.length);
   const currentPagePlayers = players.slice(start, end);
 
+  // 添加搜索按钮
+  form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
+
   // 为当前页的每个玩家添加按钮
   currentPagePlayers.forEach((playerName) => {
     const playerLands = Object.values(land.getLandList()).filter((l) => l.owner === playerName);
@@ -960,8 +1028,8 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1) =>
   });
 
   // 添加分页按钮
-  let previousButtonIndex = currentPagePlayers.length;
-  let nextButtonIndex = currentPagePlayers.length;
+  let previousButtonIndex = currentPagePlayers.length + 1; // +1 for search button
+  let nextButtonIndex = currentPagePlayers.length + 1;
 
   if (page > 1) {
     form.button("§w上一页", "textures/icons/left_arrow");
@@ -982,11 +1050,19 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1) =>
     const selectionIndex = data.selection;
     if (selectionIndex === null || selectionIndex === undefined) return;
 
-    const currentPagePlayersCount = currentPagePlayers.length;
+    if (selectionIndex === 0) {
+      // 点击了"搜索玩家领地"
+      openSearchLandForm(player);
+      return;
+    }
 
-    if (selectionIndex < currentPagePlayersCount) {
+    const currentPagePlayersCount = currentPagePlayers.length;
+    // Adjust selection index for players list (subtract 1 for search button)
+    const playerIndex = selectionIndex - 1;
+
+    if (playerIndex >= 0 && playerIndex < currentPagePlayersCount) {
       // 选择了某个玩家
-      const selectedPlayer = currentPagePlayers[selectionIndex];
+      const selectedPlayer = currentPagePlayers[playerIndex];
       openPlayerLandListForm(player, selectedPlayer, 1, true, () => openAllPlayerLandManageForm(player, page));
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
       // 点击了"上一页"

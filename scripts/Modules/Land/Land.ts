@@ -166,6 +166,17 @@ class Land {
     const lands = this.db.values();
     return lands.filter((land) => land.owner === playerName).length;
   }
+
+  // 删除指定玩家的所有领地
+  deletePlayerLands(playerName: string) {
+    const lands = this.getPlayerLands(playerName);
+    let count = 0;
+    for (const land of lands) {
+      this.db.delete(land.name);
+      count++;
+    }
+    return count;
+  }
   // 计算两个坐标点之间的方块数量
   calculateBlockCount(start: Vector3, end: Vector3): number {
     const bv = new BlockVolume(start, end);
