@@ -14,6 +14,8 @@ const stone = [
   "minecraft:iron_ore",
   "minecraft:deepslate_iron_ore",
 ];
+// 铜稿属性介于石制和铁制之间，更接近石制，因此使用与石制稿子相同的配置
+const copper = stone;
 const iron = [
   ...stone,
   "minecraft:gold_ore",
@@ -34,6 +36,7 @@ const netherite = diamond;
 export default {
   "minecraft:wooden_pickaxe": wooden,
   "minecraft:stone_pickaxe": stone,
+  "minecraft:copper_pickaxe": copper,
   "minecraft:iron_pickaxe": iron,
   "minecraft:golden_pickaxe": golden,
   "minecraft:diamond_pickaxe": diamond,
