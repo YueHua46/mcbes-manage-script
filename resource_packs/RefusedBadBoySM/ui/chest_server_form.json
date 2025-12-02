@@ -302,11 +302,6 @@
     ],
     "bindings": [
       {
-        "binding_type": "collection",
-        "binding_condition": "none",
-        "binding_collection_name": "form_buttons"
-      },
-      {
         "binding_type": "collection_details",
         "binding_collection_name": "form_buttons"
       },
@@ -457,11 +452,6 @@
           "layer": 4,
           "text": "#stack_size",
           "bindings": [
-            {
-              "binding_type": "collection",
-              "binding_condition": "none",
-              "binding_collection_name": "form_buttons"
-            },
             {
               "binding_type": "collection_details",
               "binding_collection_name": "form_buttons"
