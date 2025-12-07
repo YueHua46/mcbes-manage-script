@@ -47,9 +47,10 @@ class TransferForm {
    */
   private showTransferForm(player: Player): void {
     const onlinePlayers = world.getPlayers();
-    const playerNames = onlinePlayers.filter((p) => p.name !== player.name).map((p) => p.name);
+    const playerNames = onlinePlayers.map((p) => p.name);
 
     if (playerNames.length === 0) {
+      // 理论上不会发生，因为至少当前玩家应该在线
       const form = new ModalFormData()
         .title("转账")
         .textField(`${colorCodes.yellow}请输入接收方玩家名称`, "输入玩家名称", {
@@ -74,7 +75,7 @@ class TransferForm {
         .dropdown(`${colorCodes.yellow}选择在线玩家`, ["-- 不选择 --", ...playerNames], {
           defaultValueIndex: 0,
         })
-        .textField(`${colorCodes.yellow}或直接输入玩家名称`, "输入玩家名称", {
+        .textField(`${colorCodes.yellow}或直接输入玩家名称（二选一，优先使用输入）`, "输入玩家名称", {
           defaultValue: "",
         })
         .textField(`${colorCodes.yellow}请输入转账金额`, "输入金额", {
@@ -90,6 +91,7 @@ class TransferForm {
         const [selectedIndex, inputName, amountStr] = response.formValues as [number, string, string];
 
         let targetName = "";
+        // 优先使用文本输入，如果为空则使用下拉框选择
         if (inputName && inputName.trim() !== "") {
           targetName = inputName.trim();
         } else if (selectedIndex > 0) {

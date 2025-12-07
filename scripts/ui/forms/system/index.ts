@@ -3,7 +3,7 @@
  * 迁移自 Modules/System/Forms.ts（主要部分）
  */
 
-import { Player } from "@minecraft/server";
+import { Player, world } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color, colorCodes } from "../../../shared/utils/color";
 import setting from "../../../features/system/services/setting";
@@ -11,7 +11,6 @@ import { openServerMenuForm } from "../server";
 import { openDialogForm } from "../../../ui/components/dialog";
 import { isAdmin } from "../../../shared/utils/common";
 import { officeShopSettingForm } from "./office-shop-setting";
-import { openAllPlayerLandManageForm } from "../land";
 import { openNotifyForms } from "../notify";
 
 // ==================== 系统设置主菜单 ====================
@@ -32,7 +31,7 @@ export function openSystemSettingForm(player: Player): void {
       action: () => openGeneralSettingsForm(player),
     },
     {
-      text: "§w模块开关管理",
+      text: "§w功能开关管理",
       icon: "textures/icons/gadgets",
       action: () => openModuleToggleForm(player),
     },
@@ -40,7 +39,7 @@ export function openSystemSettingForm(player: Player): void {
       text: "§w领地管理",
       icon: "textures/icons/home",
       action: async () => {
-        openAllPlayerLandManageForm(player);
+        openLandManageForm(player);
       },
     },
     {
@@ -64,7 +63,7 @@ export function openSystemSettingForm(player: Player): void {
       text: "§w官方商店管理",
       icon: "textures/icons/shop",
       action: () => {
-        officeShopSettingForm.openCategoryList(player);
+        officeShopSettingForm.openMainMenu(player);
       },
     },
     {
@@ -177,11 +176,11 @@ function openEditSettingForm(player: Player, key: string, name: string, type: "n
   });
 }
 
-// ==================== 模块开关管理 ====================
+// ==================== 功能开关管理 ====================
 
 export function openModuleToggleForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w模块开关管理");
+  form.title("§w功能开关管理");
 
   const modules = [
     { key: "player", name: "玩家功能模块" },
@@ -234,9 +233,9 @@ export function openTrialModeManageForm(player: Player): void {
   const form = new ActionFormData();
   form.title("§w试玩模式管理");
 
-  form.button("§w会员列表", "textures/ui/friend1");
-  form.button("§w添加会员", "textures/ui/plus");
-  form.button("§w移除会员", "textures/ui/minus");
+  form.button("§w会员列表", "textures/icons/social");
+  form.button("§w添加会员", "textures/icons/add");
+  form.button("§w移除会员", "textures/icons/deny");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -284,25 +283,90 @@ function openMemberListForm(player: Player): void {
 }
 
 function openAddMemberForm(player: Player): void {
-  const form = new ModalFormData();
-  form.title("§w添加会员");
+  const onlinePlayers = world.getPlayers();
+  const playerNames = onlinePlayers.map((p) => p.name);
 
-  form.textField("玩家名称", "请输入玩家名称（支持批量，用逗号分隔）");
-  form.submitButton("确认");
+  if (playerNames.length === 0) {
+    // 理论上不会发生，因为至少当前玩家应该在线
+    const form = new ModalFormData();
+    form.title("§w添加会员");
+    form.textField("玩家名称", "请输入玩家名称（支持批量，用逗号分隔）");
+    form.submitButton("确认");
 
-  form.show(player).then((data) => {
-    if (data.cancelationReason) return;
-    const { formValues } = data;
-    if (formValues?.[0]) {
+    form.show(player).then((data) => {
+      if (data.cancelationReason) return;
+      const { formValues } = data;
+      if (formValues?.[0]) {
+        const { memberManager } = require("../../../features/system/services/trial-mode");
+        const namesToAdd = formValues[0]
+          .toString()
+          .split(",")
+          .map((n) => n.trim())
+          .filter((n) => n.length > 0);
+
+        let successCount = 0;
+        namesToAdd.forEach((name: string) => {
+          if (memberManager.addMember(name)) {
+            successCount++;
+          }
+        });
+
+        openDialogForm(
+          player,
+          {
+            title: "操作完成",
+            desc: color.green(`成功添加 ${successCount} 个会员`),
+          },
+          () => openTrialModeManageForm(player)
+        );
+      }
+    });
+  } else {
+    // 有在线玩家，显示下拉框和文本输入框
+    const form = new ModalFormData();
+    form.title("§w添加会员");
+    form.dropdown("选择在线玩家", ["-- 不选择 --", ...playerNames], {
+      defaultValueIndex: 0,
+    });
+    form.textField("或直接输入玩家名称（二选一，优先使用输入，支持批量，用逗号分隔）", "输入玩家名称", {
+      defaultValue: "",
+    });
+    form.submitButton("确认");
+
+    form.show(player).then((data) => {
+      if (data.cancelationReason) return;
+      const { formValues } = data;
+
+      const selectedIndex = formValues?.[0] as number;
+      const inputName = formValues?.[1] as string;
+
       const { memberManager } = require("../../../features/system/services/trial-mode");
-      const playerNames = formValues[0]
-        .toString()
-        .split(",")
-        .map((n) => n.trim())
-        .filter((n) => n.length > 0);
+      let namesToAdd: string[] = [];
+
+      // 优先使用文本输入，如果为空则使用下拉框选择
+      if (inputName && inputName.trim() !== "") {
+        namesToAdd = inputName
+          .split(",")
+          .map((n) => n.trim())
+          .filter((n) => n.length > 0);
+      } else if (selectedIndex > 0) {
+        namesToAdd = [playerNames[selectedIndex - 1]];
+      }
+
+      if (namesToAdd.length === 0) {
+        openDialogForm(
+          player,
+          {
+            title: "添加失败",
+            desc: color.red("请选择在线玩家或输入玩家名称"),
+          },
+          () => openAddMemberForm(player)
+        );
+        return;
+      }
 
       let successCount = 0;
-      playerNames.forEach((name: string) => {
+      namesToAdd.forEach((name: string) => {
         if (memberManager.addMember(name)) {
           successCount++;
         }
@@ -316,37 +380,130 @@ function openAddMemberForm(player: Player): void {
         },
         () => openTrialModeManageForm(player)
       );
-    }
-  });
+    });
+  }
 }
 
 function openRemoveMemberForm(player: Player): void {
-  const { memberManager } = require("../../../features/system/services/trial-mode");
-  const members = memberManager.getAllMembers();
+  const onlinePlayers = world.getPlayers();
+  const playerNames = onlinePlayers.map((p) => p.name);
 
-  const form = new ModalFormData();
-  form.title("§w移除会员");
+  if (playerNames.length === 0) {
+    // 理论上不会发生，因为至少当前玩家应该在线
+    const form = new ModalFormData();
+    form.title("§w移除会员");
+    form.textField("玩家名称", "请输入玩家名称（支持批量，用逗号分隔）");
+    form.submitButton("确认");
 
-  form.dropdown("选择会员", members);
-  form.submitButton("确认");
+    form.show(player).then((data) => {
+      if (data.cancelationReason) return;
+      const { formValues } = data;
+      if (formValues?.[0]) {
+        const { memberManager } = require("../../../features/system/services/trial-mode");
+        const namesToRemove = formValues[0]
+          .toString()
+          .split(",")
+          .map((n) => n.trim())
+          .filter((n) => n.length > 0);
 
-  form.show(player).then((data) => {
-    if (data.cancelationReason) return;
-    const { formValues } = data;
-    if (typeof formValues?.[0] === "number") {
-      const memberName = members[formValues[0]];
-      if (memberManager.removeMember(memberName)) {
+        let successCount = 0;
+        let notMemberCount = 0;
+        namesToRemove.forEach((name: string) => {
+          if (memberManager.isMember(name)) {
+            if (memberManager.removeMember(name)) {
+              successCount++;
+            }
+          } else {
+            notMemberCount++;
+          }
+        });
+
+        let message = color.green(`成功移除 ${successCount} 个会员`);
+        if (notMemberCount > 0) {
+          message += `\n${color.yellow(`${notMemberCount} 个玩家不是会员`)}`;
+        }
+
         openDialogForm(
           player,
           {
-            title: "移除成功",
-            desc: color.green(`已移除会员: ${memberName}`),
+            title: "操作完成",
+            desc: message,
           },
           () => openTrialModeManageForm(player)
         );
       }
-    }
-  });
+    });
+  } else {
+    // 有在线玩家，显示下拉框和文本输入框
+    const form = new ModalFormData();
+    form.title("§w移除会员");
+    form.dropdown("选择在线玩家", ["-- 不选择 --", ...playerNames], {
+      defaultValueIndex: 0,
+    });
+    form.textField("或直接输入玩家名称（二选一，优先使用输入，支持批量，用逗号分隔）", "输入玩家名称", {
+      defaultValue: "",
+    });
+    form.submitButton("确认");
+
+    form.show(player).then((data) => {
+      if (data.cancelationReason) return;
+      const { formValues } = data;
+
+      const selectedIndex = formValues?.[0] as number;
+      const inputName = formValues?.[1] as string;
+
+      const { memberManager } = require("../../../features/system/services/trial-mode");
+      let namesToRemove: string[] = [];
+
+      // 优先使用文本输入，如果为空则使用下拉框选择
+      if (inputName && inputName.trim() !== "") {
+        namesToRemove = inputName
+          .split(",")
+          .map((n) => n.trim())
+          .filter((n) => n.length > 0);
+      } else if (selectedIndex > 0) {
+        namesToRemove = [playerNames[selectedIndex - 1]];
+      }
+
+      if (namesToRemove.length === 0) {
+        openDialogForm(
+          player,
+          {
+            title: "移除失败",
+            desc: color.red("请选择在线玩家或输入玩家名称"),
+          },
+          () => openRemoveMemberForm(player)
+        );
+        return;
+      }
+
+      let successCount = 0;
+      let notMemberCount = 0;
+      namesToRemove.forEach((name: string) => {
+        if (memberManager.isMember(name)) {
+          if (memberManager.removeMember(name)) {
+            successCount++;
+          }
+        } else {
+          notMemberCount++;
+        }
+      });
+
+      let message = color.green(`成功移除 ${successCount} 个会员`);
+      if (notMemberCount > 0) {
+        message += `\n${color.yellow(`${notMemberCount} 个玩家不是会员`)}`;
+      }
+
+      openDialogForm(
+        player,
+        {
+          title: "操作完成",
+          desc: message,
+        },
+        () => openTrialModeManageForm(player)
+      );
+    });
+  }
 }
 
 // ==================== 坐标点管理菜单 ====================
@@ -355,19 +512,19 @@ export const openWayPointManageMenu = (player: Player): void => {
   const form = new ActionFormData();
   form.title("§w坐标点管理");
 
-  form.button("§w所有玩家坐标点管理", "textures/packs/14321635");
-  form.button("§w搜索玩家坐标点管理", "textures/ui/magnifyingGlass");
+  form.button("§w所有玩家坐标点管理", "textures/icons/game_parkour_tag");
+  form.button("§w搜索玩家坐标点", "textures/ui/magnifyingGlass");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
     switch (data.selection) {
       case 0:
-        openPlayerWayPointManageForm(player);
+        openPlayerWayPointManageForm(player, 1, () => openWayPointManageMenu(player));
         break;
       case 1:
         const { openSearchWayPointForm } = require("../waypoint");
-        openSearchWayPointForm(player);
+        openSearchWayPointForm(player, () => openWayPointManageMenu(player));
         break;
       case 2:
         openSystemSettingForm(player);
@@ -376,7 +533,7 @@ export const openWayPointManageMenu = (player: Player): void => {
   });
 };
 
-function openPlayerWayPointManageForm(player: Player, page: number = 1): void {
+function openPlayerWayPointManageForm(player: Player, page: number = 1, returnForm?: () => void): void {
   const form = new ActionFormData();
   form.title("§w玩家坐标点管理");
 
@@ -393,9 +550,9 @@ function openPlayerWayPointManageForm(player: Player, page: number = 1): void {
     const waypoints = wayPoint.getPointsByPlayer(playerName);
     const publicCount = waypoints.filter((p: any) => p.type === "public").length;
     const privateCount = waypoints.filter((p: any) => p.type === "private").length;
-    // 使用亮色系在淡灰色背景下更清晰：白色玩家名 + 绿色/黄色标签
+    // 使用亮色系在淡灰色背景下更清晰：蓝色玩家名 + 清晰的标签颜色
     form.button(
-      `${colorCodes.white}${playerName} ${colorCodes.gray}的所有坐标点\n${colorCodes.green}公共: ${colorCodes.yellow}${publicCount} ${colorCodes.gray}| ${colorCodes.aqua}私有: ${colorCodes.minecoinGold}${privateCount}`,
+      `${color.blue(playerName)} 的所有坐标点\n${color.green("公共:")} ${color.yellow(publicCount.toString())} ${color.white("|")} ${color.aqua("私有:")} ${color.yellow(privateCount.toString())}`,
       "textures/ui/icon_steve"
     );
   });
@@ -428,13 +585,19 @@ function openPlayerWayPointManageForm(player: Player, page: number = 1): void {
     if (playerIndex >= 0 && playerIndex < currentPagePlayersCount) {
       const selectedPlayer = currentPagePlayers[playerIndex];
       const { openPlayerWayPointListForm } = require("../waypoint");
-      openPlayerWayPointListForm(player, selectedPlayer, 1, true, () => openPlayerWayPointManageForm(player, page));
+      openPlayerWayPointListForm(player, selectedPlayer, 1, true, () =>
+        openPlayerWayPointManageForm(player, page, returnForm)
+      );
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
-      openPlayerWayPointManageForm(player, page - 1);
+      openPlayerWayPointManageForm(player, page - 1, returnForm);
     } else if (selectionIndex === nextButtonIndex - 1 && page < totalPages) {
-      openPlayerWayPointManageForm(player, page + 1);
+      openPlayerWayPointManageForm(player, page + 1, returnForm);
     } else {
-      openWayPointManageMenu(player);
+      if (returnForm) {
+        returnForm();
+      } else {
+        openWayPointManageMenu(player);
+      }
     }
   });
 }
@@ -445,7 +608,7 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
   const form = new ActionFormData();
   form.title("§w领地管理");
 
-  form.button("§w所有玩家领地管理", "textures/packs/14321662");
+  form.button("§w所有玩家领地管理", "textures/icons/topraklar");
   form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
   form.button("§w返回", "textures/icons/back");
 
@@ -454,11 +617,11 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
     switch (data.selection) {
       case 0:
         const { openAllPlayerLandManageForm } = await import("../land");
-        openAllPlayerLandManageForm(player);
+        openAllPlayerLandManageForm(player, 1, () => openLandManageForm(player));
         break;
       case 1:
         const { openSearchLandForm } = await import("../land");
-        openSearchLandForm(player);
+        openSearchLandForm(player, () => openLandManageForm(player));
         break;
       case 2:
         openSystemSettingForm(player);

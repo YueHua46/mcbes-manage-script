@@ -5,7 +5,7 @@
 
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
-import { Player, Vector3 } from "@minecraft/server";
+import { Player, Vector3, world } from "@minecraft/server";
 import landManager from "../../../features/land/services/land-manager";
 import { openServerMenuForm } from "../server";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
@@ -14,7 +14,7 @@ import { useFormatInfo, useFormatListInfo } from "../../../shared/hooks/use-form
 import { useAllPlayers } from "../../../shared/hooks/use-player";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import type { ILand } from "../../../core/types";
-import { openLandManageForm } from "../system";
+import { openLandManageForm, openSystemSettingForm } from "../system";
 
 /**
  * 获取维度显示名称
@@ -985,37 +985,103 @@ export const openPlayerLandListForm = (
 
 // ==================== 搜索玩家领地 ====================
 
-export const openSearchLandForm = (player: Player): void => {
-  const form = new ModalFormData();
-  form.title("搜索玩家领地");
-  form.textField("玩家名称", "请输入要搜索的玩家名称");
-  form.submitButton("搜索");
+export const openSearchLandForm = (player: Player, returnForm?: () => void): void => {
+  const onlinePlayers = world.getPlayers();
+  const playerNames = onlinePlayers.map((p) => p.name);
 
-  form.show(player).then((data) => {
-    if (data.cancelationReason) return;
-    const { formValues } = data;
-    if (formValues?.[0]) {
-      const playerName = formValues[0].toString();
-      const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName);
-      if (playerLands.length === 0) {
+  if (playerNames.length === 0) {
+    // 没有在线玩家，只显示文本输入框
+    const form = new ModalFormData();
+    form.title("搜索玩家领地");
+    form.textField("玩家名称", "请输入要搜索的玩家名称");
+    form.submitButton("搜索");
+
+    form.show(player).then((data) => {
+      if (data.cancelationReason) return;
+      const { formValues } = data;
+      if (formValues?.[0]) {
+        const playerName = formValues[0].toString().trim();
+        if (playerName) {
+          const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName);
+          if (playerLands.length === 0) {
+            openDialogForm(
+              player,
+              {
+                title: "搜索结果",
+                desc: color.red("未找到该玩家的领地或该玩家不存在"),
+              },
+              () => openSearchLandForm(player, returnForm)
+            );
+          } else {
+            openPlayerLandListForm(player, playerName, 1, true, () => openSearchLandForm(player, returnForm));
+          }
+        }
+      }
+    });
+  } else {
+    // 有在线玩家，显示下拉框和文本输入框
+    const form = new ModalFormData();
+    form.title("搜索玩家领地");
+    form.dropdown("选择在线玩家", ["-- 不选择 --", ...playerNames], {
+      defaultValueIndex: 0,
+    });
+    form.textField("或直接输入玩家名称（二选一，优先使用输入）", "输入玩家名称", {
+      defaultValue: "",
+    });
+    form.submitButton("搜索");
+
+    form.show(player).then((data) => {
+      if (data.cancelationReason) return;
+      const { formValues } = data;
+
+      let playerName = "";
+      const selectedIndex = formValues?.[0] as number;
+      const inputName = formValues?.[1] as string;
+
+      // 优先使用文本输入，如果为空则使用下拉框选择
+      if (inputName && inputName.trim() !== "") {
+        playerName = inputName.trim();
+      } else if (selectedIndex > 0) {
+        playerName = playerNames[selectedIndex - 1];
+      }
+
+      if (playerName) {
+        const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName);
+        if (playerLands.length === 0) {
+          openDialogForm(
+            player,
+            {
+              title: "搜索结果",
+              desc: color.red("未找到该玩家的领地或该玩家不存在"),
+            },
+            () => openSearchLandForm(player, returnForm)
+          );
+        } else {
+          openPlayerLandListForm(player, playerName, 1, true, () => {
+            if (returnForm) {
+              returnForm();
+            } else {
+              openSystemSettingForm(player);
+            }
+          });
+        }
+      } else {
         openDialogForm(
           player,
           {
-            title: "搜索结果",
-            desc: color.red("未找到该玩家的领地或该玩家不存在"),
+            title: "搜索错误",
+            desc: color.red("请选择在线玩家或输入玩家名称"),
           },
-          () => openSearchLandForm(player)
+          () => openSearchLandForm(player, returnForm)
         );
-      } else {
-        openPlayerLandListForm(player, playerName, 1, true, () => openAllPlayerLandManageForm(player));
       }
-    }
-  });
+    });
+  }
 };
 
 // ==================== 所有玩家领地管理 ====================
 
-export const openAllPlayerLandManageForm = (player: Player, page: number = 1): void => {
+export const openAllPlayerLandManageForm = (player: Player, page: number = 1, returnForm?: () => void): void => {
   const form = new ActionFormData();
   form.title("§w玩家领地管理");
 
@@ -1027,8 +1093,6 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1): v
   const end = Math.min(start + pageSize, players.length);
   const currentPagePlayers = players.slice(start, end);
 
-  form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
-
   currentPagePlayers.forEach((playerName) => {
     const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName);
     form.button(
@@ -1037,8 +1101,8 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1): v
     );
   });
 
-  let previousButtonIndex = currentPagePlayers.length + 1;
-  let nextButtonIndex = currentPagePlayers.length + 1;
+  let previousButtonIndex = currentPagePlayers.length;
+  let nextButtonIndex = currentPagePlayers.length;
 
   if (page > 1) {
     form.button("§w上一页", "textures/icons/left_arrow");
@@ -1059,23 +1123,24 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1): v
     const selectionIndex = data.selection;
     if (selectionIndex === null || selectionIndex === undefined) return;
 
-    if (selectionIndex === 0) {
-      openSearchLandForm(player);
-      return;
-    }
-
     const currentPagePlayersCount = currentPagePlayers.length;
-    const playerIndex = selectionIndex - 1;
+    const playerIndex = selectionIndex;
 
     if (playerIndex >= 0 && playerIndex < currentPagePlayersCount) {
       const selectedPlayer = currentPagePlayers[playerIndex];
-      openPlayerLandListForm(player, selectedPlayer, 1, true, () => openAllPlayerLandManageForm(player, page));
+      openPlayerLandListForm(player, selectedPlayer, 1, true, () =>
+        openAllPlayerLandManageForm(player, page, returnForm)
+      );
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
-      openAllPlayerLandManageForm(player, page - 1);
+      openAllPlayerLandManageForm(player, page - 1, returnForm);
     } else if (selectionIndex === nextButtonIndex - 1 && page < totalPages) {
-      openAllPlayerLandManageForm(player, page + 1);
+      openAllPlayerLandManageForm(player, page + 1, returnForm);
     } else {
-      openLandManageForm(player);
+      if (returnForm) {
+        returnForm();
+      } else {
+        openSystemSettingForm(player);
+      }
     }
   });
 };

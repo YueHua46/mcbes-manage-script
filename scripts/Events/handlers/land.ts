@@ -480,6 +480,11 @@ export function registerLandEvents(): void {
     });
     event.setImpactedBlocks(impact);
   });
+
+  /**
+   * 玩家攻击领地内生物
+   */
+  // world.beforeEvents.
 }
 
 // 注册到事件中心

@@ -3,7 +3,7 @@
  * 完整迁移自 Modules/WayPoint/Forms.ts (614行)
  */
 
-import { Player } from "@minecraft/server";
+import { Player, world } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
 import { openServerMenuForm } from "../server";
@@ -13,6 +13,7 @@ import { useFormatListInfo, useNotify } from "../../../shared/hooks";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
 import { openSystemSettingForm } from "../system";
 import { isAdmin } from "../../../shared";
+import { useAllPlayers } from "../../../shared/hooks/use-player";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -63,33 +64,92 @@ export function openDeleteAllPointsConfirmForm(
 
 // ==================== 搜索玩家坐标点 ====================
 
-export const openSearchWayPointForm = (player: Player): void => {
-  const form = new ModalFormData();
+export const openSearchWayPointForm = (player: Player, returnForm?: () => void): void => {
+  const onlinePlayers = world.getPlayers();
+  const playerNames = onlinePlayers.map((p) => p.name);
 
-  form.title("搜索用户坐标点");
-  form.textField("玩家名称", "请输入要搜索的玩家名称");
-  form.submitButton("搜索");
+  if (playerNames.length === 0) {
+    // 没有在线玩家，只显示文本输入框
+    const form = new ModalFormData();
+    form.title("搜索用户坐标点");
+    form.textField("玩家名称", "请输入要搜索的玩家名称");
+    form.submitButton("搜索");
 
-  form.show(player).then((data) => {
-    if (data.cancelationReason) return;
-    const { formValues } = data;
-    if (formValues?.[0]) {
-      const playerName = formValues[0].toString();
-      const wayPoints = wayPoint.getPointsByPlayer(playerName);
-      if (wayPoints.length === 0) {
+    form.show(player).then((data) => {
+      if (data.cancelationReason) return;
+      const { formValues } = data;
+      if (formValues?.[0]) {
+        const playerName = formValues[0].toString().trim();
+        if (playerName) {
+          const wayPoints = wayPoint.getPointsByPlayer(playerName);
+          if (wayPoints.length === 0) {
+            openDialogForm(
+              player,
+              {
+                title: "搜索结果",
+                desc: color.red("未找到该玩家的坐标点或该玩家不存在"),
+              },
+              () => openSearchWayPointForm(player, returnForm)
+            );
+          } else {
+            openPlayerWayPointListForm(player, playerName, 1, true, () => openSearchWayPointForm(player, returnForm));
+          }
+        }
+      }
+    });
+  } else {
+    // 有在线玩家，显示下拉框和文本输入框
+    const form = new ModalFormData();
+    form.title("搜索用户坐标点");
+    form.dropdown("选择在线玩家", ["-- 不选择 --", ...playerNames], {
+      defaultValueIndex: 0,
+    });
+    form.textField("或直接输入玩家名称（二选一，优先使用输入）", "输入玩家名称", {
+      defaultValue: "",
+    });
+    form.submitButton("搜索");
+
+    form.show(player).then((data) => {
+      if (data.cancelationReason) return;
+      const { formValues } = data;
+
+      let playerName = "";
+      const selectedIndex = formValues?.[0] as number;
+      const inputName = formValues?.[1] as string;
+
+      // 优先使用文本输入，如果为空则使用下拉框选择
+      if (inputName && inputName.trim() !== "") {
+        playerName = inputName.trim();
+      } else if (selectedIndex > 0) {
+        playerName = playerNames[selectedIndex - 1];
+      }
+
+      if (playerName) {
+        const wayPoints = wayPoint.getPointsByPlayer(playerName);
+        if (wayPoints.length === 0) {
+          openDialogForm(
+            player,
+            {
+              title: "搜索结果",
+              desc: color.red("未找到该玩家的坐标点或该玩家不存在"),
+            },
+            () => openSearchWayPointForm(player, returnForm)
+          );
+        } else {
+          openPlayerWayPointListForm(player, playerName, 1, true, () => openSearchWayPointForm(player, returnForm));
+        }
+      } else {
         openDialogForm(
           player,
           {
-            title: "搜索结果",
-            desc: color.red("未找到该玩家的坐标点或该玩家不存在"),
+            title: "搜索错误",
+            desc: color.red("请选择在线玩家或输入玩家名称"),
           },
-          () => openSearchWayPointForm(player)
+          () => openSearchWayPointForm(player, returnForm)
         );
-      } else {
-        openSearchResultsForm(player, wayPoints, playerName);
       }
-    }
-  });
+    });
+  }
 };
 
 const openSearchResultsForm = (player: Player, wayPoints: IWayPoint[], playerName: string, page: number = 1): void => {
@@ -596,13 +656,6 @@ export const openWayPointMenuForms = (player: Player): void => {
       action: () => openAddWayPointForm(player, "public"),
     },
   ];
-  if (isAdmin(player)) {
-    buttons.push({
-      text: "搜索用户坐标点",
-      icon: "textures/icons/spectator",
-      action: () => openSearchWayPointForm(player),
-    });
-  }
   buttons.forEach(({ text, icon }) => form.button(text, icon));
   form.button("返回", "textures/icons/back");
 

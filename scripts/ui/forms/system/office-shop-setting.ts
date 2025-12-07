@@ -22,16 +22,49 @@ function emojiKeyToEmojiPath(emojiKey: string): string {
 // 简化实现的商店设置表单
 class OfficeShopSettingForm {
   /**
+   * 打开官方商店管理主菜单
+   */
+  openMainMenu(player: Player): void {
+    const { openSystemSettingForm } = require("./index");
+
+    const form = new ActionFormData()
+      .title("§w官方商店管理")
+      .body("请选择要执行的操作")
+      .button("§w所有商品类别", "textures/icons/gadgets")
+      .button("§w创建新类别", "textures/icons/add")
+      .button("§w返回", "textures/icons/back");
+
+    form.show(player).then((response) => {
+      if (response.canceled) return;
+
+      const selection = response.selection;
+      if (selection === undefined) return;
+
+      switch (selection) {
+        case 0:
+          // 所有商品类别
+          this.openCategoryList(player);
+          break;
+        case 1:
+          // 创建新类别
+          this.openAddCategoryForm(player);
+          break;
+        case 2:
+          // 返回
+          openSystemSettingForm(player);
+          break;
+      }
+    });
+  }
+
+  /**
    * 打开分类列表管理
    */
   openCategoryList(player: Player): void {
     const { openSystemSettingForm } = require("./index");
     const categories = officeShop.getCategories();
 
-    const form = new ActionFormData()
-      .title("§w官方商店管理")
-      .body("请选择要管理的类别，或创建新类别")
-      .button("§w创建新类别", "textures/icons/add");
+    const form = new ActionFormData().title("§w所有商品类别").body("请选择要管理的类别");
 
     categories.forEach((category) => {
       form.button(`§w${category.name}`, category.icon || officeShop.defaultIcon);
@@ -45,15 +78,12 @@ class OfficeShopSettingForm {
       const selection = response.selection;
       if (selection === undefined) return;
 
-      if (selection === 0) {
-        // 创建新类别
-        this.openAddCategoryForm(player);
-      } else if (selection === categories.length + 1) {
+      if (selection === categories.length) {
         // 返回
-        openSystemSettingForm(player);
-      } else if (selection > 0 && selection <= categories.length) {
+        this.openMainMenu(player);
+      } else if (selection >= 0 && selection < categories.length) {
         // 选择了某个类别
-        const selectedCategory = categories[selection - 1];
+        const selectedCategory = categories[selection];
         this.manageCategoryItems(player, selectedCategory.name);
       }
     });
@@ -103,7 +133,7 @@ class OfficeShopSettingForm {
         player,
       });
 
-      openDialogForm(player, { title: "§a成功", desc: "商品类别添加成功" }, () => this.openCategoryList(player));
+      openDialogForm(player, { title: "§a成功", desc: "商品类别添加成功" }, () => this.openMainMenu(player));
     });
   }
 
@@ -120,16 +150,16 @@ class OfficeShopSettingForm {
           title: "§c错误",
           desc: "商品类别不存在",
         },
-        () => this.openCategoryList(player)
+        () => this.openMainMenu(player)
       );
       return;
     }
 
     const form = new ActionFormData()
       .title(`§w商品管理`)
-      .button("§w查看和编辑商品", "textures/icons/edit")
+      .button("§w查看和编辑商品", "textures/icons/edit2")
       .button("§w添加商品", "textures/icons/add")
-      .button("§w删除类别", "textures/ui/trash")
+      .button("§w删除类别", "textures/icons/deny")
       .button("§w返回", "textures/icons/back");
 
     form.show(player).then((res) => {
@@ -192,7 +222,7 @@ class OfficeShopSettingForm {
           title: "§c错误",
           desc: "商品类别不存在",
         },
-        () => this.openCategoryList(player)
+        () => this.openMainMenu(player)
       );
       return;
     }
@@ -452,7 +482,7 @@ class OfficeShopSettingForm {
           title: "§c错误",
           desc: "商品类别不存在",
         },
-        () => this.openCategoryList(player)
+        () => this.openMainMenu(player)
       );
       return;
     }
