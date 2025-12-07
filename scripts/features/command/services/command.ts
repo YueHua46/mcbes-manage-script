@@ -513,6 +513,7 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           land1BlockPerPrice: "领地每方块价格 (数字)",
           daily_gold_limit: "每日金币获取上限 (数字)",
           startingGold: "新玩家初始金币 (数字)",
+          monsterKillGoldReward: "杀怪掉金币功能 (true/false)",
         };
 
         for (const [settingKey, description] of Object.entries(settingDescriptions)) {

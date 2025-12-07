@@ -25,7 +25,7 @@ class OfficeShopSettingForm {
    * 打开官方商店管理主菜单
    */
   openMainMenu(player: Player): void {
-    const { openSystemSettingForm } = require("./index");
+    const { openEconomyManageForm } = require("./index");
 
     const form = new ActionFormData()
       .title("§w官方商店管理")
@@ -51,7 +51,7 @@ class OfficeShopSettingForm {
           break;
         case 2:
           // 返回
-          openSystemSettingForm(player);
+          openEconomyManageForm(player);
           break;
       }
     });
@@ -61,7 +61,6 @@ class OfficeShopSettingForm {
    * 打开分类列表管理
    */
   openCategoryList(player: Player): void {
-    const { openSystemSettingForm } = require("./index");
     const categories = officeShop.getCategories();
 
     const form = new ActionFormData().title("§w所有商品类别").body("请选择要管理的类别");

@@ -3,7 +3,7 @@
  * 迁移自 Modules/System/Forms.ts（主要部分）
  */
 
-import { Player, world } from "@minecraft/server";
+import { Player, RawMessage, world } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color, colorCodes } from "../../../shared/utils/color";
 import setting from "../../../features/system/services/setting";
@@ -12,6 +12,9 @@ import { openDialogForm } from "../../../ui/components/dialog";
 import { isAdmin } from "../../../shared/utils/common";
 import { officeShopSettingForm } from "./office-shop-setting";
 import { openNotifyForms } from "../notify";
+import itemPriceDb from "../../../features/economic/services/item-price-database";
+import { getItemLocalizationKey } from "../../../shared/utils/item-utils";
+import { dynamicMatchIconPath } from "../../../assets/texture-paths";
 
 // ==================== 系统设置主菜单 ====================
 
@@ -60,16 +63,9 @@ export function openSystemSettingForm(player: Player): void {
       action: () => openTrialModeManageForm(player),
     },
     {
-      text: "§w官方商店管理",
-      icon: "textures/icons/shop",
-      action: () => {
-        officeShopSettingForm.openMainMenu(player);
-      },
-    },
-    {
-      text: "§w物品价格管理",
-      icon: "textures/icons/clock",
-      action: () => openItemPriceManageForm(player),
+      text: "§w经济系统管理",
+      icon: "textures/icons/shop_bank",
+      action: () => openEconomyManageForm(player),
     },
   ];
 
@@ -630,15 +626,563 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
   });
 };
 
+// ==================== 经济系统管理 ====================
+
+// 经济系统管理主菜单
+export function openEconomyManageForm(player: Player): void {
+  const form = new ActionFormData();
+  form.title("§w经济系统管理");
+
+  form.button("§w官方商店管理", "textures/icons/shop");
+  form.button("§w物品价格管理", "textures/icons/clock");
+  form.button("§w功能开关", "textures/icons/gadgets");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    switch (data.selection) {
+      case 0:
+        officeShopSettingForm.openMainMenu(player);
+        break;
+      case 1:
+        openItemPriceManageForm(player);
+        break;
+      case 2:
+        openEconomyFeatureToggleForm(player);
+        break;
+      case 3:
+        openSystemSettingForm(player);
+        break;
+    }
+  });
+}
+
+// ==================== 经济系统功能开关 ====================
+
+// 经济系统功能开关表单
+function openEconomyFeatureToggleForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("§w经济系统功能开关");
+
+  const features = [{ key: "monsterKillGoldReward", name: "杀怪掉金币" }];
+
+  features.forEach((feature) => {
+    const currentValue = setting.getState(feature.key as any);
+    form.toggle(`${feature.name}`, {
+      defaultValue: currentValue as boolean,
+    });
+  });
+
+  form.submitButton("确认");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const { formValues } = data;
+    if (formValues) {
+      features.forEach((feature, index) => {
+        setting.setState(feature.key as any, formValues[index] as boolean);
+      });
+
+      openDialogForm(
+        player,
+        {
+          title: "设置成功",
+          desc: color.green("功能开关已更新！"),
+        },
+        () => openEconomyManageForm(player)
+      );
+    }
+  });
+}
+
 // ==================== 物品价格管理 ====================
 
+// 物品价格管理主界面
 function openItemPriceManageForm(player: Player): void {
+  const customPricesCount = Object.keys(itemPriceDb.getAllCustomPrices()).length;
+  const totalItemsCount = itemPriceDb.getAllDefaultItemIds().length;
+
+  const form = new ActionFormData()
+    .title("§w物品出售价格管理")
+    .body(
+      `§a当前状态:\n§e自定义物品出售价格: ${customPricesCount} 个\n§e默认物品出售价格: ${totalItemsCount} 个\n§e友情提示，对应物品没有自定义价格，则使用默认物品出售价格\n§a请选择要进行的操作:`
+    )
+    .button("§w浏览自定义物品出售价格", "textures/icons/quest_chest")
+    .button("§w手动修改物品出售价格", "textures/icons/edit2")
+    .button("§w搜索物品出售价格", "textures/ui/magnifyingGlass")
+    .button("§w删除所有自定义物品出售价格", "textures/icons/deny")
+    .button("§w返回", "textures/icons/back");
+
+  form.show(player).then((res) => {
+    if (res.canceled) return;
+    switch (res.selection) {
+      case 0:
+        showItemPricesWithPagination(player, 1);
+        break;
+      case 1:
+        openModifyItemPriceForm(player);
+        break;
+      case 2:
+        openSearchItemPriceForm(player);
+        break;
+      case 3:
+        openResetPricesConfirmForm(player);
+        break;
+      case 4:
+        openEconomyManageForm(player);
+        break;
+    }
+  });
+}
+
+// 分页显示自定义物品出售价格列表
+function showItemPricesWithPagination(player: Player, page: number = 1): void {
+  const form = new ActionFormData();
+  form.title("§w自定义物品出售价格列表");
+
+  const customPrices = itemPriceDb.getAllCustomPrices();
+  const entries = Object.entries(customPrices);
+
+  // 分页设置
+  const pageSize = 12;
+  const totalPages = Math.ceil(entries.length / pageSize);
+  const start = (page - 1) * pageSize;
+  const end = Math.min(start + pageSize, entries.length);
+  const currentPageEntries = entries.slice(start, end);
+
+  if (entries.length === 0) {
+    form.body("§e当前没有任何自定义物品出售价格\n§a所有物品都使用默认物品出售价格");
+  } else {
+    form.body(`第 ${page} 页 / 共 ${totalPages} 页 (共 ${entries.length} 个自定义物品出售价格)`);
+  }
+
+  // 显示当前页的物品
+  currentPageEntries.forEach(([itemId, price]) => {
+    // 简化显示物品ID（移除minecraft:前缀）
+    const displayName = itemId.replace("minecraft:", "");
+    const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
+    const priceIndicator = price > defaultPrice ? "§a↑" : price < defaultPrice ? "§c↓" : "§e=";
+    const itemTexture = dynamicMatchIconPath(displayName);
+    const itemNameRawMessage: RawMessage = {
+      rawtext: [
+        {
+          text: "§t",
+        },
+        {
+          translate: getItemLocalizationKey(itemId),
+        },
+        {
+          text: `\n§e${price} 金币 ${priceIndicator} 默认:${defaultPrice}`,
+        },
+      ],
+    };
+    form.button(itemNameRawMessage, itemTexture);
+  });
+
+  // 添加导航按钮
+  if (page > 1) {
+    form.button("§w上一页", "textures/icons/left_arrow");
+  }
+
+  if (page < totalPages) {
+    form.button("§w下一页", "textures/icons/right_arrow");
+  }
+
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((res) => {
+    if (res.canceled) return;
+
+    const selection = res.selection;
+    if (selection === null || selection === undefined) return;
+
+    const itemCount = currentPageEntries.length;
+
+    if (selection < itemCount) {
+      // 选择了某个物品，打开编辑表单
+      const [itemId, currentPrice] = currentPageEntries[selection];
+      openEditItemPriceForm(player, itemId, currentPrice, page);
+    } else if (selection === itemCount && page > 1) {
+      // 上一页
+      showItemPricesWithPagination(player, page - 1);
+    } else if (selection === itemCount + (page > 1 ? 1 : 0) && page < totalPages) {
+      // 下一页
+      showItemPricesWithPagination(player, page + 1);
+    } else {
+      // 返回
+      openItemPriceManageForm(player);
+    }
+  });
+}
+
+// 编辑单个物品出售价格
+function openEditItemPriceForm(player: Player, itemId: string, currentPrice: number, returnPage: number): void {
+  const form = new ActionFormData();
+  const displayName = itemId.replace("minecraft:", "");
+  const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
+  const isCustomPrice = itemPriceDb.hasCustomPrice(itemId);
+
+  const formTitleRawMessage: RawMessage = {
+    rawtext: [
+      {
+        text: "§w",
+      },
+      {
+        text: "编辑物品出售价格 - ",
+      },
+      {
+        translate: getItemLocalizationKey(itemId),
+      },
+    ],
+  };
+
+  form.title(formTitleRawMessage);
+
+  if (isCustomPrice) {
+    form.body(
+      `§a当前自定义物品出售价格: §e${currentPrice} §a金币\n§a默认物品出售价格: §e${defaultPrice} §a金币\n§a请选择操作:`
+    );
+    form.button("§w修改自定义物品出售价格", "textures/icons/edit2");
+    form.button("§w删除自定义物品出售价格（恢复默认）", "textures/icons/deny");
+  } else {
+    form.body(`§a当前使用默认物品出售价格: §e${currentPrice} §a金币\n§a请选择操作:`);
+    form.button("§w设置自定义物品出售价格", "textures/icons/add");
+  }
+
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((res) => {
+    if (res.canceled) {
+      showItemPricesWithPagination(player, returnPage);
+      return;
+    }
+
+    switch (res.selection) {
+      case 0:
+        // 修改/设置自定义价格
+        openModifyCustomPriceForm(player, itemId, currentPrice, returnPage);
+        break;
+      case 1:
+        if (isCustomPrice) {
+          // 删除自定义物品出售价格
+          itemPriceDb.removePrice(itemId);
+          openDialogForm(
+            player,
+            {
+              title: "删除成功",
+              desc: `§a已删除 §b${displayName} §a的自定义物品出售价格，恢复使用默认物品出售价格 §e${defaultPrice} §a金币`,
+            },
+            () => showItemPricesWithPagination(player, returnPage)
+          );
+        }
+        break;
+      case 2:
+        // 返回
+        showItemPricesWithPagination(player, returnPage);
+        break;
+    }
+  });
+}
+
+// 修改自定义物品出售价格表单
+function openModifyCustomPriceForm(player: Player, itemId: string, currentPrice: number, returnPage: number): void {
+  const form = new ModalFormData();
+  const displayName = itemId.replace("minecraft:", "");
+  const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
+
+  const formTitleRawMessage: RawMessage = {
+    rawtext: [
+      {
+        text: "§w",
+      },
+      {
+        text: "设置自定义物品出售价格 - ",
+      },
+      {
+        translate: getItemLocalizationKey(itemId),
+      },
+    ],
+  };
+
+  form.title(formTitleRawMessage);
+  form.textField(
+    `§a默认物品出售价格: §e${defaultPrice} §a金币\n§a当前自定义物品出售价格: §e${currentPrice} §a金币\n§a请输入新的自定义物品出售价格:`,
+    "输入新的价格",
+    {
+      defaultValue: currentPrice.toString(),
+    }
+  );
+
+  form.show(player).then((res) => {
+    if (res.canceled) {
+      openEditItemPriceForm(player, itemId, currentPrice, returnPage);
+      return;
+    }
+
+    const priceStr = res.formValues?.[0] as string;
+    if (!priceStr) {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: "§c请输入有效的非负整数！",
+        },
+        () => openModifyCustomPriceForm(player, itemId, currentPrice, returnPage)
+      );
+      return;
+    }
+
+    const newPrice = parseInt(priceStr);
+
+    if (isNaN(newPrice) || newPrice < 0) {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: "§c请输入有效的非负整数！",
+        },
+        () => openModifyCustomPriceForm(player, itemId, currentPrice, returnPage)
+      );
+      return;
+    }
+
+    itemPriceDb.setPrice(itemId, newPrice);
+    openDialogForm(
+      player,
+      {
+        title: "设置成功",
+        desc: `§a成功设置 §b${displayName} §a的自定义物品出售价格为 §e${newPrice} §a金币`,
+      },
+      () => showItemPricesWithPagination(player, returnPage)
+    );
+  });
+}
+
+// 搜索物品出售价格
+function openSearchItemPriceForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("§w搜索物品出售价格");
+  form.textField("§a物品名称或ID", "输入物品名称或ID的一部分");
+
+  form.show(player).then((res) => {
+    if (res.canceled) {
+      openItemPriceManageForm(player);
+      return;
+    }
+
+    const searchTerm = res.formValues?.[0] as string;
+    if (!searchTerm || !searchTerm.trim()) {
+      openDialogForm(
+        player,
+        {
+          title: "搜索失败",
+          desc: "§c请输入搜索关键词！",
+        },
+        () => openSearchItemPriceForm(player)
+      );
+      return;
+    }
+
+    showSearchResults(player, searchTerm.toLowerCase());
+  });
+}
+
+// 显示搜索结果
+function showSearchResults(player: Player, searchTerm: string): void {
+  const form = new ActionFormData();
+  form.title(`§w搜索结果 - "${searchTerm}"`);
+
+  // 搜索所有物品（包括默认价格的物品）
+  const allItemIds = itemPriceDb.getAllDefaultItemIds();
+  const matchedItems = allItemIds
+    .filter((itemId) => itemId.toLowerCase().includes(searchTerm))
+    .map((itemId) => {
+      const price = itemPriceDb.getPrice(itemId);
+      const isCustom = itemPriceDb.hasCustomPrice(itemId);
+      return { itemId, price, isCustom };
+    });
+
+  if (matchedItems.length === 0) {
+    form.body("§c未找到匹配的物品");
+    form.button("§w返回搜索", "textures/icons/back");
+
+    form.show(player).then((res) => {
+      if (!res.canceled) {
+        openSearchItemPriceForm(player);
+      }
+    });
+    return;
+  }
+
+  form.body(`找到 ${matchedItems.length} 个匹配的物品`);
+
+  matchedItems.forEach(({ itemId, price, isCustom }) => {
+    const displayName = itemId.replace("minecraft:", "");
+    const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
+    const priceIndicator = isCustom ? (price > defaultPrice ? "§a↑" : price < defaultPrice ? "§c↓" : "§e=") : "§6默认";
+    const itemNameRawMessage: RawMessage = {
+      rawtext: [
+        {
+          text: "§t",
+        },
+        {
+          translate: getItemLocalizationKey(itemId),
+        },
+        {
+          text: `\n§e${price} 金币 ${priceIndicator}`,
+        },
+      ],
+    };
+    form.button(itemNameRawMessage, dynamicMatchIconPath(displayName));
+  });
+
+  form.button("§w返回搜索", "textures/icons/back");
+
+  form.show(player).then((res) => {
+    if (res.canceled) return;
+
+    const selection = res.selection;
+    if (selection === null || selection === undefined) return;
+
+    if (selection < matchedItems.length) {
+      // 选择了某个物品
+      const { itemId, price } = matchedItems[selection];
+      openEditItemPriceForm(player, itemId, price, 1);
+    } else {
+      // 返回搜索
+      openSearchItemPriceForm(player);
+    }
+  });
+}
+
+// 删除所有自定义物品出售价格确认表单
+function openResetPricesConfirmForm(player: Player): void {
+  const customPricesCount = Object.keys(itemPriceDb.getAllCustomPrices()).length;
+
+  const form = new ActionFormData();
+  form.title("§w删除所有自定义物品出售价格确认");
+  form.body(
+    `§c警告：此操作将删除所有自定义物品出售价格！\n§c当前有 ${customPricesCount} 个自定义物品出售价格将被删除！\n§c删除后所有物品将恢复使用默认物品出售价格！\n§e是否确认继续？`
+  );
+
+  form.button("§c确认删除", "textures/icons/deny");
+  form.button("§a取消", "textures/icons/back");
+
+  form.show(player).then((res) => {
+    if (res.canceled || res.selection === 1) {
+      openItemPriceManageForm(player);
+      return;
+    }
+
+    if (res.selection === 0) {
+      resetAllPricesToDefault(player);
+    }
+  });
+}
+
+// 删除所有自定义物品出售价格
+function resetAllPricesToDefault(player: Player): void {
+  // 使用专门的重置方法
+  itemPriceDb.resetToDefaultPrices();
+
   openDialogForm(
     player,
     {
-      title: "功能开发中",
-      desc: color.yellow("物品价格管理功能正在开发中..."),
+      title: "删除成功",
+      desc: "§a已成功删除所有自定义物品出售价格！\n§a所有物品现在都使用默认物品出售价格。",
     },
-    () => openSystemSettingForm(player)
+    () => openItemPriceManageForm(player)
   );
+}
+
+// 修改物品出售价格表单
+function openModifyItemPriceForm(player: Player): void {
+  const form = new ModalFormData()
+    .title("手动修改物品出售价格")
+    .textField("§a物品ID", "例如: minecraft:diamond")
+    .textField("§a自定义物品出售价格", "请输入自定义物品出售价格（留空则删除自定义物品出售价格）");
+
+  form.show(player).then((res) => {
+    if (res.canceled) return;
+    const formValues = res.formValues;
+    if (!formValues || formValues.length < 2) return;
+
+    const itemId = formValues[0] as string;
+    const priceStr = formValues[1] as string;
+
+    if (!itemId || !itemId.trim()) {
+      openDialogForm(
+        player,
+        {
+          title: "错误",
+          desc: "§c请输入有效的物品ID",
+        },
+        () => openModifyItemPriceForm(player)
+      );
+      return;
+    }
+
+    // 检查物品是否有默认物品出售价格
+    const defaultPrice = itemPriceDb.getDefaultPrice(itemId);
+    if (defaultPrice === 0) {
+      openDialogForm(
+        player,
+        {
+          title: "错误",
+          desc: "§c没有搜到该物品，请检查物品ID是否输入正确，引号要英文引号，如：minecraft:diamond，代表钻石这个物品",
+        },
+        () => openModifyItemPriceForm(player)
+      );
+      return;
+    }
+
+    if (!priceStr || priceStr.trim() === "") {
+      // 删除自定义物品出售价格
+      if (itemPriceDb.hasCustomPrice(itemId)) {
+        itemPriceDb.removePrice(itemId);
+        openDialogForm(
+          player,
+          {
+            title: "删除成功",
+            desc: `§a已删除 §b${itemId} §a的自定义物品出售价格，恢复使用默认物品出售价格 §e${defaultPrice} §a金币`,
+          },
+          () => openItemPriceManageForm(player)
+        );
+      } else {
+        openDialogForm(
+          player,
+          {
+            title: "无需删除",
+            desc: `§a该物品没有自定义物品出售价格，当前使用默认物品出售价格 §e${defaultPrice} §a金币`,
+          },
+          () => openItemPriceManageForm(player)
+        );
+      }
+      return;
+    }
+
+    const price = parseInt(priceStr);
+    if (isNaN(price) || price < 0) {
+      openDialogForm(
+        player,
+        {
+          title: "错误",
+          desc: "§c请输入有效的非负整数价格",
+        },
+        () => openModifyItemPriceForm(player)
+      );
+      return;
+    }
+
+    itemPriceDb.setPrice(itemId, price);
+    const priceIndicator = price > defaultPrice ? "§a↑" : price < defaultPrice ? "§c↓" : "§e=";
+    openDialogForm(
+      player,
+      {
+        title: "设置成功",
+        desc: `§a成功设置 §b${itemId} §a的自定义物品出售价格为 §e${price} §a金币 ${priceIndicator}\n§a默认物品出售价格: §e${defaultPrice} §a金币`,
+      },
+      () => openItemPriceManageForm(player)
+    );
+  });
 }
