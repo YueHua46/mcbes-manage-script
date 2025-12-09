@@ -7,6 +7,7 @@ import {
   system,
   world,
   Player,
+  Entity,
   CustomCommand,
   CommandPermissionLevel,
   CustomCommandParamType,
@@ -159,6 +160,18 @@ system.beforeEvents.startup.subscribe((init) => {
     permissionLevel: CommandPermissionLevel.Any,
   };
   registry.registerCommand(giveMenuCommand, handleGiveMenuCommand);
+
+  // 12. 注册 camera 指令 (实体视角观察)
+  const cameraCommand: CustomCommand = {
+    name: "yuehua:camera",
+    description: "实体视角观察系统 - 用法: /yuehua:camera <start|stop|perspective> [参数]",
+    permissionLevel: CommandPermissionLevel.Any,
+    optionalParameters: [
+      { type: CustomCommandParamType.String, name: "操作(start/stop/perspective/next)" },
+      { type: CustomCommandParamType.EntitySelector, name: "目标实体选择器或视角类型" },
+    ],
+  };
+  registry.registerCommand(cameraCommand, handleCameraCommand);
 
   commandsRegistered = true;
   console.warn("所有自定义指令已通过官方 API 注册完成");
@@ -1107,6 +1120,141 @@ function handleGiveMenuCommand(origin: CustomCommandOrigin): CustomCommandResult
       player.sendMessage(color.green("已为您发放服务器菜单！"));
     } catch (error) {
       player.sendMessage(color.red(`获取菜单失败: ${(error as Error).message}`));
+    }
+  });
+
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleCameraCommand(
+  origin: CustomCommandOrigin,
+  operation?: string,
+  targetEntitiesOrPerspective?: Entity[] | string
+): CustomCommandResult {
+  const player = origin.sourceEntity as Player;
+  if (!player) return { status: CustomCommandStatus.Failure };
+
+  system.run(async () => {
+    try {
+      const cameraService = (await import("../../camera/services/camera")).default;
+
+      if (!operation || operation.toLowerCase() === "stop") {
+        // 停止观察
+        const result = cameraService.stopObserving(player);
+        if (typeof result === "string") {
+          player.sendMessage(color.red(result));
+        }
+        return;
+      }
+
+      if (operation.toLowerCase() === "start") {
+        // 开始观察
+        if (
+          !targetEntitiesOrPerspective ||
+          !Array.isArray(targetEntitiesOrPerspective) ||
+          targetEntitiesOrPerspective.length === 0
+        ) {
+          player.sendMessage(color.yellow("用法: /yuehua:camera start <实体选择器>"));
+          player.sendMessage(color.gray("示例: /yuehua:camera start @p"));
+          player.sendMessage(color.gray("示例: /yuehua:camera start @e[type=zombie]"));
+          player.sendMessage(color.gray("示例: /yuehua:camera start @e[type=!player]"));
+          return;
+        }
+
+        // 获取第一个目标实体（如果选择器返回多个实体，使用第一个）
+        const targetEntity = targetEntitiesOrPerspective[0];
+
+        // 检查实体是否有效
+        try {
+          if (!targetEntity || !targetEntity.id) {
+            player.sendMessage(color.red("目标实体无效或已不存在"));
+            return;
+          }
+        } catch (error) {
+          player.sendMessage(color.red("目标实体无效或已不存在"));
+          return;
+        }
+
+        // 开始观察
+        const result = cameraService.startObserving(player, targetEntity);
+        if (typeof result === "string") {
+          player.sendMessage(color.red(result));
+        } else if (targetEntitiesOrPerspective.length > 1) {
+          player.sendMessage(
+            color.yellow(`选择器匹配到 ${targetEntitiesOrPerspective.length} 个实体，已选择第一个实体进行观察`)
+          );
+        }
+      } else if (operation.toLowerCase() === "perspective" || operation.toLowerCase() === "p") {
+        // 切换视角
+        if (typeof targetEntitiesOrPerspective === "string") {
+          const perspectiveType = targetEntitiesOrPerspective.toLowerCase();
+          if (perspectiveType === "first" || perspectiveType === "1" || perspectiveType === "first_person") {
+            const result = cameraService.switchPerspective(player, "first_person");
+            if (typeof result === "string") {
+              player.sendMessage(color.red(result));
+            } else {
+              player.sendMessage(color.green("已切换到第一人称视角"));
+            }
+          } else if (perspectiveType === "third" || perspectiveType === "3" || perspectiveType === "third_person") {
+            const result = cameraService.switchPerspective(player, "third_person");
+            if (typeof result === "string") {
+              player.sendMessage(color.red(result));
+            } else {
+              player.sendMessage(color.green("已切换到第三人称视角（背后）"));
+            }
+          } else if (
+            perspectiveType === "front" ||
+            perspectiveType === "third_front" ||
+            perspectiveType === "third_person_front"
+          ) {
+            const result = cameraService.switchPerspective(player, "third_person_front");
+            if (typeof result === "string") {
+              player.sendMessage(color.red(result));
+            } else {
+              player.sendMessage(color.green("已切换到第三人称视角（前方）"));
+            }
+          } else {
+            player.sendMessage(color.yellow("用法: /yuehua:camera perspective <first|third|front>"));
+            player.sendMessage(color.gray("first - 第一人称视角"));
+            player.sendMessage(color.gray("third - 第三人称视角（背后）"));
+            player.sendMessage(color.gray("front - 第三人称视角（前方）"));
+          }
+        } else {
+          player.sendMessage(color.yellow("用法: /yuehua:camera perspective <first|third|front>"));
+          player.sendMessage(color.gray("first - 第一人称视角"));
+          player.sendMessage(color.gray("third - 第三人称视角（背后）"));
+          player.sendMessage(color.gray("front - 第三人称视角（前方）"));
+        }
+      } else if (operation.toLowerCase() === "next" || operation.toLowerCase() === "n") {
+        // 切换到下一个视角
+        const result = cameraService.switchToNextPerspective(player);
+        if (typeof result === "string") {
+          player.sendMessage(color.red(result));
+        } else {
+          const cameraServiceInternal = cameraService as any;
+          const state = (cameraServiceInternal as any).observerStates?.get(player.id);
+          if (state) {
+            const perspectiveNames: Record<string, string> = {
+              first_person: "第一人称",
+              third_person: "第三人称（背后）",
+              third_person_front: "第三人称（前方）",
+            };
+            player.sendMessage(
+              color.green(`已切换到: ${perspectiveNames[state.perspectiveType] || state.perspectiveType}`)
+            );
+          } else {
+            player.sendMessage(color.green("已切换到下一个视角"));
+          }
+        }
+      } else {
+        player.sendMessage(color.yellow("用法: /yuehua:camera <start|stop|perspective|next> [参数]"));
+        player.sendMessage(color.gray("start - 开始观察实体"));
+        player.sendMessage(color.gray("stop - 停止观察"));
+        player.sendMessage(color.gray("perspective <first|third|front> - 切换视角"));
+        player.sendMessage(color.gray("next - 切换到下一个视角（循环）"));
+      }
+    } catch (error) {
+      player.sendMessage(color.red(`指令执行错误: ${(error as Error).message}`));
     }
   });
 
