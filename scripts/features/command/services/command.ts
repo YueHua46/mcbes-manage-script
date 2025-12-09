@@ -1202,28 +1202,22 @@ function handleCameraCommand(
             } else {
               player.sendMessage(color.green("已切换到第三人称视角（背后）"));
             }
-          } else if (
-            perspectiveType === "front" ||
-            perspectiveType === "third_front" ||
-            perspectiveType === "third_person_front"
-          ) {
-            const result = cameraService.switchPerspective(player, "third_person_front");
+          } else if (perspectiveType === "front" || perspectiveType === "third_front") {
+            const result = cameraService.switchPerspective(player, "third_person");
             if (typeof result === "string") {
               player.sendMessage(color.red(result));
             } else {
               player.sendMessage(color.green("已切换到第三人称视角（前方）"));
             }
           } else {
-            player.sendMessage(color.yellow("用法: /yuehua:camera perspective <first|third|front>"));
+            player.sendMessage(color.yellow("用法: /yuehua:camera perspective <first|third>"));
             player.sendMessage(color.gray("first - 第一人称视角"));
             player.sendMessage(color.gray("third - 第三人称视角（背后）"));
-            player.sendMessage(color.gray("front - 第三人称视角（前方）"));
           }
         } else {
-          player.sendMessage(color.yellow("用法: /yuehua:camera perspective <first|third|front>"));
+          player.sendMessage(color.yellow("用法: /yuehua:camera perspective <first|third>"));
           player.sendMessage(color.gray("first - 第一人称视角"));
           player.sendMessage(color.gray("third - 第三人称视角（背后）"));
-          player.sendMessage(color.gray("front - 第三人称视角（前方）"));
         }
       } else if (operation.toLowerCase() === "next" || operation.toLowerCase() === "n") {
         // 切换到下一个视角
@@ -1237,7 +1231,6 @@ function handleCameraCommand(
             const perspectiveNames: Record<string, string> = {
               first_person: "第一人称",
               third_person: "第三人称（背后）",
-              third_person_front: "第三人称（前方）",
             };
             player.sendMessage(
               color.green(`已切换到: ${perspectiveNames[state.perspectiveType] || state.perspectiveType}`)
@@ -1250,7 +1243,7 @@ function handleCameraCommand(
         player.sendMessage(color.yellow("用法: /yuehua:camera <start|stop|perspective|next> [参数]"));
         player.sendMessage(color.gray("start - 开始观察实体"));
         player.sendMessage(color.gray("stop - 停止观察"));
-        player.sendMessage(color.gray("perspective <first|third|front> - 切换视角"));
+        player.sendMessage(color.gray("perspective <first|third> - 切换视角"));
         player.sendMessage(color.gray("next - 切换到下一个视角（循环）"));
       }
     } catch (error) {

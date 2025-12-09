@@ -10,7 +10,7 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 /**
  * 视角类型
  */
-type PerspectiveType = "first_person" | "third_person" | "third_person_front";
+type PerspectiveType = "first_person" | "third_person";
 
 /**
  * 观察者状态信息
@@ -36,7 +36,6 @@ interface ObserverState {
 const PERSPECTIVE_PRESETS: Record<PerspectiveType, string[]> = {
   first_person: ["minecraft:free"], // 使用 free 预设，位置在实体头部
   third_person: ["minecraft:free"], // 使用 free 预设，位置在实体后方
-  third_person_front: ["minecraft:free"], // 使用 free 预设，位置在实体前方
 };
 
 /**
@@ -45,22 +44,20 @@ const PERSPECTIVE_PRESETS: Record<PerspectiveType, string[]> = {
 const observerStates = new Map<string, ObserverState>();
 
 /**
- * 将旋转角度（pitch和yaw，单位：度）转换为方向向量
- * @param rotation 旋转角度，x为pitch（上下），y为yaw（左右）
- * @returns 归一化的方向向量
+ * 将方向向量转换为旋转角度（pitch和yaw）
+ * @param direction 归一化的方向向量
+ * @returns 旋转角度，x为pitch（上下），y为yaw（左右），单位为度
  */
-function rotationToDirection(rotation: { x: number; y: number }): { x: number; y: number; z: number } {
-  // 将角度转换为弧度
-  const pitchRad = (rotation.x * Math.PI) / 180;
-  const yawRad = (rotation.y * Math.PI) / 180;
+function directionToRotation(direction: { x: number; y: number; z: number }): { x: number; y: number } {
+  // 计算 yaw（左右旋转）：从正Z轴开始逆时针
+  const yawRad = Math.atan2(-direction.x, direction.z);
+  const yaw = (yawRad * 180) / Math.PI;
 
-  // 计算方向向量
-  // Minecraft的坐标系：yaw从正Z轴开始逆时针，pitch向上为正
-  const x = -Math.sin(yawRad) * Math.cos(pitchRad);
-  const y = -Math.sin(pitchRad);
-  const z = Math.cos(yawRad) * Math.cos(pitchRad);
+  // 计算 pitch（上下旋转）：向上为正
+  const pitchRad = -Math.asin(direction.y);
+  const pitch = (pitchRad * 180) / Math.PI;
 
-  return { x, y, z };
+  return { x: pitch, y: yaw };
 }
 
 class CameraService {
@@ -158,10 +155,9 @@ class CameraService {
           let targetLookLocation: { x: number; y: number; z: number };
 
           try {
-            // 使用 getRotation() 获取实体的旋转角度（包括头部旋转），而不是 getViewDirection()
-            // 这样可以正确同步实体的头部左右旋转
-            const targetRotation = targetEntity.getRotation();
-            const targetViewDirection = rotationToDirection(targetRotation);
+            // 使用 getViewDirection() 直接获取实体眼睛看向的方向向量
+            // 这样可以准确同步实体的视角方向
+            const targetViewDirection = targetEntity.getViewDirection();
 
             // 第一人称：稍微往前移动0.3格，避免看到实体的脸
             const offsetDistance = 0.3;
@@ -198,12 +194,13 @@ class CameraService {
             const presets = PERSPECTIVE_PRESETS[defaultPerspective];
             for (const preset of presets) {
               try {
-                // 使用 getRotation() 获取实体的旋转角度，直接传递给相机
-                // 这样可以准确同步实体的头部旋转（包括左右和上下）
-                const targetRotation = targetEntity.getRotation();
+                // 使用 getViewDirection() 获取实体眼睛看向的方向，然后转换为旋转角度
+                // 这样可以准确同步实体的头部视角旋转（包括左右和上下），而不是身体旋转
+                const targetViewDirection = targetEntity.getViewDirection();
+                const targetRotation = directionToRotation(targetViewDirection);
                 player.camera.setCamera(preset, {
                   location: observerLocation,
-                  rotation: targetRotation, // 直接使用实体的旋转角度
+                  rotation: targetRotation, // 使用从视角方向推导的旋转角度
                   easeOptions: {
                     easeTime: 0.05, // 极短的过渡时间（约1 tick），实现平滑但及时的更新
                     easeType: EasingType.Linear, // 使用线性过渡，最自然
@@ -290,27 +287,26 @@ class CameraService {
               }
 
               try {
-                // 使用 getRotation() 获取实体的旋转角度（包括头部旋转），而不是 getViewDirection()
-                // 这样可以正确同步实体的头部左右旋转
-                const targetRotation = targetEntity.getRotation();
-                const targetViewDirection = rotationToDirection(targetRotation);
+                // 使用 getViewDirection() 直接获取实体眼睛看向的方向向量
+                // 这样可以准确同步实体的视角方向
+                const targetViewDirection = targetEntity.getViewDirection();
 
                 // 根据视角类型计算不同的位置偏移
                 let offsetDistance = 0.3; // 默认偏移距离
+                let heightOffset = 0; // 高度偏移
                 if (state.perspectiveType === "first_person") {
                   // 第一人称：位置在实体头部，稍微往前
                   offsetDistance = 0.3;
+                  heightOffset = 0;
                 } else if (state.perspectiveType === "third_person") {
-                  // 第三人称（背后）：位置在实体后方
-                  offsetDistance = -2.0; // 负值表示后方
-                } else if (state.perspectiveType === "third_person_front") {
-                  // 第三人称（前方）：位置在实体前方
-                  offsetDistance = 2.0;
+                  // 第三人称（背后）：位置在实体后方，更远且稍高
+                  offsetDistance = -4.0; // 负值表示后方，距离更远
+                  heightOffset = 1.0; // 高度偏移，让视角稍高
                 }
 
                 observerLocation = {
                   x: observerBaseLocation.x + targetViewDirection.x * offsetDistance,
-                  y: observerBaseLocation.y + targetViewDirection.y * offsetDistance,
+                  y: observerBaseLocation.y + targetViewDirection.y * offsetDistance + heightOffset,
                   z: observerBaseLocation.z + targetViewDirection.z * offsetDistance,
                 };
 
@@ -352,12 +348,13 @@ class CameraService {
 
                 for (const preset of presets) {
                   try {
-                    // 使用 getRotation() 获取实体的旋转角度，直接传递给相机
-                    // 这样可以准确同步实体的头部旋转（包括左右和上下）
-                    const targetRotation = targetEntity.getRotation();
+                    // 使用 getViewDirection() 获取实体眼睛看向的方向，然后转换为旋转角度
+                    // 这样可以准确同步实体的头部视角旋转（包括左右和上下），而不是身体旋转
+                    const targetViewDirection = targetEntity.getViewDirection();
+                    const targetRotation = directionToRotation(targetViewDirection);
                     player.camera.setCamera(preset, {
                       location: observerLocation,
-                      rotation: targetRotation, // 直接使用实体的旋转角度
+                      rotation: targetRotation, // 使用从视角方向推导的旋转角度
                       easeOptions: {
                         easeTime: 0.05, // 极短的过渡时间（约等于 1 tick），实现平滑但及时的更新
                         easeType: EasingType.Linear, // 使用线性过渡，最自然
@@ -434,10 +431,11 @@ class CameraService {
               }
 
               // 视角旋转的同步由 Camera API 的 rotation 参数处理，直接使用实体的旋转角度
-              // 更新旋转缓存
+              // 更新旋转缓存（使用视角方向推导的角度，保持与相机同步）
               if (state) {
                 try {
-                  const targetRotation = targetEntity.getRotation();
+                  const targetViewDirection = targetEntity.getViewDirection();
+                  const targetRotation = directionToRotation(targetViewDirection);
                   state.lastTargetRotation = {
                     x: targetRotation.x,
                     y: targetRotation.y,
@@ -685,27 +683,26 @@ class CameraService {
       let targetLookLocation: { x: number; y: number; z: number };
 
       try {
-        // 使用 getRotation() 获取实体的旋转角度（包括头部旋转），而不是 getViewDirection()
-        // 这样可以正确同步实体的头部左右旋转
-        const targetRotation = state.targetEntity.getRotation();
-        const targetViewDirection = rotationToDirection(targetRotation);
+        // 使用 getViewDirection() 直接获取实体眼睛看向的方向向量
+        // 这样可以准确同步实体的视角方向
+        const targetViewDirection = state.targetEntity.getViewDirection();
 
         // 根据视角类型计算不同的位置偏移
         let offsetDistance = 0.3; // 默认偏移距离
+        let heightOffset = 0; // 高度偏移
         if (perspectiveType === "first_person") {
           // 第一人称：位置在实体头部，稍微往前
           offsetDistance = 0.3;
+          heightOffset = 0;
         } else if (perspectiveType === "third_person") {
-          // 第三人称（背后）：位置在实体后方
-          offsetDistance = -2.0; // 负值表示后方
-        } else if (perspectiveType === "third_person_front") {
-          // 第三人称（前方）：位置在实体前方
-          offsetDistance = 2.0;
+          // 第三人称（背后）：位置在实体后方，更远且稍高
+          offsetDistance = -4.0; // 负值表示后方，距离更远
+          heightOffset = 1.0; // 高度偏移，让视角稍高
         }
 
         observerLocation = {
           x: observerBaseLocation.x + targetViewDirection.x * offsetDistance,
-          y: observerBaseLocation.y + targetViewDirection.y * offsetDistance,
+          y: observerBaseLocation.y + targetViewDirection.y * offsetDistance + heightOffset,
           z: observerBaseLocation.z + targetViewDirection.z * offsetDistance,
         };
 
@@ -730,12 +727,13 @@ class CameraService {
 
       for (const preset of presets) {
         try {
-          // 使用 getRotation() 获取实体的旋转角度，直接传递给相机
-          // 这样可以准确同步实体的头部旋转（包括左右和上下）
-          const targetRotation = state.targetEntity.getRotation();
+          // 使用 getViewDirection() 获取实体眼睛看向的方向，然后转换为旋转角度
+          // 这样可以准确同步实体的头部视角旋转（包括左右和上下），而不是身体旋转
+          const targetViewDirection = state.targetEntity.getViewDirection();
+          const targetRotation = directionToRotation(targetViewDirection);
           player.camera.setCamera(preset, {
             location: observerLocation,
-            rotation: targetRotation, // 直接使用实体的旋转角度
+            rotation: targetRotation, // 使用从视角方向推导的旋转角度
             easeOptions: {
               easeTime: 0.1, // 稍长的过渡时间，让切换更平滑
               easeType: EasingType.Linear,
@@ -768,7 +766,7 @@ class CameraService {
       return "您当前没有在观察任何实体";
     }
 
-    const perspectives: PerspectiveType[] = ["first_person", "third_person", "third_person_front"];
+    const perspectives: PerspectiveType[] = ["first_person", "third_person"];
     const currentIndex = perspectives.indexOf(state.perspectiveType);
     const nextIndex = (currentIndex + 1) % perspectives.length;
     const nextPerspective = perspectives[nextIndex];
