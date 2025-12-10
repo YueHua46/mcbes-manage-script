@@ -162,12 +162,12 @@ export function openChatForm(player: Player): void {
   const buttons = [
     {
       text: "聊天黑名单配置",
-      icon: "textures/icons/chatBlockText",
+      icon: "textures/icons/chatSpam",
       action: () => openChatBlackForm(player),
     },
     {
       text: "静音聊天栏配置",
-      icon: "textures/icons/chatSpam",
+      icon: "textures/icons/chatCooldown",
       action: () => openMuteChatForm(player),
     },
   ];
@@ -283,7 +283,7 @@ export function openChatBlackForm(player: Player): void {
     if (data.cancelationReason || data.canceled) return;
     switch (data.selection) {
       case buttons.length:
-        openServerMenuForm(player);
+        openChatForm(player);
         break;
       default:
         if (typeof data.selection !== "number") return;
@@ -338,9 +338,9 @@ export function openPlayerDisplaySettingsForm(player: Player): void {
     ],
   });
 
-  form.button("§w设置名字颜色", "textures/icons/pixel_002");
-  form.button("§w设置别名", "textures/icons/pixel_001");
-  form.button("§w重置设置", "textures/icons/pixel_006");
+  form.button("§w设置名字颜色", "textures/icons/asker");
+  form.button("§w设置别名", "textures/icons/dragon");
+  form.button("§w重置设置", "textures/icons/leave_queue");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {

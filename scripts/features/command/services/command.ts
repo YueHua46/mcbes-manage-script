@@ -166,7 +166,7 @@ system.beforeEvents.startup.subscribe((init) => {
   const cameraCommand: CustomCommand = {
     name: "yuehua:camera",
     description: "实体视角观察系统 - 用法: /yuehua:camera <操作> [参数]",
-    permissionLevel: CommandPermissionLevel.Any,
+    permissionLevel: CommandPermissionLevel.Admin,
     optionalParameters: [
       { type: CustomCommandParamType.Enum, name: "操作", enumName: "yuehua:CameraOperationType" },
       { type: CustomCommandParamType.EntitySelector, name: "目标实体选择器或视角类型" },
