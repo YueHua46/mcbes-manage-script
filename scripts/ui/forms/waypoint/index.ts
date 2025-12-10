@@ -179,7 +179,7 @@ const openSearchResultsForm = (player: Player, wayPoints: IWayPoint[], playerNam
 
   let deleteButtonIndex = -1;
   if (wayPoints.length > 0) {
-    form.button("§c一键删除所有坐标点", "textures/ui/trash");
+    form.button("§c一键删除所有坐标点", "textures/icons/copkutusu");
     deleteButtonIndex = nextButtonIndex;
     nextButtonIndex++;
   }
@@ -320,7 +320,7 @@ export const openWayPointDetailForm = (
   const buttons = [
     {
       text: "传送至此",
-      icon: "textures/ui/portalBg",
+      icon: "textures/icons/durbun",
       action: () => {
         const res = wayPoint.teleport(player, pointName);
         if (typeof res === "string") useNotify("chat", player, res);
@@ -370,7 +370,7 @@ export const openWayPointDetailForm = (
     if (type === "private") {
       buttons.splice(1, 0, {
         text: point.isStarred ? "取消置顶" : "置顶",
-        icon: "textures/ui/filledStarFocus",
+        icon: "textures/icons/star",
         action: () => {
           const isSuccess = wayPoint.toggleStar(pointName, !point.isStarred);
           if (typeof isSuccess !== "string") {
@@ -562,7 +562,7 @@ export const openPlayerWayPointListForm = (
       `${isPublic} ${isStarred}${point.name}\n ${getDimensionName(point.dimension)} (${point.location.x}, ${
         point.location.y
       }, ${point.location.z})`,
-      "textures/ui/World"
+      "textures/icons/fast_travel"
     );
   });
 
@@ -582,7 +582,7 @@ export const openPlayerWayPointListForm = (
 
   let deleteButtonIndex = -1;
   if (isAdmin && allPoints.length > 0) {
-    form.button("§c一键删除所有坐标点", "textures/ui/trash");
+    form.button("§c一键删除所有坐标点", "textures/icons/copkutusu");
     deleteButtonIndex = nextButtonIndex;
     nextButtonIndex++;
   }

@@ -550,7 +550,7 @@ function openPlayerWayPointManageForm(player: Player, page: number = 1, returnFo
     // 使用亮色系在淡灰色背景下更清晰：蓝色玩家名 + 清晰的标签颜色
     form.button(
       `${color.blue(playerName)} 的所有坐标点\n${color.green("公共:")} ${color.yellow(publicCount.toString())} ${color.white("|")} ${color.aqua("私有:")} ${color.yellow(privateCount.toString())}`,
-      "textures/ui/icon_steve"
+      "textures/icons/dinazor"
     );
   });
 
