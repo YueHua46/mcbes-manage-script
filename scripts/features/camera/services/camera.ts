@@ -13,6 +13,23 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 type PerspectiveType = "first_person" | "third_person";
 
 /**
+ * 第一人称视角偏移配置
+ * 用于调整观察者相对于目标实体头部的位置
+ */
+const FIRST_PERSON_OFFSET = {
+  forward: 0.5, // 向前偏移距离（正值向前，负值向后）
+  up: 0, // 向上偏移距离（正值向上，负值向下）
+};
+
+/**
+ * 第三人称视角偏移配置
+ */
+const THIRD_PERSON_OFFSET = {
+  forward: -4.0, // 向前偏移距离（负值表示在实体后方）
+  up: 1.0, // 向上偏移距离
+};
+
+/**
  * 观察者状态信息
  */
 interface ObserverState {
@@ -159,12 +176,11 @@ class CameraService {
             // 这样可以准确同步实体的视角方向
             const targetViewDirection = targetEntity.getViewDirection();
 
-            // 第一人称：稍微往前移动0.3格，避免看到实体的脸
-            const offsetDistance = 0.3;
+            // 使用配置的第一人称偏移量
             observerLocation = {
-              x: observerBaseLocation.x + targetViewDirection.x * offsetDistance,
-              y: observerBaseLocation.y + targetViewDirection.y * offsetDistance,
-              z: observerBaseLocation.z + targetViewDirection.z * offsetDistance,
+              x: observerBaseLocation.x + targetViewDirection.x * FIRST_PERSON_OFFSET.forward,
+              y: observerBaseLocation.y + targetViewDirection.y * FIRST_PERSON_OFFSET.forward + FIRST_PERSON_OFFSET.up,
+              z: observerBaseLocation.z + targetViewDirection.z * FIRST_PERSON_OFFSET.forward,
             };
 
             // 计算目标实体正在看的位置
@@ -291,23 +307,13 @@ class CameraService {
                 // 这样可以准确同步实体的视角方向
                 const targetViewDirection = targetEntity.getViewDirection();
 
-                // 根据视角类型计算不同的位置偏移
-                let offsetDistance = 0.3; // 默认偏移距离
-                let heightOffset = 0; // 高度偏移
-                if (state.perspectiveType === "first_person") {
-                  // 第一人称：位置在实体头部，稍微往前
-                  offsetDistance = 0.3;
-                  heightOffset = 0;
-                } else if (state.perspectiveType === "third_person") {
-                  // 第三人称（背后）：位置在实体后方，更远且稍高
-                  offsetDistance = -4.0; // 负值表示后方，距离更远
-                  heightOffset = 1.0; // 高度偏移，让视角稍高
-                }
+                // 根据视角类型使用对应的偏移配置
+                const offset = state.perspectiveType === "first_person" ? FIRST_PERSON_OFFSET : THIRD_PERSON_OFFSET;
 
                 observerLocation = {
-                  x: observerBaseLocation.x + targetViewDirection.x * offsetDistance,
-                  y: observerBaseLocation.y + targetViewDirection.y * offsetDistance + heightOffset,
-                  z: observerBaseLocation.z + targetViewDirection.z * offsetDistance,
+                  x: observerBaseLocation.x + targetViewDirection.x * offset.forward,
+                  y: observerBaseLocation.y + targetViewDirection.y * offset.forward + offset.up,
+                  z: observerBaseLocation.z + targetViewDirection.z * offset.forward,
                 };
 
                 // 计算目标实体正在看的位置
@@ -687,23 +693,13 @@ class CameraService {
         // 这样可以准确同步实体的视角方向
         const targetViewDirection = state.targetEntity.getViewDirection();
 
-        // 根据视角类型计算不同的位置偏移
-        let offsetDistance = 0.3; // 默认偏移距离
-        let heightOffset = 0; // 高度偏移
-        if (perspectiveType === "first_person") {
-          // 第一人称：位置在实体头部，稍微往前
-          offsetDistance = 0.3;
-          heightOffset = 0;
-        } else if (perspectiveType === "third_person") {
-          // 第三人称（背后）：位置在实体后方，更远且稍高
-          offsetDistance = -4.0; // 负值表示后方，距离更远
-          heightOffset = 1.0; // 高度偏移，让视角稍高
-        }
+        // 根据视角类型使用对应的偏移配置
+        const offset = perspectiveType === "first_person" ? FIRST_PERSON_OFFSET : THIRD_PERSON_OFFSET;
 
         observerLocation = {
-          x: observerBaseLocation.x + targetViewDirection.x * offsetDistance,
-          y: observerBaseLocation.y + targetViewDirection.y * offsetDistance + heightOffset,
-          z: observerBaseLocation.z + targetViewDirection.z * offsetDistance,
+          x: observerBaseLocation.x + targetViewDirection.x * offset.forward,
+          y: observerBaseLocation.y + targetViewDirection.y * offset.forward + offset.up,
+          z: observerBaseLocation.z + targetViewDirection.z * offset.forward,
         };
 
         const lookDistance = 10;

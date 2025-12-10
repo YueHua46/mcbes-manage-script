@@ -162,12 +162,13 @@ system.beforeEvents.startup.subscribe((init) => {
   registry.registerCommand(giveMenuCommand, handleGiveMenuCommand);
 
   // 12. 注册 camera 指令 (实体视角观察)
+  registry.registerEnum("yuehua:CameraOperationType", ["start", "stop", "perspective", "next"]);
   const cameraCommand: CustomCommand = {
     name: "yuehua:camera",
-    description: "实体视角观察系统 - 用法: /yuehua:camera <start|stop|perspective> [参数]",
+    description: "实体视角观察系统 - 用法: /yuehua:camera <操作> [参数]",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
-      { type: CustomCommandParamType.String, name: "操作(start/stop/perspective/next)" },
+      { type: CustomCommandParamType.Enum, name: "操作", enumName: "yuehua:CameraOperationType" },
       { type: CustomCommandParamType.EntitySelector, name: "目标实体选择器或视角类型" },
     ],
   };
