@@ -12,6 +12,8 @@ import PlayerSetting, { EFunNames, nameColors } from "../../../features/player/s
 import nameDisplay from "../../../features/player/services/name-display";
 import { openDialogForm } from "../../../ui/components/dialog";
 import { namePrefixMap } from "../../../assets/glyph-map";
+import setting from "../../../features/system/services/setting";
+import { isAdmin } from "../../../shared/utils/common";
 
 // ==================== TPA传送系统 ====================
 
@@ -322,6 +324,22 @@ export function openMuteChatForm(player: Player): void {
 // ==================== 玩家名字显示设置 ====================
 
 export function openPlayerDisplaySettingsForm(player: Player): void {
+  // 检查是否允许玩家编辑名字显示设置（管理员始终可以访问）
+  const allowPlayerDisplaySettings = setting.getState("allowPlayerDisplaySettings") as boolean;
+  if (!allowPlayerDisplaySettings && !isAdmin(player)) {
+    openDialogForm(
+      player,
+      {
+        title: "功能已禁用",
+        desc: "§c管理员已禁用玩家编辑名字显示设置功能！",
+      },
+      () => {
+        openPlayerActionForm(player);
+      }
+    );
+    return;
+  }
+
   const form = new ActionFormData();
   form.title("§w名字显示设置");
 

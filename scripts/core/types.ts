@@ -2,7 +2,7 @@
  * 全局类型定义
  */
 
-import { Player, Dimension } from '@minecraft/server';
+import { Player, Dimension } from "@minecraft/server";
 
 // 通用类型
 export type Vector3 = {
@@ -11,10 +11,10 @@ export type Vector3 = {
   z: number;
 };
 
-export type DimensionId = 'overworld' | 'nether' | 'the_end';
+export type DimensionId = "overworld" | "nether" | "the_end";
 
 // 通知类型
-export type NotifyType = 'chat' | 'actionbar' | 'title';
+export type NotifyType = "chat" | "actionbar" | "title";
 
 // 表单响应类型
 export interface IFormResponse<T = any> {
@@ -87,5 +87,3 @@ export interface IDatabaseItem<T = any> {
   key: DatabaseKey;
   value: T;
 }
-
-

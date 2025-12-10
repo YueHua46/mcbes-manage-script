@@ -192,6 +192,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "backToDeath", name: "回到死亡地点功能" },
     { key: "enableTreeCutOneClick", name: "一键砍树" },
     { key: "enableDigOreOneClick", name: "一键挖矿" },
+    { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
   ];
 
   modules.forEach((module) => {

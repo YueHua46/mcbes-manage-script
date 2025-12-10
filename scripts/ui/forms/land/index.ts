@@ -236,7 +236,7 @@ export function openLandAuthForm(player: Player, myLand: ILand): void {
     tooltip: "是否允许玩家打开领地内的箱子",
   });
   form.toggle(color.white("按钮是否公开"), {
-    defaultValue: _myLand.public_auth.useButton ?? false,
+    defaultValue: _myLand.public_auth.useButton,
     tooltip: "是否允许玩家使用按钮",
   });
   form.toggle(color.white("实体是否允许交互"), {
@@ -589,47 +589,47 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
   form.title("领地公开权限的配置权限");
 
   form.toggle(color.white("是否允许成员配置 破坏权限"), {
-    defaultValue: _land.public_auth.break,
+    defaultValue: _land.config_public_auth?.break ?? false,
     tooltip: "设置是否允许成员修改领地内的破坏权限设置",
   });
   form.toggle(color.white("是否允许成员配置 放置权限"), {
-    defaultValue: _land.public_auth.place,
+    defaultValue: _land.config_public_auth?.place ?? false,
     tooltip: "设置是否允许成员修改领地内的方块放置权限设置",
   });
   form.toggle(color.white("是否允许成员配置 功能性方块权限"), {
-    defaultValue: _land.public_auth.useBlock,
+    defaultValue: _land.config_public_auth?.useBlock ?? false,
     tooltip: "设置是否允许成员修改领地内的功能性方块使用权限设置",
   });
   form.toggle(color.white("是否允许成员配置 箱子是否公开"), {
-    defaultValue: _land.public_auth.isChestOpen,
+    defaultValue: _land.config_public_auth?.isChestOpen ?? false,
     tooltip: "设置是否允许成员修改领地内的箱子访问权限设置",
   });
   form.toggle(color.white("是否允许成员配置 按钮是否公开"), {
-    defaultValue: _land.public_auth.useButton ?? false,
+    defaultValue: _land.config_public_auth?.useButton ?? false,
     tooltip: "设置是否允许成员修改领地内的按钮使用权限设置",
   });
   form.toggle(color.white("是否允许成员配置 实体是否允许交互"), {
-    defaultValue: _land.public_auth.useEntity,
+    defaultValue: _land.config_public_auth?.useEntity ?? false,
     tooltip: "设置是否允许成员修改领地内的实体交互权限设置",
   });
   form.toggle(color.white("是否允许成员配置 爆炸"), {
-    defaultValue: _land.public_auth.explode,
+    defaultValue: _land.config_public_auth?.explode ?? false,
     tooltip: "设置是否允许成员修改领地内的爆炸保护设置",
   });
   form.toggle(color.white("是否允许成员配置 岩浆或燃烧"), {
-    defaultValue: _land.public_auth.burn,
+    defaultValue: _land.config_public_auth?.burn ?? false,
     tooltip: "设置是否允许成员修改领地内的燃烧保护设置",
   });
   form.toggle(color.white("是否允许成员配置 告示牌是否公开"), {
-    defaultValue: _land.public_auth.useSign,
+    defaultValue: _land.config_public_auth?.useSign ?? false,
     tooltip: "设置是否允许成员修改领地内的告示牌使用权限设置",
   });
   form.toggle(color.white("是否允许成员配置 锻造类方块是否公开"), {
-    defaultValue: _land.public_auth.useSmelting,
+    defaultValue: _land.config_public_auth?.useSmelting ?? false,
     tooltip: "设置是否允许成员修改领地内的锻造台、熔炉等方块使用权限设置",
   });
   form.toggle(color.white("是否允许成员配置 红石类方块是否公开"), {
-    defaultValue: _land.public_auth.useRedstone,
+    defaultValue: _land.config_public_auth?.useRedstone ?? false,
     tooltip: "设置是否允许成员修改领地内的红石相关方块使用权限设置",
   });
   form.submitButton("确认");

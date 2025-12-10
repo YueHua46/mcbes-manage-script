@@ -36,7 +36,8 @@ export type IModules =
   | "land1BlockPerPrice"
   | "daily_gold_limit"
   | "startingGold"
-  | "monsterKillGoldReward";
+  | "monsterKillGoldReward"
+  | "allowPlayerDisplaySettings";
 
 export type IValueType = boolean | string;
 
@@ -67,6 +68,7 @@ export const defaultSetting = {
   daily_gold_limit: "100000",
   startingGold: "500",
   monsterKillGoldReward: true,
+  allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
 };
 
 export class ServerSetting {
@@ -114,6 +116,7 @@ export class ServerSetting {
     this.db.set("daily_gold_limit", defaultSetting.daily_gold_limit);
     this.db.set("startingGold", defaultSetting.startingGold);
     this.db.set("monsterKillGoldReward", defaultSetting.monsterKillGoldReward);
+    this.db.set("allowPlayerDisplaySettings", defaultSetting.allowPlayerDisplaySettings);
   }
 
   getState(module: IModules): IValueType {
