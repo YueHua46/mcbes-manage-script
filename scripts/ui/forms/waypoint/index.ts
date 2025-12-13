@@ -278,11 +278,13 @@ export const openWayPointDetailForm = (
   pointName: string,
   isAdmin: boolean = false,
   type: "private" | "public",
-  returnForm: () => void
+  returnForm: () => void,
+  playerName?: string
 ): void => {
   const form = new ActionFormData();
 
-  const point = wayPoint.getPoint(pointName);
+  // 如果提供了 playerName，优先使用精确查找；否则遍历查找（向后兼容）
+  const point = playerName ? wayPoint.getPoint(pointName, playerName) : wayPoint.getPoint(pointName);
   if (!point) {
     return openDialogForm(player, { title: "坐标点不存在", desc: color.red("坐标点不存在！") }, returnForm);
   }
@@ -322,7 +324,9 @@ export const openWayPointDetailForm = (
       text: "传送至此",
       icon: "textures/icons/durbun",
       action: () => {
-        const res = wayPoint.teleport(player, pointName);
+        // 使用坐标点所有者的名称进行传送
+        const ownerName = playerName || point.playerName;
+        const res = wayPoint.teleport(player, pointName, ownerName);
         if (typeof res === "string") useNotify("chat", player, res);
       },
     },
@@ -342,7 +346,7 @@ export const openWayPointDetailForm = (
         icon: "textures/icons/deny",
         action: () => {
           openConfirmDialogForm(player, "删除坐标点", "是否确定删除该坐标点？", () => {
-            const isSuccess = wayPoint.deletePoint(pointName);
+            const isSuccess = wayPoint.deletePoint(pointName, point.playerName);
             if (isSuccess) {
               openDialogForm(
                 player,
@@ -372,7 +376,7 @@ export const openWayPointDetailForm = (
         text: point.isStarred ? "取消置顶" : "置顶",
         icon: "textures/icons/star",
         action: () => {
-          const isSuccess = wayPoint.toggleStar(pointName, !point.isStarred);
+          const isSuccess = wayPoint.toggleStar(pointName, point.playerName, !point.isStarred);
           if (typeof isSuccess !== "string") {
             openDialogForm(
               player,
@@ -514,11 +518,19 @@ export const openWayPointListForm = (
     const currentPageWayPointsCount = currentPageWayPoints.length;
 
     if (selectionIndex < currentPageWayPointsCount) {
-      const pointName = currentPageWayPoints[selectionIndex].name;
+      const selectedPoint = currentPageWayPoints[selectionIndex];
+      const pointName = selectedPoint.name;
       if (pointName) {
-        openWayPointDetailForm(player, pointName, isAdmin, type, () => {
-          openWayPointListForm(player, isAdmin, type, page);
-        });
+        openWayPointDetailForm(
+          player,
+          pointName,
+          isAdmin,
+          type,
+          () => {
+            openWayPointListForm(player, isAdmin, type, page);
+          },
+          selectedPoint.playerName
+        );
       }
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
       openWayPointListForm(player, isAdmin, type, page - 1);
@@ -608,7 +620,8 @@ export const openPlayerWayPointListForm = (
         selectedPoint.type === "public" ? "public" : "private",
         () => {
           openPlayerWayPointListForm(player, targetPlayerName, page, isAdmin, returnForm);
-        }
+        },
+        selectedPoint.playerName
       );
     } else if (selectionIndex === previousButtonIndex - 1 && page > 1) {
       openPlayerWayPointListForm(player, targetPlayerName, page - 1, isAdmin, returnForm);

@@ -251,7 +251,7 @@ function handleWaypointCommand(
             return;
           }
 
-          const delResult = wayPoint.deletePoint(delName);
+          const delResult = wayPoint.deletePoint(delName, player.name);
           if (typeof delResult === "string") {
             player.sendMessage(color.red(delResult));
           } else {
@@ -265,7 +265,12 @@ function handleWaypointCommand(
             return;
           }
           const tpName = arg1;
-          const point = wayPoint.getPoint(tpName);
+          // 优先查找该玩家的坐标点
+          let point = wayPoint.getPoint(tpName, player.name);
+          // 如果没找到，尝试查找公开坐标点
+          if (!point) {
+            point = wayPoint.getPoint(tpName);
+          }
           if (!point) {
             player.sendMessage(color.red("坐标点不存在。"));
             return;

@@ -28,5 +28,3 @@ export const SYSTEM_CONSTANTS = {
 export const PLAYER_CONSTANTS = {
   MAX_PREFIX_LENGTH: 20,
 } as const;
-
-

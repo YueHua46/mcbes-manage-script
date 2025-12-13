@@ -54,7 +54,76 @@ class WayPoint {
   constructor() {
     system.run(() => {
       this.db = new Database<IWayPoint>("waypoint");
+      // 执行数据迁移：将旧格式的坐标点（仅 pointName 作为键）迁移到新格式（playerName:pointName）
+      this.migrateOldData();
     });
+  }
+
+  /**
+   * 迁移旧格式的坐标点数据
+   * 将键从 pointName 迁移到 playerName:pointName
+   */
+  private migrateOldData(): void {
+    try {
+      const allData = this.db.getAll();
+      const migrationData: Array<{ oldKey: string; newKey: string; data: IWayPoint }> = [];
+      const keysToDelete: string[] = []; // 需要删除的旧键（已迁移或无效）
+
+      // 查找所有需要迁移的旧格式键（不包含冒号的键）
+      for (const key of Object.keys(allData)) {
+        if (!key.includes(":")) {
+          // 这是旧格式的键
+          const wayPoint = allData[key] as IWayPoint;
+          if (wayPoint && wayPoint.playerName && wayPoint.name) {
+            // 确保数据有效
+            const newKey = this.getKey(wayPoint.playerName, wayPoint.name);
+            const existingNewData = this.db.get(newKey);
+
+            if (!existingNewData) {
+              // 新键不存在，需要迁移
+              migrationData.push({
+                oldKey: key,
+                newKey: newKey,
+                data: wayPoint,
+              });
+              keysToDelete.push(key);
+            } else {
+              // 新键已存在，说明已经迁移过了，直接删除旧键
+              keysToDelete.push(key);
+            }
+          } else {
+            // 数据无效（缺少 playerName 或 name），记录警告并删除
+            console.warn(`[WayPoint] 发现无效的旧格式坐标点数据（键: ${key}），将自动删除`);
+            keysToDelete.push(key);
+          }
+        }
+      }
+
+      // 执行迁移
+      if (migrationData.length > 0) {
+        console.log(`[WayPoint] 开始迁移 ${migrationData.length} 个旧格式坐标点...`);
+        for (const { oldKey, newKey, data } of migrationData) {
+          // 使用新键保存数据
+          this.db.set(newKey, data);
+        }
+        console.log(`[WayPoint] 成功迁移 ${migrationData.length} 个坐标点到新格式`);
+      }
+
+      // 删除所有旧键（包括已迁移的和无效的）
+      if (keysToDelete.length > 0) {
+        for (const oldKey of keysToDelete) {
+          this.db.delete(oldKey);
+        }
+        console.log(`[WayPoint] 已清理 ${keysToDelete.length} 个旧格式键`);
+      }
+
+      // 如果有任何更改，保存数据库
+      if (migrationData.length > 0 || keysToDelete.length > 0) {
+        this.db.save(true);
+      }
+    } catch (error) {
+      console.error("[WayPoint] 数据迁移失败:", error);
+    }
   }
 
   private formatLocation(location: Vector3): Vector3 {
@@ -63,6 +132,13 @@ class WayPoint {
       y: Number(location.y.toFixed(0)),
       z: Number(location.z.toFixed(0)),
     };
+  }
+
+  /**
+   * 生成数据库键：玩家名称:坐标点名称
+   */
+  private getKey(playerName: string, pointName: string): string {
+    return `${playerName}:${pointName}`;
   }
 
   createPoint(pointOption: ICreateWayPoint): void | string {
@@ -80,7 +156,10 @@ class WayPoint {
     }
 
     if (!pointName || !location || !player) return "参数错误";
-    if (this.db.get(pointName)) return "该坐标点名称已存在，请换一个名称";
+
+    // 检查该玩家是否已经创建过同名的坐标点
+    const key = this.getKey(player.name, pointName);
+    if (this.db.get(key)) return "该坐标点名称已存在，请换一个名称";
 
     const time = getNowDate();
     const wayPoint: IWayPoint = {
@@ -92,11 +171,24 @@ class WayPoint {
       modified: time,
       type: type,
     };
-    return this.db.set(wayPoint.name, wayPoint);
+    return this.db.set(key, wayPoint);
   }
 
-  getPoint(pointName: string): IWayPoint | undefined {
-    return this.db.get(pointName);
+  /**
+   * 获取坐标点
+   * @param pointName 坐标点名称
+   * @param playerName 玩家名称（可选，如果提供则精确查找，否则遍历查找）
+   */
+  getPoint(pointName: string, playerName?: string): IWayPoint | undefined {
+    if (playerName) {
+      // 如果提供了玩家名称，使用键精确查找
+      const key = this.getKey(playerName, pointName);
+      return this.db.get(key);
+    } else {
+      // 如果没有提供玩家名称，遍历查找（用于查找公开坐标点等场景）
+      // 注意：如果多个玩家有同名坐标点，返回第一个找到的
+      return this.db.values().find((p) => p.name === pointName);
+    }
   }
 
   getPoints(): IWayPoint[] {
@@ -111,20 +203,41 @@ class WayPoint {
     return this.db.values().filter((p) => p.type === "public");
   }
 
-  deletePoint(pointName: string): boolean | string {
-    if (this.db.get(pointName)) {
-      return this.db.delete(pointName);
+  /**
+   * 删除坐标点
+   * @param pointName 坐标点名称
+   * @param playerName 玩家名称（可选，如果提供则精确删除，否则遍历查找删除）
+   */
+  deletePoint(pointName: string, playerName?: string): boolean | string {
+    if (playerName) {
+      // 如果提供了玩家名称，使用键精确删除
+      const key = this.getKey(playerName, pointName);
+      if (this.db.get(key)) {
+        return this.db.delete(key);
+      }
+    } else {
+      // 如果没有提供玩家名称，遍历查找删除
+      const point = this.db.values().find((p) => p.name === pointName);
+      if (point) {
+        const key = this.getKey(point.playerName, point.name);
+        return this.db.delete(key);
+      }
     }
     return "坐标点不存在";
   }
 
   updatePoint(updateArgs: IUpdateWayPoint): void | string {
     const { pointName, updatePointName, player, isUpdateLocation } = updateArgs;
-    const wayPoint = this.db.get(pointName);
+    const oldKey = this.getKey(player.name, pointName);
+    const wayPoint = this.db.get(oldKey);
     if (!wayPoint) return "坐标点不存在";
 
-    if (updatePointName && updatePointName !== pointName && this.db.get(updatePointName)) {
-      return "新的坐标点名称已存在，请换一个名称";
+    // 检查新的坐标点名称是否与该玩家的其他坐标点冲突
+    if (updatePointName && updatePointName !== pointName) {
+      const newKey = this.getKey(player.name, updatePointName);
+      if (this.db.get(newKey)) {
+        return "新的坐标点名称已存在，请换一个名称";
+      }
     }
 
     if (isUpdateLocation) {
@@ -133,22 +246,34 @@ class WayPoint {
     }
 
     if (updatePointName && updatePointName !== pointName) {
-      this.db.delete(pointName);
+      // 删除旧的键
+      this.db.delete(oldKey);
       wayPoint.name = updatePointName;
+      // 使用新的键保存
+      const newKey = this.getKey(player.name, updatePointName);
+      wayPoint.modified = getNowDate();
+      return this.db.set(newKey, wayPoint);
     }
 
     wayPoint.modified = getNowDate();
-    return this.db.set(wayPoint.name, wayPoint);
+    return this.db.set(oldKey, wayPoint);
   }
 
   checkOwner(player: Player, pointName: string): boolean {
-    const _wayPoint = this.db.get(pointName);
+    const key = this.getKey(player.name, pointName);
+    const _wayPoint = this.db.get(key);
     if (!_wayPoint) return false;
     return _wayPoint.playerName === player.name;
   }
 
-  teleport(player: Player, pointName: string): void | string {
-    const wayPoint = this.db.get(pointName);
+  teleport(player: Player, pointName: string, ownerName?: string): void | string {
+    // 如果提供了所有者名称，使用它查找；否则使用当前玩家名称
+    const searchPlayerName = ownerName || player.name;
+    let wayPoint = this.getPoint(pointName, searchPlayerName);
+    // 如果没找到，尝试查找公开坐标点（向后兼容）
+    if (!wayPoint) {
+      wayPoint = this.db.values().find((p) => p.name === pointName && p.type === "public");
+    }
     if (!wayPoint) return "坐标点不存在";
 
     // 保存传送前的位置和维度
@@ -497,19 +622,21 @@ class WayPoint {
     const points = this.getPointsByPlayer(playerName);
     let count = 0;
     for (const point of points) {
-      this.db.delete(point.name);
+      const key = this.getKey(point.playerName, point.name);
+      this.db.delete(key);
       count++;
     }
     return count;
   }
 
-  toggleStar(pointName: string, isStarred: boolean): void | string {
-    const wayPoint = this.db.get(pointName);
+  toggleStar(pointName: string, playerName: string, isStarred: boolean): void | string {
+    const key = this.getKey(playerName, pointName);
+    const wayPoint = this.db.get(key);
     if (!wayPoint) return "坐标点不存在";
 
     wayPoint.isStarred = isStarred;
     wayPoint.modified = getNowDate();
-    return this.db.set(wayPoint.name, wayPoint);
+    return this.db.set(key, wayPoint);
   }
 }
 
