@@ -235,11 +235,15 @@ export function registerLandEvents(): void {
     if (insideLand.public_auth.place) return;
 
     event.cancel = true;
-    useNotify(
-      "chat",
-      player,
-      color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-    );
+    // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
+    const playerName = player.name;
+    const ownerName = insideLand.owner;
+    system.run(() => {
+      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      if (p) {
+        useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
+      }
+    });
   });
 
   /**
@@ -256,11 +260,15 @@ export function registerLandEvents(): void {
     if (insideLand.members.includes(player.name)) return;
 
     event.cancel = true;
-    useNotify(
-      "chat",
-      player,
-      color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-    );
+    // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
+    const playerName = player.name;
+    const ownerName = insideLand.owner;
+    system.run(() => {
+      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      if (p) {
+        useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
+      }
+    });
   });
 
   /**
@@ -274,6 +282,20 @@ export function registerLandEvents(): void {
     if (insideLand.owner === player.name) return;
     if (isAdmin(player)) return;
     if (insideLand.members.includes(player.name)) return;
+
+    // 延迟发送领地警告消息的辅助函数
+    const sendLandWarning = (playerName: string, ownerName: string) => {
+      system.run(() => {
+        const p = world.getPlayers().find((pl) => pl.name === playerName);
+        if (p) {
+          useNotify(
+            "chat",
+            p,
+            color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`)
+          );
+        }
+      });
+    };
 
     // 方块类型分类
     const chests = [
@@ -356,15 +378,15 @@ export function registerLandEvents(): void {
       "minecraft:lava_bucket",
     ];
 
+    // 预先保存玩家名和领地主人名，避免在 system.run 中访问 beforeEvent 的对象
+    const playerName = player.name;
+    const ownerName = insideLand.owner;
+
     // 检查箱子权限
     if (chests.includes(block.typeId as MinecraftBlockTypes)) {
       if (!insideLand.public_auth.isChestOpen) {
         event.cancel = true;
-        useNotify(
-          "chat",
-          player,
-          color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-        );
+        sendLandWarning(playerName, ownerName);
       }
       return;
     }
@@ -373,11 +395,7 @@ export function registerLandEvents(): void {
     if (buttons.includes(block.typeId as MinecraftBlockTypes)) {
       if (!insideLand.public_auth.useButton) {
         event.cancel = true;
-        useNotify(
-          "chat",
-          player,
-          color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-        );
+        sendLandWarning(playerName, ownerName);
       }
       return;
     }
@@ -386,11 +404,7 @@ export function registerLandEvents(): void {
     if (block.typeId.endsWith("sign")) {
       if (!insideLand.public_auth.useSign) {
         event.cancel = true;
-        useNotify(
-          "chat",
-          player,
-          color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-        );
+        sendLandWarning(playerName, ownerName);
       }
       return;
     }
@@ -399,11 +413,7 @@ export function registerLandEvents(): void {
     if (redstone.includes(block.typeId as MinecraftBlockTypes)) {
       if (!insideLand.public_auth.useRedstone) {
         event.cancel = true;
-        useNotify(
-          "chat",
-          player,
-          color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-        );
+        sendLandWarning(playerName, ownerName);
       }
       return;
     }
@@ -412,11 +422,7 @@ export function registerLandEvents(): void {
     if (smelting.includes(block.typeId as MinecraftBlockTypes)) {
       if (!insideLand.public_auth.useSmelting) {
         event.cancel = true;
-        useNotify(
-          "chat",
-          player,
-          color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-        );
+        sendLandWarning(playerName, ownerName);
       }
       return;
     }
@@ -425,11 +431,7 @@ export function registerLandEvents(): void {
     if (fireItems.includes(itemStack?.typeId ?? "")) {
       if (!insideLand.public_auth.burn) {
         event.cancel = true;
-        useNotify(
-          "chat",
-          player,
-          color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-        );
+        sendLandWarning(playerName, ownerName);
       }
       return;
     }
@@ -437,11 +439,7 @@ export function registerLandEvents(): void {
     // 检查通用方块交互权限
     if (!insideLand.public_auth.useBlock) {
       event.cancel = true;
-      useNotify(
-        "chat",
-        player,
-        color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-      );
+      sendLandWarning(playerName, ownerName);
     }
   });
 
@@ -459,11 +457,15 @@ export function registerLandEvents(): void {
     if (insideLand.members.includes(player.name)) return;
 
     event.cancel = true;
-    useNotify(
-      "chat",
-      player,
-      color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，你没有权限这么做！")}`)
-    );
+    // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
+    const playerName = player.name;
+    const ownerName = insideLand.owner;
+    system.run(() => {
+      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      if (p) {
+        useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
+      }
+    });
   });
 
   /**

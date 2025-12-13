@@ -331,7 +331,7 @@ class OfficeShopSettingForm {
     const form = new ActionFormData()
       .title(title)
       .body(body)
-      .button("编辑商品", "textures/icons/edit")
+      .button("编辑商品", "textures/icons/edit2")
       .button("删除商品", "textures/icons/deny")
       .button("返回", "textures/icons/back");
 

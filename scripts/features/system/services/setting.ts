@@ -24,7 +24,8 @@ export type IModules =
   | "randomTpRange"
   | "maxLandPerPlayer"
   | "maxLandBlocks"
-  | "maxPointsPerPlayer"
+  | "maxPrivatePointsPerPlayer"
+  | "maxPublicPointsPerPlayer"
   | "playerNameColor"
   | "playerChatColor"
   | "trialMode"
@@ -55,7 +56,8 @@ export const defaultSetting = {
   randomTpRange: "50000",
   maxLandPerPlayer: "5",
   maxLandBlocks: "30000",
-  maxPointsPerPlayer: "20",
+  maxPrivatePointsPerPlayer: "10",
+  maxPublicPointsPerPlayer: "10",
   playerNameColor: "§f",
   playerChatColor: "§f",
   trialMode: false,
@@ -88,35 +90,6 @@ export class ServerSetting {
   turnOff(module: IModules): void {
     console.log(`Turn off ${module}`);
     this.db.set(module, false);
-  }
-
-  init(): void {
-    this.db.set("player", true);
-    this.db.set("land", true);
-    this.db.set("wayPoint", true);
-    this.db.set("other", true);
-    this.db.set("help", true);
-    this.db.set("sm", true);
-    this.db.set("setting", true);
-    this.db.set("killItem", true);
-    this.db.set("killItemAmount", defaultSetting.killItemAmount);
-    this.db.set("randomTpRange", defaultSetting.randomTpRange);
-    this.db.set("maxLandPerPlayer", defaultSetting.maxLandPerPlayer);
-    this.db.set("maxLandBlocks", defaultSetting.maxLandBlocks);
-    this.db.set("maxPointsPerPlayer", "10");
-    this.db.set("playerNameColor", defaultSetting.playerNameColor);
-    this.db.set("playerChatColor", defaultSetting.playerChatColor);
-    this.db.set("trialMode", defaultSetting.trialMode);
-    this.db.set("trialModeDuration", defaultSetting.trialModeDuration);
-    this.db.set("randomTeleport", defaultSetting.randomTeleport);
-    this.db.set("backToDeath", defaultSetting.backToDeath);
-    this.db.set("enableTreeCutOneClick", defaultSetting.enableTreeCutOneClick);
-    this.db.set("enableDigOreOneClick", defaultSetting.enableDigOreOneClick);
-    this.db.set("land1BlockPerPrice", defaultSetting.land1BlockPerPrice);
-    this.db.set("daily_gold_limit", defaultSetting.daily_gold_limit);
-    this.db.set("startingGold", defaultSetting.startingGold);
-    this.db.set("monsterKillGoldReward", defaultSetting.monsterKillGoldReward);
-    this.db.set("allowPlayerDisplaySettings", defaultSetting.allowPlayerDisplaySettings);
   }
 
   getState(module: IModules): IValueType {

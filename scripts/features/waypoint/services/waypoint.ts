@@ -8,7 +8,7 @@ import { Database } from "../../../shared/database/database";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import { isAdmin } from "../../../shared/utils/common";
 import { color } from "../../../shared/utils/color";
-import setting from "../../system/services/setting";
+import setting, { IValueType } from "../../system/services/setting";
 
 export interface IWayPoint {
   name: string;
@@ -67,11 +67,16 @@ class WayPoint {
 
   createPoint(pointOption: ICreateWayPoint): void | string {
     const { pointName, location, player, type = "private" } = pointOption;
-    const maxPoints = setting.getState("maxPointsPerPlayer");
-    const playerPoints = this.getPointsByPlayer(player.name);
+    let maxPoints: IValueType = "10";
+    if (type === "private") {
+      maxPoints = setting.getState("maxPrivatePointsPerPlayer");
+    } else {
+      maxPoints = setting.getState("maxPublicPointsPerPlayer");
+    }
+    const playerPoints = this.getPointsByPlayer(player.name).filter((p) => p.type === type);
 
     if (!isAdmin(player) && playerPoints.length >= Number(maxPoints)) {
-      return "您的坐标点数量已达到服务器设置上限";
+      return type === "private" ? "您的私人坐标点数量已达到服务器设置上限" : "您的公开坐标点数量已达到服务器设置上限";
     }
 
     if (!pointName || !location || !player) return "参数错误";

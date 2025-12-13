@@ -27,7 +27,6 @@ export const SYSTEM_CONSTANTS = {
 // 玩家常量
 export const PLAYER_CONSTANTS = {
   MAX_PREFIX_LENGTH: 20,
-  MAX_WAYPOINT_COUNT: 10,
 } as const;
 
 
