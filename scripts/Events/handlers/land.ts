@@ -520,6 +520,7 @@ export function registerLandEvents(): void {
     const { hurtEntity, damageSource } = event;
     /**
      * 处理规则:
+     * 0. 如果是玩家攻击玩家，交给PVP系统处理
      * 1. 如果伤害源不等于玩家,则不管
      * 2. 如果伤害源等于玩家,则检查领地权限
      * 3. 如果攻击者是领地主人或管理员,则允许
@@ -529,6 +530,11 @@ export function registerLandEvents(): void {
      * 7. 如果受伤实体有"领地保护"标签,则取消攻击
      * 8. 其他情况取消攻击（无权限）
      */
+
+    // 0. 如果是玩家攻击玩家，交给PVP系统处理，这里直接返回
+    if (hurtEntity.typeId === "minecraft:player" && damageSource.damagingEntity?.typeId === "minecraft:player") {
+      return;
+    }
 
     // 1. 如果伤害源不是玩家,则不管
     if (damageSource.damagingEntity?.typeId !== "minecraft:player") return;
