@@ -57,6 +57,7 @@ export interface ILandPublicAuth {
   useSmelting: boolean;
   useRedstone: boolean;
   burn: boolean;
+  attackNeutralMobs: boolean;
 }
 
 export interface ILand {

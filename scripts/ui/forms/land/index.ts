@@ -159,6 +159,7 @@ export function openLandApplyForm(player: Player): void {
             useSign: false,
             useSmelting: false,
             useRedstone: false,
+            attackNeutralMobs: false,
           },
           config_public_auth: {
             break: false,
@@ -172,6 +173,7 @@ export function openLandApplyForm(player: Player): void {
             useSign: false,
             useSmelting: false,
             useRedstone: false,
+            attackNeutralMobs: false,
           },
           vectors: {
             start: landStartPosVector3 as Vector3,
@@ -263,6 +265,10 @@ export function openLandAuthForm(player: Player, myLand: ILand): void {
     defaultValue: _myLand.public_auth.useRedstone,
     tooltip: "是否允许玩家使用红石相关方块",
   });
+  form.toggle(color.white("攻击中立生物权限"), {
+    defaultValue: _myLand.public_auth.attackNeutralMobs ?? false,
+    tooltip: "是否允许玩家攻击领地内的中立生物",
+  });
 
   form.submitButton("确认");
 
@@ -282,6 +288,7 @@ export function openLandAuthForm(player: Player, myLand: ILand): void {
       useSign: formValues?.[8] as boolean,
       useSmelting: formValues?.[9] as boolean,
       useRedstone: formValues?.[10] as boolean,
+      attackNeutralMobs: formValues?.[11] as boolean,
     };
 
     landManager.db.set(_myLand.name, {
@@ -632,6 +639,10 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
     defaultValue: _land.config_public_auth?.useRedstone ?? false,
     tooltip: "设置是否允许成员修改领地内的红石相关方块使用权限设置",
   });
+  form.toggle(color.white("是否允许成员配置 攻击中立生物权限"), {
+    defaultValue: _land.config_public_auth?.attackNeutralMobs ?? false,
+    tooltip: "设置是否允许成员修改领地内的攻击生物权限设置",
+  });
   form.submitButton("确认");
 
   form.show(player).then((data) => {
@@ -650,6 +661,7 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
       useSign: formValues?.[8] as boolean,
       useSmelting: formValues?.[9] as boolean,
       useRedstone: formValues?.[10] as boolean,
+      attackNeutralMobs: formValues?.[11] as boolean,
     };
 
     landManager.db.set(_land.name, {

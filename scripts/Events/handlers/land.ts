@@ -6,7 +6,7 @@
 import { world, system, Entity, Player, BlockVolume } from "@minecraft/server";
 import { eventRegistry } from "../registry";
 import { color } from "../../shared/utils/color";
-import { debounce, isAdmin } from "../../shared/utils/common";
+import { debounce, isAdmin, SystemLog } from "../../shared/utils/common";
 import landManager from "../../features/land/services/land-manager";
 import landParticle from "../../features/land/services/land-particle";
 import { useNotify } from "../../shared/hooks";
@@ -39,6 +39,31 @@ export const landAreas = new Map<string, LandArea>();
 
 // 玩家当前所在领地记录
 const LandLog = new Map<string, ILand>();
+
+/**
+ * 判断实体是否为敌对生物（会主动攻击玩家的生物）
+ */
+function isMonster(entity: Entity): boolean {
+  // 检查实体是否有 'minecraft:type_family' 组件 (通常都有)
+  const familiesComponent = entity.getComponent("minecraft:type_family");
+
+  if (familiesComponent) {
+    // 获取实体所属的族群列表
+    const families: string[] = familiesComponent.getTypeFamilies();
+
+    // 常见的敌对生物族群 ID
+    const monsterFamilies = [
+      "monster", // 几乎所有标准敌对生物都属于这个族群 (如僵尸, 骷髅, 蜘蛛)
+      "undead", // 亡灵生物 (僵尸, 骷髅, 尸壳等)
+      "arthropod", // 节肢动物 (蜘蛛, 洞穴蜘蛛等)
+    ];
+
+    // 检查实体是否属于任何一个怪物族群
+    return families.some((family) => monsterFamilies.includes(family));
+  }
+
+  return false; // 如果无法获取族群信息，则认为不是
+}
 
 /**
  * 清除领地内的燃烧方块（通过getBlocks）
@@ -109,6 +134,11 @@ export function registerLandEvents(): void {
       // 修复旧存档burn权限初始化问题
       if (landData.public_auth.burn === undefined) {
         landData.public_auth.burn = false;
+      }
+
+      // 修复旧存档attackNeutralMobs权限初始化问题
+      if (landData.public_auth.attackNeutralMobs === undefined) {
+        landData.public_auth.attackNeutralMobs = false;
       }
 
       if (landData.public_auth.burn) continue;
@@ -486,7 +516,78 @@ export function registerLandEvents(): void {
   /**
    * 玩家攻击领地内生物
    */
-  world.beforeEvents;
+  world.beforeEvents.entityHurt.subscribe((event) => {
+    const { hurtEntity, damageSource } = event;
+    /**
+     * 处理规则:
+     * 1. 如果伤害源不等于玩家,则不管
+     * 2. 如果伤害源等于玩家,则检查领地权限
+     * 3. 如果攻击者是领地主人或管理员,则允许
+     * 4. 如果受伤实体是敌对生物(非中立生物),且没有"领地保护"标签,则允许攻击
+     * 5. 如果领地的攻击中立生物权限为true,则允许攻击
+     * 6. 如果攻击者是领地成员,则允许
+     * 7. 如果受伤实体有"领地保护"标签,则取消攻击
+     * 8. 其他情况取消攻击（无权限）
+     */
+
+    // 1. 如果伤害源不是玩家,则不管
+    if (damageSource.damagingEntity?.typeId !== "minecraft:player") return;
+
+    const attacker = damageSource.damagingEntity as Player;
+
+    // 2. 检查受伤实体是否在领地内
+    const { isInside, insideLand } = landManager.testLand(hurtEntity.location, hurtEntity.dimension.id);
+    if (!isInside || !insideLand) return;
+
+    // 3. 如果攻击者是领地主人,则允许
+    if (insideLand.owner === attacker.name) return;
+
+    // 4. 如果攻击者是管理员,则允许
+    if (isAdmin(attacker)) return;
+
+    // 5. 如果受伤实体是敌对生物（非中立生物），且没有"领地保护"标签，则允许攻击
+    const hasLandProtectionTag = hurtEntity.nameTag && hurtEntity.nameTag.trim() === "领地保护";
+    if (isMonster(hurtEntity) && !hasLandProtectionTag) return;
+
+    // 6. 如果领地的攻击中立生物权限为true,则允许攻击
+    if (insideLand.public_auth.attackNeutralMobs === true) return;
+
+    // 7. 如果攻击者是领地成员,则允许
+    if (insideLand.members.includes(attacker.name)) return;
+
+    // 8. 如果受伤实体有名字标签(领地保护)，则取消攻击
+    if (hasLandProtectionTag) {
+      event.cancel = true;
+      const playerName = attacker.name;
+      const ownerName = insideLand.owner;
+      system.run(() => {
+        const p = world.getPlayers().find((pl) => pl.name === playerName);
+        if (p) {
+          useNotify(
+            "chat",
+            p,
+            color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限攻击这里的中立生物！")}`)
+          );
+        }
+      });
+      return;
+    }
+
+    // 9. 其他情况取消攻击（无权限）
+    event.cancel = true;
+    const playerName = attacker.name;
+    const ownerName = insideLand.owner;
+    system.run(() => {
+      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      if (p) {
+        useNotify(
+          "chat",
+          p,
+          color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限攻击这里的中立生物！")}`)
+        );
+      }
+    });
+  });
 }
 
 // 注册到事件中心
