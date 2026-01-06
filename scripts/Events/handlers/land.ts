@@ -249,6 +249,13 @@ export function registerLandEvents(): void {
             // 确保Y坐标在合理范围内
             teleportPos.y = Math.max(landMin.y, Math.min(landMax.y + 1, playerPos.y));
 
+            // 先显示领地轮廓，让玩家知道领地范围（传送前显示一次）
+            try {
+              landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
+            } catch (error) {
+              // 忽略粒子生成错误
+            }
+
             // 传送玩家
             try {
               p.teleport(teleportPos, { dimension: p.dimension });
@@ -257,6 +264,21 @@ export function registerLandEvents(): void {
                 p,
                 color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，您没有权限进入！")}`)
               );
+
+              // 传送后再次显示轮廓，确保玩家在领地外也能看到
+              system.runTimeout(() => {
+                try {
+                  const playerAfterTeleport = world.getPlayers().find((pl) => pl.name === p.name);
+                  if (playerAfterTeleport) {
+                    landParticle.createLandParticleArea(playerAfterTeleport, [
+                      insideLand.vectors.start,
+                      insideLand.vectors.end,
+                    ]);
+                  }
+                } catch (error) {
+                  // 忽略粒子生成错误
+                }
+              }, 5); // 延迟5 tick，确保传送完成
             } catch (error) {
               // 传送失败，忽略
             }
