@@ -61,11 +61,11 @@ class OfficeShopForm {
       form.button("上一页", "textures/icons/left_arrow");
     }
 
+    form.button("返回主菜单", "textures/icons/back");
+
     if (page < totalPages) {
       form.button("下一页", "textures/icons/right_arrow");
     }
-
-    form.button("返回主菜单", "textures/icons/back");
 
     form.show(player).then((response) => {
       if (response.canceled) return;
@@ -75,8 +75,8 @@ class OfficeShopForm {
 
       const categoryCount = currentPageCategories.length;
       const prevPageIndex = categoryCount;
-      const nextPageIndex = categoryCount + (page > 1 ? 1 : 0);
-      const backIndex = categoryCount + (page > 1 ? 1 : 0) + (page < totalPages ? 1 : 0);
+      const backIndex = page > 1 ? prevPageIndex + 1 : prevPageIndex;
+      const nextPageIndex = page > 1 ? backIndex + 1 : backIndex + 1;
 
       if (page > 1 && selection === prevPageIndex) {
         return this.openCategoryList(player, page - 1);

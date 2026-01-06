@@ -64,6 +64,10 @@ function createLandApplyForm(player: Player): ModalFormData {
     defaultValue: `${defaultLandEndPos.x} ${defaultLandEndPos.y} ${defaultLandEndPos.z}`,
     tooltip: "请输入领地结束点",
   });
+  form.toggle(color.white("设置传送点（使用当前位置）"), {
+    defaultValue: false,
+    tooltip: "是否将当前位置设置为领地传送点，可在领地详细界面传送回领地",
+  });
   form.submitButton("确认");
 
   return form;
@@ -136,6 +140,7 @@ export function openLandApplyForm(player: Player): void {
       const landName = formValues[0] as string;
       const landStartPos = formValues[1] as string;
       const landEndPos = formValues[2] as string;
+      const setTeleportPoint = formValues[3] as boolean;
 
       if (validateForm(formValues, player)) {
         const landStartPosVector3 = landManager.createVector3(landStartPos);
@@ -160,6 +165,8 @@ export function openLandApplyForm(player: Player): void {
             useSmelting: false,
             useRedstone: false,
             attackNeutralMobs: false,
+            allowEnter: true,
+            allowWater: true,
           },
           config_public_auth: {
             break: false,
@@ -174,13 +181,52 @@ export function openLandApplyForm(player: Player): void {
             useSmelting: false,
             useRedstone: false,
             attackNeutralMobs: false,
+            allowEnter: false,
+            allowWater: false,
           },
           vectors: {
             start: landStartPosVector3 as Vector3,
             end: landEndPosVector3 as Vector3,
           },
           createdAt: Date.now(),
+          // 如果选择了设置传送点，使用当前位置
+          teleportPoint: setTeleportPoint
+            ? {
+                x: Math.round(player.location.x),
+                y: Math.round(player.location.y),
+                z: Math.round(player.location.z),
+              }
+            : undefined,
         };
+
+        // 如果设置了传送点，先检查是否在领地范围内
+        if (setTeleportPoint) {
+          const teleportPoint = {
+            x: Math.round(player.location.x),
+            y: Math.round(player.location.y),
+            z: Math.round(player.location.z),
+          };
+          const tempLand: ILand = {
+            ...landData,
+            vectors: {
+              start: landStartPosVector3 as Vector3,
+              end: landEndPosVector3 as Vector3,
+            },
+          };
+          if (!landManager.isLocationInLand(teleportPoint, tempLand)) {
+            openDialogForm(
+              player,
+              {
+                title: "领地创建错误",
+                desc: color.red("当前位置不在领地范围内！\n请确保您站在要创建的领地范围内，或取消设置传送点选项"),
+              },
+              () => {
+                openLandApplyForm(player);
+              }
+            );
+            return;
+          }
+        }
 
         const res = await landManager.createLand(landData);
         if (typeof res === "string") {
@@ -196,6 +242,9 @@ export function openLandApplyForm(player: Player): void {
           );
         } else {
           player.sendMessage(color.yellow(`领地 ${landName} 创建成功！`));
+          if (setTeleportPoint) {
+            player.sendMessage(color.green("已设置领地传送点，可在领地详细界面传送回领地"));
+          }
           landAreas.delete(player.name);
         }
       }
@@ -269,6 +318,14 @@ export function openLandAuthForm(player: Player, myLand: ILand): void {
     defaultValue: _myLand.public_auth.attackNeutralMobs ?? false,
     tooltip: "是否允许玩家攻击领地内的中立生物",
   });
+  form.toggle(color.white("是否允许玩家进入你的领地"), {
+    defaultValue: _myLand.public_auth.allowEnter ?? true,
+    tooltip: "如果关闭，非领地成员进入领地时会被自动传送出去",
+  });
+  form.toggle(color.white("是否允许领地里有水"), {
+    defaultValue: _myLand.public_auth.allowWater ?? true,
+    tooltip: "如果关闭，领地内的水方块会被自动清除（类似岩浆）",
+  });
 
   form.submitButton("确认");
 
@@ -289,6 +346,8 @@ export function openLandAuthForm(player: Player, myLand: ILand): void {
       useSmelting: formValues?.[9] as boolean,
       useRedstone: formValues?.[10] as boolean,
       attackNeutralMobs: formValues?.[11] as boolean,
+      allowEnter: (formValues?.[12] as boolean) ?? true,
+      allowWater: (formValues?.[13] as boolean) ?? true,
     };
 
     landManager.db.set(_myLand.name, {
@@ -643,6 +702,14 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
     defaultValue: _land.config_public_auth?.attackNeutralMobs ?? false,
     tooltip: "设置是否允许成员修改领地内的攻击生物权限设置",
   });
+  form.toggle(color.white("是否允许成员配置 是否允许玩家进入你的领地"), {
+    defaultValue: _land.config_public_auth?.allowEnter ?? false,
+    tooltip: "设置是否允许成员修改领地内的玩家进入权限设置",
+  });
+  form.toggle(color.white("是否允许成员配置 是否允许领地里有水"), {
+    defaultValue: _land.config_public_auth?.allowWater ?? false,
+    tooltip: "设置是否允许成员修改领地内的水权限设置",
+  });
   form.submitButton("确认");
 
   form.show(player).then((data) => {
@@ -662,6 +729,8 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
       useSmelting: formValues?.[9] as boolean,
       useRedstone: formValues?.[10] as boolean,
       attackNeutralMobs: formValues?.[11] as boolean,
+      allowEnter: (formValues?.[12] as boolean) ?? false,
+      allowWater: (formValues?.[13] as boolean) ?? true,
     };
 
     landManager.db.set(_land.name, {
@@ -682,6 +751,111 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
   });
 }
 
+// ==================== 领地传送点设置 ====================
+
+export function openLandTeleportPointForm(player: Player, _land: ILand): void {
+  const form = new ActionFormData();
+  form.title("领地传送点设置");
+
+  const buttons = [
+    {
+      text: "使用当前位置设置传送点",
+      icon: "textures/icons/uye",
+      action: () => {
+        const res = landManager.setTeleportPoint(_land.name, player.location);
+        if (typeof res === "string") {
+          openDialogForm(
+            player,
+            {
+              title: "设置传送点",
+              desc: color.red(res),
+            },
+            () => openLandTeleportPointForm(player, _land)
+          );
+        } else {
+          openDialogForm(
+            player,
+            {
+              title: "设置传送点",
+              desc: color.green(
+                `传送点已设置为: ${Math.round(player.location.x)}, ${Math.round(player.location.y)}, ${Math.round(player.location.z)}`
+              ),
+            },
+            () => openLandDetailForm(player, landManager.getLand(_land.name) as ILand)
+          );
+        }
+      },
+    },
+  ];
+
+  if (_land.teleportPoint) {
+    buttons.push({
+      text: "删除传送点",
+      icon: "textures/icons/copkutusu",
+      action: () => {
+        const res = landManager.removeTeleportPoint(_land.name);
+        if (typeof res === "string") {
+          openDialogForm(
+            player,
+            {
+              title: "删除传送点",
+              desc: color.red(res),
+            },
+            () => openLandTeleportPointForm(player, _land)
+          );
+        } else {
+          openDialogForm(
+            player,
+            {
+              title: "删除传送点",
+              desc: color.green("传送点已删除"),
+            },
+            () => openLandDetailForm(player, landManager.getLand(_land.name) as ILand)
+          );
+        }
+      },
+    });
+  }
+
+  buttons.push({
+    text: "返回",
+    icon: "textures/icons/back",
+    action: () => openLandDetailForm(player, _land),
+  });
+
+  buttons.forEach((button) => {
+    form.button(button.text, button.icon);
+  });
+
+  const currentPoint = _land.teleportPoint
+    ? `${_land.teleportPoint.x}, ${_land.teleportPoint.y}, ${_land.teleportPoint.z}`
+    : "未设置";
+
+  form.body(
+    useFormatListInfo([
+      {
+        title: "当前传送点",
+        desc: currentPoint,
+        list: [],
+      },
+      {
+        title: "当前位置",
+        desc: `${Math.round(player.location.x)}, ${Math.round(player.location.y)}, ${Math.round(player.location.z)}`,
+        list: [],
+      },
+    ])
+  );
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) {
+      openLandDetailForm(player, _land);
+      return;
+    }
+    if (data.selection === null || data.selection === undefined) return;
+    buttons[data.selection].action();
+  });
+}
+
 // ==================== 领地详情 ====================
 
 export const openLandDetailForm = (
@@ -693,6 +867,7 @@ export const openLandDetailForm = (
   const form = new ActionFormData();
   form.title("领地详细");
   const isOwner = landData.owner === player.name;
+  const canAccess = isOwner || isAdmin || landData.members.includes(player.name);
 
   const buttons = [
     {
@@ -701,6 +876,20 @@ export const openLandDetailForm = (
       action: () => openLandAuthForm(player, landData),
     },
   ];
+
+  // 如果有传送点且玩家有权限，添加传送按钮
+  if (landData.teleportPoint && canAccess) {
+    buttons.push({
+      text: "传送回领地",
+      icon: "textures/icons/durbun",
+      action: () => {
+        const res = landManager.teleportToLand(player, landData.name);
+        if (typeof res === "string") {
+          useNotify("chat", player, color.red(res));
+        }
+      },
+    });
+  }
 
   if (isOwner || isAdmin) {
     const actions = [
@@ -718,6 +907,11 @@ export const openLandDetailForm = (
         text: "领地公开权限的配置权限",
         icon: "textures/icons/party_invites",
         action: () => openLandAuthConfigForm(player, landData),
+      },
+      {
+        text: landData.teleportPoint ? "修改传送点" : "设置传送点",
+        icon: "textures/icons/ada",
+        action: () => openLandTeleportPointForm(player, landData),
       },
       {
         text: "删除领地",
@@ -742,31 +936,41 @@ export const openLandDetailForm = (
     form.button(button.text, button.icon);
   });
 
+  const infoList = [
+    "领地名称: " + color.yellow(landData.name),
+    "领地坐标: " +
+      color.yellow(
+        landData.vectors.start.x +
+          " " +
+          landData.vectors.start.y +
+          " " +
+          landData.vectors.start.z +
+          " -> " +
+          landData.vectors.end.x +
+          " " +
+          landData.vectors.end.y +
+          " " +
+          landData.vectors.end.z
+      ),
+  ];
+
+  if (landData.teleportPoint) {
+    infoList.push(
+      "传送点: " + color.yellow(`${landData.teleportPoint.x}, ${landData.teleportPoint.y}, ${landData.teleportPoint.z}`)
+    );
+  } else {
+    infoList.push("传送点: " + color.gray("未设置"));
+  }
+
   form.body(
     useFormatListInfo([
       {
         title: "领地信息",
         desc: "",
-        list: [
-          "领地名称: " + color.yellow(landData.name),
-          "领地坐标: " +
-            color.yellow(
-              landData.vectors.start.x +
-                " " +
-                landData.vectors.start.y +
-                " " +
-                landData.vectors.start.z +
-                " -> " +
-                landData.vectors.end.x +
-                " " +
-                landData.vectors.end.y +
-                " " +
-                landData.vectors.end.z
-            ),
-        ],
+        list: infoList,
       },
       { title: "领地主人", desc: landData.owner, list: [] },
-      { title: "领地成员", desc: landData.members.join("、 "), list: [] },
+      { title: "领地成员", desc: landData.members.join("、 ") || "无", list: [] },
     ])
   );
 

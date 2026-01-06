@@ -3,7 +3,15 @@
  * 完整迁移自 Modules/Land/Event.ts (504行)
  */
 
-import { world, system, Entity, Player, BlockVolume } from "@minecraft/server";
+import {
+  world,
+  system,
+  Entity,
+  Player,
+  BlockVolume,
+  EntityEquippableComponent,
+  EquipmentSlot,
+} from "@minecraft/server";
 import { eventRegistry } from "../registry";
 import { color } from "../../shared/utils/color";
 import { debounce, isAdmin, SystemLog } from "../../shared/utils/common";
@@ -84,6 +92,24 @@ function clearLandFireByGetBlocks(landData: ILand): void {
 }
 
 /**
+ * 清除领地内的水方块（通过getBlocks）
+ */
+function clearLandWaterByGetBlocks(landData: ILand): void {
+  const landArea = new BlockVolume(landData.vectors.start, landData.vectors.end);
+  const blocks = world.getDimension(landData.dimension).getBlocks(landArea, {
+    includeTypes: ["minecraft:water", "minecraft:flowing_water"],
+  });
+
+  const blocksIterator = blocks.getBlockLocationIterator();
+  for (const blockLocation of blocksIterator) {
+    const block = world.getDimension(landData.dimension).getBlock(blockLocation);
+    if (block) {
+      block.setType("minecraft:air");
+    }
+  }
+}
+
+/**
  * 注册领地事件处理器
  */
 export function registerLandEvents(): void {
@@ -141,18 +167,38 @@ export function registerLandEvents(): void {
         landData.public_auth.attackNeutralMobs = false;
       }
 
-      if (landData.public_auth.burn) continue;
+      // 修复旧存档allowEnter权限初始化问题
+      if (landData.public_auth.allowEnter === undefined) {
+        landData.public_auth.allowEnter = true;
+      }
 
-      try {
-        clearLandFireByGetBlocks(landData);
-      } catch (error) {
-        // 忽略区块未加载等错误
+      // 修复旧存档allowWater权限初始化问题
+      if (landData.public_auth.allowWater === undefined) {
+        landData.public_auth.allowWater = true;
+      }
+
+      // 清除燃烧方块
+      if (!landData.public_auth.burn) {
+        try {
+          clearLandFireByGetBlocks(landData);
+        } catch (error) {
+          // 忽略区块未加载等错误
+        }
+      }
+
+      // 清除水方块
+      if (!landData.public_auth.allowWater) {
+        try {
+          clearLandWaterByGetBlocks(landData);
+        } catch (error) {
+          // 忽略区块未加载等错误
+        }
       }
     }
   }, 20);
 
   /**
-   * 玩家进入/离开领地提示
+   * 玩家进入/离开领地提示和权限检查
    */
   system.runInterval(() => {
     world.getAllPlayers().forEach((p) => {
@@ -164,6 +210,60 @@ export function registerLandEvents(): void {
 
       // 进入领地
       if (isInside && insideLand && !LandLog.get(p.name)) {
+        // 检查是否允许进入
+        if (!insideLand.public_auth.allowEnter) {
+          // 如果不是领地主人、管理员或成员，则传送出去
+          if (insideLand.owner !== p.name && !isAdmin(p) && !insideLand.members.includes(p.name)) {
+            // 计算领地外最近的安全位置
+            const landMin = {
+              x: Math.min(insideLand.vectors.start.x, insideLand.vectors.end.x),
+              y: Math.min(insideLand.vectors.start.y, insideLand.vectors.end.y),
+              z: Math.min(insideLand.vectors.start.z, insideLand.vectors.end.z),
+            };
+            const landMax = {
+              x: Math.max(insideLand.vectors.start.x, insideLand.vectors.end.x),
+              y: Math.max(insideLand.vectors.start.y, insideLand.vectors.end.y),
+              z: Math.max(insideLand.vectors.start.z, insideLand.vectors.end.z),
+            };
+
+            // 找到最近的边界点
+            const playerPos = p.location;
+            let teleportPos = { ...playerPos };
+
+            // 计算到各边界的距离，选择最近的边界
+            const distToMinX = Math.abs(playerPos.x - landMin.x);
+            const distToMaxX = Math.abs(playerPos.x - landMax.x);
+            const distToMinZ = Math.abs(playerPos.z - landMin.z);
+            const distToMaxZ = Math.abs(playerPos.z - landMax.z);
+
+            if (distToMinX <= distToMaxX && distToMinX <= distToMinZ && distToMinX <= distToMaxZ) {
+              teleportPos.x = landMin.x - 1;
+            } else if (distToMaxX <= distToMinZ && distToMaxX <= distToMaxZ) {
+              teleportPos.x = landMax.x + 1;
+            } else if (distToMinZ <= distToMaxZ) {
+              teleportPos.z = landMin.z - 1;
+            } else {
+              teleportPos.z = landMax.z + 1;
+            }
+
+            // 确保Y坐标在合理范围内
+            teleportPos.y = Math.max(landMin.y, Math.min(landMax.y + 1, playerPos.y));
+
+            // 传送玩家
+            try {
+              p.teleport(teleportPos, { dimension: p.dimension });
+              useNotify(
+                "chat",
+                p,
+                color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，您没有权限进入！")}`)
+              );
+            } catch (error) {
+              // 传送失败，忽略
+            }
+            return;
+          }
+        }
+
         useNotify(
           "actionbar",
           p,
@@ -264,6 +364,24 @@ export function registerLandEvents(): void {
     if (insideLand.members.includes(player.name)) return;
     if (insideLand.public_auth.place) return;
 
+    // 检查是否是水方块
+    const blockTypeId = block.typeId;
+    if (blockTypeId === "minecraft:water" || blockTypeId === "minecraft:flowing_water") {
+      // 如果不允许水，则取消放置
+      if (!insideLand.public_auth.allowWater) {
+        event.cancel = true;
+        const playerName = player.name;
+        const ownerName = insideLand.owner;
+        system.run(() => {
+          const p = world.getPlayers().find((pl) => pl.name === playerName);
+          if (p) {
+            useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，不允许放置水！")}`));
+          }
+        });
+        return;
+      }
+    }
+
     event.cancel = true;
     // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
     const playerName = player.name;
@@ -312,6 +430,52 @@ export function registerLandEvents(): void {
     if (insideLand.owner === player.name) return;
     if (isAdmin(player)) return;
     if (insideLand.members.includes(player.name)) return;
+
+    // 检查是否是副手物品交互（防止使用副手放置方块）
+    const equippableComponent = player.getComponent(EntityEquippableComponent.componentId) as EntityEquippableComponent;
+    if (equippableComponent) {
+      const offhandItem = equippableComponent.getEquipmentSlot(EquipmentSlot.Offhand);
+      if (offhandItem && offhandItem.hasItem()) {
+        const offhandItemStack = offhandItem.getItem();
+        // 如果副手有物品且主手没有物品，或者副手物品是可以放置方块的物品（如水桶、岩浆桶等）
+        if (offhandItemStack) {
+          const offhandTypeId = offhandItemStack.typeId;
+          // 检查是否是可能用于放置方块的物品
+          if (
+            offhandTypeId.includes("bucket") ||
+            offhandTypeId.includes("water") ||
+            offhandTypeId.includes("lava") ||
+            offhandTypeId.includes("torch") ||
+            offhandTypeId.includes("sign") ||
+            offhandTypeId.includes("boat")
+          ) {
+            // 检查主手是否有物品
+            const mainhandItem = equippableComponent.getEquipmentSlot(EquipmentSlot.Mainhand);
+            if (!mainhandItem || !mainhandItem.hasItem()) {
+              // 主手没有物品，可能是用副手放置的，需要检查权限
+              if (!insideLand.public_auth.place) {
+                event.cancel = true;
+                const playerName = player.name;
+                const ownerName = insideLand.owner;
+                system.run(() => {
+                  const p = world.getPlayers().find((pl) => pl.name === playerName);
+                  if (p) {
+                    useNotify(
+                      "chat",
+                      p,
+                      color.red(
+                        `这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限使用副手放置方块！")}`
+                      )
+                    );
+                  }
+                });
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
 
     // 延迟发送领地警告消息的辅助函数
     const sendLandWarning = (playerName: string, ownerName: string) => {

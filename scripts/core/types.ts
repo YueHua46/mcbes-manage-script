@@ -58,6 +58,8 @@ export interface ILandPublicAuth {
   useRedstone: boolean;
   burn: boolean;
   attackNeutralMobs: boolean;
+  allowEnter: boolean; // 是否允许玩家进入领地
+  allowWater: boolean; // 是否允许领地里有水
 }
 
 export interface ILand {
@@ -70,6 +72,7 @@ export interface ILand {
   public_auth: ILandPublicAuth;
   config_public_auth: ILandPublicAuth; // 权限配置权限
   createdAt: number;
+  teleportPoint?: Vector3; // 领地传送点（可选）
 }
 
 // 事件处理器类型
