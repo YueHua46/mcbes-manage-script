@@ -85,6 +85,15 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       },
     },
     {
+      id: "pvp",
+      text: "§wPVP系统",
+      icon: "textures/icons/sword",
+      action: async (player: Player) => {
+        const { openPvpSystemForm } = await import("../pvp");
+        openPvpSystemForm(player);
+      },
+    },
+    {
       id: "other",
       text: "§w其他功能",
       icon: "textures/icons/accessories",

@@ -67,6 +67,14 @@ export function openSystemSettingForm(player: Player): void {
       icon: "textures/icons/shop_bank",
       action: () => openEconomyManageForm(player),
     },
+    {
+      text: "§wPVP管理",
+      icon: "textures/icons/sword",
+      action: async () => {
+        const { openPvpManagementForm } = await import("../pvp/admin");
+        openPvpManagementForm(player);
+      },
+    },
   ];
 
   buttons.forEach((button) => {

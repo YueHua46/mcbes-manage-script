@@ -38,7 +38,13 @@ export type IModules =
   | "daily_gold_limit"
   | "startingGold"
   | "monsterKillGoldReward"
-  | "allowPlayerDisplaySettings";
+  | "allowPlayerDisplaySettings"
+  | "pvp"
+  | "pvpEnabled"
+  | "pvpSeizeAmount"
+  | "pvpMinProtection"
+  | "pvpToggleCooldown"
+  | "pvpCombatTagDuration";
 
 export type IValueType = boolean | string;
 
@@ -71,6 +77,12 @@ export const defaultSetting = {
   startingGold: "500",
   monsterKillGoldReward: true,
   allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
+  pvp: true, // PVP系统菜单显示开关
+  pvpEnabled: false, // PVP功能全局开关（默认关闭）
+  pvpSeizeAmount: "100", // 固定夺取金额
+  pvpMinProtection: "100", // 最低金币保护
+  pvpToggleCooldown: "30", // 切换冷却时间（秒）
+  pvpCombatTagDuration: "10", // 战斗标签持续时间（秒）
 };
 
 export class ServerSetting {

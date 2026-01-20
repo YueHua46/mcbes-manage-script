@@ -3,10 +3,18 @@
  * 完整迁移自 Modules/Land/Event.ts (504行)
  */
 
-import { world, system, Entity, Player, BlockVolume } from "@minecraft/server";
+import {
+  world,
+  system,
+  Entity,
+  Player,
+  BlockVolume,
+  EntityEquippableComponent,
+  EquipmentSlot,
+} from "@minecraft/server";
 import { eventRegistry } from "../registry";
 import { color } from "../../shared/utils/color";
-import { debounce, isAdmin } from "../../shared/utils/common";
+import { debounce, isAdmin, SystemLog } from "../../shared/utils/common";
 import landManager from "../../features/land/services/land-manager";
 import landParticle from "../../features/land/services/land-particle";
 import { useNotify } from "../../shared/hooks";
@@ -41,12 +49,55 @@ export const landAreas = new Map<string, LandArea>();
 const LandLog = new Map<string, ILand>();
 
 /**
+ * 判断实体是否为敌对生物（会主动攻击玩家的生物）
+ */
+function isMonster(entity: Entity): boolean {
+  // 检查实体是否有 'minecraft:type_family' 组件 (通常都有)
+  const familiesComponent = entity.getComponent("minecraft:type_family");
+
+  if (familiesComponent) {
+    // 获取实体所属的族群列表
+    const families: string[] = familiesComponent.getTypeFamilies();
+
+    // 常见的敌对生物族群 ID
+    const monsterFamilies = [
+      "monster", // 几乎所有标准敌对生物都属于这个族群 (如僵尸, 骷髅, 蜘蛛)
+      "undead", // 亡灵生物 (僵尸, 骷髅, 尸壳等)
+      "arthropod", // 节肢动物 (蜘蛛, 洞穴蜘蛛等)
+    ];
+
+    // 检查实体是否属于任何一个怪物族群
+    return families.some((family) => monsterFamilies.includes(family));
+  }
+
+  return false; // 如果无法获取族群信息，则认为不是
+}
+
+/**
  * 清除领地内的燃烧方块（通过getBlocks）
  */
 function clearLandFireByGetBlocks(landData: ILand): void {
   const landArea = new BlockVolume(landData.vectors.start, landData.vectors.end);
   const blocks = world.getDimension(landData.dimension).getBlocks(landArea, {
     includeTypes: ["minecraft:lava", "minecraft:flowing_lava", "minecraft:fire", "minecraft:soul_fire"],
+  });
+
+  const blocksIterator = blocks.getBlockLocationIterator();
+  for (const blockLocation of blocksIterator) {
+    const block = world.getDimension(landData.dimension).getBlock(blockLocation);
+    if (block) {
+      block.setType("minecraft:air");
+    }
+  }
+}
+
+/**
+ * 清除领地内的水方块（通过getBlocks）
+ */
+function clearLandWaterByGetBlocks(landData: ILand): void {
+  const landArea = new BlockVolume(landData.vectors.start, landData.vectors.end);
+  const blocks = world.getDimension(landData.dimension).getBlocks(landArea, {
+    includeTypes: ["minecraft:water", "minecraft:flowing_water"],
   });
 
   const blocksIterator = blocks.getBlockLocationIterator();
@@ -111,18 +162,43 @@ export function registerLandEvents(): void {
         landData.public_auth.burn = false;
       }
 
-      if (landData.public_auth.burn) continue;
+      // 修复旧存档attackNeutralMobs权限初始化问题
+      if (landData.public_auth.attackNeutralMobs === undefined) {
+        landData.public_auth.attackNeutralMobs = false;
+      }
 
-      try {
-        clearLandFireByGetBlocks(landData);
-      } catch (error) {
-        // 忽略区块未加载等错误
+      // 修复旧存档allowEnter权限初始化问题
+      if (landData.public_auth.allowEnter === undefined) {
+        landData.public_auth.allowEnter = true;
+      }
+
+      // 修复旧存档allowWater权限初始化问题
+      if (landData.public_auth.allowWater === undefined) {
+        landData.public_auth.allowWater = true;
+      }
+
+      // 清除燃烧方块
+      if (!landData.public_auth.burn) {
+        try {
+          clearLandFireByGetBlocks(landData);
+        } catch (error) {
+          // 忽略区块未加载等错误
+        }
+      }
+
+      // 清除水方块
+      if (!landData.public_auth.allowWater) {
+        try {
+          clearLandWaterByGetBlocks(landData);
+        } catch (error) {
+          // 忽略区块未加载等错误
+        }
       }
     }
   }, 20);
 
   /**
-   * 玩家进入/离开领地提示
+   * 玩家进入/离开领地提示和权限检查
    */
   system.runInterval(() => {
     world.getAllPlayers().forEach((p) => {
@@ -134,6 +210,82 @@ export function registerLandEvents(): void {
 
       // 进入领地
       if (isInside && insideLand && !LandLog.get(p.name)) {
+        // 检查是否允许进入
+        if (!insideLand.public_auth.allowEnter) {
+          // 如果不是领地主人、管理员或成员，则传送出去
+          if (insideLand.owner !== p.name && !isAdmin(p) && !insideLand.members.includes(p.name)) {
+            // 计算领地外最近的安全位置
+            const landMin = {
+              x: Math.min(insideLand.vectors.start.x, insideLand.vectors.end.x),
+              y: Math.min(insideLand.vectors.start.y, insideLand.vectors.end.y),
+              z: Math.min(insideLand.vectors.start.z, insideLand.vectors.end.z),
+            };
+            const landMax = {
+              x: Math.max(insideLand.vectors.start.x, insideLand.vectors.end.x),
+              y: Math.max(insideLand.vectors.start.y, insideLand.vectors.end.y),
+              z: Math.max(insideLand.vectors.start.z, insideLand.vectors.end.z),
+            };
+
+            // 找到最近的边界点
+            const playerPos = p.location;
+            let teleportPos = { ...playerPos };
+
+            // 计算到各边界的距离，选择最近的边界
+            const distToMinX = Math.abs(playerPos.x - landMin.x);
+            const distToMaxX = Math.abs(playerPos.x - landMax.x);
+            const distToMinZ = Math.abs(playerPos.z - landMin.z);
+            const distToMaxZ = Math.abs(playerPos.z - landMax.z);
+
+            if (distToMinX <= distToMaxX && distToMinX <= distToMinZ && distToMinX <= distToMaxZ) {
+              teleportPos.x = landMin.x - 1;
+            } else if (distToMaxX <= distToMinZ && distToMaxX <= distToMaxZ) {
+              teleportPos.x = landMax.x + 1;
+            } else if (distToMinZ <= distToMaxZ) {
+              teleportPos.z = landMin.z - 1;
+            } else {
+              teleportPos.z = landMax.z + 1;
+            }
+
+            // 确保Y坐标在合理范围内
+            teleportPos.y = Math.max(landMin.y, Math.min(landMax.y + 1, playerPos.y));
+
+            // 先显示领地轮廓，让玩家知道领地范围（传送前显示一次）
+            try {
+              landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
+            } catch (error) {
+              // 忽略粒子生成错误
+            }
+
+            // 传送玩家
+            try {
+              p.teleport(teleportPos, { dimension: p.dimension });
+              useNotify(
+                "chat",
+                p,
+                color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，您没有权限进入！")}`)
+              );
+
+              // 传送后再次显示轮廓，确保玩家在领地外也能看到
+              system.runTimeout(() => {
+                try {
+                  const playerAfterTeleport = world.getPlayers().find((pl) => pl.name === p.name);
+                  if (playerAfterTeleport) {
+                    landParticle.createLandParticleArea(playerAfterTeleport, [
+                      insideLand.vectors.start,
+                      insideLand.vectors.end,
+                    ]);
+                  }
+                } catch (error) {
+                  // 忽略粒子生成错误
+                }
+              }, 5); // 延迟5 tick，确保传送完成
+            } catch (error) {
+              // 传送失败，忽略
+            }
+            return;
+          }
+        }
+
         useNotify(
           "actionbar",
           p,
@@ -234,6 +386,24 @@ export function registerLandEvents(): void {
     if (insideLand.members.includes(player.name)) return;
     if (insideLand.public_auth.place) return;
 
+    // 检查是否是水方块
+    const blockTypeId = block.typeId;
+    if (blockTypeId === "minecraft:water" || blockTypeId === "minecraft:flowing_water") {
+      // 如果不允许水，则取消放置
+      if (!insideLand.public_auth.allowWater) {
+        event.cancel = true;
+        const playerName = player.name;
+        const ownerName = insideLand.owner;
+        system.run(() => {
+          const p = world.getPlayers().find((pl) => pl.name === playerName);
+          if (p) {
+            useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，不允许放置水！")}`));
+          }
+        });
+        return;
+      }
+    }
+
     event.cancel = true;
     // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
     const playerName = player.name;
@@ -282,6 +452,52 @@ export function registerLandEvents(): void {
     if (insideLand.owner === player.name) return;
     if (isAdmin(player)) return;
     if (insideLand.members.includes(player.name)) return;
+
+    // 检查是否是副手物品交互（防止使用副手放置方块）
+    const equippableComponent = player.getComponent(EntityEquippableComponent.componentId) as EntityEquippableComponent;
+    if (equippableComponent) {
+      const offhandItem = equippableComponent.getEquipmentSlot(EquipmentSlot.Offhand);
+      if (offhandItem && offhandItem.hasItem()) {
+        const offhandItemStack = offhandItem.getItem();
+        // 如果副手有物品且主手没有物品，或者副手物品是可以放置方块的物品（如水桶、岩浆桶等）
+        if (offhandItemStack) {
+          const offhandTypeId = offhandItemStack.typeId;
+          // 检查是否是可能用于放置方块的物品
+          if (
+            offhandTypeId.includes("bucket") ||
+            offhandTypeId.includes("water") ||
+            offhandTypeId.includes("lava") ||
+            offhandTypeId.includes("torch") ||
+            offhandTypeId.includes("sign") ||
+            offhandTypeId.includes("boat")
+          ) {
+            // 检查主手是否有物品
+            const mainhandItem = equippableComponent.getEquipmentSlot(EquipmentSlot.Mainhand);
+            if (!mainhandItem || !mainhandItem.hasItem()) {
+              // 主手没有物品，可能是用副手放置的，需要检查权限
+              if (!insideLand.public_auth.place) {
+                event.cancel = true;
+                const playerName = player.name;
+                const ownerName = insideLand.owner;
+                system.run(() => {
+                  const p = world.getPlayers().find((pl) => pl.name === playerName);
+                  if (p) {
+                    useNotify(
+                      "chat",
+                      p,
+                      color.red(
+                        `这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限使用副手放置方块！")}`
+                      )
+                    );
+                  }
+                });
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
 
     // 延迟发送领地警告消息的辅助函数
     const sendLandWarning = (playerName: string, ownerName: string) => {
@@ -486,7 +702,84 @@ export function registerLandEvents(): void {
   /**
    * 玩家攻击领地内生物
    */
-  world.beforeEvents;
+  world.beforeEvents.entityHurt.subscribe((event) => {
+    const { hurtEntity, damageSource } = event;
+    /**
+     * 处理规则:
+     * 0. 如果是玩家攻击玩家，交给PVP系统处理
+     * 1. 如果伤害源不等于玩家,则不管
+     * 2. 如果伤害源等于玩家,则检查领地权限
+     * 3. 如果攻击者是领地主人或管理员,则允许
+     * 4. 如果受伤实体是敌对生物(非中立生物),且没有"领地保护"标签,则允许攻击
+     * 5. 如果领地的攻击中立生物权限为true,则允许攻击
+     * 6. 如果攻击者是领地成员,则允许
+     * 7. 如果受伤实体有"领地保护"标签,则取消攻击
+     * 8. 其他情况取消攻击（无权限）
+     */
+
+    // 0. 如果是玩家攻击玩家，交给PVP系统处理，这里直接返回
+    if (hurtEntity.typeId === "minecraft:player" && damageSource.damagingEntity?.typeId === "minecraft:player") {
+      return;
+    }
+
+    // 1. 如果伤害源不是玩家,则不管
+    if (damageSource.damagingEntity?.typeId !== "minecraft:player") return;
+
+    const attacker = damageSource.damagingEntity as Player;
+
+    // 2. 检查受伤实体是否在领地内
+    const { isInside, insideLand } = landManager.testLand(hurtEntity.location, hurtEntity.dimension.id);
+    if (!isInside || !insideLand) return;
+
+    // 3. 如果攻击者是领地主人,则允许
+    if (insideLand.owner === attacker.name) return;
+
+    // 4. 如果攻击者是管理员,则允许
+    if (isAdmin(attacker)) return;
+
+    // 5. 如果受伤实体是敌对生物（非中立生物），且没有"领地保护"标签，则允许攻击
+    const hasLandProtectionTag = hurtEntity.nameTag && hurtEntity.nameTag.trim() === "领地保护";
+    if (isMonster(hurtEntity) && !hasLandProtectionTag) return;
+
+    // 6. 如果领地的攻击中立生物权限为true,则允许攻击
+    if (insideLand.public_auth.attackNeutralMobs === true) return;
+
+    // 7. 如果攻击者是领地成员,则允许
+    if (insideLand.members.includes(attacker.name)) return;
+
+    // 8. 如果受伤实体有名字标签(领地保护)，则取消攻击
+    if (hasLandProtectionTag) {
+      event.cancel = true;
+      const playerName = attacker.name;
+      const ownerName = insideLand.owner;
+      system.run(() => {
+        const p = world.getPlayers().find((pl) => pl.name === playerName);
+        if (p) {
+          useNotify(
+            "chat",
+            p,
+            color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限攻击这里的中立生物！")}`)
+          );
+        }
+      });
+      return;
+    }
+
+    // 9. 其他情况取消攻击（无权限）
+    event.cancel = true;
+    const playerName = attacker.name;
+    const ownerName = insideLand.owner;
+    system.run(() => {
+      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      if (p) {
+        useNotify(
+          "chat",
+          p,
+          color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限攻击这里的中立生物！")}`)
+        );
+      }
+    });
+  });
 }
 
 // 注册到事件中心
