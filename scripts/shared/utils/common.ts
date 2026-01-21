@@ -39,19 +39,19 @@ export function isAdmin(player: Player): boolean {
  */
 export class SystemLog {
   static info(message: string): void {
-    console.warn(`[INFO] ${message}`);
+    console.info(`${message}`);
   }
 
   static error(message: string, error?: any): void {
-    console.error(`[ERROR] ${message}`, error);
+    console.error(`${message}`, error);
   }
 
   static warn(message: string): void {
-    console.warn(`[WARN] ${message}`);
+    console.warn(`${message}`);
   }
 
   static debug(message: string): void {
-    console.warn(`[DEBUG] ${message}`);
+    console.debug(`${message}`);
   }
 }
 

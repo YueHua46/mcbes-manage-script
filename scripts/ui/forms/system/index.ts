@@ -715,30 +715,34 @@ function openItemPriceManageForm(player: Player): void {
   const form = new ActionFormData()
     .title("§w物品出售价格管理")
     .body(
-      `§a当前状态:\n§e自定义物品出售价格: ${customPricesCount} 个\n§e默认物品出售价格: ${totalItemsCount} 个\n§e友情提示，对应物品没有自定义价格，则使用默认物品出售价格\n§a请选择要进行的操作:`
+      `§a当前状态:\n§e已设置物品出售价格: ${customPricesCount} 个\n§e配置文件默认价格: ${totalItemsCount} 个\n§c注意：未设置价格的物品无法出售！\n§a请选择要进行的操作:`
     )
-    .button("§w浏览自定义物品出售价格", "textures/icons/quest_chest")
+    .button("§w初始化所有物品出售价格", "textures/icons/requeue")
+    .button("§w浏览已设置的物品出售价格", "textures/icons/quest_chest")
     .button("§w手动修改物品出售价格", "textures/icons/edit2")
     .button("§w搜索物品出售价格", "textures/ui/magnifyingGlass")
-    .button("§w删除所有自定义物品出售价格", "textures/icons/deny")
+    .button("§w清空所有物品出售价格", "textures/icons/deny")
     .button("§w返回", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled) return;
     switch (res.selection) {
       case 0:
-        showItemPricesWithPagination(player, 1);
+        openInitializePricesConfirmForm(player);
         break;
       case 1:
-        openModifyItemPriceForm(player);
+        showItemPricesWithPagination(player, 1);
         break;
       case 2:
-        openSearchItemPriceForm(player);
+        openModifyItemPriceForm(player);
         break;
       case 3:
-        openResetPricesConfirmForm(player);
+        openSearchItemPriceForm(player);
         break;
       case 4:
+        openClearAllPricesConfirmForm(player);
+        break;
+      case 5:
         openEconomyManageForm(player);
         break;
     }
@@ -1066,6 +1070,121 @@ function showSearchResults(player: Player, searchTerm: string): void {
 }
 
 // 删除所有自定义物品出售价格确认表单
+// ==================== 初始化所有物品出售价格 ====================
+
+// 初始化所有物品出售价格确认表单
+function openInitializePricesConfirmForm(player: Player): void {
+  const totalItemsCount = itemPriceDb.getAllDefaultItemIds().length;
+  const currentPricesCount = Object.keys(itemPriceDb.getAllCustomPrices()).length;
+  const uninitializedCount = totalItemsCount - currentPricesCount;
+
+  const form = new ActionFormData();
+  form.title("§w初始化所有物品出售价格确认");
+  
+  let bodyText = `§a说明：此操作将使用配置文件中的价格初始化未设置价格的物品。\n`;
+  
+  if (currentPricesCount > 0) {
+    bodyText += `§a将初始化 ${uninitializedCount} 个未设置价格的物品。\n`;
+    bodyText += `§e已设置价格的 ${currentPricesCount} 个物品将被保留（不会覆盖）。`;
+  } else {
+    bodyText += `§a共有 ${totalItemsCount} 个物品将被设置价格。\n`;
+    bodyText += `§e当前所有物品均未设置价格（默认为0，不可出售）。`;
+  }
+  
+  bodyText += `\n§e是否确认继续？`;
+
+  form.body(bodyText);
+  form.button("§a确认初始化", "textures/icons/accept");
+  form.button("§c取消", "textures/icons/back");
+
+  form.show(player).then((res) => {
+    if (res.canceled || res.selection === 1) {
+      openItemPriceManageForm(player);
+      return;
+    }
+
+    if (res.selection === 0) {
+      initializeAllPrices(player);
+    }
+  });
+}
+
+// 执行初始化所有物品出售价格
+function initializeAllPrices(player: Player): void {
+  const result = itemPriceDb.initializeAllPrices();
+  
+  let desc = `§a已成功初始化物品出售价格！\n§a新初始化了 ${result.initialized} 个物品价格。`;
+  
+  if (result.skipped > 0) {
+    desc += `\n§e保留了 ${result.skipped} 个已手动设置的物品价格。`;
+  }
+  
+  desc += `\n§a玩家现在可以出售这些物品了。`;
+
+  openDialogForm(
+    player,
+    {
+      title: "初始化成功",
+      desc: desc,
+    },
+    () => openItemPriceManageForm(player)
+  );
+}
+
+// ==================== 清空所有物品出售价格 ====================
+
+// 清空所有物品出售价格确认表单
+function openClearAllPricesConfirmForm(player: Player): void {
+  const customPricesCount = Object.keys(itemPriceDb.getAllCustomPrices()).length;
+
+  const form = new ActionFormData();
+  form.title("§w清空所有物品出售价格确认");
+  
+  if (customPricesCount === 0) {
+    form.body(`§e当前没有任何物品设置了价格。\n§a所有物品的价格都是默认值0（不可出售）。`);
+    form.button("§a返回", "textures/icons/back");
+    
+    form.show(player).then(() => {
+      openItemPriceManageForm(player);
+    });
+    return;
+  }
+  
+  form.body(
+    `§c警告：此操作将清空所有已设置的物品价格！\n§c当前有 ${customPricesCount} 个物品价格将被清空！\n§c清空后所有物品价格将恢复为0（不可出售）！\n§e是否确认继续？`
+  );
+
+  form.button("§c确认清空", "textures/icons/deny");
+  form.button("§a取消", "textures/icons/back");
+
+  form.show(player).then((res) => {
+    if (res.canceled || res.selection === 1) {
+      openItemPriceManageForm(player);
+      return;
+    }
+
+    if (res.selection === 0) {
+      clearAllPrices(player);
+    }
+  });
+}
+
+// 执行清空所有物品出售价格
+function clearAllPrices(player: Player): void {
+  const count = itemPriceDb.clearAllPrices();
+
+  openDialogForm(
+    player,
+    {
+      title: "清空成功",
+      desc: `§a已成功清空所有物品出售价格！\n§a共清空了 ${count} 个物品价格。\n§c所有物品现在都无法出售。`,
+    },
+    () => openItemPriceManageForm(player)
+  );
+}
+
+// ==================== 旧版重置功能（已废弃，保持兼容性）====================
+
 function openResetPricesConfirmForm(player: Player): void {
   const customPricesCount = Object.keys(itemPriceDb.getAllCustomPrices()).length;
 
