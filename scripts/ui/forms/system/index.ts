@@ -102,7 +102,8 @@ export function openGeneralSettingsForm(player: Player): void {
   form.title("§w通用系统设置");
 
   const settingItems = [
-    { key: "serverName", name: "服务器名称", type: "string" },
+    { key: "serverName", name: "服务器名称(将会影响进服玩家看到的欢迎信息中的服务器名称)", type: "string" },
+    { key: "welcomeMessage", name: "进服欢迎消息(支持颜色代码和\\n换行符)", type: "string" },
     { key: "killItemAmount", name: "掉落物清理数量阈值", type: "number" },
     { key: "randomTpRange", name: "随机传送范围", type: "number" },
     { key: "maxLandPerPlayer", name: "每玩家最大领地数", type: "number" },

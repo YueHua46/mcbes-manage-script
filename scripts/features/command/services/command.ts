@@ -906,7 +906,6 @@ function handleMoneySettingCommand(
   targetPlayers: Player[],
   amount: number
 ): CustomCommandResult {
-  SystemLog.info(`targetPlayers: ${JSON.stringify(targetPlayers.map((p) => p.name))}`);
   const entity = origin.sourceEntity;
   // 如果是玩家
   if (entity instanceof Player) {
@@ -1033,20 +1032,20 @@ function handleMoneySettingCommand(
     const block = origin.sourceBlock;
     try {
       if (!Array.isArray(targetPlayers) || targetPlayers.length === 0) {
-        SystemLog.error("命令方块执行金币管理指令时未指定目标玩家。");
+        // SystemLog.error("命令方块执行金币管理指令时未指定目标玩家。");
         return { status: CustomCommandStatus.Failure, message: "未指定目标玩家" };
       }
-      SystemLog.info(
-        `命令方块 ${block.location.x},${block.location.y},${block.location.z} 执行了金币管理指令: ${operation} 目标玩家: ${targetPlayers.map((p) => p.name).join(", ")} 金额: ${amount}`
-      );
+      // SystemLog.info(
+      //   `命令方块 ${block.location.x},${block.location.y},${block.location.z} 执行了金币管理指令: ${operation} 目标玩家: ${targetPlayers.map((p) => p.name).join(", ")} 金额: ${amount}`
+      // );
       if (isNaN(amount) || amount <= 0) {
-        SystemLog.error("请输入有效的金额 (必须大于0)。");
+        // SystemLog.error("请输入有效的金额 (必须大于0)。");
         return { status: CustomCommandStatus.Failure, message: "请输入有效的金额 (必须大于0)" };
       }
 
       const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
       if (amount > MAX_SAFE_INTEGER) {
-        SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
+        // SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
         return { status: CustomCommandStatus.Failure, message: `金额过大，最大值为 ${MAX_SAFE_INTEGER}` };
       }
 
@@ -1060,17 +1059,17 @@ function handleMoneySettingCommand(
           case "add": {
             const addedAmount = economic.addGold(targetPlayer.name, amount, "管理员添加", true);
             if (addedAmount > 0) {
-              SystemLog.info(
-                `成功为玩家 ${color.yellow(targetPlayer.name)} 添加 ${color.gold(amount.toString())} 金币。`
-              );
-              SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
+              // SystemLog.info(
+              //   `成功为玩家 ${color.yellow(targetPlayer.name)} 添加 ${color.gold(amount.toString())} 金币。`
+              // );
+              // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
 
               targetPlayer.sendMessage(
                 color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${wallet.gold + amount}`)
               );
               successCount++;
             } else {
-              SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 添加金币失败。`);
+              // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 添加金币失败。`);
               failCount++;
             }
             break;
@@ -1078,22 +1077,22 @@ function handleMoneySettingCommand(
           case "remove": {
             const currentBalance = wallet.gold;
             if (currentBalance < amount) {
-              SystemLog.error(`玩家 ${targetPlayer.name} 的余额不足。当前余额: ${currentBalance}，需要扣除: ${amount}`);
+              // SystemLog.error(`玩家 ${targetPlayer.name} 的余额不足。当前余额: ${currentBalance}，需要扣除: ${amount}`);
               failCount++;
               break;
             }
 
             const removeSuccess = economic.removeGold(targetPlayer.name, amount, "管理员扣除");
             if (removeSuccess) {
-              SystemLog.info(
-                `成功为玩家 ${color.yellow(targetPlayer.name)} 扣除 ${color.gold(amount.toString())} 金币。`
-              );
-              SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
+              // SystemLog.info(
+              //   `成功为玩家 ${color.yellow(targetPlayer.name)} 扣除 ${color.gold(amount.toString())} 金币。`
+              // );
+              // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
 
               targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${wallet.gold - amount}`));
               successCount++;
             } else {
-              SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 扣除金币失败。`);
+              // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 扣除金币失败。`);
               failCount++;
             }
             break;
@@ -1102,29 +1101,29 @@ function handleMoneySettingCommand(
             const oldBalance = wallet.gold;
             const setSuccess = economic.setPlayerGold(targetPlayer.name, amount);
             if (setSuccess) {
-              SystemLog.info(`成功将玩家 ${color.yellow(targetPlayer.name)} 的金币设置为 ${amount}。`);
-              SystemLog.info(`当前余额: ${wallet.gold} → ${amount}`);
+              // SystemLog.info(`成功将玩家 ${color.yellow(targetPlayer.name)} 的金币设置为 ${amount}。`);
+              // SystemLog.info(`当前余额: ${wallet.gold} → ${amount}`);
 
               targetPlayer.sendMessage(color.yellow(`管理员将您的金币设置为 ${amount}`));
               successCount++;
             } else {
-              SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 设置金币失败。`);
+              // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 设置金币失败。`);
               failCount++;
             }
             break;
           }
           default:
-            SystemLog.error("未知操作。可用操作: add, remove, set");
+            // SystemLog.error("未知操作。可用操作: add, remove, set");
             return { status: CustomCommandStatus.Failure, message: "未知操作。可用操作: add, remove, set" };
         }
       }
       // 可以输出批量结果，如果需要
     } catch (error) {
-      SystemLog.error(`金币管理指令执行失败: ${(error as Error).message}`);
+      // SystemLog.error(`金币管理指令执行失败: ${(error as Error).message}`);
       return { status: CustomCommandStatus.Failure, message: `金币管理指令执行失败: ${(error as Error).message}` };
     }
   } else {
-    SystemLog.error("金币管理指令执行失败: 未知来源");
+    // SystemLog.error("金币管理指令执行失败: 未知来源");
     return { status: CustomCommandStatus.Failure, message: "金币管理指令执行失败: 未知来源" };
   }
   return { status: CustomCommandStatus.Success };
@@ -1272,28 +1271,28 @@ function handleMoneySettingOfflineCommand(
     const block = origin.sourceBlock;
     try {
       if (!targetPlayerName || targetPlayerName.trim() === "") {
-        SystemLog.error("命令方块执行金币管理指令时未指定目标玩家。");
+        // SystemLog.error("命令方块执行金币管理指令时未指定目标玩家。");
         return { status: CustomCommandStatus.Failure, message: "未指定目标玩家" };
       }
       
-      SystemLog.info(
-        `命令方块 ${block.location.x},${block.location.y},${block.location.z} 执行了金币管理指令: ${operation} 目标玩家: ${targetPlayerName} 金额: ${amount}`
-      );
+      // SystemLog.info(
+      //   `命令方块 ${block.location.x},${block.location.y},${block.location.z} 执行了金币管理指令: ${operation} 目标玩家: ${targetPlayerName} 金额: ${amount}`
+      // );
       
       if (isNaN(amount) || amount < 0) {
-        SystemLog.error("请输入有效的金额 (必须大于等于0)。");
+        // SystemLog.error("请输入有效的金额 (必须大于等于0)。");
         return { status: CustomCommandStatus.Failure, message: "请输入有效的金额 (必须大于等于0)" };
       }
 
       const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
       if (amount > MAX_SAFE_INTEGER) {
-        SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
+        // SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
         return { status: CustomCommandStatus.Failure, message: `金额过大，最大值为 ${MAX_SAFE_INTEGER}` };
       }
 
       // 检查玩家是否有钱包数据（是否进过服务器）
       if (!economic.hasWallet(targetPlayerName)) {
-        SystemLog.error(`玩家 ${targetPlayerName} 从未进入过服务器，无法操作金币`);
+        // SystemLog.error(`玩家 ${targetPlayerName} 从未进入过服务器，无法操作金币`);
         return { status: CustomCommandStatus.Failure, message: "玩家从未进入过服务器" };
       }
 
@@ -1304,15 +1303,15 @@ function handleMoneySettingOfflineCommand(
       switch (op) {
         case "add": {
           if (amount <= 0) {
-            SystemLog.error("添加金币数量必须大于0。");
+            // SystemLog.error("添加金币数量必须大于0。");
             return { status: CustomCommandStatus.Failure, message: "添加金币数量必须大于0" };
           }
           const addedAmount = economic.addGold(targetPlayerName, amount, "管理员添加", true);
           if (addedAmount > 0) {
-            SystemLog.info(
-              `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
-            );
-            SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
+            // SystemLog.info(
+            //   `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
+            // );
+            // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
 
             if (targetPlayer) {
               targetPlayer.sendMessage(
@@ -1320,34 +1319,34 @@ function handleMoneySettingOfflineCommand(
               );
             }
           } else {
-            SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 添加金币失败。`);
+            // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 添加金币失败。`);
             return { status: CustomCommandStatus.Failure, message: "添加金币失败" };
           }
           break;
         }
         case "remove": {
           if (amount <= 0) {
-            SystemLog.error("扣除金币数量必须大于0。");
+            // SystemLog.error("扣除金币数量必须大于0。");
             return { status: CustomCommandStatus.Failure, message: "扣除金币数量必须大于0" };
           }
           const currentBalance = wallet.gold;
           if (currentBalance < amount) {
-            SystemLog.error(`玩家 ${targetPlayerName} 的余额不足。当前余额: ${currentBalance}，需要扣除: ${amount}`);
+            // SystemLog.error(`玩家 ${targetPlayerName} 的余额不足。当前余额: ${currentBalance}，需要扣除: ${amount}`);
             return { status: CustomCommandStatus.Failure, message: "玩家余额不足" };
           }
 
           const removeSuccess = economic.removeGold(targetPlayerName, amount, "管理员扣除");
           if (removeSuccess) {
-            SystemLog.info(
-              `成功为玩家 ${color.yellow(targetPlayerName)} 扣除 ${color.gold(amount.toString())} 金币。`
-            );
-            SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
+            // SystemLog.info(
+            //   `成功为玩家 ${color.yellow(targetPlayerName)} 扣除 ${color.gold(amount.toString())} 金币。`
+            // );
+            // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
 
             if (targetPlayer) {
               targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${wallet.gold - amount}`));
             }
           } else {
-            SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 扣除金币失败。`);
+            // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 扣除金币失败。`);
             return { status: CustomCommandStatus.Failure, message: "扣除金币失败" };
           }
           break;
@@ -1356,28 +1355,28 @@ function handleMoneySettingOfflineCommand(
           const oldBalance = wallet.gold;
           const setSuccess = economic.setPlayerGold(targetPlayerName, amount);
           if (setSuccess) {
-            SystemLog.info(`成功将玩家 ${color.yellow(targetPlayerName)} 的金币设置为 ${amount}。`);
-            SystemLog.info(`当前余额: ${wallet.gold} → ${amount}`);
+            // SystemLog.info(`成功将玩家 ${color.yellow(targetPlayerName)} 的金币设置为 ${amount}。`);
+            // SystemLog.info(`当前余额: ${wallet.gold} → ${amount}`);
 
             if (targetPlayer) {
               targetPlayer.sendMessage(color.yellow(`管理员将您的金币设置为 ${amount}`));
             }
           } else {
-            SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 设置金币失败。`);
+            // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 设置金币失败。`);
             return { status: CustomCommandStatus.Failure, message: "设置金币失败" };
           }
           break;
         }
         default:
-          SystemLog.error("未知操作。可用操作: add, remove, set");
+          // SystemLog.error("未知操作。可用操作: add, remove, set");
           return { status: CustomCommandStatus.Failure, message: "未知操作。可用操作: add, remove, set" };
       }
     } catch (error) {
-      SystemLog.error(`金币管理指令执行失败: ${(error as Error).message}`);
+      // SystemLog.error(`金币管理指令执行失败: ${(error as Error).message}`);
       return { status: CustomCommandStatus.Failure, message: `金币管理指令执行失败: ${(error as Error).message}` };
     }
   } else {
-    SystemLog.error("金币管理指令执行失败: 未知来源");
+    // SystemLog.error("金币管理指令执行失败: 未知来源");
     return { status: CustomCommandStatus.Failure, message: "金币管理指令执行失败: 未知来源" };
   }
   return { status: CustomCommandStatus.Success };

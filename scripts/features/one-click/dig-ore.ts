@@ -323,9 +323,9 @@ async function digOre(player: Player, dimension: Dimension, location: Vector3, b
     }
   } catch (_error) {
     const error = _error as Error;
-    console.error(error.name);
-    console.error(error.message);
-    console.error(error);
+    // console.error(error.name);
+    // console.error(error.message);
+    // console.error(error);
   } finally {
     mainHand.lockMode = ItemLockMode.none;
   }
