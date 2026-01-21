@@ -44,7 +44,8 @@ export type IModules =
   | "pvpSeizeAmount"
   | "pvpMinProtection"
   | "pvpToggleCooldown"
-  | "pvpCombatTagDuration";
+  | "pvpCombatTagDuration"
+  | "serverName";
 
 export type IValueType = boolean | string;
 
@@ -83,6 +84,7 @@ export const defaultSetting = {
   pvpMinProtection: "100", // 最低金币保护
   pvpToggleCooldown: "30", // 切换冷却时间（秒）
   pvpCombatTagDuration: "10", // 战斗标签持续时间（秒）
+  serverName: "杜绝熊孩服务器", // 服务器名称
 };
 
 export class ServerSetting {

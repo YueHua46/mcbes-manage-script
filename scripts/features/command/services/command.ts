@@ -851,7 +851,7 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
       const netherItems = world.getDimension("nether").getEntities({ type: "item" }).length;
       const endItems = world.getDimension("the_end").getEntities({ type: "item" }).length;
 
-      const serverName = (world.getDynamicProperty("serverName") as string) || "未设置";
+      const serverName = (setting.getState("serverName") as string) || "未设置";
       const timeOfDay = world.getTimeOfDay();
       const day = Math.floor(world.getDay());
 

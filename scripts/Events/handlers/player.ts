@@ -15,7 +15,6 @@ export function registerPlayerEvents(): void {
   // 玩家欢迎事件（首次加入）
   world.afterEvents.playerSpawn.subscribe(async (event) => {
     const { player } = event;
-    let serverName: string = (world.getDynamicProperty("serverName") as string) || "服务器";
 
     const isJoin = player.getDynamicProperty("join") as boolean;
     if (isJoin) return;
@@ -29,6 +28,7 @@ export function registerPlayerEvents(): void {
       const left = `${welcomeGlyphs[1]}${welcomeGlyphs[8]}${welcomeGlyphs[6]}${welcomeGlyphs[7]}${welcomeGlyphs[4]}${welcomeGlyphs[2]}`;
       const right = `${welcomeGlyphs[3]}${welcomeGlyphs[4]}${welcomeGlyphs[7]}${welcomeGlyphs[6]}${welcomeGlyphs[8]}${welcomeGlyphs[0]}`;
       const fox = `${welcomeFoxGlyphs[0]}`;
+      const serverName = (setting.getState("serverName") as string) || "服务器";
 
       player.runCommand(
         `titleraw @s subtitle {"rawtext":[{"text":"${fox}\\n\\n${left} §d欢迎来到 ${right}\\n§s${serverName}"}]}`
