@@ -424,62 +424,67 @@ class SellItemsForm {
     totalEarnings: number,
     reachedLimit: boolean
   ): void {
-    const { ChestUIUtility } = require("../../components/chest-ui");
-    const { getItemDisplayName } = ChestUIUtility;
-
     const form = new ActionFormData();
     form.title("§w一键出售结果");
 
-    // 构建详细信息
-    let bodyText = "";
+    // 构建 RawMessage 格式的详细信息
+    const bodyRawText: any[] = [];
 
     // 总结信息
     if (soldItems.length > 0) {
-      bodyText += `${colorCodes.green}═════════ 出售成功 ═════════\n`;
-      bodyText += `${colorCodes.gold}总收入: ${colorCodes.yellow}${totalEarnings} 金币\n`;
-      bodyText += `${colorCodes.gold}出售种类: ${colorCodes.yellow}${soldItems.length} 种物品\n\n`;
+      bodyRawText.push({ text: `${colorCodes.green}═════════ 出售成功 ═════════\n` });
+      bodyRawText.push({ text: `${colorCodes.gold}总收入: ${colorCodes.yellow}${totalEarnings} 金币\n` });
+      bodyRawText.push({ text: `${colorCodes.gold}出售种类: ${colorCodes.yellow}${soldItems.length} 种物品\n\n` });
 
       if (reachedLimit) {
-        bodyText += `${colorCodes.red}⚠ 已达今日金币获取上限\n\n`;
+        bodyRawText.push({ text: `${colorCodes.red}⚠ 已达今日金币获取上限\n\n` });
       }
 
       // 已出售物品清单
-      bodyText += `${colorCodes.green}━━━ 已出售物品清单 ━━━\n`;
+      bodyRawText.push({ text: `${colorCodes.green}━━━ 已出售物品清单 ━━━\n` });
       soldItems.forEach((soldItem, index) => {
-        // 获取物品显示名称（简化版，直接使用typeId）
-        const itemName = soldItem.item.typeId.replace("minecraft:", "");
-        bodyText += `${colorCodes.yellow}${index + 1}. ${colorCodes.white}${itemName}\n`;
-        bodyText += `   ${colorCodes.gray}数量: ${soldItem.soldAmount} | 单价: ${soldItem.price} | 获得: ${colorCodes.gold}${soldItem.totalPrice}\n`;
+        bodyRawText.push({ text: `${colorCodes.yellow}${index + 1}. ${colorCodes.white}` });
+        bodyRawText.push({ translate: soldItem.item.localizationKey });
+        bodyRawText.push({ 
+          text: `\n   ${colorCodes.gray}数量: ${soldItem.soldAmount} | 单价: ${soldItem.price} | 获得: ${colorCodes.gold}${soldItem.totalPrice}\n` 
+        });
       });
     }
 
     // 未出售物品清单
     if (itemsWithoutPrice.length > 0) {
-      bodyText += `\n${colorCodes.red}━━━ 未出售物品清单 ━━━\n`;
-      bodyText += `${colorCodes.yellow}以下物品因未设置出售价格而未出售:\n\n`;
+      bodyRawText.push({ text: `\n${colorCodes.red}━━━ 未出售物品清单 ━━━\n` });
+      bodyRawText.push({ text: `${colorCodes.yellow}以下物品因未设置出售价格而未出售:\n\n` });
       
       itemsWithoutPrice.forEach((item, index) => {
-        const itemName = item.item.typeId.replace("minecraft:", "");
-        bodyText += `${colorCodes.red}${index + 1}. ${colorCodes.white}${itemName} ${colorCodes.gray}x${item.amount}\n`;
+        bodyRawText.push({ text: `${colorCodes.red}${index + 1}. ${colorCodes.white}` });
+        bodyRawText.push({ translate: item.item.localizationKey });
+        bodyRawText.push({ text: ` ${colorCodes.gray}x${item.amount}\n` });
       });
       
-      bodyText += `\n${colorCodes.gray}请联系管理员设置这些物品的出售价格`;
+      bodyRawText.push({ text: `\n${colorCodes.gray}请联系管理员设置这些物品的出售价格` });
     }
 
+    // 如果所有物品都未设置价格
     if (soldItems.length === 0 && itemsWithoutPrice.length > 0) {
-      bodyText = `${colorCodes.red}═════════ 出售失败 ═════════\n`;
-      bodyText += `${colorCodes.yellow}背包中的所有物品均未设置出售价格！\n\n`;
-      bodyText += `${colorCodes.red}━━━ 物品清单 ━━━\n`;
+      // 清空之前的内容
+      bodyRawText.length = 0;
+      
+      bodyRawText.push({ text: `${colorCodes.red}═════════ 出售失败 ═════════\n` });
+      bodyRawText.push({ text: `${colorCodes.yellow}背包中的所有物品均未设置出售价格！\n\n` });
+      bodyRawText.push({ text: `${colorCodes.red}━━━ 物品清单 ━━━\n` });
       
       itemsWithoutPrice.forEach((item, index) => {
-        const itemName = item.item.typeId.replace("minecraft:", "");
-        bodyText += `${colorCodes.red}${index + 1}. ${colorCodes.white}${itemName} ${colorCodes.gray}x${item.amount}\n`;
+        bodyRawText.push({ text: `${colorCodes.red}${index + 1}. ${colorCodes.white}` });
+        bodyRawText.push({ translate: item.item.localizationKey });
+        bodyRawText.push({ text: ` ${colorCodes.gray}x${item.amount}\n` });
       });
       
-      bodyText += `\n${colorCodes.gray}请联系管理员设置物品出售价格`;
+      bodyRawText.push({ text: `\n${colorCodes.gray}请联系管理员设置物品出售价格` });
     }
 
-    form.body(bodyText);
+    const bodyMessage: RawMessage = { rawtext: bodyRawText };
+    form.body(bodyMessage);
     form.button("§a确定", "textures/icons/accept");
 
     form.show(player).then(() => {
