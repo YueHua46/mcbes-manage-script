@@ -13,6 +13,7 @@ import { isAdmin } from "../../../shared/utils/common";
 import { officeShopSettingForm } from "./office-shop-setting";
 import { openNotifyForms } from "../notify";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
+import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
 
 // ==================== 系统设置主菜单 ====================
@@ -643,7 +644,8 @@ export function openEconomyManageForm(player: Player): void {
   form.title("§w经济系统管理");
 
   form.button("§w官方商店管理", "textures/icons/shop");
-  form.button("§w物品价格管理", "textures/icons/clock");
+  form.button("§w物品出售价格管理", "textures/icons/clock");
+  form.button("§w玩家金币管理", "textures/icons/rewards");
   form.button("§w功能开关", "textures/icons/gadgets");
   form.button("§w返回", "textures/icons/back");
 
@@ -657,9 +659,12 @@ export function openEconomyManageForm(player: Player): void {
         openItemPriceManageForm(player);
         break;
       case 2:
-        openEconomyFeatureToggleForm(player);
+        openPlayerMoneyManageForm(player);
         break;
       case 3:
+        openEconomyFeatureToggleForm(player);
+        break;
+      case 4:
         openSystemSettingForm(player);
         break;
     }
@@ -699,6 +704,255 @@ function openEconomyFeatureToggleForm(player: Player): void {
           desc: color.green("功能开关已更新！"),
         },
         () => openEconomyManageForm(player)
+      );
+    }
+  });
+}
+
+// ==================== 玩家金币管理 ====================
+
+// 玩家金币管理主菜单
+function openPlayerMoneyManageForm(player: Player): void {
+  const form = new ActionFormData();
+  form.title("§w玩家金币管理");
+
+  form.button("§w设置指定玩家金币", "textures/icons/profile");
+  form.button("§w重置所有玩家金币", "textures/icons/requeue");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    switch (data.selection) {
+      case 0:
+        openSetPlayerMoneyForm(player);
+        break;
+      case 1:
+        openResetAllPlayerMoneyForm(player);
+        break;
+      case 2:
+        openEconomyManageForm(player);
+        break;
+    }
+  });
+}
+
+// 设置指定玩家金币表单
+function openSetPlayerMoneyForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("§w设置指定玩家金币");
+
+  // 获取所有在线玩家
+  const onlinePlayers = world.getAllPlayers();
+  const playerNames = onlinePlayers.map((p) => p.name);
+
+  form.dropdown("选择在线玩家", playerNames.length > 0 ? playerNames : ["无在线玩家"]);
+  form.textField("或输入玩家名称（支持离线玩家）", "玩家名称", { defaultValue: "" });
+  form.textField("设置金币数量", "金额（整数）", { defaultValue: "0" });
+  form.submitButton("确认");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const { formValues } = data;
+    if (!formValues) return;
+
+    const selectedPlayerIndex = formValues[0] as number;
+    const inputPlayerName = (formValues[1] as string)?.trim();
+    const amountStr = (formValues[2] as string)?.trim();
+
+    // 确定目标玩家名称：优先使用手动输入，否则使用选择的在线玩家
+    let targetPlayerName = "";
+    if (inputPlayerName && inputPlayerName !== "") {
+      targetPlayerName = inputPlayerName;
+    } else if (playerNames.length > 0 && selectedPlayerIndex >= 0) {
+      targetPlayerName = playerNames[selectedPlayerIndex];
+    }
+
+    if (!targetPlayerName || targetPlayerName === "") {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: color.red("请选择在线玩家或输入玩家名称！"),
+        },
+        () => openSetPlayerMoneyForm(player)
+      );
+      return;
+    }
+
+    // 验证金额
+    const amount = parseInt(amountStr);
+    if (isNaN(amount) || amount < 0) {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: color.red("请输入有效的金额（必须为大于等于0的整数）！"),
+        },
+        () => openSetPlayerMoneyForm(player)
+      );
+      return;
+    }
+
+    if (amount > Number.MAX_SAFE_INTEGER) {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: color.red(`金额过大，最大值为 ${Number.MAX_SAFE_INTEGER}！`),
+        },
+        () => openSetPlayerMoneyForm(player)
+      );
+      return;
+    }
+
+    // 检查玩家是否有钱包数据（是否进过服务器）
+    if (!economic.hasWallet(targetPlayerName)) {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: color.red(`玩家 ${color.yellow(targetPlayerName)} 从未进入过服务器，无法设置金币！\n\n只能为进入过服务器的玩家设置金币。`),
+        },
+        () => openSetPlayerMoneyForm(player)
+      );
+      return;
+    }
+
+    // 设置金币
+    const success = economic.setPlayerGold(targetPlayerName, amount);
+    if (success) {
+      // 如果目标玩家在线，通知他
+      const targetPlayer = world.getAllPlayers().find((p) => p.name === targetPlayerName);
+      if (targetPlayer) {
+        targetPlayer.sendMessage(color.yellow(`管理员将您的金币设置为 ${color.gold(amount.toString())}`));
+      }
+
+      openDialogForm(
+        player,
+        {
+          title: "设置成功",
+          desc: color.green(`已将玩家 ${color.yellow(targetPlayerName)} 的金币设置为 ${color.gold(amount.toString())}！`),
+        },
+        () => openPlayerMoneyManageForm(player)
+      );
+    } else {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: color.red("设置金币失败，请检查输入！"),
+        },
+        () => openSetPlayerMoneyForm(player)
+      );
+    }
+  });
+}
+
+// 重置所有玩家金币表单
+function openResetAllPlayerMoneyForm(player: Player): void {
+  const defaultGold = Number(setting.getState("startingGold"));
+  
+  const form = new ModalFormData();
+  form.title("§w重置所有玩家金币");
+
+  form.textField(
+    "重置金额（默认起始金币）",
+    `金额（整数，留空使用默认值 ${defaultGold}）`,
+    { defaultValue: defaultGold.toString() }
+  );
+  form.toggle("§c确认重置所有玩家金币（包括离线玩家）", { defaultValue: false });
+  form.submitButton("确认");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const { formValues } = data;
+    if (!formValues) return;
+
+    const amountStr = (formValues[0] as string)?.trim();
+    const confirmed = formValues[1] as boolean;
+
+    if (!confirmed) {
+      openDialogForm(
+        player,
+        {
+          title: "操作取消",
+          desc: color.yellow("请勾选确认选项以继续重置操作！"),
+        },
+        () => openResetAllPlayerMoneyForm(player)
+      );
+      return;
+    }
+
+    // 确定重置金额
+    let resetAmount = defaultGold;
+    if (amountStr && amountStr !== "") {
+      const parsedAmount = parseInt(amountStr);
+      if (isNaN(parsedAmount) || parsedAmount < 0) {
+        openDialogForm(
+          player,
+          {
+            title: "设置失败",
+            desc: color.red("请输入有效的金额（必须为大于等于0的整数）！"),
+          },
+          () => openResetAllPlayerMoneyForm(player)
+        );
+        return;
+      }
+      resetAmount = parsedAmount;
+    }
+
+    if (resetAmount > Number.MAX_SAFE_INTEGER) {
+      openDialogForm(
+        player,
+        {
+          title: "设置失败",
+          desc: color.red(`金额过大，最大值为 ${Number.MAX_SAFE_INTEGER}！`),
+        },
+        () => openResetAllPlayerMoneyForm(player)
+      );
+      return;
+    }
+
+    // 执行重置操作
+    try {
+      const allWallets = economic.getAllWallets();
+      let successCount = 0;
+      let failCount = 0;
+
+      allWallets.forEach((wallet) => {
+        const success = economic.setPlayerGold(wallet.name, resetAmount);
+        if (success) {
+          successCount++;
+          // 如果玩家在线，通知他
+          const targetPlayer = world.getAllPlayers().find((p) => p.name === wallet.name);
+          if (targetPlayer) {
+            targetPlayer.sendMessage(
+              color.yellow(`管理员已重置所有玩家金币，您的金币已设置为 ${color.gold(resetAmount.toString())}`)
+            );
+          }
+        } else {
+          failCount++;
+        }
+      });
+
+      openDialogForm(
+        player,
+        {
+          title: "重置完成",
+          desc: color.green(
+            `已重置 ${color.gold(successCount.toString())} 个玩家的金币为 ${color.gold(resetAmount.toString())}！${failCount > 0 ? color.red(`\n失败: ${failCount} 个`) : ""}`
+          ),
+        },
+        () => openPlayerMoneyManageForm(player)
+      );
+    } catch (error) {
+      openDialogForm(
+        player,
+        {
+          title: "重置失败",
+          desc: color.red(`重置金币时发生错误: ${(error as Error).message}`),
+        },
+        () => openResetAllPlayerMoneyForm(player)
       );
     }
   });

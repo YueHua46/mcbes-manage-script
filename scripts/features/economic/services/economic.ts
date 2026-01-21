@@ -75,6 +75,14 @@ export class Economic {
     return wallet;
   }
 
+  /**
+   * 检查玩家是否有钱包数据（不自动创建）
+   */
+  hasWallet(playerName: string): boolean {
+    const wallet = this.db.get(playerName);
+    return wallet !== undefined && wallet !== null;
+  }
+
   getWallet(playerName: string): IUserWalletWithDailyLimit {
     let wallet = this.db.get(playerName) as IUserWalletWithDailyLimit;
     if (!wallet) {
@@ -302,6 +310,12 @@ export class Economic {
   }
 
   setPlayerGold(playerName: string, amount: number): boolean {
+    // 检查玩家是否有钱包数据（是否进过服务器）
+    if (!this.hasWallet(playerName)) {
+      console.warn(`玩家 ${playerName} 没有钱包数据，可能从未进入过服务器`);
+      return false;
+    }
+
     if (isNaN(amount) || !isFinite(amount) || amount < 0) {
       console.warn(`尝试设置无效的金币数量: ${amount}`);
       return false;
