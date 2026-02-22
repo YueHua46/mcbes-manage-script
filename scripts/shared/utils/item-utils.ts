@@ -51,9 +51,3 @@ export function hasAnyEnchantment(item: ItemStack): boolean {
   }
 }
 
-/**
- * 获取物品本地化键名
- */
-export function getItemLocalizationKey(itemId: string): string {
-  return `item.${itemId.replace("minecraft:", "")}.name`;
-}

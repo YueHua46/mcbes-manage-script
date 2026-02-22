@@ -175,6 +175,26 @@ const ancient_debris = {
   },
 };
 
+const obsidian_drop = {
+  item: "obsidian",
+  xp: [0, 0],
+  probability: [1, 1],
+  support: {
+    fortune: false,
+    silk_touch: true,
+  },
+};
+
+const crying_obsidian_drop = {
+  item: "crying_obsidian",
+  xp: [0, 0],
+  probability: [1, 1],
+  support: {
+    fortune: false,
+    silk_touch: true,
+  },
+};
+
 const ore_map = {
   "minecraft:iron_ore": iron_ore,
   "minecraft:deepslate_iron_ore": iron_ore,
@@ -197,6 +217,8 @@ const ore_map = {
   "minecraft:deepslate_coal_ore": coal_ore,
   "minecraft:quartz_ore": quartz_ore,
   "minecraft:ancient_debris": ancient_debris,
+  "minecraft:obsidian": obsidian_drop,
+  "minecraft:crying_obsidian": crying_obsidian_drop,
 };
 
 // ==================== 主逻辑 ====================
@@ -323,9 +345,9 @@ async function digOre(player: Player, dimension: Dimension, location: Vector3, b
     }
   } catch (_error) {
     const error = _error as Error;
-    console.error(error.name);
-    console.error(error.message);
-    console.error(error);
+    // console.error(error.name);
+    // console.error(error.message);
+    // console.error(error);
   } finally {
     mainHand.lockMode = ItemLockMode.none;
   }

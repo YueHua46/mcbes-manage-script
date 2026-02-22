@@ -69,11 +69,19 @@ class SellItemsForm {
         const itemPrice = this.getItemPrice(item);
         const totalPrice = itemPrice * item.amount;
 
-        const lores: string[] = [
-          `${colorCodes.gold}单价: ${colorCodes.yellow}${itemPrice} 金币`,
-          `${colorCodes.gold}总价: ${colorCodes.yellow}${totalPrice} 金币`,
-          `${colorCodes.gold}数量: ${colorCodes.yellow}${item.amount}`,
-        ];
+        const lores: string[] = [];
+        
+        if (itemPrice === 0) {
+          // 价格为0，显示未设置出售价格的提示
+          lores.push(`${colorCodes.red}未设置出售价格`);
+          lores.push(`${colorCodes.gray}该物品无法出售`);
+          lores.push(`${colorCodes.gold}数量: ${colorCodes.yellow}${item.amount}`);
+        } else {
+          // 价格正常，显示价格信息
+          lores.push(`${colorCodes.gold}单价: ${colorCodes.yellow}${itemPrice} 金币`);
+          lores.push(`${colorCodes.gold}总价: ${colorCodes.yellow}${totalPrice} 金币`);
+          lores.push(`${colorCodes.gold}数量: ${colorCodes.yellow}${item.amount}`);
+        }
 
         chestForm.button(
           i,
@@ -110,6 +118,22 @@ class SellItemsForm {
       const selectedItem = container.getItem(selection);
       if (!selectedItem) {
         openDialogForm(player, { title: "错误", desc: "无法获取物品信息" }, () => this.showSellItemSelection(player));
+        return;
+      }
+
+      // 检查物品价格是否为0
+      const itemPrice = this.getItemPrice(selectedItem);
+      if (itemPrice === 0) {
+        const { ChestUIUtility } = require("../../components/chest-ui");
+        const { getItemDisplayName } = ChestUIUtility;
+        const itemNameRaw: RawMessage = {
+          rawtext: [
+            { text: `${colorCodes.red}该物品未设置出售价格，无法出售！\n${colorCodes.yellow}物品：` },
+            getItemDisplayName(selectedItem),
+            { text: `\n${colorCodes.gray}请联系管理员设置该物品的出售价格。` },
+          ],
+        };
+        openDialogForm(player, { title: "无法出售", desc: itemNameRaw }, () => this.showSellItemSelection(player));
         return;
       }
 
@@ -302,6 +326,8 @@ class SellItemsForm {
     let reachedLimit = false;
 
     const itemsToSell: { index: number; item: ItemStack; price: number; amount: number }[] = [];
+    const itemsWithoutPrice: { item: ItemStack; amount: number }[] = []; // 记录没有设置价格的物品
+    const soldItems: { item: ItemStack; soldAmount: number; price: number; totalPrice: number }[] = []; // 记录已出售的物品详情
 
     for (let i = 0; i < container.size; i++) {
       const item = container.getItem(i);
@@ -309,19 +335,33 @@ class SellItemsForm {
         const itemPrice = this.getItemPrice(item);
         const sellPrice = itemPrice * item.amount;
 
-        itemsToSell.push({
-          index: i,
-          item: item,
-          price: itemPrice,
-          amount: item.amount,
-        });
+        if (itemPrice > 0) {
+          // 只添加有价格的物品到出售列表
+          itemsToSell.push({
+            index: i,
+            item: item,
+            price: itemPrice,
+            amount: item.amount,
+          });
+        } else {
+          // 记录没有价格的物品
+          itemsWithoutPrice.push({
+            item: item,
+            amount: item.amount,
+          });
+        }
       }
     }
 
     if (itemsToSell.length === 0) {
-      openDialogForm(player, { title: "出售失败", desc: "背包中没有可出售的物品" }, () =>
-        this.openSellItemsMenu(player)
-      );
+      // 如果有物品但都没有价格，显示详细列表
+      if (itemsWithoutPrice.length > 0) {
+        this.showSellAllResultForm(player, [], itemsWithoutPrice, 0, false);
+      } else {
+        openDialogForm(player, { title: "出售失败", desc: "背包中没有可出售的物品" }, () =>
+          this.openSellItemsMenu(player)
+        );
+      }
       return;
     }
 
@@ -344,6 +384,14 @@ class SellItemsForm {
       itemsSold += maxSellAmount;
       remainingGoldLimit -= sellPrice;
 
+      // 记录出售详情
+      soldItems.push({
+        item: itemData.item,
+        soldAmount: maxSellAmount,
+        price: itemData.price,
+        totalPrice: sellPrice,
+      });
+
       if (maxSellAmount === itemData.amount) {
         container.setItem(itemData.index);
       } else {
@@ -356,31 +404,92 @@ class SellItemsForm {
 
     if (totalEarnings > 0) {
       economic.addGold(player.name, totalEarnings, `一键出售物品`);
-
-      if (reachedLimit) {
-        openDialogForm(
-          player,
-          {
-            title: "出售成功",
-            desc: `${colorCodes.green}成功出售 ${colorCodes.yellow}${itemsSold} ${colorCodes.green}个物品，获得: ${colorCodes.gold}${totalEarnings} ${colorCodes.yellow}金币\n${colorCodes.red}您已达到今日金币获取上限，只出售了部分物品！`,
-          },
-          () => this.openSellItemsMenu(player)
-        );
-      } else {
-        openDialogForm(
-          player,
-          {
-            title: "出售成功",
-            desc: `${colorCodes.green}成功出售 ${colorCodes.yellow}${itemsSold} ${colorCodes.green}个物品，获得: ${colorCodes.gold}${totalEarnings} ${colorCodes.yellow}金币`,
-          },
-          () => this.openSellItemsMenu(player)
-        );
-      }
+      
+      // 显示详细的出售结果
+      this.showSellAllResultForm(player, soldItems, itemsWithoutPrice, totalEarnings, reachedLimit);
     } else {
       openDialogForm(player, { title: "出售失败", desc: "背包中没有可出售的物品或您已达到今日金币获取上限" }, () =>
         this.openSellItemsMenu(player)
       );
     }
+  }
+
+  /**
+   * 显示一键出售的详细结果
+   */
+  private showSellAllResultForm(
+    player: Player,
+    soldItems: { item: ItemStack; soldAmount: number; price: number; totalPrice: number }[],
+    itemsWithoutPrice: { item: ItemStack; amount: number }[],
+    totalEarnings: number,
+    reachedLimit: boolean
+  ): void {
+    const form = new ActionFormData();
+    form.title("§w一键出售结果");
+
+    // 构建 RawMessage 格式的详细信息
+    const bodyRawText: any[] = [];
+
+    // 总结信息
+    if (soldItems.length > 0) {
+      bodyRawText.push({ text: `${colorCodes.green}═════════ 出售成功 ═════════\n` });
+      bodyRawText.push({ text: `${colorCodes.gold}总收入: ${colorCodes.yellow}${totalEarnings} 金币\n` });
+      bodyRawText.push({ text: `${colorCodes.gold}出售种类: ${colorCodes.yellow}${soldItems.length} 种物品\n\n` });
+
+      if (reachedLimit) {
+        bodyRawText.push({ text: `${colorCodes.red}⚠ 已达今日金币获取上限\n\n` });
+      }
+
+      // 已出售物品清单
+      bodyRawText.push({ text: `${colorCodes.green}━━━ 已出售物品清单 ━━━\n` });
+      soldItems.forEach((soldItem, index) => {
+        bodyRawText.push({ text: `${colorCodes.yellow}${index + 1}. ${colorCodes.white}` });
+        bodyRawText.push({ translate: soldItem.item.localizationKey });
+        bodyRawText.push({ 
+          text: `\n   ${colorCodes.gray}数量: ${soldItem.soldAmount} | 单价: ${soldItem.price} | 获得: ${colorCodes.gold}${soldItem.totalPrice}\n` 
+        });
+      });
+    }
+
+    // 未出售物品清单
+    if (itemsWithoutPrice.length > 0) {
+      bodyRawText.push({ text: `\n${colorCodes.red}━━━ 未出售物品清单 ━━━\n` });
+      bodyRawText.push({ text: `${colorCodes.yellow}以下物品因未设置出售价格而未出售:\n\n` });
+      
+      itemsWithoutPrice.forEach((item, index) => {
+        bodyRawText.push({ text: `${colorCodes.red}${index + 1}. ${colorCodes.white}` });
+        bodyRawText.push({ translate: item.item.localizationKey });
+        bodyRawText.push({ text: ` ${colorCodes.gray}x${item.amount}\n` });
+      });
+      
+      bodyRawText.push({ text: `\n${colorCodes.gray}请联系管理员设置这些物品的出售价格` });
+    }
+
+    // 如果所有物品都未设置价格
+    if (soldItems.length === 0 && itemsWithoutPrice.length > 0) {
+      // 清空之前的内容
+      bodyRawText.length = 0;
+      
+      bodyRawText.push({ text: `${colorCodes.red}═════════ 出售失败 ═════════\n` });
+      bodyRawText.push({ text: `${colorCodes.yellow}背包中的所有物品均未设置出售价格！\n\n` });
+      bodyRawText.push({ text: `${colorCodes.red}━━━ 物品清单 ━━━\n` });
+      
+      itemsWithoutPrice.forEach((item, index) => {
+        bodyRawText.push({ text: `${colorCodes.red}${index + 1}. ${colorCodes.white}` });
+        bodyRawText.push({ translate: item.item.localizationKey });
+        bodyRawText.push({ text: ` ${colorCodes.gray}x${item.amount}\n` });
+      });
+      
+      bodyRawText.push({ text: `\n${colorCodes.gray}请联系管理员设置物品出售价格` });
+    }
+
+    const bodyMessage: RawMessage = { rawtext: bodyRawText };
+    form.body(bodyMessage);
+    form.button("§a确定", "textures/icons/accept");
+
+    form.show(player).then(() => {
+      this.openSellItemsMenu(player);
+    });
   }
 
   /**

@@ -33,8 +33,8 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
   );
 
   form.button(data.pvpEnabled ? "§c关闭PVP" : "§a开启PVP", "textures/icons/sword");
-  form.button("§w查看详细统计", "textures/icons/book");
-  form.button("§w排行榜", "textures/icons/clock");
+  form.button("§w查看详细统计", "textures/icons/quest_daily_common");
+  form.button("§w排行榜", "textures/icons/winner");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((response) => {
@@ -109,8 +109,8 @@ function openPvpLeaderboardMenu(player: Player): void {
   const form = new ActionFormData();
   form.title("§wPVP排行榜");
 
-  form.button("§w击杀排行榜", "textures/icons/sword");
-  form.button("§w最佳连杀排行榜", "textures/icons/fire");
+  form.button("§w击杀排行榜", "textures/icons/game_survival_games");
+  form.button("§w最佳连杀排行榜", "textures/icons/kilic");
   form.button("§w夺取金币排行榜", "textures/icons/clock");
   form.button("§w返回", "textures/icons/back");
 
@@ -166,7 +166,7 @@ function openPvpLeaderboardForm(player: Player, type: "kills" | "killStreak" | "
   } else {
     leaderboard.forEach((entry, index) => {
       const rank = index + 1;
-      const medal = rank === 1 ? "§6🥇" : rank === 2 ? "§f🥈" : rank === 3 ? "§c🥉" : `§7#${rank}`;
+      const medal = rank === 1 ? "§6 1" : rank === 2 ? "§f 2" : rank === 3 ? "§c 3" : `§7#${rank}`;
       bodyText += `${medal} §e${entry.name}§f - §a${entry.value} §7${valueName}\n`;
     });
 

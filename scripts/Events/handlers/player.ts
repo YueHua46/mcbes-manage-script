@@ -15,7 +15,6 @@ export function registerPlayerEvents(): void {
   // 玩家欢迎事件（首次加入）
   world.afterEvents.playerSpawn.subscribe(async (event) => {
     const { player } = event;
-    let serverName: string = (world.getDynamicProperty("serverName") as string) || "服务器";
 
     const isJoin = player.getDynamicProperty("join") as boolean;
     if (isJoin) return;
@@ -29,20 +28,20 @@ export function registerPlayerEvents(): void {
       const left = `${welcomeGlyphs[1]}${welcomeGlyphs[8]}${welcomeGlyphs[6]}${welcomeGlyphs[7]}${welcomeGlyphs[4]}${welcomeGlyphs[2]}`;
       const right = `${welcomeGlyphs[3]}${welcomeGlyphs[4]}${welcomeGlyphs[7]}${welcomeGlyphs[6]}${welcomeGlyphs[8]}${welcomeGlyphs[0]}`;
       const fox = `${welcomeFoxGlyphs[0]}`;
+      const serverName = (setting.getState("serverName") as string) || "服务器";
 
       player.runCommand(
         `titleraw @s subtitle {"rawtext":[{"text":"${fox}\\n\\n${left} §d欢迎来到 ${right}\\n§s${serverName}"}]}`
       );
       player.playSound("yuehua.welcome");
 
-      const sendMessageRaw: RawMessage = {
-        rawtext: [
-          { text: "§a欢迎使用杜绝熊孩服务器插件~\n" },
-          { text: "§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\n" },
-          { text: "§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限\n" },
-        ],
-      };
-      player.sendMessage(sendMessageRaw);
+      // 获取自定义的欢迎消息并处理换行符
+      const welcomeMessageRaw = (setting.getState("welcomeMessage") as string) || "";
+      const welcomeMessage = welcomeMessageRaw.replace(/\\n/g, "\n");
+      
+      if (welcomeMessage) {
+        player.sendMessage(welcomeMessage);
+      }
     });
   });
 

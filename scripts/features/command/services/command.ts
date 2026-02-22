@@ -14,6 +14,8 @@ import {
   CustomCommandOrigin,
   CustomCommandResult,
   CustomCommandStatus,
+  EntityEquippableComponent,
+  EquipmentSlot,
 } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { isAdmin, SystemLog } from "../../../shared/utils/common";
@@ -140,10 +142,10 @@ system.beforeEvents.startup.subscribe((init) => {
   };
   registry.registerCommand(serverinfoCommand, handleServerInfoCommand);
 
-  // 10. 注册 money_setting 指令 (金币管理)
+  // 10. 注册 money_setting 指令 (金币管理) - 使用玩家选择器
   const moneySettingCommand: CustomCommand = {
     name: "yuehua:money_setting",
-    description: "金币管理(仅管理员或命令方块) - 用法: add|remove|set <玩家名> <金额>",
+    description: "金币管理(仅管理员或命令方块) - 用法: add|remove|set <玩家选择器> <金额>",
     permissionLevel: CommandPermissionLevel.GameDirectors,
     mandatoryParameters: [
       { type: CustomCommandParamType.String, name: "操作(add/remove/set)" },
@@ -152,6 +154,19 @@ system.beforeEvents.startup.subscribe((init) => {
     ],
   };
   registry.registerCommand(moneySettingCommand, handleMoneySettingCommand);
+
+  // 10.1 注册 money_setting_offline 指令 (支持离线玩家)
+  const moneySettingOfflineCommand: CustomCommand = {
+    name: "yuehua:money_setting_offline",
+    description: "金币管理(支持离线玩家) - 用法: add|remove|set <玩家名> <金额>",
+    permissionLevel: CommandPermissionLevel.GameDirectors,
+    mandatoryParameters: [
+      { type: CustomCommandParamType.String, name: "操作(add/remove/set)" },
+      { type: CustomCommandParamType.String, name: "玩家名" },
+      { type: CustomCommandParamType.Integer, name: "金额" },
+    ],
+  };
+  registry.registerCommand(moneySettingOfflineCommand, handleMoneySettingOfflineCommand);
 
   // 11. 注册 give_me_menu 指令
   const giveMenuCommand: CustomCommand = {
@@ -173,6 +188,15 @@ system.beforeEvents.startup.subscribe((init) => {
     ],
   };
   registry.registerCommand(cameraCommand, handleCameraCommand);
+
+  // 13. 注册 get_item_typeid 指令 (获取手持或背包物品ID)
+  const getItemTypeIdCommand: CustomCommand = {
+    name: "yuehua:get_item_typeid",
+    description: "获取手持物品或背包所有物品的 typeId - 用法: 无参数=手持物品, all=背包全部物品",
+    permissionLevel: CommandPermissionLevel.Any,
+    optionalParameters: [{ type: CustomCommandParamType.String, name: "hand(手持)|all(背包全部)" }],
+  };
+  registry.registerCommand(getItemTypeIdCommand, handleGetItemTypeIdCommand);
 
   commandsRegistered = true;
   console.warn("所有自定义指令已通过官方 API 注册完成");
@@ -838,7 +862,7 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
       const netherItems = world.getDimension("nether").getEntities({ type: "item" }).length;
       const endItems = world.getDimension("the_end").getEntities({ type: "item" }).length;
 
-      const serverName = (world.getDynamicProperty("serverName") as string) || "未设置";
+      const serverName = (setting.getState("serverName") as string) || "未设置";
       const timeOfDay = world.getTimeOfDay();
       const day = Math.floor(world.getDay());
 
@@ -893,7 +917,6 @@ function handleMoneySettingCommand(
   targetPlayers: Player[],
   amount: number
 ): CustomCommandResult {
-  SystemLog.info(`targetPlayers: ${JSON.stringify(targetPlayers.map((p) => p.name))}`);
   const entity = origin.sourceEntity;
   // 如果是玩家
   if (entity instanceof Player) {
@@ -1020,20 +1043,20 @@ function handleMoneySettingCommand(
     const block = origin.sourceBlock;
     try {
       if (!Array.isArray(targetPlayers) || targetPlayers.length === 0) {
-        SystemLog.error("命令方块执行金币管理指令时未指定目标玩家。");
+        // SystemLog.error("命令方块执行金币管理指令时未指定目标玩家。");
         return { status: CustomCommandStatus.Failure, message: "未指定目标玩家" };
       }
-      SystemLog.info(
-        `命令方块 ${block.location.x},${block.location.y},${block.location.z} 执行了金币管理指令: ${operation} 目标玩家: ${targetPlayers.map((p) => p.name).join(", ")} 金额: ${amount}`
-      );
+      // SystemLog.info(
+      //   `命令方块 ${block.location.x},${block.location.y},${block.location.z} 执行了金币管理指令: ${operation} 目标玩家: ${targetPlayers.map((p) => p.name).join(", ")} 金额: ${amount}`
+      // );
       if (isNaN(amount) || amount <= 0) {
-        SystemLog.error("请输入有效的金额 (必须大于0)。");
+        // SystemLog.error("请输入有效的金额 (必须大于0)。");
         return { status: CustomCommandStatus.Failure, message: "请输入有效的金额 (必须大于0)" };
       }
 
       const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
       if (amount > MAX_SAFE_INTEGER) {
-        SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
+        // SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
         return { status: CustomCommandStatus.Failure, message: `金额过大，最大值为 ${MAX_SAFE_INTEGER}` };
       }
 
@@ -1047,17 +1070,17 @@ function handleMoneySettingCommand(
           case "add": {
             const addedAmount = economic.addGold(targetPlayer.name, amount, "管理员添加", true);
             if (addedAmount > 0) {
-              SystemLog.info(
-                `成功为玩家 ${color.yellow(targetPlayer.name)} 添加 ${color.gold(amount.toString())} 金币。`
-              );
-              SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
+              // SystemLog.info(
+              //   `成功为玩家 ${color.yellow(targetPlayer.name)} 添加 ${color.gold(amount.toString())} 金币。`
+              // );
+              // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
 
               targetPlayer.sendMessage(
                 color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${wallet.gold + amount}`)
               );
               successCount++;
             } else {
-              SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 添加金币失败。`);
+              // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 添加金币失败。`);
               failCount++;
             }
             break;
@@ -1065,22 +1088,22 @@ function handleMoneySettingCommand(
           case "remove": {
             const currentBalance = wallet.gold;
             if (currentBalance < amount) {
-              SystemLog.error(`玩家 ${targetPlayer.name} 的余额不足。当前余额: ${currentBalance}，需要扣除: ${amount}`);
+              // SystemLog.error(`玩家 ${targetPlayer.name} 的余额不足。当前余额: ${currentBalance}，需要扣除: ${amount}`);
               failCount++;
               break;
             }
 
             const removeSuccess = economic.removeGold(targetPlayer.name, amount, "管理员扣除");
             if (removeSuccess) {
-              SystemLog.info(
-                `成功为玩家 ${color.yellow(targetPlayer.name)} 扣除 ${color.gold(amount.toString())} 金币。`
-              );
-              SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
+              // SystemLog.info(
+              //   `成功为玩家 ${color.yellow(targetPlayer.name)} 扣除 ${color.gold(amount.toString())} 金币。`
+              // );
+              // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
 
               targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${wallet.gold - amount}`));
               successCount++;
             } else {
-              SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 扣除金币失败。`);
+              // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 扣除金币失败。`);
               failCount++;
             }
             break;
@@ -1089,29 +1112,282 @@ function handleMoneySettingCommand(
             const oldBalance = wallet.gold;
             const setSuccess = economic.setPlayerGold(targetPlayer.name, amount);
             if (setSuccess) {
-              SystemLog.info(`成功将玩家 ${color.yellow(targetPlayer.name)} 的金币设置为 ${amount}。`);
-              SystemLog.info(`当前余额: ${wallet.gold} → ${amount}`);
+              // SystemLog.info(`成功将玩家 ${color.yellow(targetPlayer.name)} 的金币设置为 ${amount}。`);
+              // SystemLog.info(`当前余额: ${wallet.gold} → ${amount}`);
 
               targetPlayer.sendMessage(color.yellow(`管理员将您的金币设置为 ${amount}`));
               successCount++;
             } else {
-              SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 设置金币失败。`);
+              // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 设置金币失败。`);
               failCount++;
             }
             break;
           }
           default:
-            SystemLog.error("未知操作。可用操作: add, remove, set");
+            // SystemLog.error("未知操作。可用操作: add, remove, set");
             return { status: CustomCommandStatus.Failure, message: "未知操作。可用操作: add, remove, set" };
         }
       }
       // 可以输出批量结果，如果需要
     } catch (error) {
-      SystemLog.error(`金币管理指令执行失败: ${(error as Error).message}`);
+      // SystemLog.error(`金币管理指令执行失败: ${(error as Error).message}`);
       return { status: CustomCommandStatus.Failure, message: `金币管理指令执行失败: ${(error as Error).message}` };
     }
   } else {
-    SystemLog.error("金币管理指令执行失败: 未知来源");
+    // SystemLog.error("金币管理指令执行失败: 未知来源");
+    return { status: CustomCommandStatus.Failure, message: "金币管理指令执行失败: 未知来源" };
+  }
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleMoneySettingOfflineCommand(
+  origin: CustomCommandOrigin,
+  operation: string,
+  targetPlayerName: string,
+  amount: number
+): CustomCommandResult {
+  const entity = origin.sourceEntity;
+  
+  // 如果是玩家
+  if (entity instanceof Player) {
+    const player = entity;
+    system.run(async () => {
+      try {
+        if (!isAdmin(player)) {
+          player.sendMessage(color.red("只有管理员可以使用此指令。"));
+          return;
+        }
+
+        if (!targetPlayerName || targetPlayerName.trim() === "") {
+          player.sendMessage(color.red("请指定目标玩家名称。"));
+          return;
+        }
+
+        if (isNaN(amount) || amount < 0) {
+          player.sendMessage(color.red("请输入有效的金额 (必须大于等于0)。"));
+          return;
+        }
+
+        const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+        if (amount > MAX_SAFE_INTEGER) {
+          player.sendMessage(color.red(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`));
+          return;
+        }
+
+        // 检查玩家是否有钱包数据（是否进过服务器）
+        if (!economic.hasWallet(targetPlayerName)) {
+          player.sendMessage(
+            color.red(`玩家 ${color.yellow(targetPlayerName)} 从未进入过服务器，无法操作金币！`)
+          );
+          player.sendMessage(color.gray("提示：只能为进入过服务器的玩家操作金币。"));
+          return;
+        }
+
+        const op = operation.toLowerCase();
+        
+        // 尝试查找在线玩家以发送通知
+        const targetPlayer = usePlayerByName(targetPlayerName);
+        const wallet = economic.getWallet(targetPlayerName);
+
+        switch (op) {
+          case "add": {
+            if (amount <= 0) {
+              player.sendMessage(color.red("添加金币数量必须大于0。"));
+              return;
+            }
+            const addedAmount = economic.addGold(targetPlayerName, amount, "管理员添加", true);
+            if (addedAmount > 0) {
+              player.sendMessage(
+                color.green(
+                  `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
+                )
+              );
+              player.sendMessage(
+                color.gray(
+                  `当前余额: ${color.gold(wallet.gold.toString())} → ${color.gold((wallet.gold + amount).toString())}`
+                )
+              );
+              if (targetPlayer) {
+                targetPlayer.sendMessage(
+                  color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${wallet.gold + amount}`)
+                );
+              }
+            } else {
+              player.sendMessage(color.red(`为玩家 ${color.yellow(targetPlayerName)} 添加金币失败。`));
+            }
+            break;
+          }
+          case "remove": {
+            if (amount <= 0) {
+              player.sendMessage(color.red("扣除金币数量必须大于0。"));
+              return;
+            }
+            const currentBalance = wallet.gold;
+            if (currentBalance < amount) {
+              player.sendMessage(
+                color.red(
+                  `玩家 ${color.yellow(targetPlayerName)} 的余额不足。当前余额: ${color.gold(currentBalance.toString())}，需要扣除: ${color.gold(amount.toString())}`
+                )
+              );
+              break;
+            }
+
+            const removeSuccess = economic.removeGold(targetPlayerName, amount, "管理员扣除");
+            if (removeSuccess) {
+              player.sendMessage(
+                color.green(
+                  `成功为玩家 ${color.yellow(targetPlayerName)} 扣除 ${color.gold(amount.toString())} 金币。`
+                )
+              );
+
+              if (targetPlayer) {
+                targetPlayer.sendMessage(
+                  color.red(
+                    `管理员扣除了您 ${color.gold(amount.toString())} 金币，当前余额: ${color.gold((currentBalance - amount).toString())}`
+                  )
+                );
+              }
+            } else {
+              player.sendMessage(color.red(`为玩家 ${color.yellow(targetPlayerName)} 扣除金币失败。`));
+            }
+            break;
+          }
+          case "set": {
+            const oldBalance = wallet.gold;
+            const setSuccess = economic.setPlayerGold(targetPlayerName, amount);
+            if (setSuccess) {
+              player.sendMessage(
+                color.green(
+                  `成功将玩家 ${color.yellow(targetPlayerName)} 的金币设置为 ${color.gold(amount.toString())}。`
+                )
+              );
+              if (targetPlayer) {
+                targetPlayer.sendMessage(color.yellow(`管理员将您的金币设置为 ${color.gold(amount.toString())}`));
+              }
+            } else {
+              player.sendMessage(color.red(`为玩家 ${color.yellow(targetPlayerName)} 设置金币失败。`));
+            }
+            break;
+          }
+          default:
+            player.sendMessage(color.yellow("未知操作。可用操作: add, remove, set"));
+            break;
+        }
+      } catch (error) {
+        player.sendMessage(color.red(`操作失败: ${(error as Error).message}`));
+      }
+    });
+  } else if (origin.sourceBlock) {
+    // 命令方块执行
+    const block = origin.sourceBlock;
+    try {
+      if (!targetPlayerName || targetPlayerName.trim() === "") {
+        // SystemLog.error("命令方块执行金币管理指令时未指定目标玩家。");
+        return { status: CustomCommandStatus.Failure, message: "未指定目标玩家" };
+      }
+      
+      // SystemLog.info(
+      //   `命令方块 ${block.location.x},${block.location.y},${block.location.z} 执行了金币管理指令: ${operation} 目标玩家: ${targetPlayerName} 金额: ${amount}`
+      // );
+      
+      if (isNaN(amount) || amount < 0) {
+        // SystemLog.error("请输入有效的金额 (必须大于等于0)。");
+        return { status: CustomCommandStatus.Failure, message: "请输入有效的金额 (必须大于等于0)" };
+      }
+
+      const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+      if (amount > MAX_SAFE_INTEGER) {
+        // SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
+        return { status: CustomCommandStatus.Failure, message: `金额过大，最大值为 ${MAX_SAFE_INTEGER}` };
+      }
+
+      // 检查玩家是否有钱包数据（是否进过服务器）
+      if (!economic.hasWallet(targetPlayerName)) {
+        // SystemLog.error(`玩家 ${targetPlayerName} 从未进入过服务器，无法操作金币`);
+        return { status: CustomCommandStatus.Failure, message: "玩家从未进入过服务器" };
+      }
+
+      const op = operation.toLowerCase();
+      const targetPlayer = usePlayerByName(targetPlayerName);
+      const wallet = economic.getWallet(targetPlayerName);
+
+      switch (op) {
+        case "add": {
+          if (amount <= 0) {
+            // SystemLog.error("添加金币数量必须大于0。");
+            return { status: CustomCommandStatus.Failure, message: "添加金币数量必须大于0" };
+          }
+          const addedAmount = economic.addGold(targetPlayerName, amount, "管理员添加", true);
+          if (addedAmount > 0) {
+            // SystemLog.info(
+            //   `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
+            // );
+            // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
+
+            if (targetPlayer) {
+              targetPlayer.sendMessage(
+                color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${wallet.gold + amount}`)
+              );
+            }
+          } else {
+            // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 添加金币失败。`);
+            return { status: CustomCommandStatus.Failure, message: "添加金币失败" };
+          }
+          break;
+        }
+        case "remove": {
+          if (amount <= 0) {
+            // SystemLog.error("扣除金币数量必须大于0。");
+            return { status: CustomCommandStatus.Failure, message: "扣除金币数量必须大于0" };
+          }
+          const currentBalance = wallet.gold;
+          if (currentBalance < amount) {
+            // SystemLog.error(`玩家 ${targetPlayerName} 的余额不足。当前余额: ${currentBalance}，需要扣除: ${amount}`);
+            return { status: CustomCommandStatus.Failure, message: "玩家余额不足" };
+          }
+
+          const removeSuccess = economic.removeGold(targetPlayerName, amount, "管理员扣除");
+          if (removeSuccess) {
+            // SystemLog.info(
+            //   `成功为玩家 ${color.yellow(targetPlayerName)} 扣除 ${color.gold(amount.toString())} 金币。`
+            // );
+            // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
+
+            if (targetPlayer) {
+              targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${wallet.gold - amount}`));
+            }
+          } else {
+            // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 扣除金币失败。`);
+            return { status: CustomCommandStatus.Failure, message: "扣除金币失败" };
+          }
+          break;
+        }
+        case "set": {
+          const oldBalance = wallet.gold;
+          const setSuccess = economic.setPlayerGold(targetPlayerName, amount);
+          if (setSuccess) {
+            // SystemLog.info(`成功将玩家 ${color.yellow(targetPlayerName)} 的金币设置为 ${amount}。`);
+            // SystemLog.info(`当前余额: ${wallet.gold} → ${amount}`);
+
+            if (targetPlayer) {
+              targetPlayer.sendMessage(color.yellow(`管理员将您的金币设置为 ${amount}`));
+            }
+          } else {
+            // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 设置金币失败。`);
+            return { status: CustomCommandStatus.Failure, message: "设置金币失败" };
+          }
+          break;
+        }
+        default:
+          // SystemLog.error("未知操作。可用操作: add, remove, set");
+          return { status: CustomCommandStatus.Failure, message: "未知操作。可用操作: add, remove, set" };
+      }
+    } catch (error) {
+      // SystemLog.error(`金币管理指令执行失败: ${(error as Error).message}`);
+      return { status: CustomCommandStatus.Failure, message: `金币管理指令执行失败: ${(error as Error).message}` };
+    }
+  } else {
+    // SystemLog.error("金币管理指令执行失败: 未知来源");
     return { status: CustomCommandStatus.Failure, message: "金币管理指令执行失败: 未知来源" };
   }
   return { status: CustomCommandStatus.Success };
@@ -1127,6 +1403,66 @@ function handleGiveMenuCommand(origin: CustomCommandOrigin): CustomCommandResult
       player.sendMessage(color.green("已为您发放服务器菜单！"));
     } catch (error) {
       player.sendMessage(color.red(`获取菜单失败: ${(error as Error).message}`));
+    }
+  });
+
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleGetItemTypeIdCommand(origin: CustomCommandOrigin, mode?: string): CustomCommandResult {
+  const player = origin.sourceEntity as Player;
+  if (!player) return { status: CustomCommandStatus.Failure };
+
+  system.run(() => {
+    try {
+      const showAll = mode?.toLowerCase() === "all" || mode?.toLowerCase() === "inventory";
+
+      if (showAll) {
+        // 获取背包所有物品
+        const container = player.getComponent("inventory")?.container;
+        if (!container) {
+          player.sendMessage(color.red("无法获取背包容器。"));
+          return;
+        }
+
+        const itemMap = new Map<string, number>();
+        for (let i = 0; i < container.size; i++) {
+          const item = container.getItem(i);
+          if (item && item.typeId) {
+            const count = itemMap.get(item.typeId) ?? 0;
+            itemMap.set(item.typeId, count + item.amount);
+          }
+        }
+
+        if (itemMap.size === 0) {
+          player.sendMessage(color.yellow("背包为空，没有任何物品。"));
+          return;
+        }
+
+        player.sendMessage(color.green("=== 背包物品 typeId 列表 ==="));
+        for (const [typeId, amount] of itemMap.entries()) {
+          player.sendMessage(`${color.aqua(typeId)} ${color.gray(`x${amount}`)}`);
+        }
+      } else {
+        // 获取手持物品
+        const equippable = player.getComponent(EntityEquippableComponent.componentId) as EntityEquippableComponent;
+        if (!equippable) {
+          player.sendMessage(color.red("无法获取装备组件。"));
+          return;
+        }
+
+        const mainHand = equippable.getEquipmentSlot(EquipmentSlot.Mainhand);
+        const item = mainHand?.getItem();
+
+        if (!item || !item.typeId) {
+          player.sendMessage(color.yellow("当前手中没有物品。"));
+          return;
+        }
+
+        player.sendMessage(color.green(`手持物品 typeId: ${color.aqua(item.typeId)}`));
+      }
+    } catch (error) {
+      player.sendMessage(color.red(`获取物品ID失败: ${(error as Error).message}`));
     }
   });
 
