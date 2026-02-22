@@ -14,6 +14,8 @@ import {
   CustomCommandOrigin,
   CustomCommandResult,
   CustomCommandStatus,
+  EntityEquippableComponent,
+  EquipmentSlot,
 } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { isAdmin, SystemLog } from "../../../shared/utils/common";
@@ -186,6 +188,15 @@ system.beforeEvents.startup.subscribe((init) => {
     ],
   };
   registry.registerCommand(cameraCommand, handleCameraCommand);
+
+  // 13. 注册 get_item_typeid 指令 (获取手持或背包物品ID)
+  const getItemTypeIdCommand: CustomCommand = {
+    name: "yuehua:get_item_typeid",
+    description: "获取手持物品或背包所有物品的 typeId - 用法: 无参数=手持物品, all=背包全部物品",
+    permissionLevel: CommandPermissionLevel.Any,
+    optionalParameters: [{ type: CustomCommandParamType.String, name: "hand(手持)|all(背包全部)" }],
+  };
+  registry.registerCommand(getItemTypeIdCommand, handleGetItemTypeIdCommand);
 
   commandsRegistered = true;
   console.warn("所有自定义指令已通过官方 API 注册完成");
@@ -1392,6 +1403,66 @@ function handleGiveMenuCommand(origin: CustomCommandOrigin): CustomCommandResult
       player.sendMessage(color.green("已为您发放服务器菜单！"));
     } catch (error) {
       player.sendMessage(color.red(`获取菜单失败: ${(error as Error).message}`));
+    }
+  });
+
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleGetItemTypeIdCommand(origin: CustomCommandOrigin, mode?: string): CustomCommandResult {
+  const player = origin.sourceEntity as Player;
+  if (!player) return { status: CustomCommandStatus.Failure };
+
+  system.run(() => {
+    try {
+      const showAll = mode?.toLowerCase() === "all" || mode?.toLowerCase() === "inventory";
+
+      if (showAll) {
+        // 获取背包所有物品
+        const container = player.getComponent("inventory")?.container;
+        if (!container) {
+          player.sendMessage(color.red("无法获取背包容器。"));
+          return;
+        }
+
+        const itemMap = new Map<string, number>();
+        for (let i = 0; i < container.size; i++) {
+          const item = container.getItem(i);
+          if (item && item.typeId) {
+            const count = itemMap.get(item.typeId) ?? 0;
+            itemMap.set(item.typeId, count + item.amount);
+          }
+        }
+
+        if (itemMap.size === 0) {
+          player.sendMessage(color.yellow("背包为空，没有任何物品。"));
+          return;
+        }
+
+        player.sendMessage(color.green("=== 背包物品 typeId 列表 ==="));
+        for (const [typeId, amount] of itemMap.entries()) {
+          player.sendMessage(`${color.aqua(typeId)} ${color.gray(`x${amount}`)}`);
+        }
+      } else {
+        // 获取手持物品
+        const equippable = player.getComponent(EntityEquippableComponent.componentId) as EntityEquippableComponent;
+        if (!equippable) {
+          player.sendMessage(color.red("无法获取装备组件。"));
+          return;
+        }
+
+        const mainHand = equippable.getEquipmentSlot(EquipmentSlot.Mainhand);
+        const item = mainHand?.getItem();
+
+        if (!item || !item.typeId) {
+          player.sendMessage(color.yellow("当前手中没有物品。"));
+          return;
+        }
+
+        player.sendMessage(color.green(`手持物品 typeId: ${color.aqua(item.typeId)}`));
+      }
+    } catch (error) {
+      player.sendMessage(color.red(`获取物品ID失败: ${(error as Error).message}`));
     }
   });
 
