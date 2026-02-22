@@ -2,7 +2,7 @@
  * PVP事件处理器
  */
 
-import { world, system, Player } from "@minecraft/server";
+import { world, system, Player, EntityDamageCause } from "@minecraft/server";
 import { eventRegistry } from "../registry";
 import pvpManager from "../../features/pvp/services/pvp-manager";
 import effectManager from "../../features/pvp/services/effect-manager";
@@ -14,6 +14,11 @@ import { useNotify } from "../../shared/hooks";
 
 // 用于跟踪玩家的战斗状态（用于触发进入战斗特效）
 const playerCombatStatus = new Map<string, boolean>();
+
+// PVP 火焰来源追踪：受害玩家 ID → 被玩家攻击的时间戳
+// 用于拦截 fireTick（damagingEntity 为空）造成的持续燃烧伤害
+const pvpFireSourceMap = new Map<string, number>();
+const PVP_FIRE_SOURCE_TIMEOUT_MS = 15_000;
 
 /**
  * 检查是否可以PVP并返回详细原因
@@ -75,16 +80,42 @@ export function registerPvpEvents(): void {
 
   /**
    * 处理实体受伤事件（PVP核心逻辑）
+   *
+   * 覆盖两类场景：
+   *   情形一：damagingEntity 为玩家的直接攻击（entityAttack / fire / fireTick）
+   *   情形二：fire/fireTick 且 damagingEntity 为空 —— 查 pvpFireSourceMap 兜底拦截
    */
   world.beforeEvents.entityHurt.subscribe((event) => {
     const { hurtEntity, damageSource } = event;
+    const cause = damageSource.cause;
 
-    // 只处理玩家攻击玩家
+    // 只处理玩家受伤
     if (hurtEntity.typeId !== "minecraft:player") return;
+
+    const victim = hurtEntity as Player;
+    const isFireDamage =
+      cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick;
+
+    // ===== 情形二：fire/fireTick 且无 damagingEntity（fireTick 兜底）=====
+    if (isFireDamage && !damageSource.damagingEntity) {
+      const fireTs = pvpFireSourceMap.get(victim.id);
+      if (fireTs && Date.now() - fireTs < PVP_FIRE_SOURCE_TIMEOUT_MS) {
+        event.cancel = true;
+        system.run(() => {
+          try {
+            victim.extinguishFire(true);
+          } catch (_) {}
+        });
+      } else {
+        pvpFireSourceMap.delete(victim.id);
+      }
+      return;
+    }
+
+    // ===== 情形一：伤害来源明确是另一位玩家 =====
     if (damageSource.damagingEntity?.typeId !== "minecraft:player") return;
 
     const attacker = damageSource.damagingEntity as Player;
-    const victim = hurtEntity as Player;
 
     // 防止自己攻击自己
     if (attacker.id === victim.id) {
@@ -92,37 +123,43 @@ export function registerPvpEvents(): void {
       return;
     }
 
-    // 检查是否可以PVP（使用详细的错误提示）
+    // 检查是否可以PVP
     const canPvpResult = checkPvpWithReason(attacker, victim);
     if (!canPvpResult.canPvp) {
       event.cancel = true;
 
-      // 延迟发送消息（beforeEvents中不能直接发送）
+      // 记录火焰来源，供后续 fireTick 兜底使用
+      pvpFireSourceMap.set(victim.id, Date.now());
+
       const attackerName = attacker.name;
       const errorMessage = canPvpResult.reason;
+
       system.run(() => {
-        const p = world.getAllPlayers().find((pl) => pl.name === attackerName);
-        if (p) {
-          useNotify("chat", p, errorMessage);
+        try {
+          victim.extinguishFire(true);
+          victim.clearVelocity();
+        } catch (_) {}
+        // 仅在直接攻击时通知，避免 fire/fireTick 事件造成消息刷屏
+        if (!isFireDamage) {
+          const p = world.getAllPlayers().find((pl) => pl.name === attackerName);
+          if (p) {
+            useNotify("chat", p, errorMessage);
+          }
         }
       });
       return;
     }
 
-    // 检查是否首次进入战斗
+    // PVP 合法：进入战斗状态并播放特效
     const attackerWasInCombat = playerCombatStatus.get(attacker.name) || false;
     const victimWasInCombat = playerCombatStatus.get(victim.name) || false;
 
-    // 进入战斗状态
     pvpManager.enterCombat(attacker, victim);
 
-    // 延迟执行效果（因为在beforeEvents中）
     system.run(() => {
       try {
-        // 播放攻击命中特效
         effectManager.playHitEffects(attacker, victim);
 
-        // 如果是首次进入战斗，播放进入战斗特效
         if (!attackerWasInCombat) {
           effectManager.playEnterCombatEffects(attacker);
           playerCombatStatus.set(attacker.name, true);
@@ -224,6 +261,11 @@ export function registerPvpEvents(): void {
    */
   world.afterEvents.playerLeave.subscribe((event) => {
     playerCombatStatus.delete(event.playerName);
+    // 清理离线受害者的火焰来源记录
+    const leavingPlayer = world.getAllPlayers().find((pl) => pl.name === event.playerName);
+    if (leavingPlayer) {
+      pvpFireSourceMap.delete(leavingPlayer.id);
+    }
   });
 }
 

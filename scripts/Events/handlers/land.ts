@@ -11,6 +11,7 @@ import {
   BlockVolume,
   EntityEquippableComponent,
   EquipmentSlot,
+  EntityDamageCause,
 } from "@minecraft/server";
 import { eventRegistry } from "../registry";
 import { color } from "../../shared/utils/color";
@@ -47,6 +48,11 @@ export const landAreas = new Map<string, LandArea>();
 
 // 玩家当前所在领地记录
 const LandLog = new Map<string, ILand>();
+
+// 领地内受保护实体的火焰来源追踪：entityId → 被玩家攻击的时间戳
+// 用于拦截 fireTick（damagingEntity 为空）造成的持续燃烧伤害
+const landEntityFireSourceMap = new Map<string, number>();
+const LAND_FIRE_SOURCE_TIMEOUT_MS = 15_000;
 
 /**
  * 判断实体是否为敌对生物（会主动攻击玩家的生物）
@@ -704,9 +710,12 @@ export function registerLandEvents(): void {
    */
   world.beforeEvents.entityHurt.subscribe((event) => {
     const { hurtEntity, damageSource } = event;
+    const cause = damageSource.cause;
+
     /**
      * 处理规则:
      * 0. 如果是玩家攻击玩家，交给PVP系统处理
+     * 0.5. 如果是 fire/fireTick 且无 damagingEntity，检查是否为受保护实体的持续燃烧（兜底拦截）
      * 1. 如果伤害源不等于玩家,则不管
      * 2. 如果伤害源等于玩家,则检查领地权限
      * 3. 如果攻击者是领地主人或管理员,则允许
@@ -719,6 +728,26 @@ export function registerLandEvents(): void {
 
     // 0. 如果是玩家攻击玩家，交给PVP系统处理，这里直接返回
     if (hurtEntity.typeId === "minecraft:player" && damageSource.damagingEntity?.typeId === "minecraft:player") {
+      return;
+    }
+
+    // 0.5. fire/fireTick 且无 damagingEntity：检查是否为受保护实体的持续燃烧
+    if (
+      (cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick) &&
+      !damageSource.damagingEntity
+    ) {
+      const fireTs = landEntityFireSourceMap.get(hurtEntity.id);
+      if (fireTs && Date.now() - fireTs < LAND_FIRE_SOURCE_TIMEOUT_MS) {
+        event.cancel = true;
+        const targetEntity = hurtEntity;
+        system.run(() => {
+          try {
+            targetEntity.extinguishFire(true);
+          } catch (_) {}
+        });
+      } else {
+        landEntityFireSourceMap.delete(hurtEntity.id);
+      }
       return;
     }
 
@@ -747,12 +776,20 @@ export function registerLandEvents(): void {
     // 7. 如果攻击者是领地成员,则允许
     if (insideLand.members.includes(attacker.name)) return;
 
+    // 攻击不被允许，记录火焰来源（用于后续 fireTick 兜底拦截）
+    landEntityFireSourceMap.set(hurtEntity.id, Date.now());
+
     // 8. 如果受伤实体有名字标签(领地保护)，则取消攻击
     if (hasLandProtectionTag) {
       event.cancel = true;
       const playerName = attacker.name;
       const ownerName = insideLand.owner;
+      const targetEntity = hurtEntity;
       system.run(() => {
+        try {
+          targetEntity.extinguishFire(true);
+          targetEntity.clearVelocity();
+        } catch (_) {}
         const p = world.getPlayers().find((pl) => pl.name === playerName);
         if (p) {
           useNotify(
@@ -769,7 +806,12 @@ export function registerLandEvents(): void {
     event.cancel = true;
     const playerName = attacker.name;
     const ownerName = insideLand.owner;
+    const targetEntity = hurtEntity;
     system.run(() => {
+      try {
+        targetEntity.extinguishFire(true);
+        targetEntity.clearVelocity();
+      } catch (_) {}
       const p = world.getPlayers().find((pl) => pl.name === playerName);
       if (p) {
         useNotify(
