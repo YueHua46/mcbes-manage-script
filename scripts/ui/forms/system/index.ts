@@ -75,6 +75,14 @@ export function openSystemSettingForm(player: Player): void {
         openPvpManagementForm(player);
       },
     },
+    {
+      text: "§w黑名单管理",
+      icon: "textures/icons/deny",
+      action: async () => {
+        const { openBlacklistManageForm } = await import("../blacklist");
+        openBlacklistManageForm(player);
+      },
+    },
   ];
 
   buttons.forEach((button) => {
@@ -204,6 +212,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "enableTreeCutOneClick", name: "一键砍树" },
     { key: "enableDigOreOneClick", name: "一键挖矿" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
+    { key: "blacklistEnabled", name: "黑名单系统（仅 BDS 可用，需安装 BDS 版附加包）" },
   ];
 
   modules.forEach((module) => {
@@ -218,11 +227,18 @@ export function openModuleToggleForm(player: Player): void {
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
     const { formValues } = data;
-    if (formValues) {
+    if (!formValues) return;
+
+    // 检测 blacklistEnabled 是否由 false 变为 true，若是则先弹前置说明
+    const blacklistIndex = modules.findIndex((m) => m.key === "blacklistEnabled");
+    const wasBlacklistEnabled = setting.getState("blacklistEnabled") as boolean;
+    const willBlacklistEnabled = formValues[blacklistIndex] as boolean;
+    const blacklistJustEnabled = !wasBlacklistEnabled && willBlacklistEnabled;
+
+    const applySettings = () => {
       modules.forEach((module, index) => {
         setting.setState(module.key as any, formValues[index] as boolean);
       });
-
       openDialogForm(
         player,
         {
@@ -231,6 +247,29 @@ export function openModuleToggleForm(player: Player): void {
         },
         () => openSystemSettingForm(player)
       );
+    };
+
+    if (blacklistJustEnabled) {
+      // 弹出 BDS 前置说明弹窗，用户确认后再保存
+      openDialogForm(
+        player,
+        {
+          title: "⚠ 黑名单系统使用须知",
+          desc:
+            color.yellow("黑名单系统仅限 BDS 服务器使用\n") +
+            color.gray("在个人存档中开启此功能无任何效果。\n\n") +
+            color.white("启用前请确认：\n") +
+            color.aqua("1. ") + color.white("已安装「BDS 版」附加包\n") +
+            color.gray("   （文件名含 _BDS，非标准版）\n\n") +
+            color.aqua("2. ") + color.white("BDS config/default/permissions.json\n") +
+            color.white("   的 allowed_modules 中已加入：\n") +
+            color.green("   · @minecraft/server-net\n\n") +
+            color.red("未满足以上条件则黑名单功能不会生效。"),
+        },
+        applySettings
+      );
+    } else {
+      applySettings();
     }
   });
 }

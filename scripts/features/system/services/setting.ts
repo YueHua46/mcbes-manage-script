@@ -46,7 +46,8 @@ export type IModules =
   | "pvpToggleCooldown"
   | "pvpCombatTagDuration"
   | "serverName"
-  | "welcomeMessage";
+  | "welcomeMessage"
+  | "blacklistEnabled";
 
 export type IValueType = boolean | string;
 
@@ -87,6 +88,7 @@ export const defaultSetting = {
   pvpCombatTagDuration: "30", // 战斗标签持续时间（秒）
   serverName: "服务器", // 服务器名称
   welcomeMessage: "§a欢迎使用杜绝熊孩服务器插件~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限", // 进服欢迎消息
+  blacklistEnabled: false, // 黑名单系统（仅 BDS 可用，默认关闭）
 };
 
 export class ServerSetting {
