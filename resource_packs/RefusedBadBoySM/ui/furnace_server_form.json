@@ -46,12 +46,15 @@
                                                     }
                                                 },
                                                 {
-                                                    "inventory_label@chest_ui_inventory_system.inventory_label": {}
+                                                    "inventory_label@chest_ui_inventory_system.inventory_label": {
+                                                        "ignored": "(not $show_inventory)"
+                                                    }
                                                 },
                                                 {
                                                     "inventory_items@chest_ui_inventory_system.inventory_items": {
                                                         "$condition": 0,
-                                                        "$start_index": 3
+                                                        "$start_index": 3,
+                                                        "ignored": "(not $show_inventory)"
                                                     }
                                                 },
                                                 {
@@ -66,7 +69,8 @@
                                                 {
                                                     "hotbar_items@chest_ui_inventory_system.hotbar_items": {
                                                         "$condition": 0,
-                                                        "$start_index": 3
+                                                        "$start_index": 3,
+                                                        "ignored": "(not $show_inventory)"
                                                     }
                                                 }
                                             ]

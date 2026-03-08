@@ -4,7 +4,7 @@
  */
 
 export { ChestFormData, FurnaceFormData, default as ChestFormDataDefault } from "./chest-forms";
-export type { ChestFormResponse, PatternKeyData } from "./chest-forms";
+export type { ChestFormResponse, PatternKeyData, ChestFormShowOptions } from "./chest-forms";
 export type { ChestUISize, CustomContentItem } from "./constants";
 export { inventory_enabled, custom_content, custom_content_keys, CHEST_UI_SIZES } from "./constants";
 export { typeIdToID, typeIdToDataId } from "./type-ids";

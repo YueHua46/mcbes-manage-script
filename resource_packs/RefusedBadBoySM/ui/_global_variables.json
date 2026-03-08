@@ -3,6 +3,9 @@
   "$title_text_color": [1, 1, 1],
   "$tool_tip_text": [0.7, 0.7, 0.7],
   "$show_inventory": false,
+  "$show_inventory_override": false,
+  "$condition": "",
+  "$start_index": 0,
   "$border_and_background_texture": "textures/ui/dialog_background_opaque",
 
   "$disable_furnace_ui": false,
@@ -19,7 +22,8 @@
 
   "$disable_36_slots_layout": true,
 
-  "$disable_45_slots_layout": true,
+  "$disable_45_inv_slots_layout": false,
+  "$disable_45_slots_layout": false,
 
   "$disable_54_slots_layout": false
 }

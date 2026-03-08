@@ -22,6 +22,14 @@ export interface ChestFormResponse extends ActionFormResponse {
   inventorySlot: number | null;
 }
 
+/**
+ * show() 的选项：appendViewerInventory 为 true 时，在下方追加当前查看者（player）的背包 UI
+ * 同时会在标题后追加 §inv§1，RP 根据该标记决定是否渲染「下方背包」区域，实现两套 ChestUI：带/不带下方物品栏
+ */
+export interface ChestFormShowOptions {
+  appendViewerInventory?: boolean;
+}
+
 type ButtonData = [RawMessage | string, string | number | undefined];
 
 /**
@@ -206,13 +214,17 @@ export class ChestFormData {
     return this;
   }
 
-  show(player: Player): Promise<ChestFormResponse> {
-    const form = new ActionFormData().title(this.titleText);
+  show(player: Player, options?: ChestFormShowOptions): Promise<ChestFormResponse> {
+    const appendInventory = inventory_enabled || options?.appendViewerInventory === true;
+    const titleForForm = appendInventory
+      ? { rawtext: [this.titleText.rawtext[0], { text: "§inv§1" }, ...this.titleText.rawtext.slice(1)] }
+      : this.titleText;
+    const form = new ActionFormData().title(titleForForm as typeof this.titleText);
     this.buttonArray.forEach((button) => {
       form.button(button[0] as RawMessage, button[1]?.toString());
     });
 
-    if (!inventory_enabled) {
+    if (!appendInventory) {
       return form.show(player) as Promise<ChestFormResponse>;
     }
 

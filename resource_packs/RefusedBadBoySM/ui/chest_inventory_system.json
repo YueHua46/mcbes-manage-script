@@ -6,8 +6,7 @@
         "color": "$title_text_color",
         "layer": 2,
         "anchor_from": "bottom_left",
-        "anchor_to": "bottom_left",
-        "ignored": "(not $show_inventory)"
+        "anchor_to": "bottom_left"
     },
     "hotbar_items": {
         "type": "stack_panel",
@@ -17,9 +16,6 @@
         ],
         "orientation": "horizontal",
         "collection_name": "form_buttons",
-        "$size": "$condition",
-        "$start_index": "(($size - '§c§h§e§s§t' - '§') * 1)",
-        "ignored": "(not $show_inventory)",
         "controls": [
             {
                 "0@chest_ui_inventory_system.inventory_item_panel": {
@@ -80,9 +76,6 @@
             "100%",
             "default"
         ],
-        "ignored": "(not $show_inventory)",
-        "$size": "$condition",
-        "$start_index": "(($size - '§c§h§e§s§t' - '§') * 1)",
         "controls": [
             {
                 "stack_1": {

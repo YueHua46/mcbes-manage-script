@@ -101,10 +101,14 @@
                                                     }
                                                 },
                                                 {
-                                                    "inventory_label@chest_ui_inventory_system.inventory_label": {}
+                                                    "inventory_label@chest_ui_inventory_system.inventory_label": {
+                                                        "ignored": "(not ($show_inventory_override or $show_inventory))"
+                                                    }
                                                 },
                                                 {
-                                                    "inventory_items@chest_ui_inventory_system.inventory_items": {}
+                                                    "inventory_items@chest_ui_inventory_system.inventory_items": {
+                                                        "ignored": "(not ($show_inventory_override or $show_inventory))"
+                                                    }
                                                 },
                                                 {
                                                     "gap3@common.empty_panel": {
@@ -112,11 +116,13 @@
                                                             0,
                                                             3
                                                         ],
-                                                        "ignored": "(not $show_inventory)"
+                                                        "ignored": "(not ($show_inventory_override or $show_inventory))"
                                                     }
                                                 },
                                                 {
-                                                    "hotbar_items@chest_ui_inventory_system.hotbar_items": {}
+                                                    "hotbar_items@chest_ui_inventory_system.hotbar_items": {
+                                                        "ignored": "(not ($show_inventory_override or $show_inventory))"
+                                                    }
                                                 }
                                             ]
                                         }
@@ -143,6 +149,7 @@
                         1
                     ],
                     "$condition": "§c§h§e§s§t§0§9",
+                    "$start_index": 9,
                     "ignored": "$disable_9_slots_layout"
                 }
             },
@@ -153,6 +160,7 @@
                         1
                     ],
                     "$condition": "§c§h§e§s§t§0§1",
+                    "$start_index": 1,
                     "ignored": "$disable_1_slots_layout"
                 }
             },
@@ -163,6 +171,7 @@
                         1
                     ],
                     "$condition": "§c§h§e§s§t§0§5",
+                    "$start_index": 5,
                     "ignored": "$disable_5_slots_layout"
                 }
             },
@@ -173,6 +182,7 @@
                         2
                     ],
                     "$condition": "§c§h§e§s§t§1§8",
+                    "$start_index": 18,
                     "ignored": "$disable_18_slots_layout"
                 }
             },
@@ -183,6 +193,7 @@
                         3
                     ],
                     "$condition": "§c§h§e§s§t§2§7",
+                    "$start_index": 27,
                     "ignored": "$disable_27_slots_layout"
                 }
             },
@@ -193,7 +204,20 @@
                         4
                     ],
                     "$condition": "§c§h§e§s§t§3§6",
+                    "$start_index": 36,
                     "ignored": "$disable_36_slots_layout"
+                }
+            },
+            {
+                "45_inv@chest_ui.chest_ui_template": {
+                    "$grid_size": [
+                        9,
+                        5
+                    ],
+                    "$condition": "§c§h§e§s§t§i§n§v§4§5§r",
+                    "$show_inventory_override": true,
+                    "$start_index": 45,
+                    "ignored": "$disable_45_inv_slots_layout"
                 }
             },
             {
@@ -203,6 +227,7 @@
                         5
                     ],
                     "$condition": "§c§h§e§s§t§4§5",
+                    "$start_index": 45,
                     "ignored": "$disable_45_slots_layout"
                 }
             },
@@ -213,6 +238,7 @@
                         6
                     ],
                     "$condition": "§c§h§e§s§t§5§4",
+                    "$start_index": 54,
                     "ignored": "$disable_54_slots_layout"
                 }
             }

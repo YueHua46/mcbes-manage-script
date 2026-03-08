@@ -11,6 +11,7 @@ import { openServerMenuForm } from "../server";
 import { openDialogForm } from "../../../ui/components/dialog";
 import { isAdmin } from "../../../shared/utils/common";
 import { officeShopSettingForm } from "./office-shop-setting";
+import { openPlayerInventoryAdminForm } from "./player-inventory-admin";
 import { openNotifyForms } from "../notify";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
@@ -82,6 +83,11 @@ export function openSystemSettingForm(player: Player): void {
         const { openBlacklistManageForm } = await import("../blacklist");
         openBlacklistManageForm(player);
       },
+    },
+    {
+      text: "§w玩家背包管理",
+      icon: "textures/ui/creative_icon",
+      action: () => openPlayerInventoryAdminForm(player),
     },
   ];
 
