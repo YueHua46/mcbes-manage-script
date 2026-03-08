@@ -25,6 +25,8 @@ import landManager from "../../land/services/land-manager";
 import setting from "../../system/services/setting";
 import serverInfo from "../../system/services/server-info";
 import { economic } from "../../economic";
+import * as tpaRequest from "../../player/services/tpa-request";
+import { teleportPlayer as tpaTeleport, notifyReject as tpaNotifyReject } from "../../player/services/tpa-logic";
 
 // 防止重复注册的标志
 let commandsRegistered = false;
@@ -197,6 +199,21 @@ system.beforeEvents.startup.subscribe((init) => {
     optionalParameters: [{ type: CustomCommandParamType.String, name: "hand(手持)|all(背包全部)" }],
   };
   registry.registerCommand(getItemTypeIdCommand, handleGetItemTypeIdCommand);
+
+  // 14. TPA 接受/拒绝（勿扰模式下通过聊天处理请求时使用）
+  const tpacceptCommand: CustomCommand = {
+    name: "yuehua:tpaccept",
+    description: "接受当前待处理的 TPA 传送请求（勿扰模式下使用）",
+    permissionLevel: CommandPermissionLevel.Any,
+  };
+  registry.registerCommand(tpacceptCommand, handleTpacceptCommand);
+
+  const tprejectCommand: CustomCommand = {
+    name: "yuehua:tpreject",
+    description: "拒绝当前待处理的 TPA 传送请求（勿扰模式下使用）",
+    permissionLevel: CommandPermissionLevel.Any,
+  };
+  registry.registerCommand(tprejectCommand, handleTprejectCommand);
 
   commandsRegistered = true;
   console.warn("所有自定义指令已通过官方 API 注册完成");
@@ -1463,6 +1480,48 @@ function handleGetItemTypeIdCommand(origin: CustomCommandOrigin, mode?: string):
       }
     } catch (error) {
       player.sendMessage(color.red(`获取物品ID失败: ${(error as Error).message}`));
+    }
+  });
+
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleTpacceptCommand(origin: CustomCommandOrigin): CustomCommandResult {
+  const player = origin.sourceEntity as Player;
+  if (!player) return { status: CustomCommandStatus.Failure };
+
+  system.run(() => {
+    const pending = tpaRequest.takePendingRequest(player.name);
+    if (!pending) {
+      player.sendMessage(color.red("没有待处理的传送请求。"));
+      return;
+    }
+    const requestPlayer = usePlayerByName(pending.requestPlayerName);
+    if (!requestPlayer) {
+      player.sendMessage(color.red("请求方已离线，无法完成传送。"));
+      return;
+    }
+    tpaTeleport(requestPlayer, player, pending.type);
+  });
+
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleTprejectCommand(origin: CustomCommandOrigin): CustomCommandResult {
+  const player = origin.sourceEntity as Player;
+  if (!player) return { status: CustomCommandStatus.Failure };
+
+  system.run(() => {
+    const pending = tpaRequest.takePendingRequest(player.name);
+    if (!pending) {
+      player.sendMessage(color.red("没有待处理的传送请求。"));
+      return;
+    }
+    const requestPlayer = usePlayerByName(pending.requestPlayerName);
+    if (requestPlayer) {
+      tpaNotifyReject(requestPlayer, player);
+    } else {
+      player.sendMessage(color.gray("已拒绝该传送请求。（请求方已离线）"));
     }
   });
 

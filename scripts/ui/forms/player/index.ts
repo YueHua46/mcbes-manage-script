@@ -14,6 +14,8 @@ import { openDialogForm } from "../../../ui/components/dialog";
 import { namePrefixMap } from "../../../assets/glyph-map";
 import setting from "../../../features/system/services/setting";
 import { isAdmin } from "../../../shared/utils/common";
+import { teleportPlayer as doTpaTeleport, notifyReject } from "../../../features/player/services/tpa-logic";
+import * as tpaRequest from "../../../features/player/services/tpa-request";
 
 // ==================== TPA传送系统 ====================
 
@@ -43,28 +45,6 @@ function createRequestTpaForm(
   return form;
 }
 
-function teleportPlayer(requestPlayer: Player, targetPlayer: Player, type: "to" | "come"): void {
-  if (type === "to") {
-    requestPlayer.teleport(targetPlayer.location, {
-      dimension: targetPlayer.dimension,
-    });
-    requestPlayer.sendMessage(
-      `${color.green("你已")}${color.green("传送到")} ${color.yellow(targetPlayer.name)} ${color.green("的旁边")}`
-    );
-    targetPlayer.sendMessage(
-      `${color.green("玩家")} ${color.yellow(requestPlayer.name)} ${color.green("已传送到你的旁边")}`
-    );
-  } else {
-    targetPlayer.teleport(requestPlayer.location, {
-      dimension: requestPlayer.dimension,
-    });
-    requestPlayer.sendMessage(`${color.yellow(targetPlayer.name)} ${color.green("已传送到你的旁边")}`);
-    targetPlayer.sendMessage(
-      `${color.green("你已")}${color.green("传送到")} ${color.yellow(requestPlayer.name)} ${color.green("的旁边")}`
-    );
-  }
-}
-
 export function openRequestTpaForm(requestPlayer: Player, targetPlayer: Player, type: "to" | "come"): void {
   const title = `${"玩家传送请求"}`;
   const form = createRequestTpaForm(title, requestPlayer, targetPlayer, type);
@@ -75,15 +55,10 @@ export function openRequestTpaForm(requestPlayer: Player, targetPlayer: Player, 
     }
     switch (data.selection) {
       case 0:
-        teleportPlayer(requestPlayer, targetPlayer, type);
+        doTpaTeleport(requestPlayer, targetPlayer, type);
         break;
       case 1:
-        requestPlayer.sendMessage(
-          `${color.red("玩家")} ${color.yellow(targetPlayer.name)} ${color.red("拒绝了你的传送请求")}`
-        );
-        targetPlayer.sendMessage(
-          `${color.red("你已")}${color.red("拒绝了")} ${color.yellow(requestPlayer.name)} ${color.red("的传送请求")}`
-        );
+        notifyReject(requestPlayer, targetPlayer);
         break;
     }
   });
@@ -113,6 +88,18 @@ export function openPlayerTpaForm(player: Player): void {
         return player.sendMessage("§c不能传送到自己");
       }
       const type = Number(formValues[1]) === 0 ? "to" : "come";
+
+      if (PlayerSetting.getTPADoNotDisturb(targetPlayer)) {
+        tpaRequest.addPendingRequest(targetPlayer, player, type);
+        const typeDesc = type === "to" ? "请求传送到你旁边" : "请求你传送到他旁边";
+        targetPlayer.sendMessage(
+          `${color.yellow("【TPA】")} ${color.yellow(player.name)} ${color.green(typeDesc)}。` +
+            `${color.gray(` 在聊天输入 tpaccept 接受 或 tpreject 拒绝，${tpaRequest.TPA_TIMEOUT_SECONDS}秒内有效。`)}`
+        );
+        player.sendMessage(color.green("对方开启了勿扰模式，已通过聊天提示对方，请等待回复。"));
+        return;
+      }
+
       player.sendMessage(color.green("已发送传送请求"));
       openRequestTpaForm(player, targetPlayer, type);
     } else {
@@ -127,6 +114,7 @@ function createPlayerActionForm(): ActionFormData {
   const form = new ActionFormData();
   form.title("§w玩家操作");
   form.button("§wTPA玩家传送", "textures/icons/social");
+  form.button("§wTPA设置", "textures/icons/chatCooldown");
   form.button("§w聊天栏配置", "textures/icons/chat_bubble_white");
   form.button("§w名字显示设置", "textures/icons/profile");
   form.button("§w返回", "textures/icons/back");
@@ -143,15 +131,43 @@ export function openPlayerActionForm(player: Player): void {
         openPlayerTpaForm(player);
         break;
       case 1:
-        openChatForm(player);
+        openTpaSettingsForm(player);
         break;
       case 2:
-        openPlayerDisplaySettingsForm(player);
+        openChatForm(player);
         break;
       case 3:
+        openPlayerDisplaySettingsForm(player);
+        break;
+      case 4:
         openServerMenuForm(player);
         break;
     }
+  });
+}
+
+/** TPA 设置（勿扰模式等） */
+export function openTpaSettingsForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("§wTPA设置");
+  const dnd = PlayerSetting.getTPADoNotDisturb(player);
+  form.toggle("§wTPA勿扰模式", {
+    defaultValue: dnd,
+    tooltip: "§a开启后，他人发来的传送请求不会弹窗，改为聊天提示；你可通过输入 /tpaccept 或 /tpreject 在限定时间内处理。",
+  });
+  form.submitButton("§w确认");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason || data.canceled) return;
+    const formValues = data.formValues;
+    if (formValues) {
+      const enabled = formValues[0] as boolean;
+      PlayerSetting.turnPlayerFunction(EFunNames.TPADoNotDisturb, player, enabled);
+      player.sendMessage(
+        enabled ? "§a已开启 §bTPA勿扰模式§a，传送请求将通过聊天提示。" : "§a已关闭 §bTPA勿扰模式§a。"
+      );
+    }
+    openPlayerActionForm(player);
   });
 }
 

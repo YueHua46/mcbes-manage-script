@@ -8,6 +8,7 @@ import { namePrefixMap } from '../../../assets/glyph-map';
 
 export enum EFunNames {
   TPA = 'TPA',
+  TPADoNotDisturb = 'TPADoNotDisturb',
   Chat = 'Chat',
 }
 
@@ -50,6 +51,9 @@ class PlayerSetting {
     switch (funName) {
       case EFunNames.TPA:
         player.setDynamicProperty('TPA', value);
+        break;
+      case EFunNames.TPADoNotDisturb:
+        player.setDynamicProperty('TPADoNotDisturb', value);
         break;
       case EFunNames.Chat:
         player.setDynamicProperty('Chat', value);
@@ -124,6 +128,15 @@ class PlayerSetting {
       alias: this.getPlayerAlias(player),
       avatar: '',
     };
+  }
+
+  /**
+   * 获取 TPA 勿扰模式是否开启（默认关闭）
+   */
+  getTPADoNotDisturb(player: Player): boolean {
+    const v = player.getDynamicProperty('TPADoNotDisturb');
+    if (v === undefined) return false;
+    return v === true || v === 'true';
   }
 
   /**
