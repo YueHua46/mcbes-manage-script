@@ -91,3 +91,13 @@ export interface IDatabaseItem<T = any> {
   key: DatabaseKey;
   value: T;
 }
+
+// 黑名单系统类型
+export interface IBlacklistEntry {
+  xuid: string;               // 主键，稳定的 Xbox 用户标识
+  name: string;               // 当前已知 gamertag（随玩家改名自动同步）
+  persistentId?: string;      // 设备级持久标识（重装游戏会变，可选补充）
+  reason: string;             // 封禁理由（为空时使用默认提示）
+  bannedAt: number;           // 封禁时间戳 Date.now()
+  bannedBy: string;           // 执行封禁的管理员名
+}

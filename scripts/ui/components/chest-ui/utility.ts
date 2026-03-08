@@ -18,12 +18,36 @@ export interface Utility {
 
 const Utility: Utility = {
   ExtractNameFromString: async (string: string, index: number) => {
-    return new Promise((resolve, reject) => {
-      let splitText = string.split(" ");
-      let result: { name: string; string: string } = {
-        name: "",
-        string: "",
-      };
+    return new Promise((resolve) => {
+      const splitText = string.split(" ");
+      const result: { name: string; string: string } = { name: "", string: "" };
+      if (index < 0 || index >= splitText.length) {
+        resolve(null);
+        return;
+      }
+      if (splitText[index].startsWith('"')) {
+        result.name = splitText[index];
+        let trimed = 1;
+        if (!splitText[index].endsWith('"')) {
+          for (let i = index + 1; i <= splitText.length - 1; i++) {
+            result.name += " " + splitText[i];
+            trimed += 1;
+            if (splitText[i].endsWith('"')) break;
+          }
+        }
+        if (!result.name.endsWith('"')) {
+          resolve(null);
+          return;
+        }
+        result.name = result.name.split('"').join("");
+        splitText.splice(index, trimed);
+        result.string = splitText.join(" ");
+      } else {
+        result.name = splitText[index];
+        splitText.splice(index, 1);
+        result.string = splitText.join(" ");
+      }
+      resolve(result);
     });
   },
   capitalized: (string: string) => {

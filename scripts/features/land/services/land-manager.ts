@@ -188,6 +188,15 @@ class LandManager {
    */
   transferLand(name: string, playerName: string): void | string {
     if (!this.db.has(name)) return "领地不存在";
+
+    const maxLandPerPlayer = Number(setting.getState("maxLandPerPlayer") || 5);
+    const targetPlayer = world.getPlayers({ name: playerName })[0];
+    const targetIsAdmin = targetPlayer ? isAdmin(targetPlayer) : false;
+
+    if (!targetIsAdmin && this.getPlayerLandCount(playerName) >= maxLandPerPlayer) {
+      return `玩家 ${playerName} 已达到最大领地数量限制(${maxLandPerPlayer})，无法转让`;
+    }
+
     const land = this.db.get(name) as ILand;
     land.owner = playerName;
     return this.db.set(name, land);
