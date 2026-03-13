@@ -11,5 +11,6 @@ export * from './waypoint';
 export * from './help';
 export * from './notify';
 export * from './other';
+export * from './behavior-log';
 
 

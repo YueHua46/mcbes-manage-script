@@ -13,6 +13,7 @@ import { isAdmin } from "../../../shared/utils/common";
 import { officeShopSettingForm } from "./office-shop-setting";
 import { openPlayerInventoryAdminForm } from "./player-inventory-admin";
 import { openNotifyForms } from "../notify";
+import { openBehaviorLogForm } from "../behavior-log";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
@@ -85,8 +86,13 @@ export function openSystemSettingForm(player: Player): void {
       },
     },
     {
+      text: "§w玩家行为日志",
+      icon: "textures/icons/profile",
+      action: () => openBehaviorLogForm(player),
+    },
+    {
       text: "§w玩家背包管理",
-      icon: "textures/ui/creative_icon",
+      icon: "textures/icons/quest_chest",
       action: () => openPlayerInventoryAdminForm(player),
     },
   ];
@@ -130,6 +136,8 @@ export function openGeneralSettingsForm(player: Player): void {
     { key: "land1BlockPerPrice", name: "领地每方块价格", type: "number" },
     { key: "daily_gold_limit", name: "每日金币获取上限", type: "number" },
     { key: "startingGold", name: "新玩家初始金币", type: "number" },
+    { key: "behaviorLogMaxEntries", name: "行为日志最大保留条数", type: "number" },
+    { key: "behaviorLogLocationIntervalSec", name: "行为日志坐标采样间隔(秒)", type: "number" },
   ];
 
   settingItems.forEach((item) => {
@@ -219,6 +227,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "enableDigOreOneClick", name: "一键挖矿" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
     { key: "blacklistEnabled", name: "黑名单系统（仅 BDS 可用，需安装 BDS 版附加包）" },
+    { key: "behaviorLogEnabled", name: "玩家行为日志" },
   ];
 
   modules.forEach((module) => {
@@ -265,12 +274,31 @@ export function openModuleToggleForm(player: Player): void {
             color.yellow("黑名单系统仅限 BDS 服务器使用\n") +
             color.gray("在个人存档中开启此功能无任何效果。\n\n") +
             color.white("启用前请确认：\n") +
-            color.aqua("1. ") + color.white("已安装「BDS 版」附加包\n") +
-            color.gray("   （文件名含 _BDS，非标准版）\n\n") +
-            color.aqua("2. ") + color.white("BDS config/default/permissions.json\n") +
-            color.white("   的 allowed_modules 中已加入：\n") +
+            color.aqua("1. ") +
+            color.white("单独安装「BDS 版」附加包\n") +
+            color.gray("   （文件名含 _BDS，非标准版，详见群文件或网盘，否则无法使用！！！）\n\n") +
+            color.aqua("2. ") +
+            color.white(
+              "当你安装了带有_BDS后缀的杜绝熊孩附加包后，请在你的面板服\n服务器文件管理\n在当前服务器目录下的 config/default/permissions.json 文件中，\n"
+            ) +
+            color.white("   的 allowed_modules 中新增一行数据：\n") +
             color.green("   · @minecraft/server-net\n\n") +
-            color.red("未满足以上条件则黑名单功能不会生效。"),
+            color.white("   并确保最后数据张下面这样：\n") +
+            color.gray(
+              "{\n" +
+                '  "allowed_modules": [\n' +
+                '    "@minecraft/server-gametest",\n' +
+                '    "@minecraft/server",\n' +
+                '    "@minecraft/server-ui",\n' +
+                '    "@minecraft/server-admin",\n' +
+                '    "@minecraft/server-editor", // ← 这里要加个英文逗号结尾，否则会报错！\n' +
+                '    "@minecraft/server-net" // ← 必须加入此行，否则无法使用黑名单功能！\n' +
+                "  ]\n" +
+                "}"
+            ) +
+            "\n" +
+            color.red("未满足以上条件则黑名单功能不会生效！！！\n") +
+            color.white("如果你不知道如何操作，请加q群后询问群主或其他人！避免乱操作导致无法启动服务器！"),
         },
         applySettings
       );
@@ -858,7 +886,9 @@ function openSetPlayerMoneyForm(player: Player): void {
         player,
         {
           title: "设置失败",
-          desc: color.red(`玩家 ${color.yellow(targetPlayerName)} 从未进入过服务器，无法设置金币！\n\n只能为进入过服务器的玩家设置金币。`),
+          desc: color.red(
+            `玩家 ${color.yellow(targetPlayerName)} 从未进入过服务器，无法设置金币！\n\n只能为进入过服务器的玩家设置金币。`
+          ),
         },
         () => openSetPlayerMoneyForm(player)
       );
@@ -878,7 +908,9 @@ function openSetPlayerMoneyForm(player: Player): void {
         player,
         {
           title: "设置成功",
-          desc: color.green(`已将玩家 ${color.yellow(targetPlayerName)} 的金币设置为 ${color.gold(amount.toString())}！`),
+          desc: color.green(
+            `已将玩家 ${color.yellow(targetPlayerName)} 的金币设置为 ${color.gold(amount.toString())}！`
+          ),
         },
         () => openPlayerMoneyManageForm(player)
       );
@@ -898,15 +930,13 @@ function openSetPlayerMoneyForm(player: Player): void {
 // 重置所有玩家金币表单
 function openResetAllPlayerMoneyForm(player: Player): void {
   const defaultGold = Number(setting.getState("startingGold"));
-  
+
   const form = new ModalFormData();
   form.title("§w重置所有玩家金币");
 
-  form.textField(
-    "重置金额（默认起始金币）",
-    `金额（整数，留空使用默认值 ${defaultGold}）`,
-    { defaultValue: defaultGold.toString() }
-  );
+  form.textField("重置金额（默认起始金币）", `金额（整数，留空使用默认值 ${defaultGold}）`, {
+    defaultValue: defaultGold.toString(),
+  });
   form.toggle("§c确认重置所有玩家金币（包括离线玩家）", { defaultValue: false });
   form.submitButton("确认");
 
@@ -1075,7 +1105,7 @@ function showItemPricesWithPagination(player: Player, page: number = 1): void {
     // 简化显示物品ID（移除minecraft:前缀）
     const displayName = itemId.replace("minecraft:", "");
     const itemTexture = dynamicMatchIconPath(displayName);
-    
+
     // 创建 ItemStack 对象以获取本地化键
     const itemStack = new ItemStack(itemId);
     const itemNameRawMessage: RawMessage = {
@@ -1172,7 +1202,7 @@ function openEditItemPriceForm(player: Player, itemId: string, currentPrice: num
       case 1:
         // 删除价格设置
         itemPriceDb.removePrice(itemId);
-        
+
         const descRawMessage: RawMessage = {
           rawtext: [
             { text: "§a已删除 " },
@@ -1180,7 +1210,7 @@ function openEditItemPriceForm(player: Player, itemId: string, currentPrice: num
             { text: ` §a的出售价格设置\n§c该物品现在无法出售（价格为0）` },
           ],
         };
-        
+
         openDialogForm(
           player,
           {
@@ -1219,13 +1249,9 @@ function openModifyCustomPriceForm(player: Player, itemId: string, currentPrice:
   };
 
   form.title(formTitleRawMessage);
-  form.textField(
-    `§a当前出售价格: §e${currentPrice} §a金币\n§a请输入新的出售价格:`,
-    "输入新的价格",
-    {
-      defaultValue: currentPrice.toString(),
-    }
-  );
+  form.textField(`§a当前出售价格: §e${currentPrice} §a金币\n§a请输入新的出售价格:`, "输入新的价格", {
+    defaultValue: currentPrice.toString(),
+  });
 
   form.show(player).then((res) => {
     if (res.canceled) {
@@ -1261,7 +1287,7 @@ function openModifyCustomPriceForm(player: Player, itemId: string, currentPrice:
     }
 
     itemPriceDb.setPrice(itemId, newPrice);
-    
+
     const successDescRawMessage: RawMessage = {
       rawtext: [
         { text: "§a成功设置 " },
@@ -1269,7 +1295,7 @@ function openModifyCustomPriceForm(player: Player, itemId: string, currentPrice:
         { text: ` §a的出售价格为 §e${newPrice} §a金币` },
       ],
     };
-    
+
     openDialogForm(
       player,
       {
@@ -1341,7 +1367,7 @@ function showSearchResults(player: Player, searchTerm: string): void {
 
   matchedItems.forEach(({ itemId, price }) => {
     const displayName = itemId.replace("minecraft:", "");
-    
+
     // 创建 ItemStack 对象以获取本地化键
     const itemStack = new ItemStack(itemId);
     const itemNameRawMessage: RawMessage = {
@@ -1390,9 +1416,9 @@ function openInitializePricesConfirmForm(player: Player): void {
 
   const form = new ActionFormData();
   form.title("§w初始化所有物品出售价格确认");
-  
+
   let bodyText = `§a说明：此操作将使用配置文件中的价格初始化未设置价格的物品。\n`;
-  
+
   if (currentPricesCount > 0) {
     bodyText += `§a将初始化 ${uninitializedCount} 个未设置价格的物品。\n`;
     bodyText += `§e已设置价格的 ${currentPricesCount} 个物品将被保留（不会覆盖）。`;
@@ -1400,7 +1426,7 @@ function openInitializePricesConfirmForm(player: Player): void {
     bodyText += `§a共有 ${totalItemsCount} 个物品将被设置价格。\n`;
     bodyText += `§e当前所有物品均未设置价格（默认为0，不可出售）。`;
   }
-  
+
   bodyText += `\n§e是否确认继续？`;
 
   form.body(bodyText);
@@ -1422,13 +1448,13 @@ function openInitializePricesConfirmForm(player: Player): void {
 // 执行初始化所有物品出售价格
 function initializeAllPrices(player: Player): void {
   const result = itemPriceDb.initializeAllPrices();
-  
+
   let desc = `§a已成功初始化物品出售价格！\n§a新初始化了 ${result.initialized} 个物品价格。`;
-  
+
   if (result.skipped > 0) {
     desc += `\n§e保留了 ${result.skipped} 个已手动设置的物品价格。`;
   }
-  
+
   desc += `\n§a玩家现在可以出售这些物品了。`;
 
   openDialogForm(
@@ -1449,17 +1475,17 @@ function openClearAllPricesConfirmForm(player: Player): void {
 
   const form = new ActionFormData();
   form.title("§w清空所有物品出售价格确认");
-  
+
   if (customPricesCount === 0) {
     form.body(`§e当前没有任何物品设置了价格。\n§a所有物品的价格都是默认值0（不可出售）。`);
     form.button("§a返回", "textures/icons/back");
-    
+
     form.show(player).then(() => {
       openItemPriceManageForm(player);
     });
     return;
   }
-  
+
   form.body(
     `§c警告：此操作将清空所有已设置的物品价格！\n§c当前有 ${customPricesCount} 个物品价格将被清空！\n§c清空后所有物品价格将恢复为0（不可出售）！\n§e是否确认继续？`
   );
@@ -1558,7 +1584,7 @@ function openModifyItemPriceForm(player: Player): void {
       const currentPrice = itemPriceDb.getPrice(item.typeId);
 
       const lores: string[] = [];
-      
+
       if (currentPrice > 0) {
         lores.push(`${colorCodes.gold}出售价格: ${colorCodes.yellow}${currentPrice} 金币`);
       } else {
@@ -1622,19 +1648,16 @@ function openSetItemPriceForm(player: Player, item: ItemStack): void {
   const hasPrice = currentPrice > 0;
 
   const form = new ModalFormData();
-  
+
   // 使用物品本地化名称作为标题
   const titleRawMessage: RawMessage = {
-    rawtext: [
-      { text: "§w设置物品出售价格 - " },
-      { translate: item.localizationKey },
-    ],
+    rawtext: [{ text: "§w设置物品出售价格 - " }, { translate: item.localizationKey }],
   };
   form.title(titleRawMessage);
 
   // 构建表单内容
   let bodyText = `§a物品ID: §e${itemId}\n`;
-  
+
   if (hasPrice) {
     bodyText += `§a当前出售价格: §e${currentPrice} §a金币\n\n`;
     bodyText += `§e请输入新的价格（留空则删除价格设置）:`;
@@ -1662,7 +1685,7 @@ function openSetItemPriceForm(player: Player, item: ItemStack): void {
     if (!priceStr || priceStr.trim() === "") {
       if (hasPrice) {
         itemPriceDb.removePrice(itemId);
-        
+
         const descRawMessage: RawMessage = {
           rawtext: [
             { text: "§a已删除 " },
@@ -1670,7 +1693,7 @@ function openSetItemPriceForm(player: Player, item: ItemStack): void {
             { text: ` §a的出售价格\n§c该物品现在无法出售（价格为0）` },
           ],
         };
-        
+
         openDialogForm(
           player,
           {
@@ -1708,7 +1731,7 @@ function openSetItemPriceForm(player: Player, item: ItemStack): void {
 
     // 设置价格
     itemPriceDb.setPrice(itemId, price);
-    
+
     const successDescRawMessage: RawMessage = {
       rawtext: [
         { text: "§a已将 " },
@@ -1716,7 +1739,7 @@ function openSetItemPriceForm(player: Player, item: ItemStack): void {
         { text: ` §a的出售价格设置为 §e${price} §a金币` },
       ],
     };
-    
+
     openDialogForm(
       player,
       {

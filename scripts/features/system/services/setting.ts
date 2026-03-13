@@ -47,7 +47,28 @@ export type IModules =
   | "pvpCombatTagDuration"
   | "serverName"
   | "welcomeMessage"
-  | "blacklistEnabled";
+  | "blacklistEnabled"
+  | "behaviorLogEnabled"
+  | "behaviorLogMaxEntries"
+  | "behaviorLogLocationIntervalSec"
+  | "logPlayerJoin"
+  | "logPlayerLeave"
+  | "logPlayerChat"
+  | "logPlayerDeath"
+  | "logPvpHit"
+  | "logPlaceWater"
+  | "logPlaceLava"
+  | "logIgniteFire"
+  | "logPlaceTnt"
+  | "logSummonWither"
+  | "logEnterLand"
+  | "logLeaveLand"
+  | "logAttackMobInLand"
+  | "logOpenChest"
+  | "logOpenBarrel"
+  | "logOpenShulker"
+  | "logOpenOtherContainers"
+  | "logLocationSnapshot";
 
 export type IValueType = boolean | string;
 
@@ -87,8 +108,30 @@ export const defaultSetting = {
   pvpToggleCooldown: "30", // 切换冷却时间（秒）
   pvpCombatTagDuration: "30", // 战斗标签持续时间（秒）
   serverName: "服务器", // 服务器名称
-  welcomeMessage: "§a欢迎使用杜绝熊孩服务器插件~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限", // 进服欢迎消息
+  welcomeMessage:
+    "§a欢迎使用杜绝熊孩服务器插件~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限", // 进服欢迎消息
   blacklistEnabled: false, // 黑名单系统（仅 BDS 可用，默认关闭）
+  behaviorLogEnabled: true, // 玩家行为日志
+  behaviorLogMaxEntries: "20000", // 行为日志最大保留条数
+  behaviorLogLocationIntervalSec: "60", // 玩家坐标采样间隔（秒）
+  logPlayerJoin: true,
+  logPlayerLeave: true,
+  logPlayerChat: true,
+  logPlayerDeath: true,
+  logPvpHit: false,
+  logPlaceWater: true,
+  logPlaceLava: true,
+  logIgniteFire: true,
+  logPlaceTnt: true,
+  logSummonWither: true,
+  logEnterLand: true,
+  logLeaveLand: true,
+  logAttackMobInLand: true,
+  logOpenChest: true,
+  logOpenBarrel: true,
+  logOpenShulker: true,
+  logOpenOtherContainers: true,
+  logLocationSnapshot: false,
 };
 
 export class ServerSetting {
@@ -96,7 +139,7 @@ export class ServerSetting {
 
   constructor() {
     system.run(() => {
-      this.db = new Database<boolean>("setting");
+      this.db = new Database<IValueType>("setting");
     });
   }
 
