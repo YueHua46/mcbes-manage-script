@@ -312,7 +312,7 @@ function formatBehaviorMessageBoxEntry(entry: BehaviorLogEntry, index: number): 
     lines.push(detailParts.join(` ${color.darkGray("·")} `));
   }
 
-  lines.push(color.darkGray("────────────────"));
+  lines.push(color.darkGray("--------------------------------"));
 
   return lines.join("\n");
 }
@@ -333,7 +333,7 @@ export function formatBehaviorMessageBoxPage(
   const lines = [
     `${color.yellow(playerPart)} ${color.darkGray("·")} ${color.white(timePart)} ${color.darkGray("·")} ${color.aqua(eventPart)}`,
     `${color.darkGray(`第 ${page + 1} / ${Math.max(1, totalPages)} 页 · 共 ${total} 条`)}`,
-    `${color.darkGray("════════════════")}`,
+    `${color.darkGray("================================")}`,
     "",
   ];
 

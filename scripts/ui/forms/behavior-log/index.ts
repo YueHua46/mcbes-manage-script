@@ -1,5 +1,10 @@
 import { Player, system } from "@minecraft/server";
-import { CustomForm, MessageBox, Observable } from "@minecraft/server-ui";
+import {
+  ActionFormData,
+  MessageFormData,
+  MessageFormResponse,
+  ModalFormData,
+} from "@minecraft/server-ui";
 import setting from "../../../features/system/services/setting";
 import behaviorLog, {
   BehaviorEventType,
@@ -10,12 +15,8 @@ import behaviorLog, {
   getBehaviorEventLabel,
 } from "../../../features/behavior-log/services/behavior-log";
 import { isAdmin } from "../../../shared/utils/common";
-import {
-  dduiGap,
-  dduiLead,
-  dduiSection,
-  isMessageBoxTopButton,
-} from "../../components";
+import { isMessageBoxTopButton } from "../../components";
+import { openDialogForm } from "../../components/dialog";
 
 const ALL_PLAYERS_VALUE = "__all_players__";
 const ALL_TIME_VALUE = "all";
@@ -120,37 +121,47 @@ function runAfterDelay(nextAction: () => void): void {
   }, FORM_NAVIGATION_DELAY_TICKS);
 }
 
-async function showForm(form: any, player: Player, failMessage: string): Promise<boolean> {
+type TraditionalFormData = ActionFormData | ModalFormData;
+
+async function showForm(
+  form: TraditionalFormData,
+  player: Player,
+  failMessage: string
+): Promise<{ canceled: boolean; selection?: number; formValues?: (string | number | boolean)[] }> {
   for (let attempt = 0; attempt < FORM_OPEN_MAX_ATTEMPTS; attempt++) {
     try {
-      const shown = await form.show();
-      if (shown !== false) {
-        return true;
-      }
-
-      if (attempt < FORM_OPEN_MAX_ATTEMPTS - 1) {
+      const response = await form.show(player);
+      const canceled = response.canceled ?? !!response.cancelationReason;
+      if (canceled && response.cancelationReason === "UserBusy" && attempt < FORM_OPEN_MAX_ATTEMPTS - 1) {
         await system.waitTicks(FORM_OPEN_RETRY_TICKS);
         continue;
       }
+      if (canceled) {
+        return { canceled: true };
+      }
+      const actionResponse = response as { selection?: number; formValues?: (string | number | boolean)[] };
+      return {
+        canceled: false,
+        selection: actionResponse.selection,
+        formValues: actionResponse.formValues,
+      };
     } catch (error) {
       console.warn(failMessage, error);
       player.sendMessage("§c行为日志界面打开失败，请稍后再试。");
-      return false;
+      return { canceled: true };
     }
   }
-
   player.sendMessage("§e请先关闭当前打开的界面后，再重新打开行为日志。");
-  return false;
+  return { canceled: true };
 }
 
-function navigateTo(currentForm: any, nextAction: () => void): void {
-  currentForm.close();
-  runAfterDelay(nextAction);
-}
-
-async function showMessageBox(box: any, player: Player, failMessage: string): Promise<any | null> {
+async function showMessageForm(
+  form: MessageFormData,
+  player: Player,
+  failMessage: string
+): Promise<MessageFormResponse | null> {
   try {
-    return await box.show();
+    return await form.show(player);
   } catch (error) {
     console.warn(failMessage, error);
     player.sendMessage("§c行为日志界面打开失败，请稍后再试。");
@@ -165,32 +176,28 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
   }
 
   const stats = behaviorLog.getStats();
-  const summary = Observable.create<string>(
-    `当前共 ${stats.totalCount}/${stats.maxEntries} 条日志，其中事件日志 ${stats.entryCount} 条，坐标日志 ${stats.locationCount} 条。`
-  );
-  let dashboard: any;
+  const bodyLines = [
+    "这里可以查看筛选日志，也可以管理哪些事件需要被监控。",
+    "",
+    `当前共 ${stats.totalCount}/${stats.maxEntries} 条日志，其中事件日志 ${stats.entryCount} 条，坐标日志 ${stats.locationCount} 条。`,
+    "",
+    `最近打开时间：${formatBehaviorTimestamp(Date.now())}`,
+  ];
+  const form = new ActionFormData()
+    .title("行为日志管理")
+    .body(bodyLines.join("\n"))
+    .button("查看日志")
+    .button("监控设置");
 
-  dashboard = CustomForm.create(player, "行为日志管理")
-    .closeButton();
-
-  dduiLead(dashboard, "这里可以查看筛选日志，也可以管理哪些事件需要被监控。");
-  dashboard.label(summary);
-  dduiSection(dashboard, "操作");
-  dashboard.button("查看日志", () => {
-    navigateTo(dashboard, () => {
-      void openBehaviorLogQueryForm(player);
-    });
-  });
-  dduiGap(dashboard);
-  dashboard.button("监控设置", () => {
-    navigateTo(dashboard, () => {
-      void openBehaviorLogSettingsForm(player);
-    });
-  });
-  dduiSection(dashboard, "状态");
-  dashboard.label(`最近打开时间：${formatBehaviorTimestamp(Date.now())}`);
-
-  await showForm(dashboard, player, "打开行为日志首页失败:");
+  const result = await showForm(form, player, "打开行为日志首页失败:");
+  if (result.canceled) return;
+  if (result.selection === 0) {
+    runAfterDelay(() => void openBehaviorLogQueryForm(player));
+    return;
+  }
+  if (result.selection === 1) {
+    runAfterDelay(() => void openBehaviorLogSettingsForm(player));
+  }
 }
 
 function executeBehaviorLogQuery(filter: BehaviorLogFilterState, currentPage = 0): BehaviorLogQuerySession {
@@ -253,24 +260,22 @@ async function openBehaviorLogResultBox(player: Player, session: BehaviorLogQuer
   const button1Text = isFirstPage ? "返回筛选" : "上一页";
   const button2Text = isLastPage ? "重新筛选" : "下一页";
 
-  const box = MessageBox.create(player, "日志结果")
+  const form = new MessageFormData()
+    .title("日志结果")
     .body(body)
     .button1(button1Text)
-    .button2(button2Text, session.pageText);
+    .button2(button2Text);
 
-  const result = await showMessageBox(box, player, "打开行为日志结果页失败:");
-  if (!result || typeof result.selection !== "number") {
+  const result = await showMessageForm(form, player, "打开行为日志结果页失败:");
+  if (!result || result.canceled || typeof result.selection !== "number") {
     return;
   }
 
   if (isMessageBoxTopButton(result)) {
     if (isFirstPage) {
-      runAfterDelay(() => {
-        void openBehaviorLogQueryForm(player);
-      });
+      runAfterDelay(() => void openBehaviorLogQueryForm(player));
       return;
     }
-
     runAfterDelay(() => {
       void openBehaviorLogResultBox(player, executeBehaviorLogQuery(session.filter, session.currentPage - 1));
     });
@@ -284,271 +289,206 @@ async function openBehaviorLogResultBox(player: Player, session: BehaviorLogQuer
     return;
   }
 
-  runAfterDelay(() => {
-    void openBehaviorLogQueryForm(player);
-  });
+  runAfterDelay(() => void openBehaviorLogQueryForm(player));
 }
 
 async function openBehaviorLogQueryForm(player: Player): Promise<void> {
   const knownPlayers = behaviorLog.getKnownPlayers();
-  const playerItems = [
-    { label: "全部玩家", value: 0 },
-    ...knownPlayers.map((name, index) => ({
-      label: name,
-      value: index + 1,
-    })),
-  ];
+  const playerLabels = ["全部玩家", ...knownPlayers];
+  const timeRangeLabels = timeRangeOptions.map((o) => o.label);
 
-  const playerValue = Observable.create<number>(0, { clientWritable: true });
-  const playerNameValue = Observable.create<string>("", { clientWritable: true });
-  const timeRangeValue = Observable.create<number>(2, { clientWritable: true });
-  const keywordValue = Observable.create<string>("", { clientWritable: true });
-  const landOnlyValue = Observable.create<boolean>(false, { clientWritable: true });
-  const dangerousOnlyValue = Observable.create<boolean>(false, { clientWritable: true });
-  const selectedCountValue = Observable.create<string>("当前未限定事件类型，将显示全部事件。");
+  const form = new ModalFormData()
+    .title("行为日志查询")
+    .label("支持按玩家、时间、关键词、领地相关和危险行为进行筛选。提交后将通过单独页面展示结果。重新打开本表单即重置筛选。")
+    .dropdown("目标玩家（下拉选择）", playerLabels, { defaultValueIndex: 0 })
+    .textField("玩家名（可选，直接输入）", "留空则使用上方选择", { defaultValue: "" })
+    .dropdown("时间范围", timeRangeLabels, { defaultValueIndex: 2 })
+    .textField("关键词（可选）", "可匹配聊天、对象类型、领地名或附加信息", { defaultValue: "" })
+    .toggle("仅看领地相关", { defaultValue: false })
+    .toggle("仅看高危行为", { defaultValue: false });
 
-  const eventToggles = behaviorEventDefinitions.reduce(
-    (map, definition) => {
-      map[definition.type] = Observable.create<boolean>(false, { clientWritable: true });
-      return map;
-    },
-    {} as Record<BehaviorEventType, any>
-  );
-
-  const updateSelectedCount = () => {
-    const selectedCount = behaviorEventDefinitions.filter((definition) => eventToggles[definition.type].getData()).length;
-    selectedCountValue.setData(
-      selectedCount > 0
-        ? `已限定 ${selectedCount} 个事件类型。`
-        : "当前未限定事件类型，将显示全部事件。"
-    );
-  };
-
-  behaviorEventDefinitions.forEach((definition) => {
-    eventToggles[definition.type].subscribe(() => updateSelectedCount());
-  });
-
-  let form: any;
-
-  const getSelectedPlayerName = (): string => {
-    const name = playerNameValue.getData().trim();
-    if (name) return name;
-
-    const selectedIndex = playerValue.getData();
-    if (selectedIndex <= 0) return ALL_PLAYERS_VALUE;
-    return knownPlayers[selectedIndex - 1] ?? ALL_PLAYERS_VALUE;
-  };
-
-  const getSelectedTimeRange = (): string => {
-    switch (timeRangeValue.getData()) {
-      case 0:
-        return "1h";
-      case 1:
-        return "6h";
-      case 2:
-        return "24h";
-      case 3:
-        return "3d";
-      case 4:
-        return "7d";
-      default:
-        return ALL_TIME_VALUE;
-    }
-  };
-
-  const getSelectedEventTypes = (): BehaviorEventType[] => {
-    return behaviorEventDefinitions
-      .filter((definition) => eventToggles[definition.type].getData())
-      .map((definition) => definition.type);
-  };
-
-  const resetFilters = () => {
-    playerValue.setData(0);
-    playerNameValue.setData("");
-    timeRangeValue.setData(2);
-    keywordValue.setData("");
-    landOnlyValue.setData(false);
-    dangerousOnlyValue.setData(false);
-    behaviorEventDefinitions.forEach((definition) => {
-      eventToggles[definition.type].setData(false);
-    });
-    updateSelectedCount();
-  };
-
-  form = CustomForm.create(player, "行为日志查询")
-    .closeButton();
-
-  dduiLead(form, "支持按玩家、时间、关键词、领地相关和危险行为进行筛选。");
-  dduiSection(form, "筛选条件");
-  form.dropdown("目标玩家（下拉选择）", playerValue, playerItems, {
-    description: "从已有日志记录的玩家中快速选择，或选「全部玩家」。",
-  });
-  dduiGap(form);
-  form.textField("玩家名（可选，直接输入）", playerNameValue, {
-    description: "留空则使用上方选择；输入玩家名时优先按输入筛选，支持任意玩家（含离线）。",
-  });
-  dduiGap(form);
-  form.dropdown("时间范围", timeRangeValue, timeRangeOptions, {
-    description: "默认展示最近 24 小时。",
-  });
-  dduiGap(form);
-  form.textField("关键词（可选）", keywordValue, {
-    description: "可匹配聊天、对象类型、领地名或附加信息。",
-  });
-  dduiGap(form);
-  form.toggle("仅看领地相关", landOnlyValue);
-  dduiGap(form);
-  form.toggle("仅看高危行为", dangerousOnlyValue);
-  dduiGap(form);
-  form.label(selectedCountValue);
-  dduiSection(form, "事件类型筛选");
-  form.label("不勾选表示全部事件。");
-  dduiGap(form);
-
-  let lastGroup = "";
   for (const definition of behaviorEventDefinitions) {
-    if (definition.group !== lastGroup) {
-      lastGroup = definition.group;
-      dduiSection(form, groupLabels[definition.group]);
-    }
-    form.toggle(definition.label, eventToggles[definition.type]);
-    dduiGap(form);
+    form.toggle(definition.label, { defaultValue: false });
   }
 
-  dduiSection(form, "操作");
-  form.button("应用筛选", () => {
-    const filterState: BehaviorLogFilterState = {
-      playerName: getSelectedPlayerName() === ALL_PLAYERS_VALUE ? undefined : getSelectedPlayerName(),
-      timeRange: getSelectedTimeRange(),
-      selectedTypes: getSelectedEventTypes(),
-      keyword: keywordValue.getData().trim() || undefined,
-      landOnly: landOnlyValue.getData(),
-      dangerousOnly: dangerousOnlyValue.getData(),
-    };
-    navigateTo(form, () => {
-      void openBehaviorLogResultBox(player, executeBehaviorLogQuery(filterState, 0));
-    });
-  });
-  dduiGap(form);
-  form.button("重置筛选", () => {
-    resetFilters();
-  });
-  dduiGap(form);
-  form.button("返回首页", () => {
-    navigateTo(form, () => {
-      void openBehaviorLogForm(player);
-    });
-  });
-  dduiSection(form, "说明");
-  form.label("点击“应用筛选”后，将通过 MessageBox 单独展示当前筛选结果，并直接显示每条日志的完整关键信息。");
-  dduiGap(form);
-  form.label(`当前时间：${formatBehaviorTimestamp(Date.now())}`);
+  form.submitButton("应用筛选");
 
-  updateSelectedCount();
-  await showForm(form, player, "打开行为日志查询页失败:");
+  const result = await showForm(form, player, "打开行为日志查询页失败:");
+  if (result.canceled) {
+    runAfterDelay(() => void openBehaviorLogForm(player));
+    return;
+  }
+
+  const formValues = result.formValues;
+  const needLength = 6 + behaviorEventDefinitions.length;
+  if (!formValues || formValues.length < needLength) {
+    runAfterDelay(() => void openBehaviorLogForm(player));
+    return;
+  }
+
+  // 若 .label() 占 formValues[0]，则实际为 [1]=玩家下拉 [2]=玩家名 [3]=时间下拉 [4]=关键词 [5][6]=toggle [7+]=事件
+  // 通过类型判断：前四个应为 number, string, number, string（玩家索引、玩家名、时间索引、关键词）
+  const a = formValues[0];
+  const b = formValues[1];
+  const c = formValues[2];
+  const d = formValues[3];
+  let playerIndex: number;
+  let playerNameInput: string;
+  let timeRangeIndex: number;
+  let keyword: string;
+  let landOnly: boolean;
+  let dangerousOnly: boolean;
+  let eventToggleStartIndex: number;
+
+  if (typeof a === "number" && typeof b === "string" && typeof c === "number" && typeof d === "string") {
+    playerIndex = a;
+    playerNameInput = b.trim();
+    timeRangeIndex = c;
+    keyword = d.trim();
+    landOnly = Boolean(formValues[4]);
+    dangerousOnly = Boolean(formValues[5]);
+    eventToggleStartIndex = 6;
+  } else if (typeof b === "number" && typeof c === "string" && typeof d === "number" && typeof formValues[4] === "string") {
+    playerIndex = b;
+    playerNameInput = c.trim();
+    timeRangeIndex = d;
+    keyword = String(formValues[4] ?? "").trim();
+    landOnly = Boolean(formValues[5]);
+    dangerousOnly = Boolean(formValues[6]);
+    eventToggleStartIndex = 7;
+  } else {
+    runAfterDelay(() => void openBehaviorLogForm(player));
+    return;
+  }
+
+  const playerName =
+    playerNameInput || (playerIndex <= 0 ? ALL_PLAYERS_VALUE : knownPlayers[playerIndex - 1] ?? ALL_PLAYERS_VALUE);
+  const timeRange =
+    timeRangeIndex === 0
+      ? "1h"
+      : timeRangeIndex === 1
+        ? "6h"
+        : timeRangeIndex === 2
+          ? "24h"
+          : timeRangeIndex === 3
+            ? "3d"
+            : timeRangeIndex === 4
+              ? "7d"
+              : ALL_TIME_VALUE;
+
+  const selectedTypes: BehaviorEventType[] = [];
+  for (let i = 0; i < behaviorEventDefinitions.length; i++) {
+    if (formValues[eventToggleStartIndex + i]) {
+      selectedTypes.push(behaviorEventDefinitions[i].type);
+    }
+  }
+
+  const filterState: BehaviorLogFilterState = {
+    playerName: playerName === ALL_PLAYERS_VALUE ? undefined : playerName,
+    timeRange,
+    selectedTypes,
+    keyword: keyword || undefined,
+    landOnly,
+    dangerousOnly,
+  };
+
+  runAfterDelay(() => {
+    void openBehaviorLogResultBox(player, executeBehaviorLogQuery(filterState, 0));
+  });
 }
 
 async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
-  const enabledValue = Observable.create<boolean>(setting.getState("behaviorLogEnabled" as never) as boolean, {
-    clientWritable: true,
-  });
-  const maxEntriesValue = Observable.create<string>(String(setting.getState("behaviorLogMaxEntries" as never)), {
-    clientWritable: true,
-  });
-  const locationIntervalValue = Observable.create<string>(
-    String(setting.getState("behaviorLogLocationIntervalSec" as never)),
-    {
-      clientWritable: true,
-    }
-  );
-  const statusValue = Observable.create<string>("修改后点击“保存设置”生效。");
+  const enabled = setting.getState("behaviorLogEnabled" as never) as boolean;
+  const maxEntries = String(setting.getState("behaviorLogMaxEntries" as never));
+  const locationInterval = String(setting.getState("behaviorLogLocationIntervalSec" as never));
 
-  const toggleValues = behaviorEventDefinitions.reduce(
-    (map, definition) => {
-      map[definition.type] = Observable.create<boolean>(setting.getState(definition.settingKey as never) as boolean, {
-        clientWritable: true,
-      });
-      return map;
-    },
-    {} as Record<BehaviorEventType, any>
-  );
+  const form = new ModalFormData()
+    .title("行为日志监控设置")
+    .label(
+      "关闭某项后，该事件将不再写入日志。最大保留条数按全服总日志计算。达到上限时从最旧日志开始删除。提交即保存并返回首页。"
+    )
+    .toggle("启用行为日志系统", { defaultValue: enabled })
+    .textField("行为日志最大保留条数", "全服总日志上限，例如 20000", { defaultValue: maxEntries })
+    .textField("坐标采样间隔（秒）", "对所有在线玩家进行一次坐标记录的间隔", { defaultValue: locationInterval });
 
-  const applySettings = (): boolean => {
-    const maxEntries = Number(maxEntriesValue.getData().trim());
-    const locationInterval = Number(locationIntervalValue.getData().trim());
-
-    if (!Number.isFinite(maxEntries) || maxEntries <= 0) {
-      statusValue.setData("行为日志最大保留条数必须是大于 0 的数字。");
-      return false;
-    }
-
-    if (!Number.isFinite(locationInterval) || locationInterval <= 0) {
-      statusValue.setData("坐标采样间隔必须是大于 0 的数字。");
-      return false;
-    }
-
-    setting.setState("behaviorLogEnabled" as never, enabledValue.getData());
-    setting.setState("behaviorLogMaxEntries" as never, String(Math.floor(maxEntries)));
-    setting.setState("behaviorLogLocationIntervalSec" as never, String(Math.floor(locationInterval)));
-
-    for (const definition of behaviorEventDefinitions) {
-      setting.setState(definition.settingKey as never, toggleValues[definition.type].getData());
-    }
-
-    statusValue.setData(`已保存：${formatBehaviorTimestamp(Date.now())}`);
-    return true;
-  };
-
-  let form: any;
-  form = CustomForm.create(player, "行为日志监控设置")
-    .closeButton();
-
-  dduiLead(
-    form,
-    "关闭某项后，该事件将不再写入日志。最大保留条数按全服总日志计算，包含所有玩家、所有事件类型和坐标记录。当达到最大上限时，会从最旧的日志开始删除，以免超过限制。"
-  );
-  dduiSection(form, "基础设置");
-  form.toggle("启用行为日志系统", enabledValue);
-  dduiGap(form);
-  form.textField("行为日志最大保留条数", maxEntriesValue, {
-    description:
-      "这是全服总日志上限。例如填 20000，表示所有玩家的聊天、领地行为、危险行为、坐标记录等合计最多保留最近 20000 条。当达到最大上限时，会从最旧的日志开始删除，以免超过限制。",
-  });
-  dduiGap(form);
-  form.textField("坐标采样间隔（秒）", locationIntervalValue, {
-    description: "这是对所有在线玩家进行一次坐标记录的时间间隔。比如填 60，表示每 60 秒给所有在线玩家各记录一条坐标日志。",
-  });
-  dduiGap(form);
-
-  let lastGroup = "";
   for (const definition of behaviorEventDefinitions) {
-    if (definition.group !== lastGroup) {
-      lastGroup = definition.group;
-      dduiSection(form, groupLabels[definition.group]);
-    }
-    form.toggle(definition.label, toggleValues[definition.type]);
-    dduiGap(form);
+    form.toggle(definition.label, {
+      defaultValue: setting.getState(definition.settingKey as never) as boolean,
+    });
   }
 
-  dduiSection(form, "状态");
-  form.label(statusValue);
-  dduiSection(form, "操作");
-  form.button("保存设置", () => {
-    applySettings();
-  });
-  dduiGap(form);
-  form.button("保存并返回", () => {
-    if (!applySettings()) return;
-    navigateTo(form, () => {
-      void openBehaviorLogForm(player);
-    });
-  });
-  dduiGap(form);
-  form.button("返回首页", () => {
-    navigateTo(form, () => {
-      void openBehaviorLogForm(player);
-    });
-  });
+  form.submitButton("保存并返回");
 
-  await showForm(form, player, "打开行为日志设置页失败:");
+  const result = await showForm(form, player, "打开行为日志设置页失败:");
+  if (result.canceled) {
+    runAfterDelay(() => void openBehaviorLogForm(player));
+    return;
+  }
+
+  const formValues = result.formValues;
+  // 表单顺序：.label() 可能占 formValues[0]（视 API 而定），然后 toggle、textField、textField、若干 toggle
+  const minLength = 4 + behaviorEventDefinitions.length;
+  if (!formValues || formValues.length < minLength) {
+    runAfterDelay(() => void openBehaviorLogForm(player));
+    return;
+  }
+
+  // 若 .label() 占一位：索引为 [1]=启用 toggle, [2]=最大条数, [3]=坐标间隔, [4+i]=事件 toggle
+  // 若 .label() 不占位：索引为 [0]=启用, [1]=最大条数, [2]=坐标间隔, [3+i]=事件 toggle
+  // 通过类型判断：前两位中一个是 boolean（启用），两个是 string（数字输入框）
+  const a = formValues[0];
+  const b = formValues[1];
+  const c = formValues[2];
+  const d = formValues[3];
+  let enableToggle: boolean;
+  let maxEntriesStr: string;
+  let locationIntervalStr: string;
+  let eventToggleStartIndex: number;
+
+  if (typeof a === "boolean" && typeof b === "string" && typeof c === "string") {
+    enableToggle = a;
+    maxEntriesStr = b.trim() || maxEntries;
+    locationIntervalStr = c.trim() || locationInterval;
+    eventToggleStartIndex = 3;
+  } else if (typeof b === "boolean" && typeof c === "string" && typeof d === "string") {
+    enableToggle = b;
+    maxEntriesStr = c.trim() || maxEntries;
+    locationIntervalStr = d.trim() || locationInterval;
+    eventToggleStartIndex = 4;
+  } else {
+    openDialogForm(player, { title: "保存失败", desc: "表单数据异常，请重试。" }, () => {
+      void openBehaviorLogSettingsForm(player);
+    });
+    return;
+  }
+
+  const maxEntriesNum = Number(maxEntriesStr);
+  const locationIntervalNum = Number(locationIntervalStr);
+
+  if (!Number.isFinite(maxEntriesNum) || maxEntriesNum <= 0) {
+    openDialogForm(player, { title: "保存失败", desc: "行为日志最大保留条数必须是大于 0 的数字。" }, () => {
+      void openBehaviorLogSettingsForm(player);
+    });
+    return;
+  }
+
+  if (!Number.isFinite(locationIntervalNum) || locationIntervalNum <= 0) {
+    openDialogForm(player, { title: "保存失败", desc: "坐标采样间隔必须是大于 0 的数字。" }, () => {
+      void openBehaviorLogSettingsForm(player);
+    });
+    return;
+  }
+
+  setting.setState("behaviorLogEnabled" as never, enableToggle);
+  setting.setState("behaviorLogMaxEntries" as never, String(Math.floor(maxEntriesNum)));
+  setting.setState("behaviorLogLocationIntervalSec" as never, String(Math.floor(locationIntervalNum)));
+
+  for (let i = 0; i < behaviorEventDefinitions.length; i++) {
+    setting.setState(
+      behaviorEventDefinitions[i].settingKey as never,
+      Boolean(formValues[eventToggleStartIndex + i])
+    );
+  }
+
+  runAfterDelay(() => void openBehaviorLogForm(player));
 }
