@@ -22,6 +22,8 @@ interface WitherPrepRecord {
 
 const playerLandState = new Map<string, PlayerLandState>();
 const recentWitherPrep: WitherPrepRecord[] = [];
+/** 上次执行定时坐标记录时的世界 tick，用于按间隔稳定触发 */
+let lastLocationSnapshotTick = 0;
 
 function toLandInfo(input: { isInside: boolean; insideLand: any | null }): LandLogInfo | undefined {
   if (!input.isInside || !input.insideLand) return undefined;
@@ -51,6 +53,18 @@ function isWitherPrepBlock(typeId: string): boolean {
   );
 }
 
+/** 根据点击的方块面，计算流体实际放置的格子坐标（相邻格）。基岩版用桶放水/岩浆时可能不触发 playerPlaceBlock，需用 itemStartUseOn 补录。 */
+function getPlaceOffsetByBlockFace(blockFace: string | number): { x: number; y: number; z: number } {
+  const face = String(blockFace).toLowerCase();
+  if (face === "up" || blockFace === 1) return { x: 0, y: 1, z: 0 };
+  if (face === "down" || blockFace === 0) return { x: 0, y: -1, z: 0 };
+  if (face === "north" || blockFace === 2) return { x: 0, y: 0, z: -1 };
+  if (face === "south" || blockFace === 3) return { x: 0, y: 0, z: 1 };
+  if (face === "west" || blockFace === 4) return { x: -1, y: 0, z: 0 };
+  if (face === "east" || blockFace === 5) return { x: 1, y: 0, z: 0 };
+  return { x: 0, y: 1, z: 0 };
+}
+
 function recordWitherPreparation(player: Player, location: Vector3, dimensionId: string): void {
   recentWitherPrep.push({
     playerName: player.name,
@@ -69,7 +83,33 @@ function cleanupWitherPreparation(): void {
   }
 }
 
+/** 凋零召唤者判定：优先取凋零附近最近的玩家，其次取近期摆过凋零架方块的玩家。 */
+const WITHER_SUMMONER_RADIUS_SQ = 64 * 64;
+
+/** 取与某位置同维度、距离最近的玩家名，仅在距离平方不超过 radiusSq 时返回。 */
+function findNearestPlayer(location: Vector3, dimensionId: string, radiusSq: number): string | undefined {
+  let nearestName: string | undefined;
+  let nearestDistSq = radiusSq;
+
+  for (const player of world.getAllPlayers()) {
+    if (player.dimension.id !== dimensionId) continue;
+    const dx = player.location.x - location.x;
+    const dy = player.location.y - location.y;
+    const dz = player.location.z - location.z;
+    const distSq = dx * dx + dy * dy + dz * dz;
+    if (distSq < nearestDistSq) {
+      nearestDistSq = distSq;
+      nearestName = player.name;
+    }
+  }
+
+  return nearestName;
+}
+
 function findWitherSummoner(location: Vector3, dimensionId: string): string | undefined {
+  const nearest = findNearestPlayer(location, dimensionId, WITHER_SUMMONER_RADIUS_SQ);
+  if (nearest) return nearest;
+
   cleanupWitherPreparation();
 
   let closestRecord: WitherPrepRecord | undefined;
@@ -87,7 +127,7 @@ function findWitherSummoner(location: Vector3, dimensionId: string): string | un
     }
   }
 
-  if (!closestRecord || closestDistance > 64) {
+  if (!closestRecord || closestDistance > WITHER_SUMMONER_RADIUS_SQ) {
     return undefined;
   }
 
@@ -143,6 +183,32 @@ export function registerBehaviorLogEvents(): void {
       recordWitherPreparation(player, block.location, block.dimension.id);
     }
   });
+
+  // 基岩版用桶放水/岩浆时，playerPlaceBlock 可能不触发（流体/replaceable 等），用 itemStartUseOn 补录
+  const itemStartUseOn = (world.afterEvents as any).itemStartUseOn;
+  if (typeof itemStartUseOn?.subscribe === "function") {
+    itemStartUseOn.subscribe((event: any) => {
+      const itemId = event.itemStack?.typeId;
+      if (!itemId || !event.block?.location) return;
+      const { source: player, block, blockFace } = event;
+      const dimId = block.dimension?.id;
+      if (!dimId) return;
+
+      const offset = getPlaceOffsetByBlockFace(blockFace);
+      const loc = block.location;
+      const placeAt: Vector3 = {
+        x: loc.x + offset.x,
+        y: loc.y + offset.y,
+        z: loc.z + offset.z,
+      };
+
+      if (itemId === "minecraft:water_bucket") {
+        behaviorLog.logPlaceWater(player, placeAt, dimId);
+      } else if (itemId === "minecraft:lava_bucket") {
+        behaviorLog.logPlaceLava(player, placeAt, dimId);
+      }
+    });
+  }
 
   world.beforeEvents.playerInteractWithBlock.subscribe((event: any) => {
     if (event.cancel) return;
@@ -264,9 +330,12 @@ export function registerBehaviorLogEvents(): void {
 
   system.runInterval(() => {
     const intervalTicks = Math.max(20, behaviorLog.getLocationIntervalSeconds() * 20);
-    if (system.currentTick % intervalTicks !== 0) {
+    const currentTick = system.currentTick;
+    // 用“距上次记录的 tick 数”判断，避免依赖 currentTick % intervalTicks 可能永远不成立
+    if (currentTick - lastLocationSnapshotTick < intervalTicks) {
       return;
     }
+    lastLocationSnapshotTick = currentTick;
 
     for (const player of world.getAllPlayers()) {
       const landInfo = getLandInfoAt(player.location, player.dimension.id);

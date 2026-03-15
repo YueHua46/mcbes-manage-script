@@ -289,12 +289,16 @@ export function formatBehaviorListEntry(entry: BehaviorLogEntry, index?: number)
 
 function formatBehaviorMessageBoxEntry(entry: BehaviorLogEntry, index: number): string {
   const dimensionText = typeof entry.d === "number" ? getBehaviorDimensionLabel(entry.d) : "未知维度";
+  const playerLabel = entry.e === "summonWither" ? "召唤人" : "玩家";
   const lines = [
-    `${color.darkGray(`#${index + 1}`)} ${color.gray(`[${formatBehaviorShortTimestamp(entry.t)}]`)} ${color.yellow(`[${entry.p}]`)} ${color.lightPurple(`[${dimensionText}]`)} ${color.aqua(getBehaviorEventLabel(entry.e))}`,
+    `${color.darkGray(`#${index + 1}`)} ${color.gray(`[${formatBehaviorShortTimestamp(entry.t)}]`)} ${color.yellow(`[${entry.p}]`)} ${color.darkGray(`(${playerLabel})`)} ${color.lightPurple(`[${dimensionText}]`)} ${color.aqua(getBehaviorEventLabel(entry.e))}`,
   ];
 
   const detailParts: string[] = [];
 
+  if (entry.e === "summonWither") {
+    detailParts.push(`${color.gray("召唤人")} ${color.yellow(entry.p)}`);
+  }
   if (typeof entry.x === "number" && typeof entry.y === "number" && typeof entry.z === "number") {
     detailParts.push(`${color.gray("坐标")} ${color.white(`${entry.x}, ${entry.y}, ${entry.z}`)}`);
   }
@@ -349,10 +353,11 @@ export function formatBehaviorMessageBoxPage(
 }
 
 export function describeBehaviorEntry(entry: BehaviorLogEntry): string {
+  const playerLabel = entry.e === "summonWither" ? "召唤人" : "玩家";
   const lines = [
     `${color.darkGray("日志详情")}`,
     `${color.gold("时间：")}${color.white(formatBehaviorTimestamp(entry.t))}`,
-    `${color.gold("玩家：")}${color.yellow(entry.p)}`,
+    `${color.gold(`${playerLabel}：`)}${color.yellow(entry.p)}`,
     `${color.gold("事件：")}${color.aqua(getBehaviorEventLabel(entry.e))}`,
   ];
 

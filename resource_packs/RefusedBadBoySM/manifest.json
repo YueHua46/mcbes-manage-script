@@ -15,6 +15,7 @@
       "version": [2, 1, 0]
     }
   ],
+  "capabilities": ["pbr"],
   "metadata": {
     "generated_with": {
       "blockbench_item_wizard": ["1.1.0"]
