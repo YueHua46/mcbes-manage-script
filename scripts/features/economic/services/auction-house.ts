@@ -39,60 +39,48 @@ class AuctionHouse {
   }
 
   /**
-   * 上架物品
+   * 上架物品（必须指定槽位，避免多格同 typeId 时错扣与附魔错乱）
    */
   async listItem(
     player: Player,
-    item: ItemStack,
+    slotIndex: number,
     price: number,
     amount: number = 1,
     name: string,
     description?: string,
     callback?: () => void
   ): Promise<string | void> {
-    if (!item) return "物品不存在";
-
     const inventory = player.getComponent("inventory");
     if (!inventory) return "无法获取玩家背包";
 
     const container = inventory.container;
+    if (slotIndex < 0 || slotIndex >= container.size) return "无效的槽位";
 
-    let foundSlot = -1;
-    let foundItem: ItemStack | undefined;
-
-    for (let i = 0; i < container.size; i++) {
-      const slotItem = container.getItem(i);
-      if (slotItem && slotItem.typeId === item.typeId) {
-        if (slotItem.amount >= amount) {
-          foundSlot = i;
-          foundItem = slotItem;
-          break;
-        }
-      }
-    }
-
-    if (foundSlot === -1 || !foundItem) return "找不到足够数量的物品";
+    const slotItem = container.getItem(slotIndex);
+    if (!slotItem) return "物品不存在";
+    if (slotItem.amount < amount) return "找不到足够数量的物品";
 
     const itemData: ShopItemData = {
       playerName: player.name,
       price: price,
       amount: amount,
       name: name,
-      description: item.getLore()?.join("\n"),
+      description: slotItem.getLore()?.join("\n"),
       createdAt: Date.now(),
     };
 
     try {
-      const itemToStore = item.clone();
+      const itemToStore = slotItem.clone();
       itemToStore.amount = amount;
 
       this.shopDB.add(itemToStore, { ...itemData });
 
-      if (foundItem.amount === amount) {
-        container.setItem(foundSlot);
+      if (slotItem.amount === amount) {
+        container.setItem(slotIndex);
       } else {
-        foundItem.amount -= amount;
-        container.setItem(foundSlot, foundItem);
+        const remaining = slotItem.clone();
+        remaining.amount -= amount;
+        container.setItem(slotIndex, remaining);
       }
 
       openDialogForm(

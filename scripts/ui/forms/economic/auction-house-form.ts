@@ -374,7 +374,7 @@ class AuctionHouseForm {
         return;
       }
 
-      auctionHouse.listItem(player, item, price, amount, name, desc, () => this.openMainMenu(player));
+      auctionHouse.listItem(player, slot, price, amount, name, desc, () => this.openMainMenu(player));
     });
   }
 }
