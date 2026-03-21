@@ -7,7 +7,6 @@
 import { ItemStack, Player, RawMessage } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import auctionHouse, { ShopItem } from "../../../features/economic/services/auction-house";
-import economic from "../../../features/economic/services/economic";
 import ChestFormData from "../../../ui/components/chest-ui/chest-forms";
 import { openDialogForm } from "../../components/dialog";
 import { colorCodes } from "../../../shared/utils/color";
@@ -123,7 +122,7 @@ class AuctionHouseForm {
       if (selection < currentPageItems.length) {
         const selectedItem = currentPageItems[selection];
         if (selectedItem) {
-          this.showItemDetails(player, selectedItem);
+          this.showItemDetails(player, selectedItem, page);
         }
       }
     });
@@ -194,16 +193,38 @@ class AuctionHouseForm {
       if (selection < currentPageItems.length) {
         const selectedItem = currentPageItems[selection];
         if (selectedItem) {
-          this.showMyItemDetails(player, selectedItem);
+          this.showMyItemDetails(player, selectedItem, page);
         }
       }
     });
   }
 
   /**
+   * 计算背包能容纳的物品数量（与官方商店 OfficeShopForm 一致）
+   */
+  private calculateInventoryCapacity(container: any, itemToAdd: ItemStack, requestedAmount: number): number {
+    const maxStackSize = itemToAdd.maxAmount;
+    let canHold = 0;
+
+    for (let i = 0; i < container.size; i++) {
+      const slotItem = container.getItem(i);
+      if (slotItem && slotItem.typeId === itemToAdd.typeId) {
+        if (slotItem.isStackableWith(itemToAdd)) {
+          canHold += maxStackSize - slotItem.amount;
+        }
+      }
+    }
+
+    const emptySlots = container.emptySlotsCount;
+    canHold += emptySlots * maxStackSize;
+
+    return Math.min(canHold, requestedAmount);
+  }
+
+  /**
    * 显示物品详情
    */
-  private showItemDetails(player: Player, item: ShopItem): void {
+  private showItemDetails(player: Player, item: ShopItem, page: number): void {
     const form = new ActionFormData()
       .title("商品详情")
       .body(
@@ -211,7 +232,7 @@ class AuctionHouseForm {
           `${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}\n` +
           `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price} 金币\n` +
           `${colorCodes.gold}数量: ${colorCodes.yellow}${item.data.amount}\n` +
-          `${colorCodes.gold}总价: ${colorCodes.yellow}${item.data.price * item.data.amount} 金币`
+          `${colorCodes.gold}整单总价: ${colorCodes.yellow}${item.data.price * item.data.amount} 金币`
       )
       .button("购买", "textures/ui/confirm")
       .button("返回", "textures/icons/back");
@@ -220,17 +241,112 @@ class AuctionHouseForm {
       if (response.canceled) return;
 
       if (response.selection === 0) {
-        this.showBuyConfirmation(player, item);
+        if (item.data.amount > 1) {
+          this.askBuyQuantity(player, item, page);
+        } else {
+          this.confirmPurchaseAuction(player, item, 1, page);
+        }
       } else {
-        this.browseItems(player);
+        this.browseItems(player, page);
       }
     });
   }
 
   /**
+   * 询问购买数量
+   */
+  private askBuyQuantity(player: Player, item: ShopItem, page: number): void {
+    const displayName = getItemDisplayName(item.item);
+    const title: RawMessage = {
+      rawtext: [{ text: "购买 - " }, displayName as any],
+    };
+
+    const modal = new ModalFormData().title(title).textField("请输入购买数量", "1", { defaultValue: "1" });
+
+    modal.show(player).then((res) => {
+      if (res.canceled || !res.formValues) {
+        this.showItemDetails(player, item, page);
+        return;
+      }
+
+      const qtyStr = res.formValues[0] as string;
+      if (!qtyStr || qtyStr.trim() === "") {
+        openDialogForm(player, { title: "错误", desc: "请输入有效的购买数量" }, () =>
+          this.askBuyQuantity(player, item, page)
+        );
+        return;
+      }
+
+      const qty = parseInt(qtyStr);
+      if (isNaN(qty) || qty <= 0) {
+        openDialogForm(player, { title: "错误", desc: "请输入有效的购买数量" }, () =>
+          this.askBuyQuantity(player, item, page)
+        );
+        return;
+      }
+
+      if (qty > item.data.amount) {
+        openDialogForm(player, { title: "错误", desc: "超出上架数量" }, () => this.askBuyQuantity(player, item, page));
+        return;
+      }
+
+      this.confirmPurchaseAuction(player, item, qty, page);
+    });
+  }
+
+  /**
+   * 检查背包容量后进入确认购买（与官方商店 confirmPurchase 一致）
+   */
+  private confirmPurchaseAuction(player: Player, item: ShopItem, qty: number, page: number): void {
+    const inventory = player.getComponent("inventory");
+    if (!inventory) {
+      openDialogForm(player, { title: "购买失败", desc: `${colorCodes.red}无法获取玩家背包` }, () =>
+        this.browseItems(player, page)
+      );
+      return;
+    }
+
+    const container = inventory.container;
+    if (!container) {
+      openDialogForm(player, { title: "购买失败", desc: `${colorCodes.red}无法获取玩家背包` }, () =>
+        this.browseItems(player, page)
+      );
+      return;
+    }
+
+    const itemToGive = item.item.clone();
+    const canHoldAmount = this.calculateInventoryCapacity(container, itemToGive, qty);
+
+    if (canHoldAmount === 0) {
+      openDialogForm(player, { title: "购买失败", desc: `${colorCodes.red}背包已满！` }, () =>
+        this.browseItems(player, page)
+      );
+      return;
+    }
+
+    if (canHoldAmount < qty) {
+      const adjustedPrice = item.data.price * canHoldAmount;
+      openDialogForm(
+        player,
+        {
+          title: "背包空间不足",
+          desc:
+            `${colorCodes.yellow}您想购买 ${qty} 个，但背包只能容纳 ${canHoldAmount} 个。\n` +
+            `${colorCodes.white}已自动调整为购买 ${canHoldAmount} 个\n` +
+            `${colorCodes.gold}总价: ${colorCodes.yellow}${adjustedPrice} 金币`,
+        },
+        () => this.showBuyConfirmation(player, item, canHoldAmount, page)
+      );
+      return;
+    }
+
+    this.showBuyConfirmation(player, item, qty, page);
+  }
+
+  /**
    * 显示我的商品详情
    */
-  private showMyItemDetails(player: Player, item: ShopItem): void {
+  private showMyItemDetails(player: Player, item: ShopItem, page: number = 1): void {
     const form = new ActionFormData()
       .title("我的商品")
       .body(
@@ -245,9 +361,9 @@ class AuctionHouseForm {
       if (response.canceled) return;
 
       if (response.selection === 0) {
-        auctionHouse.unlistItem(player, item, () => this.myListedItems(player));
+        auctionHouse.unlistItem(player, item, () => this.myListedItems(player, page));
       } else {
-        this.myListedItems(player);
+        this.myListedItems(player, page);
       }
     });
   }
@@ -255,13 +371,13 @@ class AuctionHouseForm {
   /**
    * 显示购买确认
    */
-  private showBuyConfirmation(player: Player, item: ShopItem): void {
-    const totalPrice = item.data.price * item.data.amount;
+  private showBuyConfirmation(player: Player, item: ShopItem, qty: number, page: number): void {
+    const totalPrice = item.data.price * qty;
 
     const form = new ActionFormData()
       .title("确认购买")
       .body(
-        `${colorCodes.green}您确定要购买 ${colorCodes.yellow}${item.data.amount} ${colorCodes.green}个 ${colorCodes.aqua}${item.data.name}${colorCodes.green} 吗？\n` +
+        `${colorCodes.green}您确定要购买 ${colorCodes.yellow}${qty} ${colorCodes.green}个 ${colorCodes.aqua}${item.data.name}${colorCodes.green} 吗？\n` +
           `${colorCodes.gold}总价: ${colorCodes.yellow}${totalPrice} 金币`
       )
       .button("确认购买", "textures/icons/accept")
@@ -269,11 +385,11 @@ class AuctionHouseForm {
 
     form.show(player).then((response) => {
       if (response.canceled || response.selection === 1) {
-        this.showItemDetails(player, item);
+        this.showItemDetails(player, item, page);
         return;
       }
 
-      auctionHouse.buyItem(player, item, item.data.amount, () => this.browseItems(player));
+      void auctionHouse.buyItem(player, item, qty, () => this.browseItems(player, page));
     });
   }
 

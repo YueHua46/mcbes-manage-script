@@ -3,7 +3,7 @@
  * 完整迁移自 Modules/Economic/AuctionHouse/AuctionHouse.ts (324行)
  */
 
-import { Player, ItemStack, world, system } from "@minecraft/server";
+import { Container, Player, ItemStack } from "@minecraft/server";
 import economic from "./economic";
 import { openDialogForm } from "../../../ui/components/dialog";
 import { color } from "../../../shared/utils/color";
@@ -139,10 +139,32 @@ class AuctionHouse {
   }
 
   /**
+   * 按最大堆叠将物品加入容器（与官方商店 executePurchase 一致）
+   */
+  private addItemStacksToContainer(container: Container, template: ItemStack, amount: number): void {
+    let remaining = amount;
+    const maxStack = template.maxAmount;
+    while (remaining > 0) {
+      const n = Math.min(remaining, maxStack);
+      const stack = template.clone();
+      stack.amount = n;
+      container.addItem(stack);
+      remaining -= n;
+    }
+  }
+
+  /**
    * 购买物品
    */
-  async buyItem(player: Player, entry: ShopItem, amount: number = 0, callback?: () => void): Promise<string | void> {
-    if (!this.isValid(entry)) return "物品不存在或已被购买";
+  async buyItem(player: Player, entry: ShopItem, amount: number = 0, callback?: () => void): Promise<void> {
+    if (!this.isValid(entry)) {
+      openDialogForm(
+        player,
+        { title: "购买失败", desc: color.red("物品不存在或已被购买") },
+        callback
+      );
+      return;
+    }
 
     if (amount <= 0 || amount > entry.data.amount) {
       amount = entry.data.amount;
@@ -150,10 +172,16 @@ class AuctionHouse {
 
     const totalPrice = entry.data.price * amount;
 
-    if (!economic.hasEnoughGold(player.name, totalPrice)) return "金钱不足";
+    if (!economic.hasEnoughGold(player.name, totalPrice)) {
+      openDialogForm(player, { title: "购买失败", desc: color.red("金钱不足") }, callback);
+      return;
+    }
 
     const inventory = player.getComponent("inventory");
-    if (!inventory) return "无法获取玩家背包";
+    if (!inventory) {
+      openDialogForm(player, { title: "购买失败", desc: color.red("无法获取玩家背包") }, callback);
+      return;
+    }
 
     const container = inventory.container;
 
@@ -186,7 +214,7 @@ class AuctionHouse {
 
       if (amount === entry.data.amount) {
         const item = await this.takeItem(entry);
-        container.addItem(item);
+        this.addItemStacksToContainer(container, item, item.amount);
       } else {
         const originalItem = entry.item.clone();
         originalItem.amount = amount;
@@ -194,7 +222,7 @@ class AuctionHouse {
         entry.data.amount -= amount;
         entry.itemDB.editData({ amount: entry.data.amount });
 
-        container.addItem(originalItem);
+        this.addItemStacksToContainer(container, originalItem, amount);
       }
 
       openDialogForm(
@@ -207,7 +235,11 @@ class AuctionHouse {
       );
     } catch (error) {
       economic.transfer(entry.data.playerName, player.name, totalPrice, "购买失败退款");
-      return `购买失败: ${error}`;
+      openDialogForm(
+        player,
+        { title: "购买失败", desc: color.red(`购买失败: ${error}`) },
+        callback
+      );
     }
   }
 
