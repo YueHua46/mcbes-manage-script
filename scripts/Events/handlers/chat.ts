@@ -7,6 +7,7 @@ import { eventRegistry } from "../registry";
 import { useAllPlayers } from "../../shared/hooks/use-player";
 import playerSettings from "../../features/player/services/player-settings";
 import setting from "../../features/system/services/setting";
+import { guildFacade } from "../../features/guild/services/guild-facade";
 
 /**
  * 注册聊天事件处理器
@@ -34,12 +35,18 @@ export function registerChatEvents(): void {
     const playerNameColor = setting.getState("playerNameColor");
     const playerChatColor = setting.getState("playerChatColor");
 
+    const guildPrefix =
+      guildFacade.isGuildModuleEnabled() && setting.getState("guildShowTagInChat") === true
+        ? guildFacade.getGuildTagPrefixForChat(sender.name)
+        : undefined;
+    const guildPart = guildPrefix ? `${guildPrefix} ` : "";
+
     // 构建显示格式
     let displayText = "";
     if (alias) {
-      displayText = `${playerNameColor}[${alias}] ${sender.name}： ${playerChatColor}${message}`;
+      displayText = `${playerNameColor}${guildPart}[${alias}] ${sender.name}： ${playerChatColor}${message}`;
     } else {
-      displayText = `${playerNameColor}${sender.name}： ${playerChatColor}${message}`;
+      displayText = `${playerNameColor}${guildPart}${sender.name}： ${playerChatColor}${message}`;
     }
 
     const allPlayers = useAllPlayers();

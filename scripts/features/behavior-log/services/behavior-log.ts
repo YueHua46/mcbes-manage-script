@@ -30,7 +30,19 @@ export type BehaviorEventType =
   | "openBarrel"
   | "openShulker"
   | "openOtherContainer"
-  | "locationSnapshot";
+  | "locationSnapshot"
+  | "guildCreate"
+  | "guildJoin"
+  | "guildLeave"
+  | "guildKick"
+  | "guildDisband"
+  | "guildTreasuryDeposit"
+  | "guildTreasuryWithdraw"
+  | "guildPromote"
+  | "guildInvite"
+  | "guildApply"
+  | "guildApplyApprove"
+  | "guildApplyReject";
 
 export interface BehaviorLogEntry {
   t: number;
@@ -62,6 +74,10 @@ export interface BehaviorLogQuery {
   dangerousOnly?: boolean;
   limit?: number;
   offset?: number;
+  /** 仅保留与指定公会相关的条目（需配合 guildTagForLegacy 兼容旧 meta） */
+  guildId?: string;
+  /** 旧日志中 `guild=<tag>` 匹配用 */
+  guildTagForLegacy?: string;
 }
 
 export interface BehaviorLogQueryResult {
@@ -86,7 +102,7 @@ export const behaviorEventDefinitions: Array<{
   type: BehaviorEventType;
   label: string;
   settingKey: string;
-  group: "basic" | "dangerous" | "land" | "container" | "location" | "combat";
+  group: "basic" | "dangerous" | "land" | "container" | "location" | "combat" | "guild";
   isDangerous?: boolean;
 }> = [
   { type: "playerJoin", label: "玩家登录", settingKey: "logPlayerJoin", group: "basic" },
@@ -117,11 +133,58 @@ export const behaviorEventDefinitions: Array<{
     settingKey: "logLocationSnapshot",
     group: "location",
   },
+  {
+    type: "guildCreate",
+    label: "公会事件（创建/加入/踢人/金库/邀请等）",
+    settingKey: "logGuildEvents",
+    group: "guild",
+  },
 ];
 
 const behaviorEventSettingMap = Object.fromEntries(
   behaviorEventDefinitions.map((definition) => [definition.type, definition.settingKey])
 ) as Record<BehaviorEventType, string>;
+
+const guildEventTypes: BehaviorEventType[] = [
+  "guildJoin",
+  "guildLeave",
+  "guildKick",
+  "guildDisband",
+  "guildTreasuryDeposit",
+  "guildTreasuryWithdraw",
+  "guildPromote",
+  "guildInvite",
+  "guildApply",
+  "guildApplyApprove",
+  "guildApplyReject",
+];
+for (const gt of guildEventTypes) {
+  behaviorEventSettingMap[gt] = "logGuildEvents";
+}
+
+/** 公会历史查询默认事件集（含创建与申请类） */
+export const GUILD_HISTORY_EVENT_TYPES: BehaviorEventType[] = [
+  "guildCreate",
+  "guildJoin",
+  "guildLeave",
+  "guildKick",
+  "guildDisband",
+  "guildTreasuryDeposit",
+  "guildTreasuryWithdraw",
+  "guildPromote",
+  "guildInvite",
+  "guildApply",
+  "guildApplyApprove",
+  "guildApplyReject",
+];
+
+function matchesGuildLogEntry(entry: BehaviorLogEntry, guildId: string, guildTagLegacy?: string): boolean {
+  const m = entry.m ?? "";
+  if (m.includes(`gid=${guildId}`)) return true;
+  if (entry.e === "guildCreate" && m.includes(`id=${guildId}`)) return true;
+  if (guildTagLegacy && m.includes(`guild=${guildTagLegacy}`)) return true;
+  return false;
+}
 
 const dangerousEventTypeSet = new Set<BehaviorEventType>(
   behaviorEventDefinitions.filter((definition) => definition.isDangerous).map((definition) => definition.type)
@@ -152,6 +215,20 @@ const dimensionLabelMap: Record<number, string> = {
 const eventLabelMap = Object.fromEntries(
   behaviorEventDefinitions.map((definition) => [definition.type, definition.label])
 ) as Record<BehaviorEventType, string>;
+
+const guildEventLabels: Partial<Record<BehaviorEventType, string>> = {
+  guildJoin: "加入公会",
+  guildLeave: "离开公会",
+  guildKick: "踢出公会成员",
+  guildDisband: "解散公会",
+  guildTreasuryDeposit: "公会金库存入",
+  guildTreasuryWithdraw: "公会金库取出",
+  guildPromote: "公会升降职",
+  guildInvite: "公会邀请",
+  guildApply: "申请加入公会",
+  guildApplyApprove: "批准加入申请",
+  guildApplyReject: "拒绝加入申请",
+};
 
 function cloneState(state: BehaviorLogState): BehaviorLogState {
   return {
@@ -191,7 +268,7 @@ function formatLandLabel(land: LandLogInfo | undefined): string | undefined {
 }
 
 export function getBehaviorEventLabel(type: BehaviorEventType): string {
-  return eventLabelMap[type] ?? type;
+  return eventLabelMap[type] ?? guildEventLabels[type] ?? type;
 }
 
 export function getBehaviorDimensionLabel(code: number | undefined): string {
@@ -451,20 +528,27 @@ class BehaviorLogService {
       dangerousOnly,
       limit = 10,
       offset = 0,
+      guildId: guildIdFilter,
+      guildTagForLegacy,
     } = query;
 
     const state = this.getState();
     const keywordValue = keyword ? normalizeText(keyword).toLowerCase() : "";
     const eventTypeSet = eventTypes?.length ? new Set(eventTypes) : undefined;
+    const effectiveEventSet = guildIdFilter
+      ? eventTypeSet ?? new Set(GUILD_HISTORY_EVENT_TYPES)
+      : eventTypeSet;
+
     const mergedEntries = [...state.es, ...state.ls]
       .sort((a, b) => b.t - a.t)
       .filter((entry) => {
         if (playerName && entry.p !== playerName) return false;
-        if (eventTypeSet && !eventTypeSet.has(entry.e)) return false;
+        if (effectiveEventSet && !effectiveEventSet.has(entry.e)) return false;
         if (typeof startTime === "number" && entry.t < startTime) return false;
         if (typeof endTime === "number" && entry.t > endTime) return false;
         if (landOnly && !entry.l) return false;
         if (dangerousOnly && !dangerousEventTypeSet.has(entry.e)) return false;
+        if (guildIdFilter && !matchesGuildLogEntry(entry, guildIdFilter, guildTagForLegacy)) return false;
         if (keywordValue) {
           const haystack = buildBehaviorSearchText(entry);
           if (!haystack.includes(keywordValue)) return false;
@@ -695,6 +779,30 @@ class BehaviorLogService {
       },
       true
     );
+  }
+
+  logGuildEvent(playerName: string, eventType: BehaviorEventType, meta?: string): void {
+    if (
+      eventType !== "guildCreate" &&
+      eventType !== "guildJoin" &&
+      eventType !== "guildLeave" &&
+      eventType !== "guildKick" &&
+      eventType !== "guildDisband" &&
+      eventType !== "guildTreasuryDeposit" &&
+      eventType !== "guildTreasuryWithdraw" &&
+      eventType !== "guildPromote" &&
+      eventType !== "guildInvite" &&
+      eventType !== "guildApply" &&
+      eventType !== "guildApplyApprove" &&
+      eventType !== "guildApplyReject"
+    ) {
+      return;
+    }
+    this.append({
+      p: playerName,
+      e: eventType,
+      m: meta ? normalizeText(meta, MAX_META_LENGTH) : undefined,
+    });
   }
 
   private append(entry: Omit<BehaviorLogEntry, "t"> & { t?: number }, isLocation = false): void {

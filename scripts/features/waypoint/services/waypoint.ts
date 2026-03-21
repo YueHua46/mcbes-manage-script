@@ -17,8 +17,13 @@ export interface IWayPoint {
   dimension: string;
   created: string;
   modified: string;
-  type: "public" | "private";
+  type: "public" | "private" | "guild";
   isStarred?: boolean;
+}
+
+/** 公会坐标在路点库中的虚拟「所有者」名，避免占用成员私人路点名额 */
+export function guildVirtualOwnerName(guildId: string): string {
+  return `__guild_${guildId}`;
 }
 
 interface ICreateWayPoint {
@@ -201,6 +206,85 @@ class WayPoint {
 
   getPublicPoints(): IWayPoint[] {
     return this.db.values().filter((p) => p.type === "public");
+  }
+
+  /** 某公会已存在的公会坐标数量（仅 type=guild 且虚拟所有者） */
+  countGuildPointsForGuild(guildId: string): number {
+    const owner = guildVirtualOwnerName(guildId);
+    return this.db.values().filter((p) => p.type === "guild" && p.playerName === owner).length;
+  }
+
+  getGuildWaypointDbKey(guildId: string, pointName: string): string {
+    return this.getKey(guildVirtualOwnerName(guildId), pointName.trim());
+  }
+
+  /**
+   * 在当前位置新建公会坐标（不占私人路点名额，受每公会上限限制）
+   */
+  createGuildPointAtLocation(params: {
+    guildId: string;
+    pointName: string;
+    location: Vector3;
+    dimension: string;
+  }): void | string {
+    const name = params.pointName.trim();
+    if (!name) return "坐标点名称不能为空";
+    if (name.includes(":")) return "名称不能包含冒号";
+    const owner = guildVirtualOwnerName(params.guildId);
+    const key = this.getKey(owner, name);
+    if (this.db.get(key)) return "该名称已存在";
+    const maxGRaw = setting.getState("guildMaxWaypointsPerGuild");
+    const cap = Number.isFinite(Number(maxGRaw)) && Number(maxGRaw) >= 0 ? Math.floor(Number(maxGRaw)) : 20;
+    if (this.countGuildPointsForGuild(params.guildId) >= cap) {
+      return `本会公会坐标数量已达上限(${cap})`;
+    }
+    const time = getNowDate();
+    const wp: IWayPoint = {
+      name,
+      location: this.formatLocation(params.location),
+      playerName: owner,
+      dimension: params.dimension,
+      created: time,
+      modified: time,
+      type: "guild",
+    };
+    return this.db.set(key, wp);
+  }
+
+  /** 从旧版「某玩家名下的路点」复制为公会虚拟路点（迁移用） */
+  copyGuildPointFromLegacyWaypoint(params: { guildId: string; pointName: string; source: IWayPoint }): void | string {
+    const name = params.pointName.trim();
+    if (!name) return "坐标点名称不能为空";
+    if (name.includes(":")) return "名称不能包含冒号";
+    const owner = guildVirtualOwnerName(params.guildId);
+    const key = this.getKey(owner, name);
+    if (this.db.get(key)) return "该名称已存在";
+    const time = getNowDate();
+    const wp: IWayPoint = {
+      name,
+      location: this.formatLocation(params.source.location),
+      playerName: owner,
+      dimension: params.source.dimension,
+      created: params.source.created,
+      modified: time,
+      type: "guild",
+    };
+    return this.db.set(key, wp);
+  }
+
+  /** 按完整库键更新坐标（含旧版「玩家名:名称」公会坐标） */
+  updatePointLocationByDbKey(dbKey: string, player: Player): void | string {
+    const i = dbKey.indexOf(":");
+    if (i < 1 || i >= dbKey.length - 1) return "坐标数据无效";
+    const ownerName = dbKey.slice(0, i);
+    const pointName = dbKey.slice(i + 1);
+    const key = this.getKey(ownerName, pointName);
+    const wp = this.db.get(key);
+    if (!wp) return "坐标点不存在";
+    wp.location = this.formatLocation(player.location);
+    wp.dimension = player.dimension.id;
+    wp.modified = getNowDate();
+    return this.db.set(key, wp);
   }
 
   /**
@@ -627,6 +711,13 @@ class WayPoint {
       count++;
     }
     return count;
+  }
+
+  /**
+   * 按数据库完整键读取路点（键格式：`玩家名:坐标点名称`）
+   */
+  getPointByDbKey(key: string): IWayPoint | undefined {
+    return this.db.get(key);
   }
 
   toggleStar(pointName: string, playerName: string, isStarred: boolean): void | string {

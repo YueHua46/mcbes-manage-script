@@ -13,6 +13,7 @@ import { color, colorCodes } from "../../../shared/utils/color";
 import leaveMessage from "../../../features/other/services/leave-message";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import setting from "../../../features/system/services/setting";
+import { isAdmin } from "../../../shared/utils/common";
 
 // ==================== 服务器信息 ====================
 
@@ -149,7 +150,11 @@ export const openLeaveMessageForms = (player: Player): void => {
       action: () => openLeaveMessageListForm(player),
     },
     { text: "§w添加留言", icon: "textures/icons/add", action: () => openAddLeaveMessageForm(player) },
-    { text: "§w删除留言", icon: "textures/icons/deny", action: () => openDeleteLeaveMessageForm(player) },
+    {
+      text: "§w删除留言",
+      icon: "textures/icons/deny",
+      action: () => openDeleteLeaveMessageForm(player, isAdmin(player)),
+    },
   ];
   buttons.forEach(({ text, icon }) => form.button(text, icon));
   form.button("§w返回", "textures/icons/back");
@@ -259,13 +264,24 @@ export const openAddLeaveMessageForm = (player: Player): void => {
   });
 };
 
-export const openDeleteLeaveMessageForm = (player: Player, isAdmin: boolean = false): void => {
+export const openDeleteLeaveMessageForm = (player: Player, forAllMessages: boolean = false): void => {
   const form = new ModalFormData();
   form.title("§w删除留言");
-  const lms = isAdmin ? leaveMessage.getLeaveMessages() : leaveMessage.getPlayerLeaveMessages(player);
+  const lms = forAllMessages ? leaveMessage.getLeaveMessages() : leaveMessage.getPlayerLeaveMessages(player);
+  if (lms.length === 0) {
+    openDialogForm(
+      player,
+      {
+        title: "提示",
+        desc: color.gray(forAllMessages ? "当前没有任何留言" : "你还没有留言"),
+      },
+      () => openLeaveMessageForms(player)
+    );
+    return;
+  }
   form.dropdown(
-    "选择留言",
-    lms.map((lm) => lm.title)
+    forAllMessages ? "选择留言（管理员：可删全部）" : "选择留言",
+    lms.map((lm) => (forAllMessages ? `${lm.title} · ${lm.creator}` : lm.title))
   );
   form.submitButton("§w确定");
   form.show(player).then((data) => {

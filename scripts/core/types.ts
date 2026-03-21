@@ -73,6 +73,12 @@ export interface ILand {
   config_public_auth: ILandPublicAuth; // 权限配置权限
   createdAt: number;
   teleportPoint?: Vector3; // 领地传送点（可选）
+  /** 可选：公会领地登记（与同公会身份动态判定，一般不依赖 members 名单） */
+  guildId?: string;
+  /**
+   * 旧版存档：曾同步到领地 members 的名字（解绑时仅移除这些，兼容历史数据）
+   */
+  guildBoundMemberNames?: string[];
 }
 
 // 事件处理器类型

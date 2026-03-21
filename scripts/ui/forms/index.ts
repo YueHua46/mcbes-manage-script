@@ -12,5 +12,6 @@ export * from './help';
 export * from './notify';
 export * from './other';
 export * from './behavior-log';
+export * from './guild';
 
 

@@ -310,7 +310,12 @@ export const openWayPointDetailForm = (
       },
       {
         title: "类型",
-        desc: point.type === "public" ? color.darkGreen("公开") : color.darkRed("私有"),
+        desc:
+          point.type === "public"
+            ? color.darkGreen("公开")
+            : point.type === "guild"
+              ? color.aqua("公会")
+              : color.darkRed("私有"),
       },
       {
         title: "是否置顶",
@@ -332,13 +337,13 @@ export const openWayPointDetailForm = (
     },
   ];
 
-  if (wayPoint.checkOwner(player, pointName) || isAdmin) {
+  if (point.type !== "guild" && (wayPoint.checkOwner(player, pointName) || isAdmin)) {
     buttons.push(
       {
         text: "编辑",
         icon: "textures/icons/edit2",
         action: () => {
-          openWayPointUpdateForm(player, pointName, isAdmin, point.type);
+          openWayPointUpdateForm(player, pointName, isAdmin, point.type === "public" ? "public" : "private");
         },
       },
       {

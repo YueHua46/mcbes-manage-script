@@ -14,6 +14,7 @@ import { openEconomyMenuForm } from "../economic";
 import { openBaseFunctionForm } from "../other";
 import { openHelpMenuForm } from "../help";
 import { openSystemSettingForm } from "../system";
+import { openGuildMenuForm } from "../guild";
 
 interface MenuItem {
   text: string;
@@ -82,6 +83,14 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       icon: "textures/icons/clock",
       action: async (player: Player) => {
         openEconomyMenuForm(player);
+      },
+    },
+    {
+      id: "guild",
+      text: "§w公会",
+      icon: "textures/icons/island",
+      action: async (player: Player) => {
+        await openGuildMenuForm(player);
       },
     },
     {

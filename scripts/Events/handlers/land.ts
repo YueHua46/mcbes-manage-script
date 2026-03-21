@@ -21,6 +21,12 @@ import landParticle from "../../features/land/services/land-particle";
 import { useNotify } from "../../shared/hooks";
 import { MinecraftBlockTypes } from "@minecraft/vanilla-data";
 import type { ILand, Vector3 } from "../../core/types";
+import { guildFacade } from "../../features/guild/services/guild-facade";
+
+/** 避免玩家名/领地名的 § 破坏标题与 actionbar */
+function stripLandDisplaySection(s: string): string {
+  return s.replace(/§./g, "");
+}
 
 interface LandArea {
   start?: Vector3;
@@ -218,8 +224,8 @@ export function registerLandEvents(): void {
       if (isInside && insideLand && !LandLog.get(p.name)) {
         // 检查是否允许进入
         if (!insideLand.public_auth.allowEnter) {
-          // 如果不是领地主人、管理员或成员，则传送出去
-          if (insideLand.owner !== p.name && !isAdmin(p) && !insideLand.members.includes(p.name)) {
+          // 非管理员且非领地信任对象（含公会领地同公会成员）则传送出去
+          if (!isAdmin(p) && !landManager.isPlayerTrustedOnLand(insideLand, p.name)) {
             // 计算领地外最近的安全位置
             const landMin = {
               x: Math.min(insideLand.vectors.start.x, insideLand.vectors.end.x),
@@ -292,13 +298,31 @@ export function registerLandEvents(): void {
           }
         }
 
-        useNotify(
-          "actionbar",
-          p,
-          `${color.yellow("您已进入")} ${color.green(insideLand.owner)} ${color.yellow("的领地")} ${color.aqua(
-            "『"
-          )}${color.lightPurple(insideLand.name)}${color.aqua("』")}`
-        );
+        if (insideLand.guildId) {
+          const guildInfo = guildFacade.getGuildTagAndNameById(insideLand.guildId);
+          // 仅 actionbar，不弹全屏 titleraw（音效与个人领地进入相同）
+          try {
+            p.playSound("random.pop", { volume: 0.45, pitch: 1.0 });
+          } catch {
+            /* ignore */
+          }
+          const ab = guildInfo
+            ? `${color.gray("▸")} ${color.gold("公会领地")} ${color.aqua("[")}${color.yellow(stripLandDisplaySection(guildInfo.tag))}${color.aqua("]")} ${color.white(
+                stripLandDisplaySection(guildInfo.name)
+              )} ${color.darkGray("·")} ${color.lightPurple("『")}${stripLandDisplaySection(insideLand.name)}${color.lightPurple("』")} ${color.gray("◂")}`
+            : `${color.gray("▸")} ${color.gold("公会领地")} ${color.lightPurple("『")}${stripLandDisplaySection(insideLand.name)}${color.lightPurple("』")} ${color.gray("(数据异常)")}`;
+          useNotify("actionbar", p, ab);
+        } else {
+          try {
+            p.playSound("random.pop", { volume: 0.45, pitch: 1.0 });
+          } catch {
+            /* ignore */
+          }
+          const ownerDisp = stripLandDisplaySection(insideLand.owner);
+          const landDisp = stripLandDisplaySection(insideLand.name);
+          const ab = `${color.gray("▸")} ${color.gold("个人领地")} ${color.aqua("[")}${color.yellow(ownerDisp)}${color.aqua("]")} ${color.darkGray("·")} ${color.lightPurple("『")}${landDisp}${color.lightPurple("』")} ${color.gray("◂")}`;
+          useNotify("actionbar", p, ab);
+        }
 
         try {
           landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
@@ -310,13 +334,31 @@ export function registerLandEvents(): void {
       else if (!isInside && LandLog.get(p.name)) {
         const landData = LandLog.get(p.name);
         if (landData) {
-          useNotify(
-            "actionbar",
-            p,
-            `${color.yellow("您已离开")} ${color.green(landData.owner)} ${color.yellow("的领地")} ${color.aqua(
-              "『"
-            )}${color.lightPurple(landData.name)}${color.aqua("』")}`
-          );
+          if (landData.guildId) {
+            const guildInfo = guildFacade.getGuildTagAndNameById(landData.guildId);
+            // 仅 actionbar，不弹全屏 titleraw（音效与个人领地离开相同）
+            try {
+              p.playSound("random.click", { volume: 0.4, pitch: 1.0 });
+            } catch {
+              /* ignore */
+            }
+            const ab = guildInfo
+              ? `${color.gray("▹")} ${color.darkGray("已离开")} ${color.aqua("[")}${color.yellow(stripLandDisplaySection(guildInfo.tag))}${color.aqua("]")} ${color.white(
+                  stripLandDisplaySection(guildInfo.name)
+                )} ${color.darkGray("·")} ${color.lightPurple("『")}${stripLandDisplaySection(landData.name)}${color.lightPurple("』")} ${color.gray("▸")}`
+              : `${color.gray("▹")} ${color.darkGray("已离开")} ${color.lightPurple("『")}${stripLandDisplaySection(landData.name)}${color.lightPurple("』")} ${color.gray("(数据异常)")}`;
+            useNotify("actionbar", p, ab);
+          } else {
+            try {
+              p.playSound("random.click", { volume: 0.4, pitch: 1.0 });
+            } catch {
+              /* ignore */
+            }
+            const ownerDisp = stripLandDisplaySection(landData.owner);
+            const landDisp = stripLandDisplaySection(landData.name);
+            const ab = `${color.gray("▹")} ${color.darkGray("已离开")} ${color.aqua("[")}${color.yellow(ownerDisp)}${color.aqua("]")} ${color.darkGray("·")} ${color.lightPurple("『")}${landDisp}${color.lightPurple("』")} ${color.gray("▸")}`;
+            useNotify("actionbar", p, ab);
+          }
 
           try {
             landParticle.createLandParticleArea(p, [landData.vectors.start, landData.vectors.end]);
@@ -389,7 +431,7 @@ export function registerLandEvents(): void {
     if (!isInside || !insideLand) return;
     if (insideLand.owner === player.name) return;
     if (isAdmin(player)) return;
-    if (insideLand.members.includes(player.name)) return;
+    if (landManager.isPlayerTrustedOnLand(insideLand, player.name)) return;
     if (insideLand.public_auth.place) return;
 
     // 检查是否是水方块
@@ -433,7 +475,7 @@ export function registerLandEvents(): void {
     if (insideLand.owner === player.name) return;
     if (isAdmin(player)) return;
     if (insideLand.public_auth.break) return;
-    if (insideLand.members.includes(player.name)) return;
+    if (landManager.isPlayerTrustedOnLand(insideLand, player.name)) return;
 
     event.cancel = true;
     // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
@@ -457,7 +499,7 @@ export function registerLandEvents(): void {
     if (!isInside || !insideLand) return;
     if (insideLand.owner === player.name) return;
     if (isAdmin(player)) return;
-    if (insideLand.members.includes(player.name)) return;
+    if (landManager.isPlayerTrustedOnLand(insideLand, player.name)) return;
 
     // 检查是否是副手物品交互（防止使用副手放置方块）
     const equippableComponent = player.getComponent(EntityEquippableComponent.componentId) as EntityEquippableComponent;
@@ -676,7 +718,7 @@ export function registerLandEvents(): void {
     if (insideLand.owner === player.name) return;
     if (isAdmin(player)) return;
     if (insideLand.public_auth.useEntity) return;
-    if (insideLand.members.includes(player.name)) return;
+    if (landManager.isPlayerTrustedOnLand(insideLand, player.name)) return;
 
     event.cancel = true;
     // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
@@ -773,8 +815,8 @@ export function registerLandEvents(): void {
     // 6. 如果领地的攻击中立生物权限为true,则允许攻击
     if (insideLand.public_auth.attackNeutralMobs === true) return;
 
-    // 7. 如果攻击者是领地成员,则允许
-    if (insideLand.members.includes(attacker.name)) return;
+    // 7. 如果攻击者是领地信任对象（含公会领地同公会成员）,则允许
+    if (landManager.isPlayerTrustedOnLand(insideLand, attacker.name)) return;
 
     // 攻击不被允许，记录火焰来源（用于后续 fireTick 兜底拦截）
     landEntityFireSourceMap.set(hurtEntity.id, Date.now());

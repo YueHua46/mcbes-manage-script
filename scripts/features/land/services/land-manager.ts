@@ -6,12 +6,13 @@
 import { Block, BlockVolume, Player, system, Vector3, world } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import type { ILand } from "../../../core/types";
-import { isAdmin } from "../../../shared/utils/common";
+import { isAdmin, SystemLog } from "../../../shared/utils/common";
 import { color } from "../../../shared/utils/color";
 import setting from "../../system/services/setting";
 import { openConfirmDialogForm } from "../../../ui/components/dialog";
 import economic from "../../economic/services/economic";
 import { useNotify } from "../../../shared/hooks/use-notify";
+import { getGuildPlayerIndexDb } from "../../guild/services/guild-player-index-db";
 
 class LandManager {
   db!: Database<ILand>;
@@ -170,6 +171,23 @@ class LandManager {
   }
 
   /**
+   * 领地信任判定：领主、领地成员名单、或「公会领地」且玩家公会 ID 与领地 guildId 一致
+   */
+  isPlayerTrustedOnLand(land: ILand, playerName: string): boolean {
+    if (land.owner === playerName) return true;
+    if (land.members.includes(playerName)) return true;
+    if (land.guildId) {
+      try {
+        const gid = getGuildPlayerIndexDb().get(playerName);
+        if (typeof gid === "string" && gid === land.guildId) return true;
+      } catch {
+        /* ignore */
+      }
+    }
+    return false;
+  }
+
+  /**
    * 获取所有有领地的玩家
    */
   getLandPlayers(): string[] {
@@ -203,11 +221,16 @@ class LandManager {
   }
 
   /**
-   * 获取玩家拥有的领地数量
+   * 个人领地配额：仅统计「未登记为公会领地」的地块（guildId 已登记的不占每玩家上限）
    */
   getPlayerLandCount(playerName: string): number {
     const lands = this.db.values();
-    return lands.filter((land) => land.owner === playerName).length;
+    return lands.filter((land) => land.owner === playerName && !land.guildId).length;
+  }
+
+  /** 某公会当前已登记的公会领地块数（独立配额用） */
+  getGuildLandCountForGuild(guildId: string): number {
+    return this.db.values().filter((land) => land.guildId === guildId).length;
   }
 
   /**
@@ -260,10 +283,18 @@ class LandManager {
       return `领地重叠，请重新设置领地范围。\n${info}`;
     }
 
-    // 检查玩家领地数量限制
-    const maxLandPerPlayer = Number(setting.getState("maxLandPerPlayer") || 5);
-    if (!isAdmin(player) && this.getPlayerLandCount(landData.owner) >= maxLandPerPlayer) {
-      return `您已达到最大领地数量限制(${maxLandPerPlayer})，无法创建更多领地，请联系管理员调整上限。`;
+    // 公会领地：只受每公会上限约束，不占个人领地名额
+    if (landData.guildId) {
+      const maxGuildLands = Number(setting.getState("guildMaxLandsPerGuild") ?? 5);
+      const cap = Number.isFinite(maxGuildLands) && maxGuildLands >= 0 ? Math.floor(maxGuildLands) : 5;
+      if (this.getGuildLandCountForGuild(landData.guildId) >= cap) {
+        return `本会登记的公会领地已达上限(${cap})，可先解除部分登记或请管理员提高「每公会最大公会领地数」`;
+      }
+    } else {
+      const maxLandPerPlayer = Number(setting.getState("maxLandPerPlayer") || 5);
+      if (!isAdmin(player) && this.getPlayerLandCount(landData.owner) >= maxLandPerPlayer) {
+        return `您已达到最大领地数量限制(${maxLandPerPlayer})，无法创建更多领地，请联系管理员调整上限。`;
+      }
     }
 
     // 检查领地方块数量限制
@@ -280,7 +311,56 @@ class LandManager {
       }
     }
 
-    // 经济系统检查（如果开启）
+    // 公会领地：仅从公会金库扣固定费用，不按方块扣领主个人钱包
+    if (landData.guildId) {
+      const rawTreasury = Number(setting.getState("guildTreasuryCostLandCreate"));
+      const treasuryCost = Number.isFinite(rawTreasury) && rawTreasury >= 0 ? Math.floor(rawTreasury) : 0;
+      const { default: guildService } = await import("../../guild/services/guild-service");
+      const treasuryBalance = guildService.getTreasuryGoldByGuildId(landData.guildId);
+      if (treasuryCost > treasuryBalance) {
+        return `金库余额不足，需要 ${treasuryCost} 金币，当前 ${treasuryBalance}`;
+      }
+      if (!player) {
+        return "公会领地创建需要领主在线以确认";
+      }
+
+      const { isCancel } = await new Promise<{ isCancel: boolean }>((resolve) => {
+        openConfirmDialogForm(
+          player,
+          "公会领地创建确认",
+          treasuryCost > 0
+            ? `将从公会金库支付 ${treasuryCost} 金币创建公会领地（当前金库 ${treasuryBalance}），是否继续？`
+            : `将创建公会领地（当前金库费用为 0），是否继续？`,
+          () => resolve({ isCancel: false }),
+          () => resolve({ isCancel: true })
+        );
+      });
+
+      if (isCancel) return "领地创建已取消";
+
+      if (treasuryCost > 0) {
+        const spendErr = guildService.spendTreasuryForGuild(
+          landData.guildId,
+          treasuryCost,
+          player.name,
+          `新建公会领地 ${landData.name} -${treasuryCost}`
+        );
+        if (spendErr) return spendErr;
+      }
+
+      try {
+        this.db.set(landData.name, landData);
+      } catch (e) {
+        if (treasuryCost > 0) {
+          guildService.refundTreasuryForGuild(landData.guildId, treasuryCost);
+        }
+        SystemLog.error("[Land] createLand guild land persist failed", e);
+        return "领地写入失败，已退回金库扣款";
+      }
+      return true;
+    }
+
+    // 个人领地：经济系统检查（如果开启）
     const { cost, balance, canAfford, isCancel } = await this.confirmAndCreateLandAsync(
       player,
       landData.vectors.start,
@@ -377,8 +457,8 @@ class LandManager {
     if (typeof land === "string") return land;
     if (!land.teleportPoint) return "该领地未设置传送点";
 
-    // 检查权限：只有领地主人、成员或管理员可以传送
-    if (land.owner !== player.name && !isAdmin(player) && !land.members.includes(player.name)) {
+    // 检查权限：领地主人、信任成员、公会领地同公会成员、或管理员
+    if (!isAdmin(player) && !this.isPlayerTrustedOnLand(land, player.name)) {
       return "您没有权限传送到该领地";
     }
 

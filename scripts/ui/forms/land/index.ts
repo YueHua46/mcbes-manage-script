@@ -14,7 +14,15 @@ import { useFormatInfo, useFormatListInfo } from "../../../shared/hooks/use-form
 import { useAllPlayers } from "../../../shared/hooks/use-player";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import type { ILand } from "../../../core/types";
+import guildService from "../../../features/guild/services/guild-service";
+import setting from "../../../features/system/services/setting";
 import { openLandManageForm, openSystemSettingForm } from "../system";
+
+/** 从公会菜单「纯公会圈地」创建时传入，写入 ILand.guildId */
+export type GuildLandApplyContext = {
+  guildId: string;
+  onSuccess?: () => void;
+};
 
 /**
  * 获取维度显示名称
@@ -37,9 +45,12 @@ function getDimensionName(dimension: string): string {
 
 // ==================== 领地申请 ====================
 
-function createLandApplyForm(player: Player): ModalFormData {
+function createLandApplyForm(player: Player, guildApply?: GuildLandApplyContext): ModalFormData {
   const form = new ModalFormData();
-  form.title("领地申请");
+  form.title(guildApply ? "§w创建公会领地" : "领地申请");
+  if (guildApply) {
+    form.label("§7创建公会领地时，费用从§6公会金库§7扣除（不按方块扣个人金币），具体金额由管理员在服务器设置中配置。");
+  }
 
   const defaultLandStartPos = landAreas.get(player.name)?.start || {
     x: player.location.x.toFixed(0),
@@ -73,7 +84,11 @@ function createLandApplyForm(player: Player): ModalFormData {
   return form;
 }
 
-function validateForm(formValues: (string | number | boolean | undefined)[], player: Player): boolean {
+function validateForm(
+  formValues: (string | number | boolean | undefined)[],
+  player: Player,
+  guildApply?: GuildLandApplyContext
+): boolean {
   if (formValues && formValues[0] && formValues[1] && formValues[2]) {
     const landStartPos = formValues[1] as string;
     const landEndPos = formValues[2] as string;
@@ -89,7 +104,7 @@ function validateForm(formValues: (string | number | boolean | undefined)[], pla
           desc: color.red("表单格式填写有误，请重新填写！"),
         },
         () => {
-          openLandApplyForm(player);
+          openLandApplyForm(player, guildApply);
         }
       );
       return false;
@@ -107,7 +122,7 @@ function validateForm(formValues: (string | number | boolean | undefined)[], pla
           desc: color.red("领地起始点和结束点不能在同一直线上，且不能为同一坐标点！"),
         },
         () => {
-          openLandApplyForm(player);
+          openLandApplyForm(player, guildApply);
         }
       );
       return false;
@@ -122,15 +137,15 @@ function validateForm(formValues: (string | number | boolean | undefined)[], pla
         desc: color.red("表单未填写完整，请重新填写！"),
       },
       () => {
-        openLandApplyForm(player);
+        openLandApplyForm(player, guildApply);
       }
     );
     return false;
   }
 }
 
-export function openLandApplyForm(player: Player): void {
-  const form = createLandApplyForm(player);
+export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyContext): void {
+  const form = createLandApplyForm(player, guildApply);
 
   form.show(player).then(async (data) => {
     const { formValues, cancelationReason } = data;
@@ -142,7 +157,7 @@ export function openLandApplyForm(player: Player): void {
       const landEndPos = formValues[2] as string;
       const setTeleportPoint = formValues[3] as boolean;
 
-      if (validateForm(formValues, player)) {
+      if (validateForm(formValues, player, guildApply)) {
         const landStartPosVector3 = landManager.createVector3(landStartPos);
         const landEndPosVector3 = landManager.createVector3(landEndPos);
 
@@ -199,6 +214,10 @@ export function openLandApplyForm(player: Player): void {
             : undefined,
         };
 
+        if (guildApply?.guildId) {
+          landData.guildId = guildApply.guildId;
+        }
+
         // 如果设置了传送点，先检查是否在领地范围内
         if (setTeleportPoint) {
           const teleportPoint = {
@@ -221,7 +240,7 @@ export function openLandApplyForm(player: Player): void {
                 desc: color.red("当前位置不在领地范围内！\n请确保您站在要创建的领地范围内，或取消设置传送点选项"),
               },
               () => {
-                openLandApplyForm(player);
+                openLandApplyForm(player, guildApply);
               }
             );
             return;
@@ -237,15 +256,21 @@ export function openLandApplyForm(player: Player): void {
               desc: color.red(res),
             },
             () => {
-              openLandApplyForm(player);
+              openLandApplyForm(player, guildApply);
             }
           );
         } else {
-          player.sendMessage(color.yellow(`领地 ${landName} 创建成功！`));
+          if (guildApply?.guildId) {
+            player.sendMessage(color.gold(`公会领地 ${landName} 创建成功！`));
+            player.sendMessage(color.gray("该地块已登记为本会领地，不占个人领地上限。"));
+          } else {
+            player.sendMessage(color.yellow(`领地 ${landName} 创建成功！`));
+          }
           if (setTeleportPoint) {
             player.sendMessage(color.green("已设置领地传送点，可在领地详细界面传送回领地"));
           }
           landAreas.delete(player.name);
+          guildApply?.onSuccess?.();
         }
       }
     } else {
@@ -256,7 +281,7 @@ export function openLandApplyForm(player: Player): void {
           desc: color.red("表单未填写完整，请重新填写！"),
         },
         () => {
-          openLandApplyForm(player);
+          openLandApplyForm(player, guildApply);
         }
       );
     }
@@ -867,7 +892,7 @@ export const openLandDetailForm = (
   const form = new ActionFormData();
   form.title("领地详细");
   const isOwner = landData.owner === player.name;
-  const canAccess = isOwner || isAdmin || landData.members.includes(player.name);
+  const canAccess = isOwner || isAdmin || landManager.isPlayerTrustedOnLand(landData, player.name);
 
   const buttons = [
     {
@@ -898,6 +923,8 @@ export const openLandDetailForm = (
         icon: "textures/icons/party_unavailable",
         action: () => openLandMemberForm(player, landData),
       },
+    ];
+    actions.push(
       {
         text: "领地转让",
         icon: "textures/icons/quest_daily_common",
@@ -917,8 +944,8 @@ export const openLandDetailForm = (
         text: "删除领地",
         icon: "textures/icons/copkutusu",
         action: () => openLandDeleteForm(player, landData, isAdmin),
-      },
-    ];
+      }
+    );
     buttons.push(...actions);
   }
 
@@ -960,6 +987,19 @@ export const openLandDetailForm = (
     );
   } else {
     infoList.push("传送点: " + color.gray("未设置"));
+  }
+
+  if (setting.getState("guild") === true) {
+    if (landData.guildId) {
+      const g = guildService.getGuildById(landData.guildId);
+      infoList.push(
+        "公会领地: " +
+          (g ? color.green(`[${g.tag}] ${g.name}`) : color.gray("已登记（公会数据异常）")) +
+          color.gray("（在「服务器菜单 → 公会 → 公会领地」管理）")
+      );
+    } else {
+      infoList.push("公会领地: " + color.gray("未登记（会长/副会长可在公会菜单登记）"));
+    }
   }
 
   form.body(
@@ -1006,7 +1046,7 @@ export function openLandListForm(player: Player, isAdmin: boolean = false, page:
 
   for (const key in ll) {
     const landData = ll[key];
-    if (landData.owner === player.name || isAdmin || landData.members.includes(player.name)) {
+    if (landData.owner === player.name || isAdmin || landManager.isPlayerTrustedOnLand(landData, player.name)) {
       myLands.push(landData);
     }
   }

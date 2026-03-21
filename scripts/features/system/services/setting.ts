@@ -68,7 +68,23 @@ export type IModules =
   | "logOpenBarrel"
   | "logOpenShulker"
   | "logOpenOtherContainers"
-  | "logLocationSnapshot";
+  | "logLocationSnapshot"
+  | "guild"
+  | "guildCreateCost"
+  | "guildMaxMembers"
+  | "guildTagMaxLen"
+  | "guildNameMaxLen"
+  | "guildShowTagInChat"
+  | "guildShowTagInName"
+  | "guildInviteExpireSec"
+  | "guildLeaveOnBlacklist"
+  | "guildBankOfficerWithdraw"
+  | "logGuildEvents"
+  | "guildMaxLandsPerGuild"
+  | "guildMaxWaypointsPerGuild"
+  | "guildTreasuryCostLandCreate"
+  | "guildTreasuryCostLandBind"
+  | "guildTreasuryCostWaypointCreate";
 
 export type IValueType = boolean | string;
 
@@ -132,6 +148,27 @@ export const defaultSetting = {
   logOpenShulker: true,
   logOpenOtherContainers: true,
   logLocationSnapshot: false,
+  guild: true,
+  guildCreateCost: "1000",
+  guildMaxMembers: "50",
+  guildTagMaxLen: "6",
+  guildNameMaxLen: "16",
+  guildShowTagInChat: true,
+  guildShowTagInName: true,
+  guildInviteExpireSec: "86400",
+  guildLeaveOnBlacklist: true,
+  guildBankOfficerWithdraw: true,
+  logGuildEvents: true,
+  /** 每个公会最多可登记几块公会领地（与个人 maxLandPerPlayer 独立） */
+  guildMaxLandsPerGuild: "5",
+  /** 每个公会最多可保存多少个公会坐标（不占成员私人路点名额） */
+  guildMaxWaypointsPerGuild: "20",
+  /** 新建公会领地时从金库扣除（0 为不扣）；不扣领主个人方块费 */
+  guildTreasuryCostLandCreate: "0",
+  /** 将已有领地首次登记为公会领地时从金库扣除（0 为不扣） */
+  guildTreasuryCostLandBind: "0",
+  /** 新增公会坐标时从金库扣除（0 为不扣） */
+  guildTreasuryCostWaypointCreate: "0",
 };
 
 export class ServerSetting {

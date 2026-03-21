@@ -46,13 +46,14 @@ export function openConfirmDialogForm(
   title: string,
   desc: string,
   acceptCb: () => void,
-  cancelCb?: () => void
+  cancelCb?: () => void,
+  options?: { dangerConfirm?: boolean }
 ): void {
   const form = new ActionFormData();
   form.title(title);
   form.body(desc);
-  form.button("取消", "textures/icons/deny");
-  form.button("确认", "textures/icons/accept");
+  form.button("§w取消", "textures/icons/deny");
+  form.button(options?.dangerConfirm === true ? "§c确认" : "§w确认", "textures/icons/accept");
 
   form.show(player).then((res) => {
     if (res.canceled || res.cancelationReason) return;

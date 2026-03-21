@@ -294,6 +294,13 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
   const persistentId = playerPersistentIdMap.get(targetName) ?? null;
   blacklistService.add(targetName, xuid, persistentId, reason, player.name);
 
+  try {
+    const { default: guildService } = await import("../../../features/guild/services/guild-service");
+    guildService.removeMemberDueToBlacklist(targetName);
+  } catch (_) {
+    /* 公会模块未加载时忽略 */
+  }
+
   // 如果玩家当前在线，直接踢出
   const onlineTarget = world.getAllPlayers().find((p) => p.name === targetName);
   if (onlineTarget) {

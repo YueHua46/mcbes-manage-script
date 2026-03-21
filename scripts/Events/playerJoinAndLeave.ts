@@ -2,6 +2,7 @@ import { RawMessage, system, world } from "@minecraft/server";
 import { welcomeFoxGlyphs, welcomeGlyphs } from "../assets/glyph-map";
 import { eventRegistry } from "./registry";
 import setting from "../features/system/services/setting";
+import guildService from "../features/guild/services/guild-service";
 
 function registerPlayerJoinEvent(): void {
   world.afterEvents.playerSpawn.subscribe(async (event) => {
@@ -10,6 +11,7 @@ function registerPlayerJoinEvent(): void {
     const isJoin = player.getDynamicProperty("join") as boolean;
     if (isJoin) return;
     player.setDynamicProperty("join", true);
+    guildService.reconcilePlayerNameOnJoin(player);
     await system.waitTicks(70);
     system.run(() => {
       player.onScreenDisplay.setTitle({

@@ -5,6 +5,8 @@
 
 import { Player, system, world } from '@minecraft/server';
 import PlayerSetting from './player-settings';
+import { guildFacade } from '../../guild/services/guild-facade';
+import setting from '../../system/services/setting';
 
 export class NameDisplay {
   private static instance: NameDisplay;
@@ -48,7 +50,16 @@ export class NameDisplay {
    */
   public updatePlayerNameDisplay(player: Player): void {
     try {
-      const displayName = PlayerSetting.getPlayerDisplayName(player);
+      let displayName = PlayerSetting.getPlayerDisplayName(player);
+      if (
+        guildFacade.isGuildModuleEnabled() &&
+        setting.getState('guildShowTagInName') === true
+      ) {
+        const gTag = guildFacade.getGuildTagPrefixForNameTag(player.name);
+        if (gTag) {
+          displayName = `${gTag} ${displayName}`;
+        }
+      }
       player.nameTag = displayName;
     } catch (error) {
       // 忽略错误
@@ -68,7 +79,17 @@ export class NameDisplay {
    * 获取玩家的完整显示名称（用于聊天等场景）
    */
   public getPlayerFullDisplayName(player: Player): string {
-    return PlayerSetting.getPlayerDisplayName(player);
+    let displayName = PlayerSetting.getPlayerDisplayName(player);
+    if (
+      guildFacade.isGuildModuleEnabled() &&
+      setting.getState('guildShowTagInName') === true
+    ) {
+      const gTag = guildFacade.getGuildTagPrefixForNameTag(player.name);
+      if (gTag) {
+        displayName = `${gTag} ${displayName}`;
+      }
+    }
+    return displayName;
   }
 
   /**

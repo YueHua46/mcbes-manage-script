@@ -5,10 +5,12 @@
 
 import { Player, RawMessage, world, ItemStack } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import type { IGuild } from "../../../features/guild/models/guild.model";
 import { color, colorCodes } from "../../../shared/utils/color";
 import setting from "../../../features/system/services/setting";
 import { openServerMenuForm } from "../server";
-import { openDialogForm } from "../../../ui/components/dialog";
+import { openDialogForm, openConfirmDialogForm } from "../../../ui/components/dialog";
+import guildService from "../../../features/guild/services/guild-service";
 import { isAdmin } from "../../../shared/utils/common";
 import { officeShopSettingForm } from "./office-shop-setting";
 import { openPlayerInventoryAdminForm } from "./player-inventory-admin";
@@ -51,6 +53,11 @@ export function openSystemSettingForm(player: Player): void {
       text: "§w坐标点管理",
       icon: "textures/icons/checkpoint",
       action: () => openWayPointManageMenu(player),
+    },
+    {
+      text: "§w公会系统管理",
+      icon: "textures/icons/bina",
+      action: () => openGuildSystemSettingsMenu(player),
     },
     {
       text: "§w通知管理",
@@ -126,7 +133,7 @@ export function openGeneralSettingsForm(player: Player): void {
     { key: "welcomeMessage", name: "进服欢迎消息(支持颜色代码和\\n换行符)", type: "string" },
     { key: "killItemAmount", name: "掉落物清理数量阈值", type: "number" },
     { key: "randomTpRange", name: "随机传送范围", type: "number" },
-    { key: "maxLandPerPlayer", name: "每玩家最大领地数", type: "number" },
+    { key: "maxLandPerPlayer", name: "每玩家最大领地数(不含已登记为公会领地的地块)", type: "number" },
     { key: "maxLandBlocks", name: "领地最大方块数", type: "number" },
     { key: "maxPrivatePointsPerPlayer", name: "每玩家最大私人坐标点数", type: "number" },
     { key: "maxPublicPointsPerPlayer", name: "每玩家最大公开坐标点数", type: "number" },
@@ -158,12 +165,20 @@ export function openGeneralSettingsForm(player: Player): void {
 
     if (typeof data.selection === "number" && data.selection < settingItems.length) {
       const selectedItem = settingItems[data.selection];
-      openEditSettingForm(player, selectedItem.key, selectedItem.name, selectedItem.type as "number" | "string");
+      openEditSettingForm(player, selectedItem.key, selectedItem.name, selectedItem.type as "number" | "string", () =>
+        openGeneralSettingsForm(player)
+      );
     }
   });
 }
 
-function openEditSettingForm(player: Player, key: string, name: string, type: "number" | "string"): void {
+function openEditSettingForm(
+  player: Player,
+  key: string,
+  name: string,
+  type: "number" | "string",
+  afterSave: () => void
+): void {
   const form = new ModalFormData();
   form.title(`编辑 ${name}`);
 
@@ -199,8 +214,211 @@ function openEditSettingForm(player: Player, key: string, name: string, type: "n
           title: "设置成功",
           desc: color.green(`${name} 已更新为: ${newValue}`),
         },
-        () => openGeneralSettingsForm(player)
+        afterSave
       );
+    }
+  });
+}
+
+// ==================== 公会系统管理 ====================
+
+function openGuildSystemSettingsMenu(player: Player): void {
+  const form = new ActionFormData();
+  form.title("§w公会系统管理");
+  form.body("§7公会总开关请在「功能开关管理」中设置。\n§7以下为数值、金库费用与附属选项。");
+  form.button("§w数值与限额", "textures/icons/gadgets");
+  form.button("§w显示与行为开关", "textures/icons/gadgets");
+  form.button("§w强制解散公会", "textures/icons/deny");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    switch (data.selection) {
+      case 0:
+        openGuildNumericSettingsForm(player);
+        break;
+      case 1:
+        openGuildToggleSettingsForm(player);
+        break;
+      case 2:
+        openGuildAdminForceDisbandListForm(player, 1);
+        break;
+      case 3:
+        openSystemSettingForm(player);
+        break;
+      default:
+        break;
+    }
+  });
+}
+
+function openGuildNumericSettingsForm(player: Player): void {
+  const form = new ActionFormData();
+  form.title("§w公会数值与限额");
+
+  const settingItems = [
+    { key: "guildMaxMembers", name: "每公会最大人数", type: "number" as const },
+    { key: "guildCreateCost", name: "创建公会费用(从个人钱包扣)", type: "number" as const },
+    { key: "guildTagMaxLen", name: "公会标签最大长度", type: "number" as const },
+    { key: "guildNameMaxLen", name: "公会名称最大长度", type: "number" as const },
+    { key: "guildInviteExpireSec", name: "公会邀请有效期(秒)", type: "number" as const },
+    { key: "guildMaxLandsPerGuild", name: "每公会最大公会领地数(与个人领地上限独立)", type: "number" as const },
+    { key: "guildMaxWaypointsPerGuild", name: "每公会最大公会坐标数(不占成员私人名额)", type: "number" as const },
+    { key: "guildTreasuryCostLandCreate", name: "新建公会领地时从金库扣费(0为不扣)", type: "number" as const },
+    { key: "guildTreasuryCostLandBind", name: "登记已有领地为公会领地时从金库扣费(0为不扣)", type: "number" as const },
+    { key: "guildTreasuryCostWaypointCreate", name: "新增公会坐标时从金库扣费(0为不扣)", type: "number" as const },
+  ];
+
+  settingItems.forEach((item) => {
+    const currentValue = setting.getState(item.key as any);
+    form.button(`${item.name}\n当前: ${colorCodes.darkAqua}${currentValue}`, "textures/icons/gadgets");
+  });
+
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+
+    if (data.selection === settingItems.length) {
+      openGuildSystemSettingsMenu(player);
+      return;
+    }
+
+    if (typeof data.selection === "number" && data.selection < settingItems.length) {
+      const selectedItem = settingItems[data.selection];
+      openEditSettingForm(player, selectedItem.key, selectedItem.name, selectedItem.type, () =>
+        openGuildNumericSettingsForm(player)
+      );
+    }
+  });
+}
+
+function openGuildToggleSettingsForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("§w公会显示与行为");
+
+  const features: {
+    key:
+      | "guildShowTagInChat"
+      | "guildShowTagInName"
+      | "guildBankOfficerWithdraw"
+      | "guildLeaveOnBlacklist"
+      | "logGuildEvents";
+    name: string;
+  }[] = [
+    { key: "guildShowTagInChat", name: "聊天中显示公会标签" },
+    { key: "guildShowTagInName", name: "名称标签中显示公会标签" },
+    { key: "guildBankOfficerWithdraw", name: "允许副会长从金库取款" },
+    { key: "guildLeaveOnBlacklist", name: "封禁时自动移出/解散公会" },
+    { key: "logGuildEvents", name: "记录公会相关行为日志" },
+  ];
+
+  features.forEach((feature) => {
+    const currentValue = setting.getState(feature.key as any);
+    form.toggle(feature.name, {
+      defaultValue: currentValue === true,
+    });
+  });
+
+  form.submitButton("确认");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const { formValues } = data;
+    if (formValues) {
+      features.forEach((feature, index) => {
+        setting.setState(feature.key as any, formValues[index] as boolean);
+      });
+
+      openDialogForm(
+        player,
+        {
+          title: "设置成功",
+          desc: color.green("公会相关开关已更新！"),
+        },
+        () => openGuildSystemSettingsMenu(player)
+      );
+    }
+  });
+}
+
+function openGuildAdminForceDisbandListForm(player: Player, page: number = 1): void {
+  const allGuilds = guildService.listAllGuildsForAdmin();
+  if (allGuilds.length === 0) {
+    openDialogForm(
+      player,
+      { title: "提示", desc: "当前没有公会" },
+      () => openGuildSystemSettingsMenu(player)
+    );
+    return;
+  }
+
+  const pageSize = 10;
+  const totalPages = Math.ceil(allGuilds.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * pageSize;
+  const currentPageGuilds = allGuilds.slice(start, start + pageSize);
+
+  const form = new ActionFormData();
+  form.title("§w强制解散公会");
+  form.body(`第 ${safePage} / ${totalPages} 页 · 共 ${allGuilds.length} 个公会`);
+
+  currentPageGuilds.forEach((g: IGuild) => {
+    const n = Object.keys(g.members).length;
+    form.button(`[${g.tag}] ${g.name}\n会长:${g.ownerName} · ${n}人`, "textures/icons/bina");
+  });
+
+  let previousButtonIndex = currentPageGuilds.length;
+  let nextButtonIndex = currentPageGuilds.length;
+
+  if (safePage > 1) {
+    form.button("§w上一页", "textures/icons/left_arrow");
+    previousButtonIndex++;
+    nextButtonIndex++;
+  }
+
+  if (safePage < totalPages) {
+    form.button("§w下一页", "textures/icons/right_arrow");
+    nextButtonIndex++;
+  }
+
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const selectionIndex = data.selection;
+    if (selectionIndex === null || selectionIndex === undefined) return;
+
+    const count = currentPageGuilds.length;
+    if (selectionIndex >= 0 && selectionIndex < count) {
+      const g = currentPageGuilds[selectionIndex];
+      openConfirmDialogForm(
+        player,
+        "§w强制解散公会",
+        `[${g.tag}] ${g.name}\n会长: ${g.ownerName}\n\n§c§l解散后所有成员将被移出，金库数据随公会删除，公会领地绑定将解除。确定吗？`,
+        () => {
+          const err = guildService.adminForceDisbandGuild(player, g.id);
+          openDialogForm(
+            player,
+            {
+              title: err ? "失败" : "已解散",
+              desc: err ? color.red(err) : color.red("公会已解散。"),
+            },
+            () => openGuildAdminForceDisbandListForm(player, safePage)
+          );
+        },
+        () => openGuildAdminForceDisbandListForm(player, safePage),
+        { dangerConfirm: true }
+      );
+      return;
+    }
+
+    if (selectionIndex === previousButtonIndex - 1 && safePage > 1) {
+      openGuildAdminForceDisbandListForm(player, safePage - 1);
+    } else if (selectionIndex === nextButtonIndex - 1 && safePage < totalPages) {
+      openGuildAdminForceDisbandListForm(player, safePage + 1);
+    } else {
+      openGuildSystemSettingsMenu(player);
     }
   });
 }
@@ -216,6 +434,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "land", name: "领地功能模块" },
     { key: "wayPoint", name: "坐标点功能模块" },
     { key: "economy", name: "经济系统" },
+    { key: "guild", name: "公会系统" },
     { key: "other", name: "其他功能模块" },
     { key: "help", name: "帮助功能" },
     { key: "sm", name: "服务器菜单" },
