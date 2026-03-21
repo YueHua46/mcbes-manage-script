@@ -12,9 +12,9 @@ import { openDialogForm } from "../../components/dialog";
 import economic from "../../../features/economic/services/economic";
 import { colorCodes } from "../../../shared/utils/color";
 
-import { ChestUIUtility } from "../../components/chest-ui";
+import { ChestUIUtility, getChestItemDurabilityBarValue } from "../../components/chest-ui";
 import { SystemLog } from "../../../shared";
-const { getItemDisplayName, getItemDurability, hasAnyEnchantment } = ChestUIUtility;
+const { getItemDisplayName, hasAnyEnchantment } = ChestUIUtility;
 
 class OfficeShopForm {
   private static instance: OfficeShopForm;
@@ -127,7 +127,7 @@ class OfficeShopForm {
       const lores = itemData.item.getLore();
       const itemIconPath = itemData.item.typeId;
       const amount = itemData.data.amount; // 使用商品库存数量，而不是物品本身的数量
-      const durability = getItemDurability(itemData.item);
+      const durability = getChestItemDurabilityBarValue(itemData.item);
       const isEnchanted = hasAnyEnchantment(itemData.item);
 
       const updatedLores = [`${colorCodes.gold}价格: ${colorCodes.yellow}${itemData.data.price} 金币`, ...lores];

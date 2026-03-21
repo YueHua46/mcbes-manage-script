@@ -9,3 +9,9 @@ export type { ChestUISize, CustomContentItem } from "./constants";
 export { inventory_enabled, custom_content, custom_content_keys, CHEST_UI_SIZES } from "./constants";
 export { typeIdToID, typeIdToDataId } from "./type-ids";
 export { default as ChestUIUtility } from "./utility";
+export {
+  getChestItemTextureKey,
+  getChestItemTooltipExtraLines,
+  buildChestItemListLores,
+  getChestItemDurabilityBarValue,
+} from "./item-chest-display";

@@ -125,7 +125,7 @@ export class ChestFormData {
     const displayTexture = getDisplayTexture(texture);
     const { targetTexture, ID } = resolveTextureAndId(displayTexture);
 
-    const buttonRawtext: { rawtext: { text?: string; translate?: string }[] } = {
+    const buttonRawtext: { rawtext: RawMessage[] } = {
       rawtext: [
         {
           text: `stack#${String(Math.min(Math.max(stackSize, 1), 99)).padStart(2, "0")}dur#${String(Math.min(Math.max(durability, 0), 99)).padStart(2, "0")}§r`,
@@ -151,8 +151,26 @@ export class ChestFormData {
       for (const obj of itemDesc) {
         if (typeof obj === "string") {
           buttonRawtext.rawtext.push({ text: `\n${obj}` });
-        } else if (typeof obj === "object" && "rawtext" in obj && obj.rawtext) {
-          buttonRawtext.rawtext.push({ text: "\n" }, ...(obj.rawtext as { text?: string }[]));
+        } else if (typeof obj === "object" && obj !== null && "rawtext" in obj && obj.rawtext) {
+          buttonRawtext.rawtext.push({ text: "\n" });
+          for (const frag of obj.rawtext as RawMessage[]) {
+            const f = frag as { text?: string; translate?: string; with?: string[] | RawMessage };
+            if (f.translate !== undefined) {
+              buttonRawtext.rawtext.push(
+                f.with !== undefined ? { translate: f.translate, with: f.with as string[] } : { translate: f.translate }
+              );
+            } else if (f.text !== undefined) {
+              buttonRawtext.rawtext.push({ text: f.text });
+            }
+          }
+        } else if (typeof obj === "object" && obj !== null && "translate" in obj && (obj as RawMessage).translate) {
+          const m = obj as RawMessage;
+          buttonRawtext.rawtext.push({ text: "\n" });
+          if (m.with !== undefined) {
+            buttonRawtext.rawtext.push({ translate: m.translate!, with: m.with as string[] });
+          } else {
+            buttonRawtext.rawtext.push({ translate: m.translate! });
+          }
         }
       }
     }
@@ -180,7 +198,7 @@ export class ChestFormData {
         const stackSize = String(Math.min(Math.max(stackAmount, 1), 99)).padStart(2, "0");
         const durValue = String(Math.min(Math.max(durability, 0), 99)).padStart(2, "0");
 
-        const buttonRawtext: { rawtext: { text?: string; translate?: string }[] } = {
+        const buttonRawtext: { rawtext: RawMessage[] } = {
           rawtext: [{ text: `stack#${stackSize}dur#${durValue}§r` }],
         };
 
@@ -198,8 +216,26 @@ export class ChestFormData {
           for (const obj of itemDesc) {
             if (typeof obj === "string") {
               buttonRawtext.rawtext.push({ text: `\n${obj}` });
-            } else if (obj && typeof obj === "object" && "rawtext" in obj) {
-              buttonRawtext.rawtext.push({ text: "\n" }, ...(obj.rawtext as { text?: string }[]));
+            } else if (obj && typeof obj === "object" && "rawtext" in obj && obj.rawtext) {
+              buttonRawtext.rawtext.push({ text: "\n" });
+              for (const frag of obj.rawtext as RawMessage[]) {
+                const f = frag as { text?: string; translate?: string; with?: string[] | RawMessage };
+                if (f.translate !== undefined) {
+                  buttonRawtext.rawtext.push(
+                    f.with !== undefined ? { translate: f.translate, with: f.with as string[] } : { translate: f.translate }
+                  );
+                } else if (f.text !== undefined) {
+                  buttonRawtext.rawtext.push({ text: f.text });
+                }
+              }
+            } else if (obj && typeof obj === "object" && "translate" in obj && (obj as RawMessage).translate) {
+              const m = obj as RawMessage;
+              buttonRawtext.rawtext.push({ text: "\n" });
+              if (m.with !== undefined) {
+                buttonRawtext.rawtext.push({ translate: m.translate!, with: m.with as string[] });
+              } else {
+                buttonRawtext.rawtext.push({ translate: m.translate! });
+              }
             }
           }
         }
@@ -333,7 +369,7 @@ export class FurnaceFormData {
     const displayTexture = getDisplayTexture(texture);
     const { targetTexture, ID } = resolveTextureAndId(displayTexture);
 
-    const buttonRawtext: { rawtext: { text?: string; translate?: string }[] } = {
+    const buttonRawtext: { rawtext: RawMessage[] } = {
       rawtext: [
         {
           text: `stack#${String(Math.min(Math.max(stackSize, 1), 99)).padStart(2, "0")}dur#${String(Math.min(Math.max(durability, 0), 99)).padStart(2, "0")}§r`,
@@ -359,8 +395,26 @@ export class FurnaceFormData {
       itemDesc.forEach((obj) => {
         if (typeof obj === "string") {
           buttonRawtext.rawtext.push({ text: `\n${obj}` });
-        } else if (typeof obj === "object" && "rawtext" in obj && obj.rawtext) {
-          buttonRawtext.rawtext.push({ text: "\n" }, ...(obj.rawtext as { text?: string }[]));
+        } else if (typeof obj === "object" && obj !== null && "rawtext" in obj && obj.rawtext) {
+          buttonRawtext.rawtext.push({ text: "\n" });
+          for (const frag of obj.rawtext as RawMessage[]) {
+            const f = frag as { text?: string; translate?: string; with?: string[] | RawMessage };
+            if (f.translate !== undefined) {
+              buttonRawtext.rawtext.push(
+                f.with !== undefined ? { translate: f.translate, with: f.with as string[] } : { translate: f.translate }
+              );
+            } else if (f.text !== undefined) {
+              buttonRawtext.rawtext.push({ text: f.text });
+            }
+          }
+        } else if (typeof obj === "object" && obj !== null && "translate" in obj && (obj as RawMessage).translate) {
+          const m = obj as RawMessage;
+          buttonRawtext.rawtext.push({ text: "\n" });
+          if (m.with !== undefined) {
+            buttonRawtext.rawtext.push({ translate: m.translate!, with: m.with as string[] });
+          } else {
+            buttonRawtext.rawtext.push({ translate: m.translate! });
+          }
         }
       });
     }

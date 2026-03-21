@@ -12,9 +12,14 @@ import ChestFormData from "../../../ui/components/chest-ui/chest-forms";
 import { openDialogForm } from "../../components/dialog";
 import { colorCodes } from "../../../shared/utils/color";
 
-import { ChestUIUtility } from "../../components/chest-ui";
+import {
+  buildChestItemListLores,
+  getChestItemDurabilityBarValue,
+  getChestItemTextureKey,
+  getChestItemTooltipExtraLines,
+} from "../../components/chest-ui";
 import Utility from "../../components/chest-ui/utility";
-const { getItemDisplayName, getItemDurabilityPercent, hasAnyEnchantment } = Utility;
+const { getItemDisplayName, hasAnyEnchantment } = Utility;
 
 class AuctionHouseForm {
   /**
@@ -70,7 +75,7 @@ class AuctionHouseForm {
     const chestForm = new ChestFormData("shop").title(`拍卖会 - 所有商品 (第${page}/${totalPages}页)`);
 
     currentPageItems.forEach((item, index) => {
-      const lore = [
+      const lore: (string | RawMessage)[] = [
         `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price}`,
         `${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}`,
         `${colorCodes.green}上架时间: ${colorCodes.white}${new Date(item.data.createdAt).toLocaleString()}`,
@@ -80,13 +85,15 @@ class AuctionHouseForm {
         lore.push(`${colorCodes.lightPurple}描述: ${colorCodes.white}${item.data.description}`);
       }
 
+      lore.push(...getChestItemTooltipExtraLines(item.item));
+
       chestForm.button(
         index,
         getItemDisplayName(item.item),
         lore,
-        item.item.typeId,
+        getChestItemTextureKey(item.item),
         item.data.amount,
-        Number(getItemDurabilityPercent(item.item)),
+        getChestItemDurabilityBarValue(item.item),
         hasAnyEnchantment(item.item)
       );
     });
@@ -144,18 +151,20 @@ class AuctionHouseForm {
     const chestForm = new ChestFormData("shop").title(`我的上架商品 (第${page}/${totalPages}页)`);
 
     currentPageItems.forEach((item, index) => {
-      const lore = [
+      const lore: (string | RawMessage)[] = [
         `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price}`,
         `${colorCodes.green}上架时间: ${colorCodes.white}${new Date(item.data.createdAt).toLocaleString()}`,
       ];
+
+      lore.push(...getChestItemTooltipExtraLines(item.item));
 
       chestForm.button(
         index,
         getItemDisplayName(item.item),
         lore,
-        item.item.typeId,
+        getChestItemTextureKey(item.item),
         item.data.amount,
-        Number(getItemDurabilityPercent(item.item)),
+        getChestItemDurabilityBarValue(item.item),
         hasAnyEnchantment(item.item)
       );
     });
@@ -288,15 +297,15 @@ class AuctionHouseForm {
       const item = container.getItem(i);
       if (item && item.typeId !== "yuehua:sm") {
         hasItems = true;
-        const lores: string[] = [`§e数量: §f${item.amount}`, `§e耐久: §f${getItemDurabilityPercent(item)}`];
+        const lores = buildChestItemListLores(item);
 
         chestForm.button(
           i,
           getItemDisplayName(item),
           lores,
-          item.typeId,
+          getChestItemTextureKey(item),
           item.amount,
-          Number(getItemDurabilityPercent(item)),
+          getChestItemDurabilityBarValue(item),
           hasAnyEnchantment(item)
         );
       }

@@ -72,7 +72,7 @@ const Utility: Utility = {
   },
   getItemDurabilityPercent: (itemStack: ItemStack) => {
     const durability = itemStack.getComponent("durability");
-    if (!durability) return "100";
+    if (!durability) return "-";
     return String(Math.round(((durability.maxDurability - durability.damage) / durability.maxDurability) * 100));
   },
   getItemDurability: (itemStack: ItemStack) => {

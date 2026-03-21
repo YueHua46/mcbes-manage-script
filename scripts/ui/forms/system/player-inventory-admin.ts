@@ -12,7 +12,8 @@ import { openDialogForm } from "../../components/dialog";
 import { isAdmin } from "../../../shared/utils/common";
 import ChestFormData from "../../components/chest-ui/chest-forms";
 import type { ChestFormResponse } from "../../components/chest-ui/chest-forms";
-import { getItemDisplayName, getItemDurability, hasAnyEnchantment } from "../../../shared/utils/item-utils";
+import { getChestItemDurabilityBarValue } from "../../components/chest-ui";
+import { getItemDisplayName, hasAnyEnchantment } from "../../../shared/utils/item-utils";
 
 /** 上方表单中装备栏对应的按钮索引（紧接在 36 个背包槽之后） */
 const EQUIPMENT_BUTTON_OFFSET = 36;
@@ -197,20 +198,21 @@ function openPlayerInventoryDualForm(adminPlayer: Player, targetPlayer: Player):
   for (let i = 0; i < targetSize; i++) {
     const item = targetContainer.getItem(i);
     if (item) {
-      const durability = getItemDurability(item);
       const slotHint = i < 9 ? "§8快捷栏 " : "";
-      const lores: string[] = [
-        `§e数量: §f${item.amount}`,
-        `§e耐久: §f${durability}`,
-        `§7${slotHint}点击 → 取到你的背包`,
-      ];
+      const durComp = item.getComponent("durability");
+      const lores: string[] = [`§e数量: §f${item.amount}`];
+      if (durComp && durComp.damage > 0) {
+        const pct = Math.round(((durComp.maxDurability - durComp.damage) / durComp.maxDurability) * 100);
+        lores.push(`§e耐久: §f${pct}%`);
+      }
+      lores.push(`§7${slotHint}点击 → 取到你的背包`);
       chestForm.button(
         i,
         getItemDisplayName(item),
         lores,
         item.typeId,
         item.amount,
-        durability,
+        getChestItemDurabilityBarValue(item),
         hasAnyEnchantment(item)
       );
     }
@@ -224,19 +226,20 @@ function openPlayerInventoryDualForm(adminPlayer: Player, targetPlayer: Player):
       const buttonIndex = EQUIPMENT_BUTTON_OFFSET + idx;
       const item = targetEquippable.getEquipment(slot);
       if (item) {
-        const durability = getItemDurability(item);
-        const lores: string[] = [
-          `§e数量: §f${item.amount}`,
-          `§e耐久: §f${durability}`,
-          `§7装备·${label} §8点击 → 取到你的背包`,
-        ];
+        const durComp = item.getComponent("durability");
+        const lores: string[] = [`§e数量: §f${item.amount}`];
+        if (durComp && durComp.damage > 0) {
+          const pct = Math.round(((durComp.maxDurability - durComp.damage) / durComp.maxDurability) * 100);
+          lores.push(`§e耐久: §f${pct}%`);
+        }
+        lores.push(`§7装备·${label} §8点击 → 取到你的背包`);
         chestForm.button(
           buttonIndex,
           getItemDisplayName(item),
           lores,
           item.typeId,
           item.amount,
-          durability,
+          getChestItemDurabilityBarValue(item),
           hasAnyEnchantment(item)
         );
       } else {

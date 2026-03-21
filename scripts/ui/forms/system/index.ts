@@ -1563,7 +1563,8 @@ function resetAllPricesToDefault(player: Player): void {
 // 修改物品出售价格表单 - 显示背包物品列表
 function openModifyItemPriceForm(player: Player): void {
   const { ChestFormData, ChestUIUtility } = require("../../components/chest-ui");
-  const { getItemDurabilityPercent, hasAnyEnchantment } = ChestUIUtility;
+  const { getChestItemDurabilityBarValue } = require("../../components/chest-ui");
+  const { hasAnyEnchantment } = ChestUIUtility;
 
   const inventory = player.getComponent("inventory");
   if (!inventory) {
@@ -1606,7 +1607,7 @@ function openModifyItemPriceForm(player: Player): void {
         lores,
         item.typeId,
         item.amount,
-        Number(getItemDurabilityPercent(item)),
+        getChestItemDurabilityBarValue(item),
         hasAnyEnchantment(item)
       );
     }

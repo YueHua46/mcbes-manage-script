@@ -10,7 +10,8 @@ import officeShop, { OfficeShopItemData } from "../../../features/economic/servi
 import { openDialogForm } from "../../components/dialog";
 import { glyphKeys } from "../../../assets/glyph-map";
 import ChestFormData from "../../components/chest-ui/chest-forms";
-import { getItemDisplayName, getItemDurability, hasAnyEnchantment } from "../../../shared/utils/item-utils";
+import { buildChestItemListLores, getChestItemDurabilityBarValue } from "../../components/chest-ui";
+import { getItemDisplayName, hasAnyEnchantment } from "../../../shared/utils/item-utils";
 
 /**
  * 通过 emoji key 获得 emojiPath
@@ -255,10 +256,9 @@ class OfficeShopSettingForm {
       const lores = [`§e单价: §f${itemData.data.price}`, `§e库存: §f${itemData.data.amount}`, `§e点击编辑或删除`];
       const itemIconPath = itemData.item.typeId;
       const amount = itemData.data.amount; // 使用商品库存数量，而不是物品本身的数量
-      const durability = getItemDurability(itemData.item);
       const isEnchanted = hasAnyEnchantment(itemData.item);
 
-      form.button(index, displayName, lores, itemIconPath, amount, durability, isEnchanted);
+      form.button(index, displayName, lores, itemIconPath, amount, getChestItemDurabilityBarValue(itemData.item), isEnchanted);
     });
 
     // 添加导航按钮
@@ -521,8 +521,7 @@ class OfficeShopSettingForm {
     for (let i = 0; i < container.size; i++) {
       const item = container.getItem(i);
       if (item) {
-        const durability = getItemDurability(item);
-        const lores: string[] = [`§e数量: §f${item.amount}`, `§e耐久: §f${durability}`];
+        const lores = buildChestItemListLores(item);
 
         chestForm.button(
           i,
@@ -530,7 +529,7 @@ class OfficeShopSettingForm {
           lores,
           item.typeId,
           item.amount,
-          durability,
+          getChestItemDurabilityBarValue(item),
           hasAnyEnchantment(item)
         );
       }

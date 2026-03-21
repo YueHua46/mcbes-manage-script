@@ -47,8 +47,8 @@ class SellItemsForm {
    * 显示玩家背包中可出售的物品（简化版）
    */
   showSellItemSelection(player: Player): void {
-    const { ChestFormData, ChestUIUtility } = require("../../components/chest-ui");
-    const { getItemDisplayName, getItemDurabilityPercent, hasAnyEnchantment } = ChestUIUtility;
+    const { ChestFormData, ChestUIUtility, getChestItemDurabilityBarValue } = require("../../components/chest-ui");
+    const { getItemDisplayName, hasAnyEnchantment } = ChestUIUtility;
 
     const inventory = player.getComponent("inventory");
     if (!inventory) {
@@ -89,7 +89,7 @@ class SellItemsForm {
           lores,
           item.typeId,
           item.amount,
-          Number(getItemDurabilityPercent(item)),
+          getChestItemDurabilityBarValue(item),
           hasAnyEnchantment(item)
         );
       }
