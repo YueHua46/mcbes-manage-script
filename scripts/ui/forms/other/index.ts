@@ -14,6 +14,7 @@ import leaveMessage from "../../../features/other/services/leave-message";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import setting from "../../../features/system/services/setting";
 import { isAdmin } from "../../../shared/utils/common";
+import { openMyEnderChestForm } from "../system/player-inventory-admin";
 
 // ==================== 服务器信息 ====================
 
@@ -115,6 +116,12 @@ export function openBaseFunctionForm(player: Player): void {
   }
 
   buttons.push({ text: "§w服务器状态", icon: "textures/icons/fotograf", action: () => openServerInfoForm(player) });
+
+  buttons.push({
+    text: "§w我的末影箱",
+    icon: "textures/blocks/ender_chest_front",
+    action: () => openMyEnderChestForm(player, () => openBaseFunctionForm(player)),
+  });
 
   buttons.push({ text: "§w制作者名单", icon: "textures/icons/social", action: () => openAuthorListForm(player) });
   form.title("§w其他功能");

@@ -38,6 +38,7 @@ export const CHEST_UI_SIZES = new Map<string | number, [string, number]>([
   ["9", ["§c§h§e§s§t§0§9§r", 9]],
   ["18", ["§c§h§e§s§t§1§8§r", 18]],
   ["27", ["§c§h§e§s§t§2§7§r", 27]],
+  ["27_inv", ["§c§h§e§s§t§i§n§v§2§7§r", 27]],
   ["36", ["§c§h§e§s§t§3§6§r", 36]],
   ["45", ["§c§h§e§s§t§4§5§r", 45]],
   ["45_inv", ["§c§h§e§s§t§i§n§v§4§5§r", 45]],
@@ -66,6 +67,7 @@ export type ChestUISize =
   | "9"
   | "18"
   | "27"
+  | "27_inv"
   | "36"
   | "45"
   | "45_inv"

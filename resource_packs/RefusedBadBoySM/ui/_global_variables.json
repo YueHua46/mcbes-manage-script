@@ -20,6 +20,8 @@
 
   "$disable_27_slots_layout": false,
 
+  "$disable_27_inv_slots_layout": false,
+
   "$disable_36_slots_layout": true,
 
   "$disable_45_inv_slots_layout": false,

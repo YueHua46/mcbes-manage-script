@@ -1,12 +1,12 @@
 /**
- * 管理员查看/操作玩家背包
- * 使用 Chest-UI 双栏布局：上方为目标玩家背包+装备栏，下方为管理员背包，点击即可在两者间转移物品
- * - Bedrock 玩家 container 共 36 槽：前 9 槽为快捷栏（0-8），后 27 槽为背包（9-35）
- * - 5 个装备栏（头盔/胸甲/腿甲/靴子/副手）通过 EntityEquippableComponent 读写，显示在上方第 37–41 格
+ * 管理员查看/操作玩家背包或末影箱
+ * 使用 Chest-UI 双栏布局：上方为目标容器，下方为管理员背包，点击即可在两者间转移物品
+ * - main：上方 45 格 = 36 背包槽 + 5 装备栏（头盔/胸甲/腿甲/靴子/副手）
+ * - ender：上方 27 格 = 末影箱（minecraft:ender_inventory）
  * @see https://github.com/Herobrine643928/Chest-UI （Inventory Section：上半箱子 + 下半查看者背包）
  */
 
-import { Player, world, EntityEquippableComponent, EquipmentSlot } from "@minecraft/server";
+import { Player, world, EntityEquippableComponent, EquipmentSlot, EntityComponentTypes } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { openDialogForm } from "../../components/dialog";
 import { isAdmin } from "../../../shared/utils/common";
@@ -14,6 +14,9 @@ import ChestFormData from "../../components/chest-ui/chest-forms";
 import type { ChestFormResponse } from "../../components/chest-ui/chest-forms";
 import { getChestItemDurabilityBarValue } from "../../components/chest-ui";
 import { getItemDisplayName, hasAnyEnchantment } from "../../../shared/utils/item-utils";
+
+/** 管理员查看模式：主背包+装备 或 末影箱 */
+export type InventoryAdminMode = "main" | "ender";
 
 /** 上方表单中装备栏对应的按钮索引（紧接在 36 个背包槽之后） */
 const EQUIPMENT_BUTTON_OFFSET = 36;
@@ -31,27 +34,55 @@ function isShulkerBox(typeId: string): boolean {
   );
 }
 
+function getTargetEnderContainer(targetPlayer: Player) {
+  return targetPlayer.getComponent(EntityComponentTypes.EnderInventory)?.container;
+}
+
 function moveItemToAdminInventory(
   adminPlayer: Player,
   targetPlayer: Player,
-  sourceType: "inventory" | "equipment",
-  sourceSlot: number | EquipmentSlot
+  inventoryMode: InventoryAdminMode,
+  sourceKind: "inventory" | "equipment" | "ender",
+  sourceSlot: number | EquipmentSlot,
+  reopen?: () => void
 ): void {
+  const doReopen = reopen ?? (() => openPlayerInventoryDualForm(adminPlayer, targetPlayer, inventoryMode));
   const adminContainer = adminPlayer.getComponent("inventory")?.container;
   if (!adminContainer) {
-    openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+    doReopen();
     return;
   }
 
-  if (sourceType === "inventory") {
+  if (sourceKind === "ender") {
+    const targetEnder = getTargetEnderContainer(targetPlayer);
+    if (!targetEnder) {
+      doReopen();
+      return;
+    }
+    const item = targetEnder.getItem(sourceSlot as number);
+    if (!item) {
+      doReopen();
+      return;
+    }
+    targetEnder.setItem(sourceSlot as number, undefined);
+    const overflow = adminContainer.addItem(item);
+    if (overflow) {
+      targetEnder.setItem(sourceSlot as number, overflow);
+      adminPlayer.sendMessage("§e背包已满，部分物品已放回目标末影箱。");
+    }
+    doReopen();
+    return;
+  }
+
+  if (sourceKind === "inventory") {
     const targetInv = targetPlayer.getComponent("inventory")?.container;
     if (!targetInv) {
-      openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+      doReopen();
       return;
     }
     const item = targetInv.getItem(sourceSlot as number);
     if (!item) {
-      openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+      doReopen();
       return;
     }
 
@@ -61,7 +92,7 @@ function moveItemToAdminInventory(
       targetInv.setItem(sourceSlot as number, overflow);
       adminPlayer.sendMessage("§e背包已满，部分物品已放回目标背包。");
     }
-    openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+    doReopen();
     return;
   }
 
@@ -69,13 +100,13 @@ function moveItemToAdminInventory(
     | EntityEquippableComponent
     | undefined;
   if (!targetEquippable) {
-    openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+    doReopen();
     return;
   }
   const equipSlot = sourceSlot as EquipmentSlot;
   const item = targetEquippable.getEquipment(equipSlot);
   if (!item) {
-    openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+    doReopen();
     return;
   }
   targetEquippable.setEquipment(equipSlot, undefined);
@@ -84,7 +115,7 @@ function moveItemToAdminInventory(
     targetEquippable.setEquipment(equipSlot, overflow);
     adminPlayer.sendMessage("§e背包已满，装备已穿回目标玩家。");
   }
-  openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+  doReopen();
 }
 
 function copyItemToAdminInventory(adminPlayer: Player, item: any): void {
@@ -99,45 +130,63 @@ function copyItemToAdminInventory(adminPlayer: Player, item: any): void {
   }
 }
 
-function openShulkerActionForm(adminPlayer: Player, targetPlayer: Player, sourceSlot: number): void {
-  const targetContainer = targetPlayer.getComponent("inventory")?.container;
+function openShulkerActionForm(
+  adminPlayer: Player,
+  targetPlayer: Player,
+  sourceSlot: number,
+  inventoryMode: InventoryAdminMode,
+  reopen?: () => void
+): void {
+  const doReopen = reopen ?? (() => openPlayerInventoryDualForm(adminPlayer, targetPlayer, inventoryMode));
+  const targetContainer =
+    inventoryMode === "ender"
+      ? getTargetEnderContainer(targetPlayer)
+      : targetPlayer.getComponent("inventory")?.container;
   if (!targetContainer) {
-    openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+    doReopen();
     return;
   }
   const item = targetContainer.getItem(sourceSlot);
   if (!item) {
-    openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+    doReopen();
     return;
   }
 
+  const placeLabel = inventoryMode === "ender" ? "末影箱" : "玩家背包";
   const form = new ActionFormData()
     .title("§d潜影盒操作")
     .body(
-      "§7你选择的是潜影盒。\n\n§e说明：当前 Script API 无法稳定直接读取“玩家背包中”潜影盒内部槽位详情。\n§7可先复制/取走后再进行后续处理。"
+      `§7你选择的是潜影盒（${placeLabel}）。\n\n§e说明：当前 Script API 无法稳定直接读取潜影盒内部槽位详情。\n§7可先复制/取走后再进行后续处理。`
     )
-    .button("§a取走潜影盒（从目标背包移除）")
+    .button(`§a取走潜影盒（从目标${placeLabel}移除）`)
     .button("§b复制一份潜影盒（目标保留原件）")
     .button("§8返回");
 
   form.show(adminPlayer).then((res) => {
     if (res.canceled || res.selection === undefined || res.selection === 2) {
-      openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+      doReopen();
       return;
     }
     if (res.selection === 0) {
-      moveItemToAdminInventory(adminPlayer, targetPlayer, "inventory", sourceSlot);
+      moveItemToAdminInventory(
+        adminPlayer,
+        targetPlayer,
+        inventoryMode,
+        inventoryMode === "ender" ? "ender" : "inventory",
+        sourceSlot,
+        reopen
+      );
       return;
     }
     if (res.selection === 1) {
       copyItemToAdminInventory(adminPlayer, item);
-      openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+      doReopen();
     }
   });
 }
 
 /**
- * 打开玩家背包管理入口（选择目标玩家）
+ * 打开玩家背包管理入口：先选「背包 / 末影箱」，再选玩家
  */
 export function openPlayerInventoryAdminForm(adminPlayer: Player): void {
   if (!isAdmin(adminPlayer)) {
@@ -145,47 +194,80 @@ export function openPlayerInventoryAdminForm(adminPlayer: Player): void {
     return;
   }
 
+  const form = new ActionFormData()
+    .title("§6玩家背包管理")
+    .body("§7请选择要查看的内容，然后选择在线玩家。")
+    .button("§a查看玩家背包", "textures/icons/quest_chest")
+    .button("§d查看玩家末影箱", "textures/blocks/ender_chest_front")
+    .button("返回", "textures/icons/back");
+
+  form.show(adminPlayer).then((res) => {
+    if (res.canceled || res.selection === undefined) return;
+    if (res.selection === 2) {
+      const { openSystemSettingForm } = require("./index");
+      openSystemSettingForm(adminPlayer);
+      return;
+    }
+    const mode: InventoryAdminMode = res.selection === 0 ? "main" : "ender";
+    openPlayerInventoryTargetForm(adminPlayer, mode);
+  });
+}
+
+/**
+ * 选择目标玩家（在已选 main/ender 模式后）
+ */
+function openPlayerInventoryTargetForm(adminPlayer: Player, mode: InventoryAdminMode): void {
   const onlinePlayers = world.getPlayers().filter((p) => p.id !== adminPlayer.id);
   const playerNames = onlinePlayers.map((p) => p.name);
 
   if (playerNames.length === 0) {
     openDialogForm(adminPlayer, { title: "§c提示", desc: "当前无其他在线玩家（已排除自己）。" }, () => {
-      const { openSystemSettingForm } = require("./index");
-      openSystemSettingForm(adminPlayer);
+      openPlayerInventoryAdminForm(adminPlayer);
     });
     return;
   }
 
   const form = new ModalFormData();
-  form.title("§6玩家背包管理");
-  form.dropdown("选择要查看背包的玩家", playerNames, { defaultValueIndex: 0 });
-  form.submitButton("§a查看背包");
+  form.title(mode === "main" ? "§6查看玩家背包" : "§6查看玩家末影箱");
+  form.dropdown("选择玩家", playerNames, { defaultValueIndex: 0 });
+  form.submitButton("§a查看");
 
   form.show(adminPlayer).then((data) => {
-    if (data.cancelationReason) return;
+    if (data.cancelationReason) {
+      openPlayerInventoryAdminForm(adminPlayer);
+      return;
+    }
     const idx = data.formValues?.[0] as number;
     if (idx === undefined) return;
     const targetName = playerNames[idx];
     const targetPlayer = world.getPlayers().find((p) => p.name === targetName);
     if (!targetPlayer) {
       openDialogForm(adminPlayer, { title: "§c错误", desc: "目标玩家已离线。" }, () =>
-        openPlayerInventoryAdminForm(adminPlayer)
+        openPlayerInventoryTargetForm(adminPlayer, mode)
       );
       return;
     }
-    openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+    openPlayerInventoryDualForm(adminPlayer, targetPlayer, mode);
   });
 }
 
 /**
- * 双栏 Chest-UI：上方 45 格（5 行）= 目标 36 槽 + 5 装备栏（头盔/胸甲/腿甲/靴子/副手），下方仅在此表单显示（标题含 §inv§1 时 RP 才渲染）
- * 点击上方格：从目标背包/装备取物到管理员背包；点击下方格：从管理员背包放到目标背包
+ * 双栏 Chest-UI：上方为目标容器，下方为管理员背包
  */
-function openPlayerInventoryDualForm(adminPlayer: Player, targetPlayer: Player): void {
+function openPlayerInventoryDualForm(adminPlayer: Player, targetPlayer: Player, mode: InventoryAdminMode): void {
+  if (mode === "ender") {
+    openPlayerInventoryEnderDualForm(adminPlayer, targetPlayer);
+    return;
+  }
+  openPlayerInventoryMainDualForm(adminPlayer, targetPlayer);
+}
+
+function openPlayerInventoryMainDualForm(adminPlayer: Player, targetPlayer: Player): void {
+  const inventoryMode: InventoryAdminMode = "main";
   const targetInv = targetPlayer.getComponent("inventory");
   if (!targetInv?.container) {
     openDialogForm(adminPlayer, { title: "§c错误", desc: "无法获取该玩家背包。" }, () =>
-      openPlayerInventoryAdminForm(adminPlayer)
+      openPlayerInventoryTargetForm(adminPlayer, inventoryMode)
     );
     return;
   }
@@ -250,7 +332,7 @@ function openPlayerInventoryDualForm(adminPlayer: Player, targetPlayer: Player):
 
   chestForm.show(adminPlayer, { appendViewerInventory: true }).then((data: ChestFormResponse) => {
     if (data.canceled) {
-      openPlayerInventoryAdminForm(adminPlayer);
+      openPlayerInventoryTargetForm(adminPlayer, inventoryMode);
       return;
     }
 
@@ -259,46 +341,42 @@ function openPlayerInventoryDualForm(adminPlayer: Player, targetPlayer: Player):
 
     const adminContainer = adminPlayer.getComponent("inventory")?.container;
     if (!adminContainer) {
-      openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+      openPlayerInventoryDualForm(adminPlayer, targetPlayer, inventoryMode);
       return;
     }
 
-    // 点击了上方：目标玩家背包槽位 [0, targetSize-1]（0-8 快捷栏，9-35 背包）
     if (selection < targetSize) {
       const item = targetContainer.getItem(selection);
       if (!item) {
-        openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+        openPlayerInventoryDualForm(adminPlayer, targetPlayer, inventoryMode);
         return;
       }
 
-      // 潜影盒给出专门操作：取走 or 复制
       if (isShulkerBox(item.typeId)) {
-        openShulkerActionForm(adminPlayer, targetPlayer, selection);
+        openShulkerActionForm(adminPlayer, targetPlayer, selection, inventoryMode);
         return;
       }
 
-      moveItemToAdminInventory(adminPlayer, targetPlayer, "inventory", selection);
+      moveItemToAdminInventory(adminPlayer, targetPlayer, inventoryMode, "inventory", selection);
       return;
     }
 
-    // 点击了上方装备栏（头盔/胸甲/腿甲/靴子/副手）
     const equipmentIndex = selection - EQUIPMENT_BUTTON_OFFSET;
     if (equipmentIndex >= 0 && equipmentIndex < EQUIPMENT_SLOTS.length && targetEquippable) {
       const [equipSlot] = EQUIPMENT_SLOTS[equipmentIndex];
-      moveItemToAdminInventory(adminPlayer, targetPlayer, "equipment", equipSlot);
+      moveItemToAdminInventory(adminPlayer, targetPlayer, inventoryMode, "equipment", equipSlot);
       return;
     }
 
-    // 点击了下方：管理员背包槽位，inventorySlot 为 0 到 container.size-1
     const adminSlot = data.inventorySlot;
     if (adminSlot === null || adminSlot === undefined) {
-      openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+      openPlayerInventoryDualForm(adminPlayer, targetPlayer, inventoryMode);
       return;
     }
 
     const item = adminContainer.getItem(adminSlot);
     if (!item) {
-      openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+      openPlayerInventoryDualForm(adminPlayer, targetPlayer, inventoryMode);
       return;
     }
     adminContainer.setItem(adminSlot, undefined);
@@ -307,6 +385,120 @@ function openPlayerInventoryDualForm(adminPlayer: Player, targetPlayer: Player):
       adminContainer.setItem(adminSlot, overflow);
       adminPlayer.sendMessage("§e目标玩家背包已满，部分物品已退回你的背包。");
     }
-    openPlayerInventoryDualForm(adminPlayer, targetPlayer);
+    openPlayerInventoryDualForm(adminPlayer, targetPlayer, inventoryMode);
+  });
+}
+
+/** 末影箱双栏：上为目标末影箱，下为查看者背包 */
+export type EnderDualFormOptions = {
+  onCancel: () => void;
+  titleText: string;
+  /** 无法读取末影箱时的说明，默认「无法获取该玩家末影箱。」 */
+  missingEnderDesc?: string;
+};
+
+/**
+ * 末影箱 + 查看者背包双栏；管理员与本人共用（本人时 viewer === target）。
+ */
+export function openEnderChestDualForm(viewer: Player, target: Player, opts: EnderDualFormOptions): void {
+  const missingDesc = opts.missingEnderDesc ?? "无法获取该玩家末影箱。";
+  const targetEnder = getTargetEnderContainer(target);
+  if (!targetEnder) {
+    openDialogForm(viewer, { title: "§c错误", desc: missingDesc }, opts.onCancel);
+    return;
+  }
+
+  const reopen = () => openEnderChestDualForm(viewer, target, opts);
+  const targetSize = targetEnder.size;
+  const chestForm = new ChestFormData("27_inv");
+  chestForm.title(opts.titleText);
+
+  for (let i = 0; i < targetSize; i++) {
+    const item = targetEnder.getItem(i);
+    if (item) {
+      const durComp = item.getComponent("durability");
+      const lores: string[] = [`§e数量: §f${item.amount}`];
+      if (durComp && durComp.damage > 0) {
+        const pct = Math.round(((durComp.maxDurability - durComp.damage) / durComp.maxDurability) * 100);
+        lores.push(`§e耐久: §f${pct}%`);
+      }
+      lores.push("§7末影箱槽 · 点击 → 取到你的背包");
+      chestForm.button(
+        i,
+        getItemDisplayName(item),
+        lores,
+        item.typeId,
+        item.amount,
+        getChestItemDurabilityBarValue(item),
+        hasAnyEnchantment(item)
+      );
+    }
+  }
+
+  chestForm.show(viewer, { appendViewerInventory: true }).then((data: ChestFormResponse) => {
+    if (data.canceled) {
+      opts.onCancel();
+      return;
+    }
+
+    const selection = data.selection;
+    if (selection === undefined) return;
+
+    const viewerContainer = viewer.getComponent("inventory")?.container;
+    if (!viewerContainer) {
+      reopen();
+      return;
+    }
+
+    if (selection < targetSize) {
+      const item = targetEnder.getItem(selection);
+      if (!item) {
+        reopen();
+        return;
+      }
+
+      if (isShulkerBox(item.typeId)) {
+        openShulkerActionForm(viewer, target, selection, "ender", reopen);
+        return;
+      }
+
+      moveItemToAdminInventory(viewer, target, "ender", "ender", selection, reopen);
+      return;
+    }
+
+    const viewerSlot = data.inventorySlot;
+    if (viewerSlot === null || viewerSlot === undefined) {
+      reopen();
+      return;
+    }
+
+    const item = viewerContainer.getItem(viewerSlot);
+    if (!item) {
+      reopen();
+      return;
+    }
+    viewerContainer.setItem(viewerSlot, undefined);
+    const overflow = targetEnder.addItem(item);
+    if (overflow) {
+      viewerContainer.setItem(viewerSlot, overflow);
+      viewer.sendMessage("§e目标末影箱已满，部分物品已退回你的背包。");
+    }
+    reopen();
+  });
+}
+
+function openPlayerInventoryEnderDualForm(adminPlayer: Player, targetPlayer: Player): void {
+  openEnderChestDualForm(adminPlayer, targetPlayer, {
+    onCancel: () => openPlayerInventoryTargetForm(adminPlayer, "ender"),
+    titleText: `§5【上】末影箱 §f${targetPlayer.name} §5【下】§e你的背包 §7(下方即你的背包)`,
+  });
+}
+
+/** 本人末影箱 + 本人背包；取消时由 onCancel 返回（例如其他功能菜单） */
+export function openMyEnderChestForm(player: Player, onCancel: () => void): void {
+  openEnderChestDualForm(player, player, {
+    onCancel,
+    missingEnderDesc: "无法获取你的末影箱。",
+    titleText: `§5【上】末影箱 §5【下】§e我的背包 §7(点击下方物品放入末影箱)`,
   });
 }
