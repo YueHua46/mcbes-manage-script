@@ -103,6 +103,15 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       },
     },
     {
+      id: "stats",
+      text: "§w数据统计",
+      icon: "textures/icons/trophy",
+      action: async (player: Player) => {
+        const { openStatsHubForm } = await import("../stats");
+        openStatsHubForm(player);
+      },
+    },
+    {
       id: "other",
       text: "§w其他功能",
       icon: "textures/icons/accessories",

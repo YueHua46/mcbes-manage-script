@@ -8,6 +8,7 @@ import { ActionFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
 import { formatDateTime } from "../../../shared/utils/format";
 import { openServerMenuForm } from "../server";
+import { openStatsHubForm } from "../stats";
 import economic from "../../../features/economic/services/economic";
 import { openDialogForm } from "../../../ui/components/dialog";
 import transferForm from "./transfer-form";
@@ -67,7 +68,7 @@ export function openEconomyMenuForm(player: Player): void {
         openRedPacketMenu(player);
         break;
       case 6:
-        openEconomyRankingForm(player);
+        openStatsHubForm(player, { focus: "wealth", back: () => openEconomyMenuForm(player) });
         break;
       case 7:
         openServerMenuForm(player);
@@ -113,38 +114,3 @@ function openMyWalletForm(player: Player): void {
   });
 }
 
-// 玩家经济排行界面
-function openEconomyRankingForm(player: Player): void {
-  const allWallets = economic.getAllWallets();
-  const sortedWallets = allWallets.sort((a, b) => b.gold - a.gold);
-
-  const playerRank = sortedWallets.findIndex((wallet) => wallet.name === player.name) + 1;
-  const playerWallet = economic.getWallet(player.name);
-
-  const top10 = sortedWallets.slice(0, 10);
-
-  const form = new ActionFormData();
-  form.title("§w玩家经济排行榜");
-
-  let bodyText = "§e========= §6金币排行榜 §e=========\n\n";
-
-  top10.forEach((wallet, index) => {
-    const { otherGlyphMap } = require("../../../assets/glyph-map");
-    const namePrefix = otherGlyphMap.cat;
-    const rank = index + 1;
-    bodyText += `${namePrefix} ${rank}. §b${wallet.name}§f: §e${wallet.gold} 金币\n`;
-  });
-
-  bodyText += "\n§e=======================\n\n";
-
-  bodyText += `§a您的排名: §f${playerRank === 0 ? "未上榜" : playerRank}\n`;
-  bodyText += `§a您的余额: §e${playerWallet.gold} 金币`;
-
-  form.body({ rawtext: [{ text: bodyText }] });
-  form.button("§w返回", "textures/icons/back");
-
-  form.show(player).then((response) => {
-    if (response.canceled) return;
-    openEconomyMenuForm(player);
-  });
-}

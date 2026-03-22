@@ -729,6 +729,20 @@ class WayPoint {
     wayPoint.modified = getNowDate();
     return this.db.set(key, wayPoint);
   }
+
+  /**
+   * 删除某公会在路点库中的全部公会坐标（解散公会时调用，避免遗留）
+   */
+  deleteAllGuildPointsForGuild(guildId: string): void {
+    const owner = guildVirtualOwnerName(guildId);
+    const all = this.db.getAll() as Record<string, IWayPoint>;
+    for (const key of Object.keys(all)) {
+      const wp = all[key];
+      if (wp && wp.type === "guild" && wp.playerName === owner) {
+        this.db.delete(key);
+      }
+    }
+  }
 }
 
 export default new WayPoint();

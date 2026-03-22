@@ -6,14 +6,12 @@ import { Player, world } from "@minecraft/server";
 import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
 import guildService from "../../../features/guild/services/guild-service";
-import landManager from "../../../features/land/services/land-manager";
-import type { ILand } from "../../../core/types";
 import type { GuildRole, IGuild } from "../../../features/guild/models/guild.model";
 import economic from "../../../features/economic/services/economic";
 import setting from "../../../features/system/services/setting";
 import { openDialogForm, openConfirmDialogForm } from "../../components/dialog";
 import { openServerMenuForm } from "../server";
-import { openLandApplyForm } from "../land";
+import { openLandApplyForm, openLandDetailForm } from "../land";
 import wayPoint from "../../../features/waypoint/services/waypoint";
 import { formatNumber, formatDateTime } from "../../../shared/utils/format";
 import { useFormatListInfo } from "../../../shared/hooks/use-form";
@@ -912,92 +910,7 @@ async function openGuildCoordMenu(player: Player): Promise<void> {
   if (fn) await fn();
 }
 
-async function openGuildLandSingleMenu(player: Player, land: ILand): Promise<void> {
-  const role = guildService.getMemberRole(player);
-  const canOfficer = role === "owner" || role === "officer";
-  const isLandOwner = land.owner === player.name;
-  if (!canOfficer && !isLandOwner) {
-    openDialogForm(
-      player,
-      {
-        title: "领地",
-        desc: `${color.yellow(stripSectionForUi(land.name))}\n${color.gray("本会登记的公会领地（仅会长/副会长或圈地者可解除绑定）")}`,
-      },
-      () => void openGuildLandListSubmenu(player)
-    );
-    return;
-  }
-
-  const form = new ActionFormData();
-  form.title("§w公会领地");
-  form.body(`§e§l${stripSectionForUi(land.name)}§r\n§7公会领地 · 本会登记地块\n\n§8要解除本领地与公会的绑定吗？`);
-  form.button("§c解除公会绑定", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
-  const res = await form.show(player);
-  if (res.canceled || res.selection === undefined) return;
-  if (res.selection === 0) {
-    const err = isLandOwner
-      ? guildService.unbindLandFromGuild(player, land.name)
-      : guildService.unbindGuildLandByOfficer(player, land.name);
-    openDialogForm(
-      player,
-      { title: err ? "失败" : "成功", desc: err ? color.red(err) : color.green("已解除公会领地绑定。") },
-      () => void openGuildLandListSubmenu(player)
-    );
-  } else {
-    openGuildLandListSubmenu(player);
-  }
-}
-
-async function openBindGuildLandPickForm(player: Player): Promise<void> {
-  if (!guildService.getGuildForPlayer(player)) {
-    openDialogForm(
-      player,
-      { title: "提示", desc: color.gray("你不在公会中。") },
-      () => void openGuildMyGuildMenu(player)
-    );
-    return;
-  }
-  const candidates = landManager.getPlayerLands(player.name).filter((l) => !l.guildId);
-  if (candidates.length === 0) {
-    openDialogForm(
-      player,
-      {
-        title: "提示",
-        desc: color.gray("你没有可登记的领地（需先创建领地，且尚未登记为公会领地）。"),
-      },
-      () => void openGuildLandsMenu(player)
-    );
-    return;
-  }
-  const form = new ModalFormData();
-  form.title("§w登记公会领地");
-  form.label(
-    "§7选择要领地登记为公会领地：登记后该地块不再占用你的个人领地上限；公会侧受「每公会最大公会领地数」限制。若管理员配置了登记费用，将从§6公会金库§7扣除。"
-  );
-  const names = candidates.map((l) => l.name);
-  form.dropdown("§w领地", names, { defaultValueIndex: 0 });
-  form.submitButton("确认");
-  const res = await form.show(player);
-  if (res.canceled) {
-    openGuildLandsMenu(player);
-    return;
-  }
-  const idx = Number((res.formValues as unknown[] | undefined)?.[0]);
-  const land = candidates[Number.isFinite(idx) ? idx : 0];
-  if (!land) {
-    openGuildLandsMenu(player);
-    return;
-  }
-  const err = guildService.trustGuildMembersInLand(player, land.name);
-  openDialogForm(
-    player,
-    { title: err ? "失败" : "成功", desc: err ? color.red(err) : color.green("已登记为公会领地。") },
-    () => void openGuildLandListSubmenu(player)
-  );
-}
-
-/** 子界面：列出本会已登记公会领地，点击条目进入详情 */
+/** 子界面：列出本会公会领地，点击条目进入详情 */
 async function openGuildLandListSubmenu(player: Player): Promise<void> {
   const g = guildService.getGuildForPlayer(player);
   if (!g) {
@@ -1017,7 +930,7 @@ async function openGuildLandListSubmenu(player: Player): Promise<void> {
   form.title("§w公会领地列表");
   if (bound.length === 0) {
     form.body(
-      [`§f§l公会领地列表§r §7· §7本会暂无已登记地块`, ``, `§7配额 §b§l0§r §7/ §b${maxGuildLandsCap} §7块`].join("\n")
+      [`§f§l公会领地列表§r §7· §7本会暂无公会领地`, ``, `§7创建配额 §b§l0§r §7/ §b${maxGuildLandsCap} §7块`].join("\n")
     );
   } else {
     form.body(
@@ -1026,7 +939,7 @@ async function openGuildLandListSubmenu(player: Player): Promise<void> {
         ``,
         `§7配额 §b§l${bound.length}§r §7/ §b${maxGuildLandsCap} §7块`,
         ``,
-        `§7点击下方条目可查看详情或解除绑定`,
+        `§7点击下方条目查看详情（传送、公会领地为公会专属）`,
       ].join("\n")
     );
   }
@@ -1036,7 +949,9 @@ async function openGuildLandListSubmenu(player: Player): Promise<void> {
   for (const land of bound) {
     const ln = stripSectionForUi(land.name);
     form.button(`§l§e${ln}§r\n§8${getDimensionName(land.dimension)}`, "textures/icons/island");
-    actions.push(() => openGuildLandSingleMenu(player, land));
+    actions.push(() =>
+      openLandDetailForm(player, land, false, () => void openGuildLandListSubmenu(player))
+    );
   }
 
   form.button("§w返回", "textures/icons/back");
@@ -1069,20 +984,20 @@ async function openGuildLandsMenu(player: Player): Promise<void> {
   const bodyLines = [
     `§f§l公会领地§r §7· §7与个人领地上限分开计算`,
     ``,
-    `§7登记配额 §b§l${bound.length}§r §7/ §b${maxGuildLandsCap} §7块`,
+    `§7创建配额 §b§l${bound.length}§r §7/ §b${maxGuildLandsCap} §7块`,
     ``,
-    `§7请点下方 §e「公会领地列表」§7 浏览已登记地块`,
+    `§7请点下方 §e「公会领地列表」§7 浏览本会领地`,
     ``,
-    `§7新建/登记公会领地时，相关费用从§6公会金库§7扣除（管理员可配置）。`,
+    `§7新建公会领地时，相关费用从§6公会金库§7扣除（管理员可配置）。`,
   ];
   if (role === "owner" || role === "officer") {
-    bodyLines.push(``, `§6§l会长 / 副会长§r §7可使用「新建」「登记」`, `§7（木棍圈两点，或先有个人领地再登记）`);
+    bodyLines.push(``, `§6§l会长 / 副会长§r §7可使用「新建公会领地」`, `§7（木棍圈两点后填写表单）`);
   }
   form.body(bodyLines.join("\n"));
 
   const actions: Array<() => void | Promise<void>> = [];
 
-  form.button(`§e§l公会领地列表§r\n§8查看已登记领地`, "textures/icons/island");
+  form.button(`§e§l公会领地列表§r\n§8查看本会领地`, "textures/icons/island");
   actions.push(() => void openGuildLandListSubmenu(player));
 
   if (role === "owner" || role === "officer") {
@@ -1094,8 +1009,6 @@ async function openGuildLandsMenu(player: Player): Promise<void> {
         onCancel: () => void openGuildLandListSubmenu(player),
       });
     });
-    form.button("§w登记已有领地为公会领地", "textures/icons/add");
-    actions.push(() => openBindGuildLandPickForm(player));
   }
 
   form.button("§w返回", "textures/icons/back");
@@ -1791,7 +1704,7 @@ function confirmDisbandGuild(player: Player): void {
   openConfirmDialogForm(
     player,
     "§w解散公会",
-    "§c§l解散后所有成员将被移出，金库数据随公会删除。确定吗？",
+    "§c§l解散后：所有成员移出；本会金库、公会坐标、公会领地（含领地数据）及待处理邀请等将全部清除，不可恢复。确定吗？",
     () => {
       const err = guildService.disbandGuild(player);
       openDialogForm(

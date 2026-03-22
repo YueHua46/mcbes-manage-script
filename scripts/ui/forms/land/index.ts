@@ -16,7 +16,15 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 import type { ILand } from "../../../core/types";
 import guildService from "../../../features/guild/services/guild-service";
 import setting from "../../../features/system/services/setting";
-import { openLandManageForm, openSystemSettingForm } from "../system";
+import {
+  tryStartLandFlightSession,
+  canShowLandFlightEntry,
+  getSecondsUntilNextLandFlightBilling,
+  isPlayerStandingOnLand,
+} from "../../../features/land/services/land-flight";
+import { openSystemSettingForm } from "../system";
+import { formatDateTime } from "../../../shared/utils/format";
+import { isAdmin } from "../../../shared/utils/common";
 
 /** 从公会菜单「纯公会圈地」创建时传入，写入 ILand.guildId */
 export type GuildLandApplyContext = {
@@ -59,7 +67,7 @@ function buildGuildLandApplyInfoBody(guildId: string): string {
     bodyLines.push(color.gray("创建公会领地：金库不扣费（费用为 0）。"));
   }
   bodyLines.push(`${color.white("公会金库余额：")}${color.yellow(String(treasury))}`);
-  bodyLines.push(color.gray("不按个人方块费扣个人金币；成功后登记为本会领地，不占个人领地上限。"));
+  bodyLines.push(color.gray("不按个人方块费扣个人金币；成功后为本会公会领地，不占个人领地上限。"));
   bodyLines.push("");
   bodyLines.push(color.darkGray("点「继续」后填写领地名称与坐标。"));
   return bodyLines.join("\n");
@@ -245,6 +253,7 @@ function openLandApplyModalOnly(player: Player, guildApply?: GuildLandApplyConte
 
         if (guildApply?.guildId) {
           landData.guildId = guildApply.guildId;
+          landData.members = [];
         }
 
         // 如果设置了传送点，先检查是否在领地范围内
@@ -342,7 +351,7 @@ export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyCon
 
 // ==================== 领地权限设置 ====================
 
-export function openLandAuthForm(player: Player, myLand: ILand): void {
+export function openLandAuthForm(player: Player, myLand: ILand, reopenDetail?: () => void): void {
   const form = new ModalFormData();
   const _myLand = landManager.db.get(myLand.name);
 
@@ -439,7 +448,11 @@ export function openLandAuthForm(player: Player, myLand: ILand): void {
         desc: color.green("领地公开权限设置成功！"),
       },
       () => {
-        openLandDetailForm(player, _myLand);
+        if (reopenDetail) reopenDetail();
+        else {
+          const fresh = landManager.getLand(_myLand.name);
+          if (typeof fresh !== "string") openLandDetailForm(player, fresh);
+        }
       }
     );
   });
@@ -625,7 +638,12 @@ export function openLandMemberForm(player: Player, land: ILand): void {
 
 // ==================== 删除领地 ====================
 
-export function openLandDeleteForm(player: Player, _land: ILand, isAdmin: boolean = false): void {
+export function openLandDeleteForm(
+  player: Player,
+  _land: ILand,
+  isAdmin: boolean = false,
+  opts?: { afterSuccess?: () => void; reopenDetail?: () => void }
+): void {
   const form = new ActionFormData();
   form.title("删除领地");
   form.body(color.red("删除领地后不可恢复，请谨慎操作！"));
@@ -646,11 +664,13 @@ export function openLandDeleteForm(player: Player, _land: ILand, isAdmin: boolea
             desc: color.red(res),
           },
           () => {
-            openLandDetailForm(player, _land);
+            if (opts?.reopenDetail) opts.reopenDetail();
+            else openLandDetailForm(player, _land, isAdmin);
           }
         );
       } else {
         player.sendMessage(color.yellow(`领地 ${_land.name} 删除成功！`));
+        if (opts?.afterSuccess) opts.afterSuccess();
       }
     }
   });
@@ -830,9 +850,17 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
 
 // ==================== 领地传送点设置 ====================
 
-export function openLandTeleportPointForm(player: Player, _land: ILand): void {
+export function openLandTeleportPointForm(player: Player, _land: ILand, returnToDetail?: () => void): void {
   const form = new ActionFormData();
   form.title("领地传送点设置");
+
+  const reopenDetail = () => {
+    if (returnToDetail) returnToDetail();
+    else {
+      const fresh = landManager.getLand(_land.name);
+      if (typeof fresh !== "string") openLandDetailForm(player, fresh);
+    }
+  };
 
   const buttons = [
     {
@@ -847,7 +875,7 @@ export function openLandTeleportPointForm(player: Player, _land: ILand): void {
               title: "设置传送点",
               desc: color.red(res),
             },
-            () => openLandTeleportPointForm(player, _land)
+            () => openLandTeleportPointForm(player, _land, returnToDetail)
           );
         } else {
           openDialogForm(
@@ -858,7 +886,7 @@ export function openLandTeleportPointForm(player: Player, _land: ILand): void {
                 `传送点已设置为: ${Math.round(player.location.x)}, ${Math.round(player.location.y)}, ${Math.round(player.location.z)}`
               ),
             },
-            () => openLandDetailForm(player, landManager.getLand(_land.name) as ILand)
+            reopenDetail
           );
         }
       },
@@ -878,7 +906,7 @@ export function openLandTeleportPointForm(player: Player, _land: ILand): void {
               title: "删除传送点",
               desc: color.red(res),
             },
-            () => openLandTeleportPointForm(player, _land)
+            () => openLandTeleportPointForm(player, _land, returnToDetail)
           );
         } else {
           openDialogForm(
@@ -887,7 +915,7 @@ export function openLandTeleportPointForm(player: Player, _land: ILand): void {
               title: "删除传送点",
               desc: color.green("传送点已删除"),
             },
-            () => openLandDetailForm(player, landManager.getLand(_land.name) as ILand)
+            reopenDetail
           );
         }
       },
@@ -897,7 +925,7 @@ export function openLandTeleportPointForm(player: Player, _land: ILand): void {
   buttons.push({
     text: "返回",
     icon: "textures/icons/back",
-    action: () => openLandDetailForm(player, _land),
+    action: reopenDetail,
   });
 
   buttons.forEach((button) => {
@@ -925,7 +953,7 @@ export function openLandTeleportPointForm(player: Player, _land: ILand): void {
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) {
-      openLandDetailForm(player, _land);
+      reopenDetail();
       return;
     }
     if (data.selection === null || data.selection === undefined) return;
@@ -945,16 +973,164 @@ export const openLandDetailForm = (
   form.title("领地详细");
   const isOwner = landData.owner === player.name;
   const canAccess = isOwner || isAdmin || landManager.isPlayerTrustedOnLand(landData, player.name);
+  const isGuildLand = setting.getState("guild") === true && !!landData.guildId;
 
-  const buttons = [
-    {
-      text: "领地公开权限",
-      icon: "textures/icons/party_remove",
-      action: () => openLandAuthForm(player, landData),
-    },
-  ];
+  const reopenDetail = () => {
+    const fresh = landManager.getLand(landData.name);
+    if (typeof fresh !== "string") openLandDetailForm(player, fresh, isAdmin, returnForm);
+  };
 
-  // 如果有传送点且玩家有权限，添加传送按钮
+  /** 公会领地：会长/副会长或管理员可管理传送点与删除 */
+  const canManageGuildLand =
+    isGuildLand && (guildService.canOfficerManageGuildLand(player, landData) || isAdmin);
+
+  type Btn = { text: string; icon: string; action: () => void };
+  const buttons: Btn[] = [];
+
+  if (isGuildLand) {
+    if (landData.teleportPoint && canAccess) {
+      buttons.push({
+        text: "传送回领地",
+        icon: "textures/icons/durbun",
+        action: () => {
+          const res = landManager.teleportToLand(player, landData.name);
+          if (typeof res === "string") {
+            useNotify("chat", player, color.red(res));
+          }
+        },
+      });
+    }
+
+    // 管理员从「领地系统管理 → 公会领地（管理员）」进入时不展示：已有飞行权限，无需限时领地飞行入口
+    if (
+      !isAdmin &&
+      canAccess &&
+      canShowLandFlightEntry(player) &&
+      isPlayerStandingOnLand(player, landData.name)
+    ) {
+      buttons.push({
+        text: "领地飞行（限时）",
+        icon: "textures/icons/ada",
+        action: () => {
+          const err = tryStartLandFlightSession(player);
+          if (typeof err === "string") {
+            openDialogForm(
+              player,
+              { title: "领地飞行", desc: err },
+              () => openLandDetailForm(player, landData, isAdmin, returnForm)
+            );
+          } else {
+            openDialogForm(
+              player,
+              { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") },
+              () => openLandDetailForm(player, landData, isAdmin, returnForm)
+            );
+          }
+        },
+      });
+    }
+
+    if (canManageGuildLand) {
+      buttons.push({
+        text: landData.teleportPoint ? "修改传送点" : "设置传送点",
+        icon: "textures/icons/ada",
+        action: () => openLandTeleportPointForm(player, landData, reopenDetail),
+      });
+      buttons.push({
+        text: "删除领地",
+        icon: "textures/icons/copkutusu",
+        action: () =>
+          openLandDeleteForm(player, landData, isAdmin, {
+            afterSuccess: () => {
+              if (returnForm) returnForm();
+              else openLandListForm(player);
+            },
+            reopenDetail,
+          }),
+      });
+    }
+
+    buttons.push({
+      text: "返回",
+      icon: "textures/icons/back",
+      action: () => {
+        if (returnForm) returnForm();
+        else if (isAdmin) openAllPlayerLandManageForm(player);
+        else openLandListForm(player);
+      },
+    });
+
+    buttons.forEach((button) => {
+      form.button(button.text, button.icon);
+    });
+
+    const g = landData.guildId ? guildService.getGuildById(landData.guildId) : undefined;
+    const infoList: string[] = [
+      "领地名称: " + color.yellow(landData.name),
+      "创建人: " + color.yellow(landData.owner),
+      "创建时间: " + color.yellow(formatDateTime(landData.createdAt)),
+      "领地坐标: " +
+        color.yellow(
+          landData.vectors.start.x +
+            " " +
+            landData.vectors.start.y +
+            " " +
+            landData.vectors.start.z +
+            " -> " +
+            landData.vectors.end.x +
+            " " +
+            landData.vectors.end.y +
+            " " +
+            landData.vectors.end.z
+        ),
+    ];
+
+    if (landData.teleportPoint) {
+      infoList.push(
+        "传送点: " + color.yellow(`${landData.teleportPoint.x}, ${landData.teleportPoint.y}, ${landData.teleportPoint.z}`)
+      );
+    } else {
+      infoList.push("传送点: " + color.gray("未设置"));
+    }
+
+    infoList.push(
+      "所属公会: " +
+        (g ? color.green(`[${g.tag}] ${g.name}`) : color.gray("（公会数据异常）"))
+    );
+    infoList.push(color.gray("公会成员均视为可信，不单独维护领地成员名单。"));
+
+    form.body(
+      useFormatListInfo([
+        {
+          title: "公会领地信息",
+          desc: "",
+          list: infoList,
+        },
+      ])
+    );
+
+    form.show(player).then((data) => {
+      if (data.canceled || data.cancelationReason) {
+        if (returnForm) returnForm();
+        return;
+      }
+      if (data.selection === null || data.selection === undefined) return;
+      buttons[data.selection].action();
+    });
+    return;
+  }
+
+  const reopenDetailAfterAuth = () => {
+    const fresh = landManager.getLand(landData.name);
+    if (typeof fresh !== "string") openLandDetailForm(player, fresh, isAdmin, returnForm);
+  };
+
+  buttons.push({
+    text: "领地公开权限",
+    icon: "textures/icons/party_remove",
+    action: () => openLandAuthForm(player, landData, reopenDetailAfterAuth),
+  });
+
   if (landData.teleportPoint && canAccess) {
     buttons.push({
       text: "传送回领地",
@@ -968,15 +1144,40 @@ export const openLandDetailForm = (
     });
   }
 
+  if (
+    canAccess &&
+    canShowLandFlightEntry(player) &&
+    isPlayerStandingOnLand(player, landData.name)
+  ) {
+    buttons.push({
+      text: "领地飞行（限时）",
+      icon: "textures/icons/ada",
+      action: () => {
+        const err = tryStartLandFlightSession(player);
+        if (typeof err === "string") {
+          openDialogForm(
+            player,
+            { title: "领地飞行", desc: err },
+            () => openLandDetailForm(player, landData, isAdmin, returnForm)
+          );
+        } else {
+          openDialogForm(
+            player,
+            { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") },
+            () => openLandDetailForm(player, landData, isAdmin, returnForm)
+          );
+        }
+      },
+    });
+  }
+
   if (isOwner || isAdmin) {
-    const actions = [
+    const actions: Btn[] = [
       {
         text: "领地成员管理",
         icon: "textures/icons/party_unavailable",
         action: () => openLandMemberForm(player, landData),
       },
-    ];
-    actions.push(
       {
         text: "领地转让",
         icon: "textures/icons/quest_daily_common",
@@ -990,14 +1191,14 @@ export const openLandDetailForm = (
       {
         text: landData.teleportPoint ? "修改传送点" : "设置传送点",
         icon: "textures/icons/ada",
-        action: () => openLandTeleportPointForm(player, landData),
+        action: () => openLandTeleportPointForm(player, landData, reopenDetail),
       },
       {
         text: "删除领地",
         icon: "textures/icons/copkutusu",
         action: () => openLandDeleteForm(player, landData, isAdmin),
-      }
-    );
+      },
+    ];
     buttons.push(...actions);
   }
 
@@ -1050,7 +1251,7 @@ export const openLandDetailForm = (
           color.gray("（在「服务器菜单 → 公会 → 公会领地」管理）")
       );
     } else {
-      infoList.push("公会领地: " + color.gray("未登记（会长/副会长可在公会菜单登记）"));
+      infoList.push("公会领地: " + color.gray("仅可在公会菜单内创建公会领地"));
     }
   }
 
@@ -1098,6 +1299,7 @@ export function openLandListForm(player: Player, isAdmin: boolean = false, page:
 
   for (const key in ll) {
     const landData = ll[key];
+    if (landData.guildId) continue;
     if (landData.owner === player.name || isAdmin || landManager.isPlayerTrustedOnLand(landData, player.name)) {
       myLands.push(landData);
     }
@@ -1165,49 +1367,82 @@ export function openLandListForm(player: Player, isAdmin: boolean = false, page:
   }
 }
 
-// ==================== 领地管理主菜单 ====================
+// ==================== 领地系统管理主菜单（服务器菜单 → 领地） ====================
 
-function createLandManageForm(): ActionFormData {
+function buildLandFlightButtonLabel(player: Player): string {
+  const intervalSec = Number(setting.getState("landFlightBillingIntervalSec")) || 60;
+  const useEco = setting.getState("landFlightUseEconomy") === true;
+  const economyOn = setting.getState("economy") === true;
+  const gold = Number(setting.getState("landFlightGoldPerInterval")) || 0;
+  const nextBill = getSecondsUntilNextLandFlightBilling(player);
+  let sub = "";
+  if (useEco && economyOn && gold > 0) {
+    sub = `§b每 §e${intervalSec} §b秒扣 §e${gold} §b金币`;
+  } else if (useEco && economyOn && gold === 0) {
+    sub = `§3已开扣费但金额为 0（不扣钱）`;
+  } else {
+    sub = `§a免费飞行`;
+  }
+  if (nextBill !== null && nextBill > 0) {
+    sub += ` §b| 约 §e${nextBill}s §b后下次扣费`;
+  }
+  sub += `\n§3仅在当前领地内有效，离开即收回`;
+  return `§w领地飞行\n${sub}`;
+}
+
+export function openLandManageForms(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w领地管理");
+  form.title("§w领地系统管理");
 
-  const buttons = [
+  const buttons: { text: string; icon: string; action: () => void }[] = [];
+
+  if (canShowLandFlightEntry(player)) {
+    buttons.push({
+      text: buildLandFlightButtonLabel(player),
+      icon: "textures/icons/durbun",
+      action: () => {
+        const err = tryStartLandFlightSession(player);
+        if (typeof err === "string") {
+          openDialogForm(
+            player,
+            { title: "领地飞行", desc: err },
+            () => openLandManageForms(player)
+          );
+        } else {
+          openDialogForm(
+            player,
+            { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") },
+            () => openLandManageForms(player)
+          );
+        }
+      },
+    });
+  }
+
+  buttons.push(
     {
       text: "§w领地列表",
       icon: "textures/icons/home",
+      action: () => openLandListForm(player),
     },
     {
       text: "§w领地申请",
       icon: "textures/icons/ada",
+      action: () => openLandApplyForm(player),
     },
     {
       text: "§w返回",
       icon: "textures/icons/back",
-    },
-  ];
+      action: () => openServerMenuForm(player),
+    }
+  );
 
-  buttons.forEach((button) => {
-    form.button(button.text, button.icon);
-  });
-
-  return form;
-}
-
-export function openLandManageForms(player: Player): void {
-  const form = createLandManageForm();
+  buttons.forEach((b) => form.button(b.text, b.icon));
 
   form.show(player).then((data) => {
-    switch (data.selection) {
-      case 0:
-        openLandListForm(player);
-        break;
-      case 1:
-        openLandApplyForm(player);
-        break;
-      case 2:
-        openServerMenuForm(player);
-        break;
-    }
+    if (data.canceled || data.cancelationReason) return;
+    if (data.selection === null || data.selection === undefined) return;
+    buttons[data.selection]?.action();
   });
 }
 
@@ -1223,7 +1458,9 @@ export const openPlayerLandListForm = (
   const form = new ActionFormData();
   form.title(`${color.blue(targetPlayerName)}的领地列表`);
 
-  const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === targetPlayerName);
+  const playerLands = Object.values(landManager.getLandList()).filter(
+    (l) => l.owner === targetPlayerName && !l.guildId
+  );
 
   const pageSize = 10;
   const totalPages = Math.ceil(playerLands.length / pageSize);
@@ -1310,7 +1547,9 @@ export const openSearchLandForm = (player: Player, returnForm?: () => void): voi
       if (formValues?.[0]) {
         const playerName = formValues[0].toString().trim();
         if (playerName) {
-          const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName);
+          const playerLands = Object.values(landManager.getLandList()).filter(
+            (l) => l.owner === playerName && !l.guildId
+          );
           if (playerLands.length === 0) {
             openDialogForm(
               player,
@@ -1354,7 +1593,9 @@ export const openSearchLandForm = (player: Player, returnForm?: () => void): voi
       }
 
       if (playerName) {
-        const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName);
+        const playerLands = Object.values(landManager.getLandList()).filter(
+          (l) => l.owner === playerName && !l.guildId
+        );
         if (playerLands.length === 0) {
           openDialogForm(
             player,
@@ -1387,6 +1628,104 @@ export const openSearchLandForm = (player: Player, returnForm?: () => void): voi
   }
 };
 
+// ==================== 管理员：公会领地列表 ====================
+
+/** 仅管理员：列出所有带 guildId 的领地，进入详情后可删改传送点等 */
+export function openAdminGuildLandListForm(player: Player, page: number = 1, returnForm?: () => void): void {
+  if (!isAdmin(player)) {
+    openDialogForm(
+      player,
+      { title: "提示", desc: color.red("只有管理员可操作") },
+      () => {
+        if (returnForm) returnForm();
+        else openSystemSettingForm(player);
+      }
+    );
+    return;
+  }
+
+  const ll = landManager.getLandList();
+  const guildLands: ILand[] = [];
+  for (const key in ll) {
+    const land = ll[key];
+    if (land.guildId) guildLands.push(land);
+  }
+
+  guildLands.sort((a, b) => {
+    const ta = guildService.getGuildById(a.guildId!)?.tag ?? "";
+    const tb = guildService.getGuildById(b.guildId!)?.tag ?? "";
+    const c = ta.localeCompare(tb, undefined, { sensitivity: "base" });
+    if (c !== 0) return c;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  });
+
+  if (guildLands.length === 0) {
+    openDialogForm(
+      player,
+      { title: "公会领地", desc: color.gray("当前没有公会领地数据。") },
+      () => {
+        if (returnForm) returnForm();
+        else openSystemSettingForm(player);
+      }
+    );
+    return;
+  }
+
+  const pageSize = 10;
+  const totalPages = Math.ceil(guildLands.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * pageSize;
+  const currentPageLands = guildLands.slice(start, start + pageSize);
+
+  const form = new ActionFormData();
+  form.title("§w公会领地（管理员）");
+  form.body(`第 ${safePage} / ${totalPages} 页 · 共 ${guildLands.length} 块`);
+
+  currentPageLands.forEach((landData) => {
+    const g = landData.guildId ? guildService.getGuildById(landData.guildId) : undefined;
+    const tag = g ? `[${g.tag}]` : "[?]";
+    form.button(
+      `${landData.name}\n${tag} ${landData.owner} · ${getDimensionName(landData.dimension)}`,
+      "textures/icons/island"
+    );
+  });
+
+  let previousButtonIndex = currentPageLands.length;
+  let nextButtonIndex = currentPageLands.length;
+
+  if (safePage > 1) {
+    form.button("§w上一页", "textures/icons/left_arrow");
+    previousButtonIndex++;
+    nextButtonIndex++;
+  }
+  if (safePage < totalPages) {
+    form.button("§w下一页", "textures/icons/right_arrow");
+    nextButtonIndex++;
+  }
+
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const selectionIndex = data.selection;
+    if (selectionIndex === null || selectionIndex === undefined) return;
+
+    const count = currentPageLands.length;
+    if (selectionIndex >= 0 && selectionIndex < count) {
+      openLandDetailForm(player, currentPageLands[selectionIndex], true, () =>
+        openAdminGuildLandListForm(player, safePage, returnForm)
+      );
+    } else if (selectionIndex === previousButtonIndex - 1 && safePage > 1) {
+      openAdminGuildLandListForm(player, safePage - 1, returnForm);
+    } else if (selectionIndex === nextButtonIndex - 1 && safePage < totalPages) {
+      openAdminGuildLandListForm(player, safePage + 1, returnForm);
+    } else {
+      if (returnForm) returnForm();
+      else openSystemSettingForm(player);
+    }
+  });
+}
+
 // ==================== 所有玩家领地管理 ====================
 
 export const openAllPlayerLandManageForm = (player: Player, page: number = 1, returnForm?: () => void): void => {
@@ -1402,7 +1741,9 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1, re
   const currentPagePlayers = players.slice(start, end);
 
   currentPagePlayers.forEach((playerName) => {
-    const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName);
+    const playerLands = Object.values(landManager.getLandList()).filter(
+      (l) => l.owner === playerName && !l.guildId
+    );
     form.button(
       `${color.blue(playerName)} 的所有领地\n${color.darkPurple("领地数量:")} ${playerLands.length}`,
       "textures/icons/uye"

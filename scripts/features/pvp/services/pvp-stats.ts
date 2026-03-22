@@ -132,7 +132,8 @@ class PvpStatsManager {
    * 获取排行榜
    */
   getLeaderboard(
-    type: "kills" | "killStreak" | "seize"
+    type: "kills" | "killStreak" | "seize",
+    limit: number = 10
   ): Array<{ name: string; value: number }> {
     const allData = pvpManager.getAllPlayerData();
     let sorted: Array<{ name: string; value: number }> = [];
@@ -155,7 +156,8 @@ class PvpStatsManager {
         break;
     }
 
-    return sorted.slice(0, 10); // 前10名
+    const lim = Math.max(1, Math.min(100, Math.floor(limit)));
+    return sorted.slice(0, lim);
   }
 
   /**

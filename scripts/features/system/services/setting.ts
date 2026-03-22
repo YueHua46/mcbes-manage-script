@@ -90,10 +90,22 @@ export type IModules =
   | "guildTreasuryCostWaypointCreate"
   /** 创建公会所需累计在线小时数，0 为不限制 */
   | "guildCreateMinOnlineHours"
-  /** 其他功能：在线时长排行入口（第一项） */
+  /** 保留键（兼容旧库）；在线时长不由本键控制，仅「stats」控制数据统计入口 */
   | "onlineTime"
+  /** 服务器主菜单「数据统计」入口；子榜单不再单独设开关 */
+  | "stats"
   /** 全服红包有效时长（小时），过期未领退回发送者 */
-  | "redPacketExpiryHours";
+  | "redPacketExpiryHours"
+  /** 领地内飞行：总开关（默认开） */
+  | "landFlightEnabled"
+  /** 领地内飞行：飞行中是否按周期扣金币 */
+  | "landFlightUseEconomy"
+  /** 领地内飞行：扣费周期间隔（秒，字符串存整数） */
+  | "landFlightBillingIntervalSec"
+  /** 领地内飞行：每个周期扣除金币（字符串存整数） */
+  | "landFlightGoldPerInterval"
+  /** 领地内飞行：离开领地后宽限秒数（0=立即收回，建议 0～30） */
+  | "landFlightLeaveGraceSec";
 
 export type IValueType = boolean | string;
 
@@ -182,8 +194,19 @@ export const defaultSetting = {
   guildTreasuryCostWaypointCreate: "0",
   guildCreateMinOnlineHours: "0",
   onlineTime: true,
+  stats: true,
   /** 红包从发放到过期的小时数（默认 24 小时即 1 天） */
   redPacketExpiryHours: "24",
+  /** 领地内飞行（/ability mayfly），默认开启 */
+  landFlightEnabled: true,
+  /** 飞行中是否按周期扣金币（关闭则领地内飞行不花钱） */
+  landFlightUseEconomy: false,
+  /** 扣费周期间隔（秒） */
+  landFlightBillingIntervalSec: "60",
+  /** 每个周期扣除的金币（0 为不扣） */
+  landFlightGoldPerInterval: "0",
+  /** 离开领地后仍可飞行的宽限秒数；0 表示一出领地立即收回 */
+  landFlightLeaveGraceSec: "5",
 };
 
 export class ServerSetting {

@@ -385,10 +385,11 @@ class GuildService {
     return "";
   }
 
-  /** 删除公会数据（坐标、领地绑定、成员索引、公会库）；不记行为日志 */
+  /** 删除公会数据（金库随公会记录删除、坐标、公会领地、邀请、成员索引）；不记行为日志 */
   private disbandGuildDataCore(g: IGuild): void {
+    this.removeAllInvitesForGuild(g.id);
     this.removeAllGuildWaypointsForGuild(g);
-    this.clearAllLandsBoundToGuild(g);
+    this.removeAllGuildLandsForGuild(g);
 
     for (const n of Object.keys(g.members)) {
       this.indexDb.delete(n);
@@ -398,6 +399,33 @@ class GuildService {
     }
 
     this.guildsDb.delete(g.id);
+  }
+
+  /** 清除指向该公会的所有待处理邀请 */
+  private removeAllInvitesForGuild(guildId: string): void {
+    const all = this.invitesDb.getAll() as Record<string, IPendingGuildInvite>;
+    for (const playerName of Object.keys(all)) {
+      const inv = all[playerName];
+      if (inv?.guildId === guildId) {
+        this.invitesDb.delete(playerName);
+      }
+    }
+  }
+
+  /** 删除本会全部公会领地数据（领地记录从库中移除，避免仅解绑遗留） */
+  private removeAllGuildLandsForGuild(g: IGuild): void {
+    const lands = landManager.getLandList();
+    const names: string[] = [];
+    for (const key in lands) {
+      const land = lands[key];
+      if (land.guildId === g.id) names.push(land.name);
+    }
+    for (const name of names) {
+      const r = landManager.removeLand(name);
+      if (typeof r === "string") {
+        SystemLog.warn(`[Guild] disband: 删除公会领地失败 ${name}: ${r}`);
+      }
+    }
   }
 
   disbandGuild(player: Player): string {
@@ -877,6 +905,7 @@ class GuildService {
   }
 
   /**
+   * @deprecated 已取消「个人领地登记为公会」流程；公会领地仅能通过公会菜单新建。保留供旧逻辑/存档兼容。
    * 将领地登记为公会领地：仅写入 guildId；成员进出权限由「同公会」在领地逻辑中动态判定，不向领地 members 同步名单。
    */
   trustGuildMembersInLand(player: Player, landName: string): string {
@@ -991,16 +1020,6 @@ class GuildService {
     landManager.setLand(landName, cleared);
   }
 
-  private clearAllLandsBoundToGuild(g: IGuild): void {
-    const lands = landManager.getLandList();
-    for (const key in lands) {
-      const land = lands[key];
-      if (land.guildId === g.id) {
-        this.releaseLandGuildBindingCore(land.name, g);
-      }
-    }
-  }
-
   /**
    * 解除领地与公会的绑定：按领地所存 guildId 对应公会名册，从成员列表移除这些玩家，并清除 guildId。
    * 仅领地主人或管理员可操作；未加入公会时也可解除（仍按 land.guildId 清理）。
@@ -1060,6 +1079,17 @@ class GuildService {
     const g = this.getGuildForPlayer(player);
     if (!g) return undefined;
     return this.getRole(g, player.name);
+  }
+
+  /**
+   * 会长/副会长是否可管理本会任意公会领地（与圈地者是否为本人无关）。
+   */
+  canOfficerManageGuildLand(player: Player, land: ILand): boolean {
+    if (!land.guildId) return false;
+    const g = this.getGuildForPlayer(player);
+    if (!g || g.id !== land.guildId) return false;
+    const role = this.getMemberRole(player);
+    return role === "owner" || role === "officer";
   }
 
   /** 菜单/UI：待处理邀请摘要（无邀请或已过期返回 undefined） */
@@ -1199,14 +1229,7 @@ class GuildService {
   }
 
   private removeAllGuildWaypointsForGuild(g: IGuild): void {
-    for (const key of this.getGuildWaypointDbKeys(g)) {
-      const p = parseWaypointDbKey(key);
-      if (p) {
-        wayPoint.deletePoint(p.pointName, p.playerName);
-      }
-    }
-    g.guildWaypointKeys = undefined;
-    g.homeWaypointKey = undefined;
+    wayPoint.deleteAllGuildPointsForGuild(g.id);
   }
 
   /** 合并 guildWaypointKeys 与旧版 homeWaypointKey（只读视图） */
@@ -1368,6 +1391,25 @@ class GuildService {
   }
 
   /**
+   * 从公会记录中删除一路点（库键须属于本会）；成功返回「」。
+   */
+  private removeGuildWaypointFromGuildRecord(g: IGuild, dbKey: string, actorNameForLog: string): string {
+    this.ensureGuildWaypointsNormalized(g);
+    const keys = this.getGuildWaypointDbKeys(g);
+    if (!keys.includes(dbKey)) return "该坐标不属于本会";
+
+    const parsed = parseWaypointDbKey(dbKey);
+    if (!parsed) return "坐标数据无效";
+    wayPoint.deletePoint(parsed.pointName, parsed.playerName);
+    g.guildWaypointKeys = g.guildWaypointKeys?.filter((k) => k !== dbKey);
+    if (!g.guildWaypointKeys?.length) g.guildWaypointKeys = undefined;
+    g.homeWaypointKey = g.homeWaypointKey === dbKey ? undefined : g.homeWaypointKey;
+    this.saveGuild(g);
+    this.logGuild(actorNameForLog, "guildPromote", this.guildMeta(g, "wpDel"));
+    return "";
+  }
+
+  /**
    * 删除某一公会坐标（会长或副会长）
    */
   removeGuildWaypointByDbKey(player: Player, dbKey: string): string {
@@ -1382,19 +1424,22 @@ class GuildService {
     const role = this.getRole(g, player.name);
     if (role !== "owner" && role !== "officer") return "只有会长或副会长可以删除公会坐标";
 
-    this.ensureGuildWaypointsNormalized(g);
-    const keys = this.getGuildWaypointDbKeys(g);
-    if (!keys.includes(dbKey)) return "该坐标不属于本会";
+    return this.removeGuildWaypointFromGuildRecord(g, dbKey, player.name);
+  }
 
-    const parsed = parseWaypointDbKey(dbKey);
-    if (!parsed) return "坐标数据无效";
-    wayPoint.deletePoint(parsed.pointName, parsed.playerName);
-    g.guildWaypointKeys = g.guildWaypointKeys?.filter((k) => k !== dbKey);
-    if (!g.guildWaypointKeys?.length) g.guildWaypointKeys = undefined;
-    g.homeWaypointKey = g.homeWaypointKey === dbKey ? undefined : g.homeWaypointKey;
-    this.saveGuild(g);
-    this.logGuild(player.name, "guildPromote", this.guildMeta(g, "wpDel"));
-    return "";
+  /**
+   * 管理员删除任意公会的公会坐标（不要求管理员加入该公会）。
+   */
+  adminRemoveGuildWaypointByDbKey(admin: Player, guildId: string, dbKey: string): string {
+    if (!isAdmin(admin)) return "只有管理员可操作";
+    if (!this.ensureDbs()) return "公会系统未就绪";
+
+    const gid = stripSection(guildId.trim());
+    if (!gid) return "无效的公会 ID";
+    const g = this.getGuild(gid);
+    if (!g) return "公会不存在";
+
+    return this.removeGuildWaypointFromGuildRecord(g, dbKey, admin.name);
   }
 
   /**

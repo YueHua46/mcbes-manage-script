@@ -11,14 +11,90 @@ import setting from "../../../features/system/services/setting";
 import { openServerMenuForm } from "../server";
 import { openDialogForm, openConfirmDialogForm } from "../../../ui/components/dialog";
 import guildService from "../../../features/guild/services/guild-service";
+import wayPoint from "../../../features/waypoint/services/waypoint";
 import { isAdmin } from "../../../shared/utils/common";
 import { officeShopSettingForm } from "./office-shop-setting";
 import { openPlayerInventoryAdminForm } from "./player-inventory-admin";
 import { openNotifyForms } from "../notify";
 import { openBehaviorLogForm } from "../behavior-log";
+import { openOfflineDurationQueryMenu } from "./offline-duration-query";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
+
+// ==================== 领地飞行（管理） ====================
+
+function openLandFlightSettingsForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("§w领地飞行设置");
+  form.toggle("启用领地内飞行", {
+    defaultValue: setting.getState("landFlightEnabled") === true,
+  });
+  form.toggle("飞行中按周期扣金币", {
+    defaultValue: setting.getState("landFlightUseEconomy") === true,
+    tooltip:
+      "关闭：领地内飞行不花钱。开启：普通玩家在飞行时每隔下方「间隔」秒扣一次金币；填 0 金币则等于不扣。管理员飞行不扣。需经济系统已启用。",
+  });
+  form.textField("扣费间隔（秒）", "10～86400，例如 60 表示每分钟扣一次", {
+    defaultValue: String(setting.getState("landFlightBillingIntervalSec")),
+  });
+  form.textField("每个间隔扣多少金币", "填 0 表示不扣钱；仅对普通玩家生效", {
+    defaultValue: String(setting.getState("landFlightGoldPerInterval")),
+  });
+  form.textField("离开领地宽限（秒）", "0～30；0 表示一出领地立即收回飞行；仅离开领地边界时生效", {
+    defaultValue: String(setting.getState("landFlightLeaveGraceSec")),
+  });
+  form.submitButton("确认");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const { formValues } = data;
+    if (!formValues) return;
+
+    const enabled = formValues[0] as boolean;
+    const useEco = formValues[1] as boolean;
+    const secStr = String(formValues[2] ?? "");
+    const goldStr = String(formValues[3] ?? "");
+    const graceStr = String(formValues[4] ?? "");
+
+    const sec = Math.floor(Number(secStr));
+    if (!Number.isFinite(sec) || sec < 10 || sec > 86400) {
+      openDialogForm(player, { title: "设置失败", desc: color.red("扣费间隔须为 10～86400 之间的整数（秒）") }, () =>
+        openLandFlightSettingsForm(player)
+      );
+      return;
+    }
+    const gold = Math.floor(Number(goldStr));
+    if (!Number.isFinite(gold) || gold < 0) {
+      openDialogForm(player, { title: "设置失败", desc: color.red("金币数须为 0 或正整数") }, () =>
+        openLandFlightSettingsForm(player)
+      );
+      return;
+    }
+    const graceSec = Math.floor(Number(graceStr));
+    if (!Number.isFinite(graceSec) || graceSec < 0 || graceSec > 30) {
+      openDialogForm(player, { title: "设置失败", desc: color.red("离开领地宽限须为 0～30 之间的整数（秒）") }, () =>
+        openLandFlightSettingsForm(player)
+      );
+      return;
+    }
+
+    setting.setState("landFlightEnabled", enabled);
+    setting.setState("landFlightUseEconomy", useEco);
+    setting.setState("landFlightBillingIntervalSec", String(sec));
+    setting.setState("landFlightGoldPerInterval", String(gold));
+    setting.setState("landFlightLeaveGraceSec", String(graceSec));
+
+    openDialogForm(
+      player,
+      {
+        title: "设置成功",
+        desc: color.green("领地飞行设置已更新。"),
+      },
+      () => void openLandManageForm(player)
+    );
+  });
+}
 
 // ==================== 系统设置主菜单 ====================
 
@@ -43,7 +119,7 @@ export function openSystemSettingForm(player: Player): void {
       action: () => openModuleToggleForm(player),
     },
     {
-      text: "§w领地管理",
+      text: "§w领地系统管理",
       icon: "textures/icons/home",
       action: async () => {
         openLandManageForm(player);
@@ -86,7 +162,7 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "§w黑名单管理",
-      icon: "textures/icons/deny",
+      icon: "textures/icons/mod_shield",
       action: async () => {
         const { openBlacklistManageForm } = await import("../blacklist");
         openBlacklistManageForm(player);
@@ -94,8 +170,13 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "§w玩家行为日志",
-      icon: "textures/icons/profile",
+      icon: "textures/icons/eyes",
       action: () => openBehaviorLogForm(player),
+    },
+    {
+      text: "§w离线玩家时长查询",
+      icon: "textures/icons/party_unavailable",
+      action: () => openOfflineDurationQueryMenu(player, () => openSystemSettingForm(player)),
     },
     {
       text: "§w玩家背包管理",
@@ -359,11 +440,7 @@ function openGuildToggleSettingsForm(player: Player): void {
 function openGuildAdminForceDisbandListForm(player: Player, page: number = 1): void {
   const allGuilds = guildService.listAllGuildsForAdmin();
   if (allGuilds.length === 0) {
-    openDialogForm(
-      player,
-      { title: "提示", desc: "当前没有公会" },
-      () => openGuildSystemSettingsMenu(player)
-    );
+    openDialogForm(player, { title: "提示", desc: "当前没有公会" }, () => openGuildSystemSettingsMenu(player));
     return;
   }
 
@@ -375,7 +452,17 @@ function openGuildAdminForceDisbandListForm(player: Player, page: number = 1): v
 
   const form = new ActionFormData();
   form.title("§w强制解散公会");
-  form.body(`第 ${safePage} / ${totalPages} 页 · 共 ${allGuilds.length} 个公会`);
+  form.body(
+    [
+      `第 ${safePage} / ${totalPages} 页 · 共 ${allGuilds.length} 个公会`,
+      ``,
+      `§c解散后将彻底清除该公会数据：`,
+      `§7· 金库与公会内所有记录`,
+      `§7· 本会全部公会坐标`,
+      `§7· 本会全部公会领地（领地数据删除）`,
+      `§7· 待处理邀请与成员索引`,
+    ].join("\n")
+  );
 
   currentPageGuilds.forEach((g: IGuild) => {
     const n = Object.keys(g.members).length;
@@ -409,7 +496,7 @@ function openGuildAdminForceDisbandListForm(player: Player, page: number = 1): v
       openConfirmDialogForm(
         player,
         "§w强制解散公会",
-        `[${g.tag}] ${g.name}\n会长: ${g.ownerName}\n\n§c§l解散后所有成员将被移出，金库数据随公会删除，公会领地绑定将解除。确定吗？`,
+        `[${g.tag}] ${g.name}\n会长: ${g.ownerName}\n\n§c§l解散后：所有成员移出；本会金库、公会坐标、公会领地（含领地数据）及待处理邀请等将全部清除，不可恢复。确定吗？`,
         () => {
           const err = guildService.adminForceDisbandGuild(player, g.id);
           openDialogForm(
@@ -448,8 +535,8 @@ export function openModuleToggleForm(player: Player): void {
     { key: "land", name: "领地功能模块" },
     { key: "wayPoint", name: "坐标点功能模块" },
     { key: "economy", name: "经济系统" },
+    { key: "stats", name: "数据统计（仅此项控制入口，子榜无单独开关）" },
     { key: "guild", name: "公会系统" },
-    { key: "onlineTime", name: "在线时长排行（其他功能第一项）" },
     { key: "other", name: "其他功能模块" },
     { key: "help", name: "帮助功能" },
     { key: "sm", name: "服务器菜单" },
@@ -918,14 +1005,159 @@ function openPlayerWayPointManageForm(player: Player, page: number = 1, returnFo
   });
 }
 
-// ==================== 领地管理菜单 ====================
+// ==================== 管理员：公会坐标（按公会） ====================
+
+function openAdminGuildWaypointForGuildForm(
+  player: Player,
+  guildId: string,
+  listPage: number,
+  returnForm?: () => void
+): void {
+  if (!isAdmin(player)) {
+    openDialogForm(player, { title: "提示", desc: color.red("只有管理员可操作") }, () => {
+      if (returnForm) returnForm();
+      else openSystemSettingForm(player);
+    });
+    return;
+  }
+
+  const g0 = guildService.getGuildById(guildId);
+  if (!g0) {
+    openDialogForm(player, { title: "提示", desc: color.red("公会不存在") }, () =>
+      openAdminGuildWaypointManageForm(player, listPage, returnForm)
+    );
+    return;
+  }
+
+  guildService.ensureGuildWaypointsNormalized(g0);
+  const g = guildService.getGuildById(guildId);
+  if (!g) {
+    openAdminGuildWaypointManageForm(player, listPage, returnForm);
+    return;
+  }
+
+  const keys = guildService.getGuildWaypointDbKeys(g);
+  if (keys.length === 0) {
+    openDialogForm(player, { title: "公会坐标", desc: color.gray("该公会暂无公会坐标。") }, () =>
+      openAdminGuildWaypointManageForm(player, listPage, returnForm)
+    );
+    return;
+  }
+
+  const form = new ActionFormData();
+  form.title("§w公会坐标（管理员）");
+  form.body(`[${g.tag}] ${g.name}\n§7点击下方条目可删除该坐标`);
+
+  const actions: Array<() => void> = [];
+
+  for (const dbKey of keys) {
+    const wp = wayPoint.getPointByDbKey(dbKey);
+    const label = wp ? wp.name : dbKey;
+    const sub = wp ? wp.dimension : "?";
+    form.button(`§l§e${label}§r\n§8${sub}`, "textures/icons/fast_travel");
+    actions.push(() => {
+      openConfirmDialogForm(
+        player,
+        "删除公会坐标",
+        `§e确定删除「${label}」吗？\n§7此操作不可恢复。`,
+        () => {
+          const err = guildService.adminRemoveGuildWaypointByDbKey(player, guildId, dbKey);
+          openDialogForm(
+            player,
+            {
+              title: err ? "失败" : "已删除",
+              desc: err ? color.red(err) : color.green("已删除该公会坐标。"),
+            },
+            () => openAdminGuildWaypointForGuildForm(player, guildId, listPage, returnForm)
+          );
+        },
+        () => openAdminGuildWaypointForGuildForm(player, guildId, listPage, returnForm),
+        { dangerConfirm: true }
+      );
+    });
+  }
+
+  form.button("§w返回", "textures/icons/back");
+  actions.push(() => openAdminGuildWaypointManageForm(player, listPage, returnForm));
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    if (data.selection === null || data.selection === undefined) return;
+    const fn = actions[data.selection];
+    if (fn) fn();
+  });
+}
+
+function openAdminGuildWaypointManageForm(player: Player, page: number = 1, returnForm?: () => void): void {
+  if (!isAdmin(player)) {
+    openDialogForm(player, { title: "提示", desc: color.red("只有管理员可操作") }, () => {
+      if (returnForm) returnForm();
+      else openSystemSettingForm(player);
+    });
+    return;
+  }
+
+  const allGuilds = guildService.listAllGuildsForAdmin();
+  if (allGuilds.length === 0) {
+    openDialogForm(player, { title: "提示", desc: color.gray("当前没有公会") }, () => {
+      if (returnForm) returnForm();
+      else openSystemSettingForm(player);
+    });
+    return;
+  }
+
+  const pageSize = 10;
+  const totalPages = Math.ceil(allGuilds.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * pageSize;
+  const currentPageGuilds = allGuilds.slice(start, start + pageSize);
+
+  const form = new ActionFormData();
+  form.title("§w选择公会（公会坐标）");
+  form.body(`第 ${safePage} / ${totalPages} 页 · 共 ${allGuilds.length} 个公会\n§7选择公会后管理其公会坐标`);
+
+  const actions: Array<() => void> = [];
+
+  for (const g of currentPageGuilds) {
+    const n = Object.keys(g.members).length;
+    form.button(`[${g.tag}] ${g.name}\n§8会长:${g.ownerName} · ${n}人`, "textures/icons/bina");
+    actions.push(() => openAdminGuildWaypointForGuildForm(player, g.id, safePage, returnForm));
+  }
+
+  if (safePage > 1) {
+    form.button("§w上一页", "textures/icons/left_arrow");
+    actions.push(() => openAdminGuildWaypointManageForm(player, safePage - 1, returnForm));
+  }
+  if (safePage < totalPages) {
+    form.button("§w下一页", "textures/icons/right_arrow");
+    actions.push(() => openAdminGuildWaypointManageForm(player, safePage + 1, returnForm));
+  }
+
+  form.button("§w返回", "textures/icons/back");
+  actions.push(() => {
+    if (returnForm) returnForm();
+    else openSystemSettingForm(player);
+  });
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    if (data.selection === null || data.selection === undefined) return;
+    const fn = actions[data.selection];
+    if (fn) fn();
+  });
+}
+
+// ==================== 领地系统管理菜单 ====================
 
 export const openLandManageForm = async (player: Player): Promise<void> => {
   const form = new ActionFormData();
-  form.title("§w领地管理");
+  form.title("§w领地系统管理");
 
   form.button("§w所有玩家领地管理", "textures/icons/topraklar");
   form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
+  form.button("§w领地飞行设置", "textures/icons/durbun");
+  form.button("§w公会领地（管理员）", "textures/icons/island");
+  form.button("§w公会坐标（管理员）", "textures/icons/fast_travel");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then(async (data) => {
@@ -940,6 +1172,17 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
         openSearchLandForm(player, () => openLandManageForm(player));
         break;
       case 2:
+        openLandFlightSettingsForm(player);
+        break;
+      case 3: {
+        const { openAdminGuildLandListForm } = await import("../land");
+        openAdminGuildLandListForm(player, 1, () => openLandManageForm(player));
+        break;
+      }
+      case 4:
+        openAdminGuildWaypointManageForm(player, 1, () => openLandManageForm(player));
+        break;
+      case 5:
         openSystemSettingForm(player);
         break;
     }

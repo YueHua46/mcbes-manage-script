@@ -22,6 +22,7 @@ import { isAdmin, SystemLog } from "../../../shared/utils/common";
 import { usePlayerByName } from "../../../shared/hooks/use-player";
 import wayPoint from "../../waypoint/services/waypoint";
 import landManager from "../../land/services/land-manager";
+import { tryStartLandFlightSession } from "../../land/services/land-flight";
 import setting from "../../system/services/setting";
 import serverInfo from "../../system/services/server-info";
 import { economic } from "../../economic";
@@ -111,6 +112,14 @@ system.beforeEvents.startup.subscribe((init) => {
     permissionLevel: CommandPermissionLevel.Any,
   };
   registry.registerCommand(rtpCommand, handleRtpCommand);
+
+  // 6.1 领地内飞行（与领地菜单权限一致）
+  const landFlightCommand: CustomCommand = {
+    name: "yuehua:landflight",
+    description: "在领地内开启限时飞行（需为领主/信任/同公会成员等，且依赖教育版世界选项）",
+    permissionLevel: CommandPermissionLevel.Any,
+  };
+  registry.registerCommand(landFlightCommand, handleLandFlightCommand);
 
   // 7. 注册 oneclick 指令
   const oneclickCommand: CustomCommand = {
@@ -479,8 +488,8 @@ function handleMoneyCommand(origin: CustomCommandOrigin, subCommand?: string): C
 
       switch (subCommand.toLowerCase()) {
         case "top":
-          const topWallets = economic.getTopWallets(10);
-          player.sendMessage(color.green("=== 财富排行榜 ==="));
+          const topWallets = economic.getTopWallets(20);
+          player.sendMessage(color.green("=== 数据统计 · 财富 TOP 20 ==="));
           topWallets.forEach((w, index) => {
             player.sendMessage(`${index + 1}. ${w.name}: ${color.gold(w.gold.toString())}`);
           });
@@ -592,6 +601,12 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           guildTreasuryCostLandCreate: "新建公会领地时从金库扣费，0 为不扣；不扣领主个人方块费 (数字)",
           guildTreasuryCostLandBind: "登记已有领地为公会领地时从金库扣费，0 为不扣 (数字)",
           guildTreasuryCostWaypointCreate: "新增公会坐标时从金库扣费，0 为不扣 (数字)",
+          landFlightEnabled: "领地内飞行总开关 (true/false)，关闭后收回所有脚本授予的 mayfly",
+          landFlightUseEconomy: "领地飞行是否在飞行中按周期扣金币 (true/false)；需经济模块开启且每周期金额>0 才实际扣费",
+          landFlightBillingIntervalSec: "领地飞行扣费周期间隔秒数 (数字，建议 10～86400)",
+          landFlightGoldPerInterval: "领地飞行每个周期扣除金币 (数字，非负整数；0 为不扣)",
+          landFlightLeaveGraceSec:
+            "离开领地后飞行宽限秒数 (0～30，0 表示立即收回 mayfly；仅「离开领地」走宽限，换维/死亡等仍立即收回)",
         };
 
         for (const [settingKey, description] of Object.entries(settingDescriptions)) {
@@ -632,6 +647,24 @@ function handleRtpCommand(origin: CustomCommandOrigin): CustomCommandResult {
       RandomTp(player);
     } catch (error) {
       player.sendMessage(color.red(`传送失败: ${(error as Error).message}`));
+    }
+  });
+
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleLandFlightCommand(origin: CustomCommandOrigin): CustomCommandResult {
+  const player = origin.sourceEntity as Player;
+  if (!player) return { status: CustomCommandStatus.Failure };
+
+  system.run(() => {
+    try {
+      const err = tryStartLandFlightSession(player);
+      if (typeof err === "string") {
+        player.sendMessage(err);
+      }
+    } catch (e) {
+      player.sendMessage(color.red(`领地飞行失败: ${(e as Error).message}`));
     }
   });
 

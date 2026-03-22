@@ -25,7 +25,16 @@ export function formatOnlineDuration(totalSeconds: number): string {
 
 export interface OnlineTimeRecord {
   totalSeconds: number;
+  /** 最近一次离开服务器的时间戳（ms），用于离线时长 */
+  lastLogoutMs?: number;
 }
+
+/** 查询某玩家「当前离线了多久」（精确匹配玩家名） */
+export type OfflineDurationLookup =
+  | { kind: "online" }
+  | { kind: "offline"; seconds: number }
+  | { kind: "no_logout_record" }
+  | { kind: "not_in_db" };
 
 const anchorMsByName = new Map<string, number>();
 
@@ -74,7 +83,20 @@ class OnlineTimeService {
   private writeTotal(name: string, totalSeconds: number): void {
     const db = this.ensureDb();
     if (!db) return;
-    db.set(name, { totalSeconds: Math.max(0, Math.floor(totalSeconds)) });
+    const prev = db.get(name);
+    db.set(name, {
+      totalSeconds: Math.max(0, Math.floor(totalSeconds)),
+      lastLogoutMs: prev?.lastLogoutMs,
+    });
+  }
+
+  private setLastLogoutMs(name: string, ms: number): void {
+    const db = this.ensureDb();
+    if (!db) return;
+    db.set(name, {
+      totalSeconds: this.getTotalSeconds(name),
+      lastLogoutMs: ms,
+    });
   }
 
   private addSeconds(name: string, seconds: number): void {
@@ -97,6 +119,7 @@ class OnlineTimeService {
       if (secs > 0) this.addSeconds(name, secs);
     }
     anchorMsByName.delete(name);
+    this.setLastLogoutMs(name, Date.now());
   }
 
   onTick(): void {
@@ -131,6 +154,65 @@ class OnlineTimeService {
       .sort((a, b) => b.totalSeconds - a.totalSeconds)
       .slice(0, Math.max(1, Math.min(limit, 100)));
     return rows;
+  }
+
+  /** 全库排序后的名次（1 起），未出现则为 -1 */
+  getPlayerRank(playerName: string): number {
+    const db = this.ensureDb();
+    if (!db) return -1;
+    const all = db.getAll() as Record<string, OnlineTimeRecord>;
+    const rows = Object.entries(all)
+      .map(([name]) => ({
+        name,
+        totalSeconds: this.getDisplayTotalSecondsByName(name),
+      }))
+      .filter((e) => e.name.length > 0)
+      .sort((a, b) => b.totalSeconds - a.totalSeconds);
+    const idx = rows.findIndex((r) => r.name === playerName);
+    return idx === -1 ? -1 : idx + 1;
+  }
+
+  /**
+   * 管理员查询：当前在线则 kind 为 online；否则根据 lastLogoutMs 计算离线秒数。
+   * 库中无该键、或从未记录过下线时间会有对应 kind。
+   */
+  lookupOfflineDuration(playerName: string): OfflineDurationLookup {
+    if (findOnlinePlayerByName(playerName)) {
+      return { kind: "online" };
+    }
+    const db = this.ensureDb();
+    if (!db) return { kind: "not_in_db" };
+    const r = db.get(playerName);
+    if (!r) return { kind: "not_in_db" };
+    const ms = r.lastLogoutMs;
+    if (ms === undefined || !Number.isFinite(ms)) {
+      return { kind: "no_logout_record" };
+    }
+    const seconds = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    return { kind: "offline", seconds };
+  }
+
+  /** 仅当前不在线且存在 lastLogoutMs 的玩家，按离线时长从长到短 */
+  getOfflineDurationLeaderboard(limit: number): Array<{ name: string; offlineSeconds: number }> {
+    const db = this.ensureDb();
+    if (!db) return [];
+    const all = db.getAll() as Record<string, OnlineTimeRecord>;
+    const now = Date.now();
+    const rows: Array<{ name: string; offlineSeconds: number }> = [];
+    for (const name of Object.keys(all)) {
+      if (!name.length) continue;
+      if (findOnlinePlayerByName(name)) continue;
+      const r = all[name];
+      const ms = r?.lastLogoutMs;
+      if (ms === undefined || !Number.isFinite(ms)) continue;
+      rows.push({
+        name,
+        offlineSeconds: Math.max(0, Math.floor((now - ms) / 1000)),
+      });
+    }
+    rows.sort((a, b) => b.offlineSeconds - a.offlineSeconds);
+    const cap = Math.max(1, Math.min(limit, 100));
+    return rows.slice(0, cap);
   }
 }
 

@@ -102,6 +102,14 @@ function openPvpStatsForm(player: Player): void {
   });
 }
 
+export type OpenPvpLeaderboardOptions = {
+  limit?: number;
+  /** 从统计中心等外部进入时，返回不经过 PVP 子菜单 */
+  navigateBack?: () => void;
+  /** 与数据统计中心财富榜相同的标题线、glyph 行、底栏格式 */
+  statsHubStyle?: boolean;
+};
+
 /**
  * 打开排行榜菜单
  */
@@ -119,13 +127,13 @@ function openPvpLeaderboardMenu(player: Player): void {
 
     switch (response.selection) {
       case 0: // 击杀排行
-        openPvpLeaderboardForm(player, "kills");
+        openPvpLeaderboardForm(player, "kills", {});
         break;
       case 1: // 连杀排行
-        openPvpLeaderboardForm(player, "killStreak");
+        openPvpLeaderboardForm(player, "killStreak", {});
         break;
       case 2: // 夺取金币排行
-        openPvpLeaderboardForm(player, "seize");
+        openPvpLeaderboardForm(player, "seize", {});
         break;
       case 3: // 返回
         openPvpSystemForm(player);
@@ -137,66 +145,102 @@ function openPvpLeaderboardMenu(player: Player): void {
 /**
  * 打开具体排行榜
  */
-function openPvpLeaderboardForm(player: Player, type: "kills" | "killStreak" | "seize"): void {
-  const leaderboard = statsManager.getLeaderboard(type);
+export function openPvpLeaderboardForm(
+  player: Player,
+  type: "kills" | "killStreak" | "seize",
+  options?: OpenPvpLeaderboardOptions
+): void {
+  const limit = options?.limit ?? 10;
+  const leaderboard = statsManager.getLeaderboard(type, limit);
 
   let title = "";
   let valueName = "";
+  let statsShortTitle = "";
+  let statsSubtitle = "";
   switch (type) {
     case "kills":
       title = "击杀排行榜";
       valueName = "击杀数";
+      statsShortTitle = "玩家击杀";
+      statsSubtitle = `PVP 击杀玩家次数（TOP ${limit}）`;
       break;
     case "killStreak":
       title = "最佳连杀排行榜";
       valueName = "连杀数";
+      statsShortTitle = "最佳连杀";
+      statsSubtitle = `历史最高连杀（TOP ${limit}）`;
       break;
     case "seize":
       title = "夺取金币排行榜";
       valueName = "夺取金币";
+      statsShortTitle = "夺取金币";
+      statsSubtitle = `PVP 累计夺取金币（TOP ${limit}）`;
       break;
   }
 
+  const playerData = pvpManager.getPlayerData(player.name);
+  let playerValue = 0;
+  switch (type) {
+    case "kills":
+      playerValue = playerData.kills;
+      break;
+    case "killStreak":
+      playerValue = playerData.bestKillStreak;
+      break;
+    case "seize":
+      playerValue = playerData.totalSeized;
+      break;
+  }
+  const playerRank = statsManager.getPlayerRank(player.name, type);
+
   const form = new ActionFormData();
-  form.title(`§w${title}`);
-
-  let bodyText = `§e=== ${title} ===\n\n`;
-  if (leaderboard.length === 0) {
-    bodyText += "§7暂无数据";
+  if (options?.statsHubStyle && type === "kills") {
+    form.title("§w击杀排行榜（玩家）");
   } else {
-    leaderboard.forEach((entry, index) => {
-      const rank = index + 1;
-      const medal = rank === 1 ? "§6 1" : rank === 2 ? "§f 2" : rank === 3 ? "§c 3" : `§7#${rank}`;
-      bodyText += `${medal} §e${entry.name}§f - §a${entry.value} §7${valueName}\n`;
-    });
+    form.title(`§w${title}`);
+  }
 
-    // 显示玩家自己的排名
-    const playerRank = statsManager.getPlayerRank(player.name, type);
-    if (playerRank > 0) {
-      const playerData = pvpManager.getPlayerData(player.name);
-      let playerValue = 0;
-      switch (type) {
-        case "kills":
-          playerValue = playerData.kills;
-          break;
-        case "killStreak":
-          playerValue = playerData.bestKillStreak;
-          break;
-        case "seize":
-          playerValue = playerData.totalSeized;
-          break;
+  let bodyText: string;
+  if (options?.statsHubStyle) {
+    const { otherGlyphMap } = require("../../../assets/glyph-map");
+    const namePrefix = otherGlyphMap.cat;
+    bodyText = `§e========= §6${statsShortTitle} §e=========\n\n§3${statsSubtitle}\n\n`;
+    if (leaderboard.length === 0) {
+      bodyText += "§7暂无数据";
+    } else {
+      leaderboard.forEach((entry, index) => {
+        const rank = index + 1;
+        bodyText += `${namePrefix} ${rank}. §b${entry.name}§f: §e${entry.value} ${valueName}\n`;
+      });
+    }
+    bodyText += "\n§e=======================\n\n";
+    bodyText += `§a您的排名: §f${playerRank === -1 ? "未上榜" : String(playerRank)}\n`;
+    bodyText += `§a您的${valueName}: §e${playerValue}`;
+  } else {
+    bodyText = `§e=== ${title} ===\n\n`;
+    if (leaderboard.length === 0) {
+      bodyText += "§7暂无数据";
+    } else {
+      leaderboard.forEach((entry, index) => {
+        const rank = index + 1;
+        const medal = rank === 1 ? "§6 1" : rank === 2 ? "§f 2" : rank === 3 ? "§c 3" : `§7#${rank}`;
+        bodyText += `${medal} §e${entry.name}§f - §a${entry.value} §7${valueName}\n`;
+      });
+
+      if (playerRank > 0) {
+        bodyText += `\n§e--- 你的排名 ---\n`;
+        bodyText += `§7#${playerRank} §e${player.name}§f - §a${playerValue} §7${valueName}`;
       }
-      bodyText += `\n§e--- 你的排名 ---\n`;
-      bodyText += `§7#${playerRank} §e${player.name}§f - §a${playerValue} §7${valueName}`;
     }
   }
 
-  form.body(bodyText);
+  form.body({ rawtext: [{ text: bodyText }] });
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((response) => {
     if (response.canceled) return;
-    openPvpLeaderboardMenu(player);
+    const back = options?.navigateBack ?? (() => openPvpLeaderboardMenu(player));
+    back();
   });
 }
 
