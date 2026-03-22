@@ -16,6 +16,7 @@ import behaviorLog, {
 } from "../../behavior-log/services/behavior-log";
 import landManager from "../../land/services/land-manager";
 import nameDisplay from "../../player/services/name-display";
+import onlineTimeService, { formatOnlineDuration } from "../../player/services/online-time";
 import wayPoint from "../../waypoint/services/waypoint";
 import type { ILand } from "../../../core/types";
 import type { IGuild, GuildRole, IPendingGuildInvite } from "../models/guild.model";
@@ -93,7 +94,7 @@ class GuildService {
     const raw = Number(setting.getState(key));
     if (!Number.isFinite(raw) || raw < 0) {
       const defaults: Record<typeof key, number> = {
-        guildCreateCost: 1000,
+        guildCreateCost: 100000,
         guildMaxMembers: 50,
         guildTagMaxLen: 6,
         guildNameMaxLen: 16,
@@ -199,8 +200,25 @@ class GuildService {
       } else if (m.treasuryContributedGold < 0) {
         m.treasuryContributedGold = 0;
       }
+      if (m.lastDailyRedPacketDay != null && typeof m.lastDailyRedPacketDay !== "string") {
+        delete m.lastDailyRedPacketDay;
+      }
     }
     if (g.joinRequests == null) g.joinRequests = {};
+    if (g.dailyRedPacketEnabled == null) g.dailyRedPacketEnabled = false;
+    if (g.dailyRedPacketGoldPerMember == null || !Number.isFinite(g.dailyRedPacketGoldPerMember)) {
+      g.dailyRedPacketGoldPerMember = 0;
+    } else if (g.dailyRedPacketGoldPerMember < 0) {
+      g.dailyRedPacketGoldPerMember = 0;
+    } else {
+      g.dailyRedPacketGoldPerMember = Math.floor(g.dailyRedPacketGoldPerMember);
+    }
+    if (g.dailyRedPacketBudgetDay != null && typeof g.dailyRedPacketBudgetDay !== "string") {
+      delete g.dailyRedPacketBudgetDay;
+    }
+    if (g.dailyRedPacketBudgetSkipped != null && typeof g.dailyRedPacketBudgetSkipped !== "boolean") {
+      g.dailyRedPacketBudgetSkipped = false;
+    }
     if (g.schemaVersion < CURRENT_GUILD_SCHEMA_VERSION) {
       g.schemaVersion = CURRENT_GUILD_SCHEMA_VERSION;
       this.guildsDb.set(g.id, g);
@@ -291,7 +309,9 @@ class GuildService {
       | "guildInvite"
       | "guildApply"
       | "guildApplyApprove"
-      | "guildApplyReject",
+      | "guildApplyReject"
+      | "guildDailyRedPacketGrant"
+      | "guildDailyRedPacketSkipped",
     meta?: string
   ): void {
     try {
@@ -317,6 +337,17 @@ class GuildService {
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法创建公会";
 
     if (this.indexDb.has(player.name)) return "你已在公会中，请先退出";
+
+    const minOnlineHours = Number(setting.getState("guildCreateMinOnlineHours" as never));
+    const minH =
+      Number.isFinite(minOnlineHours) && minOnlineHours > 0 ? Math.floor(minOnlineHours) : 0;
+    if (minH > 0) {
+      const needSec = minH * 3600;
+      const haveSec = onlineTimeService.getDisplayTotalSeconds(player);
+      if (haveSec < needSec) {
+        return `累计在线不足，需要至少 ${minH} 小时（当前约 ${formatOnlineDuration(haveSec)}，含本段在线）`;
+      }
+    }
 
     const cost = this.numSetting("guildCreateCost");
     if (cost > 0) {
@@ -777,6 +808,18 @@ class GuildService {
     return { tag: g.tag, name: g.name, rows, total: rows.length };
   }
 
+  /** 公会累计贡献：全体成员捐入金库的金币总和（与成员列表「贡献度」口径一致） */
+  private sumGuildTreasuryContributed(g: IGuild): number {
+    let s = 0;
+    for (const m of Object.values(g.members)) {
+      const c = m.treasuryContributedGold;
+      if (Number.isFinite(c) && (c as number) > 0) {
+        s += Math.floor(c as number);
+      }
+    }
+    return s;
+  }
+
   /**
    * 供表单 UI 展示全服公会列表（分页，含 id 供点选跳转）
    */
@@ -784,7 +827,14 @@ class GuildService {
     page: number = 1,
     pageSize: number = 10
   ): {
-    rows: Array<{ id: string; tag: string; name: string; memberCount: number }>;
+    rows: Array<{
+      id: string;
+      tag: string;
+      name: string;
+      memberCount: number;
+      /** 成员累计捐入金库金币之和 */
+      totalContribution: number;
+    }>;
     total: number;
     page: number;
     totalPages: number;
@@ -794,7 +844,11 @@ class GuildService {
     const list = Object.values(all)
       .map((x) => this.migrateGuild(x))
       .filter((x): x is IGuild => !!x);
-    list.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    list.sort(
+      (a, b) =>
+        this.sumGuildTreasuryContributed(b) - this.sumGuildTreasuryContributed(a) ||
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+    );
     const total = list.length;
     const ps = Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : 10;
     const totalPages = Math.max(1, Math.ceil(total / ps));
@@ -805,6 +859,7 @@ class GuildService {
       tag: g.tag,
       name: g.name,
       memberCount: Object.keys(g.members).length,
+      totalContribution: this.sumGuildTreasuryContributed(g),
     }));
     return { rows, total, page: pageClamped, totalPages };
   }
@@ -1387,6 +1442,87 @@ class GuildService {
     const err = wayPoint.updatePointLocationByDbKey(dbKey, player);
     if (typeof err === "string") return err;
     this.logGuild(player.name, "guildPromote", this.guildMeta(g, "wpMove"));
+    return "";
+  }
+
+  /**
+   * 会长或副会长配置每日红包开关与每人金额
+   */
+  setDailyRedPacketSettings(player: Player, enabled: boolean, goldPerMember: number): string {
+    if (!this.ensureDbs()) return "公会系统未就绪";
+    if (!this.isModuleEnabled()) return "公会功能已关闭";
+    if (!this.isEconomyOk()) return "经济系统已关闭";
+    if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法修改公会设置";
+
+    const gid = this.indexDb.get(player.name);
+    if (!gid) return "你不在任何公会中";
+    const g = this.getGuild(gid);
+    if (!g) return "公会不存在";
+
+    const role = this.getRole(g, player.name);
+    if (role !== "owner" && role !== "officer") return "只有会长或副会长可以修改每日红包";
+
+    if (enabled) {
+      const amt = Math.floor(Number(goldPerMember));
+      if (!Number.isFinite(amt) || amt < 1) return "开启时每人金币须为正整数";
+      g.dailyRedPacketGoldPerMember = amt;
+    }
+    g.dailyRedPacketEnabled = enabled;
+    this.saveGuild(g);
+    return "";
+  }
+
+  /**
+   * 玩家主动领取公会每日红包（由 UI 领取按钮调用）
+   */
+  claimDailyRedPacket(player: Player): string {
+    if (!this.ensureDbs()) return "公会系统未就绪";
+    if (!this.isModuleEnabled()) return "公会功能已关闭";
+    if (!this.isEconomyOk()) return "经济系统已关闭";
+    if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法领取公会每日红包";
+
+    const gid = this.indexDb.get(player.name);
+    if (!gid) return "你不在任何公会中";
+    const g = this.getGuild(gid);
+    if (!g) return "公会不存在";
+
+    if (!g.dailyRedPacketEnabled) return "未开启每日红包";
+    const perMember = Math.floor(g.dailyRedPacketGoldPerMember ?? 0);
+    if (!Number.isFinite(perMember) || perMember <= 0) {
+      return "每人每日金币无效，请会长或副会长在红包设置中配置";
+    }
+
+    const today = economic.getCalendarDateString();
+    const mem = g.members[player.name];
+    if (!mem) return "你不是本会成员";
+
+    if (mem.lastDailyRedPacketDay === today) return "今日已领取过公会每日红包";
+
+    /** 单次领取：仅判断当前金库是否够发本成员这一笔（不预留「每人×全员」整日门闩） */
+    if (g.treasuryGold < perMember) {
+      return "公会金库余额不足，无法领取本次红包";
+    }
+
+    g.treasuryGold -= perMember;
+    try {
+      const added = economic.addGold(player.name, perMember, "guild:daily:redpacket", true);
+      if (added <= 0) {
+        g.treasuryGold += perMember;
+        this.saveGuild(g);
+        return "发放金币失败，请稍后重试";
+      }
+      mem.lastDailyRedPacketDay = today;
+      this.saveGuild(g);
+      this.logGuild(player.name, "guildDailyRedPacketGrant", this.guildMeta(g, `+${perMember}`));
+      player.sendMessage(
+        `${color.green("公会每日红包")} ${color.gold(`+${perMember}`)} ${color.gray("金币已存入钱包")}`
+      );
+    } catch (e) {
+      g.treasuryGold += perMember;
+      this.saveGuild(g);
+      SystemLog.error("公会每日红包发放失败", e);
+      return "公会每日红包发放失败";
+    }
     return "";
   }
 

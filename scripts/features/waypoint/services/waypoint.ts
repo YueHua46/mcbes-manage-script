@@ -8,6 +8,7 @@ import { Database } from "../../../shared/database/database";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import { isAdmin } from "../../../shared/utils/common";
 import { color } from "../../../shared/utils/color";
+import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import setting, { IValueType } from "../../system/services/setting";
 
 export interface IWayPoint {
@@ -44,8 +45,7 @@ interface IUpdateWayPoint {
  * 获取当前日期时间字符串
  */
 function getNowDate(): string {
-  const now = new Date();
-  return now.toLocaleString("zh-CN");
+  return formatDateTimeBeijing(Date.now());
 }
 
 class WayPoint {

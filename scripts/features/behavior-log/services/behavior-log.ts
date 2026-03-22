@@ -1,6 +1,7 @@
 import { Entity, Player, Vector3, system, world } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import { color } from "../../../shared/utils/color";
+import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import setting from "../../system/services/setting";
 
 const DATABASE_NAME = "behaviorLog";
@@ -22,6 +23,7 @@ export type BehaviorEventType =
   | "placeLava"
   | "igniteFire"
   | "placeTnt"
+  | "placeEndCrystal"
   | "summonWither"
   | "enterLand"
   | "leaveLand"
@@ -42,7 +44,9 @@ export type BehaviorEventType =
   | "guildInvite"
   | "guildApply"
   | "guildApplyApprove"
-  | "guildApplyReject";
+  | "guildApplyReject"
+  | "guildDailyRedPacketGrant"
+  | "guildDailyRedPacketSkipped";
 
 export interface BehaviorLogEntry {
   t: number;
@@ -114,6 +118,13 @@ export const behaviorEventDefinitions: Array<{
   { type: "placeLava", label: "放岩浆", settingKey: "logPlaceLava", group: "dangerous", isDangerous: true },
   { type: "igniteFire", label: "点火/打火石", settingKey: "logIgniteFire", group: "dangerous", isDangerous: true },
   { type: "placeTnt", label: "放置 TNT", settingKey: "logPlaceTnt", group: "dangerous", isDangerous: true },
+  {
+    type: "placeEndCrystal",
+    label: "放置末地水晶",
+    settingKey: "logPlaceEndCrystal",
+    group: "dangerous",
+    isDangerous: true,
+  },
   { type: "summonWither", label: "召唤凋零", settingKey: "logSummonWither", group: "dangerous", isDangerous: true },
   { type: "enterLand", label: "进入领地", settingKey: "logEnterLand", group: "land" },
   { type: "leaveLand", label: "离开领地", settingKey: "logLeaveLand", group: "land" },
@@ -157,6 +168,8 @@ const guildEventTypes: BehaviorEventType[] = [
   "guildApply",
   "guildApplyApprove",
   "guildApplyReject",
+  "guildDailyRedPacketGrant",
+  "guildDailyRedPacketSkipped",
 ];
 for (const gt of guildEventTypes) {
   behaviorEventSettingMap[gt] = "logGuildEvents";
@@ -176,6 +189,8 @@ export const GUILD_HISTORY_EVENT_TYPES: BehaviorEventType[] = [
   "guildApply",
   "guildApplyApprove",
   "guildApplyReject",
+  "guildDailyRedPacketGrant",
+  "guildDailyRedPacketSkipped",
 ];
 
 function matchesGuildLogEntry(entry: BehaviorLogEntry, guildId: string, guildTagLegacy?: string): boolean {
@@ -228,6 +243,8 @@ const guildEventLabels: Partial<Record<BehaviorEventType, string>> = {
   guildApply: "申请加入公会",
   guildApplyApprove: "批准加入申请",
   guildApplyReject: "拒绝加入申请",
+  guildDailyRedPacketGrant: "公会每日红包领取",
+  guildDailyRedPacketSkipped: "公会每日红包未发",
 };
 
 function cloneState(state: BehaviorLogState): BehaviorLogState {
@@ -277,15 +294,7 @@ export function getBehaviorDimensionLabel(code: number | undefined): string {
 }
 
 export function formatBehaviorTimestamp(timestamp: number): string {
-  // Minecraft Script 运行环境里时间经常按 UTC 处理，这里固定转成 UTC+8（北京时间）
-  const utc8Date = new Date(timestamp + 8 * 60 * 60 * 1000);
-  const yyyy = utc8Date.getUTCFullYear();
-  const mm = `${utc8Date.getUTCMonth() + 1}`.padStart(2, "0");
-  const dd = `${utc8Date.getUTCDate()}`.padStart(2, "0");
-  const hh = `${utc8Date.getUTCHours()}`.padStart(2, "0");
-  const mi = `${utc8Date.getUTCMinutes()}`.padStart(2, "0");
-  const ss = `${utc8Date.getUTCSeconds()}`.padStart(2, "0");
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  return formatDateTimeBeijing(timestamp);
 }
 
 export function summarizeBehaviorEntry(entry: BehaviorLogEntry): string {
@@ -703,6 +712,15 @@ class BehaviorLogService {
     });
   }
 
+  logPlaceEndCrystal(player: Player, location: Vector3, dimensionId: string): void {
+    this.append({
+      p: player.name,
+      e: "placeEndCrystal",
+      d: toDimensionCode(dimensionId),
+      ...toLocation(location),
+    });
+  }
+
   logSummonWither(playerName: string, location: Vector3, dimensionId: string, meta?: string): void {
     this.append({
       p: playerName,
@@ -794,7 +812,9 @@ class BehaviorLogService {
       eventType !== "guildInvite" &&
       eventType !== "guildApply" &&
       eventType !== "guildApplyApprove" &&
-      eventType !== "guildApplyReject"
+      eventType !== "guildApplyReject" &&
+      eventType !== "guildDailyRedPacketGrant" &&
+      eventType !== "guildDailyRedPacketSkipped"
     ) {
       return;
     }

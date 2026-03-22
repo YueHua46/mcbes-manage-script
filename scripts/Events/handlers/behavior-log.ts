@@ -177,6 +177,8 @@ export function registerBehaviorLogEvents(): void {
       behaviorLog.logPlaceLava(player, block.location, block.dimension.id);
     } else if (blockTypeId === "minecraft:tnt") {
       behaviorLog.logPlaceTnt(player, block.location, block.dimension.id);
+    } else if (blockTypeId === "minecraft:end_crystal") {
+      behaviorLog.logPlaceEndCrystal(player, block.location, block.dimension.id);
     }
 
     if (isWitherPrepBlock(blockTypeId)) {
@@ -184,7 +186,7 @@ export function registerBehaviorLogEvents(): void {
     }
   });
 
-  // 基岩版用桶放水/岩浆时，playerPlaceBlock 可能不触发（流体/replaceable 等），用 itemStartUseOn 补录
+  // 基岩版：桶装流体、末地水晶等物品放置可能不触发 playerPlaceBlock（流体/replaceable、水晶为实体生成等），用 itemStartUseOn 补录
   const itemStartUseOn = (world.afterEvents as any).itemStartUseOn;
   if (typeof itemStartUseOn?.subscribe === "function") {
     itemStartUseOn.subscribe((event: any) => {
@@ -206,6 +208,8 @@ export function registerBehaviorLogEvents(): void {
         behaviorLog.logPlaceWater(player, placeAt, dimId);
       } else if (itemId === "minecraft:lava_bucket") {
         behaviorLog.logPlaceLava(player, placeAt, dimId);
+      } else if (itemId === "minecraft:end_crystal") {
+        behaviorLog.logPlaceEndCrystal(player, placeAt, dimId);
       }
     });
   }

@@ -9,3 +9,4 @@ export { registerSystemEvents } from "./system";
 export { registerPvpEvents } from "./pvp";
 export { registerBlacklistEvents } from "./blacklist";
 export { registerBehaviorLogEvents } from "./behavior-log";
+export { registerOnlineTimeEvents } from "./online-time";

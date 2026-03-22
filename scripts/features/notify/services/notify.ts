@@ -5,6 +5,7 @@
 
 import { system, world } from '@minecraft/server';
 import { Database } from '../../../shared/database/database';
+import { formatDateTimeBeijing } from '../../../shared/utils/datetime-beijing';
 
 interface INotify {
   id: string;
@@ -18,8 +19,7 @@ interface INotify {
  * 获取当前日期时间字符串
  */
 function getNowDate(): string {
-  const now = new Date();
-  return now.toLocaleString('zh-CN');
+  return formatDateTimeBeijing(Date.now());
 }
 
 class Notify {

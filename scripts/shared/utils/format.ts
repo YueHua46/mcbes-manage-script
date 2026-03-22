@@ -2,6 +2,8 @@
  * 格式化工具函数
  */
 
+import { formatDateTimeBeijing } from "./datetime-beijing";
+
 /**
  * 格式化数字，添加千分位分隔符
  */
@@ -13,8 +15,7 @@ export function formatNumber(num: number): string {
  * 格式化日期时间
  */
 export function formatDateTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString('zh-CN');
+  return formatDateTimeBeijing(timestamp);
 }
 
 /**

@@ -54,6 +54,9 @@ const iron = [
 const diamond = [...iron, "minecraft:ancient_debris", "minecraft:obsidian", "minecraft:crying_obsidian"];
 const netherite = diamond;
 
+/** 一键挖矿中「黑曜石类」方块；关闭 digOreChainObsidian 时不参与连锁（仍正常挖掉玩家直接敲碎的那一格） */
+const CHAIN_OBSIDIAN_TYPE_IDS = new Set<string>(["minecraft:obsidian", "minecraft:crying_obsidian"]);
+
 const pickaxe_level = {
   "minecraft:wooden_pickaxe": wooden,
   "minecraft:stone_pickaxe": stone,
@@ -242,6 +245,13 @@ async function digOre(player: Player, dimension: Dimension, location: Vector3, b
     if (!currentSlotItem) return;
 
     const pickaxe = pickaxe_level[currentSlotItem.typeId as keyof typeof pickaxe_level];
+    if (!pickaxe) return;
+
+    const chainObsidianRaw = setting.getState("digOreChainObsidian");
+    const chainObsidianEnabled = chainObsidianRaw !== false && chainObsidianRaw !== "false";
+    const pickaxeForChain = chainObsidianEnabled
+      ? pickaxe
+      : pickaxe.filter((id) => !CHAIN_OBSIDIAN_TYPE_IDS.has(id));
 
     // 必须潜行且持有镐子
     if (!player.isSneaking || !currentSlotItem.hasTag("is_pickaxe")) return;
@@ -277,7 +287,7 @@ async function digOre(player: Player, dimension: Dimension, location: Vector3, b
 
       // 处理lit_redstone_ore
       const isEqual = typeId.replace("lit_", "") === blockTypeIdRemoveLit;
-      if (isEqual && pickaxe.includes(typeId)) {
+      if (isEqual && pickaxeForChain.includes(typeId)) {
         const pos = JSON.stringify(_block.location);
 
         if (set.has(pos)) continue;

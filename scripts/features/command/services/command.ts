@@ -573,6 +573,7 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           backToDeath: "回到死亡地点功能 (true/false)",
           enableTreeCutOneClick: "一键砍树 (true/false)",
           enableDigOreOneClick: "一键挖矿 (true/false)",
+          digOreChainObsidian: "一键挖矿是否连锁黑曜石/哭泣黑曜石 (true/false)，默认 true",
           land1BlockPerPrice: "领地每方块价格 (数字)",
           daily_gold_limit: "每日金币获取上限 (数字)",
           startingGold: "新玩家初始金币 (数字)",
@@ -936,6 +937,13 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
       player.sendMessage(
         `${color.gray("一键挖矿:")} ${setting.getState("enableDigOreOneClick") ? color.green("开启") : color.red("关闭")}`
       );
+      {
+        const v = setting.getState("digOreChainObsidian");
+        const on = v !== false && v !== "false";
+        player.sendMessage(
+          `${color.gray("一键挖矿连锁黑曜石:")} ${on ? color.green("开启") : color.red("关闭")}`
+        );
+      }
     } catch (error) {
       player.sendMessage(color.red(`获取服务器信息失败: ${(error as Error).message}`));
     }

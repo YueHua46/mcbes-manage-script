@@ -22,6 +22,8 @@ import { openLandManageForm, openSystemSettingForm } from "../system";
 export type GuildLandApplyContext = {
   guildId: string;
   onSuccess?: () => void;
+  /** 在说明页点「返回」时回调（例如回到公会领地子菜单） */
+  onCancel?: () => void;
 };
 
 /**
@@ -45,12 +47,27 @@ function getDimensionName(dimension: string): string {
 
 // ==================== 领地申请 ====================
 
+function buildGuildLandApplyInfoBody(guildId: string): string {
+  const rawCost = Number(setting.getState("guildTreasuryCostLandCreate" as never));
+  const costN = Number.isFinite(rawCost) && rawCost > 0 ? Math.floor(rawCost) : 0;
+  const g = guildService.getGuildById(guildId);
+  const treasury = g?.treasuryGold ?? 0;
+  const bodyLines: string[] = [];
+  if (costN > 0) {
+    bodyLines.push(`${color.white("创建费用：")}${color.gold(`从公会金库扣除 ${costN} 金币`)}`);
+  } else {
+    bodyLines.push(color.gray("创建公会领地：金库不扣费（费用为 0）。"));
+  }
+  bodyLines.push(`${color.white("公会金库余额：")}${color.yellow(String(treasury))}`);
+  bodyLines.push(color.gray("不按个人方块费扣个人金币；成功后登记为本会领地，不占个人领地上限。"));
+  bodyLines.push("");
+  bodyLines.push(color.darkGray("点「继续」后填写领地名称与坐标。"));
+  return bodyLines.join("\n");
+}
+
 function createLandApplyForm(player: Player, guildApply?: GuildLandApplyContext): ModalFormData {
   const form = new ModalFormData();
-  form.title(guildApply ? "§w创建公会领地" : "领地申请");
-  if (guildApply) {
-    form.label("§7创建公会领地时，费用从§6公会金库§7扣除（不按方块扣个人金币），具体金额由管理员在服务器设置中配置。");
-  }
+  form.title(guildApply?.guildId ? "§w创建公会领地" : "领地申请");
 
   const defaultLandStartPos = landAreas.get(player.name)?.start || {
     x: player.location.x.toFixed(0),
@@ -84,15 +101,28 @@ function createLandApplyForm(player: Player, guildApply?: GuildLandApplyContext)
   return form;
 }
 
+/** 解析 ModalForm：按类型收集，避免 body/label 等导致下标错位 */
+function extractLandApplyFields(
+  formValues: (string | number | boolean | undefined)[] | undefined
+): { landName: string; landStartPos: string; landEndPos: string; setTeleportPoint: boolean } | null {
+  if (!formValues) return null;
+  const strings = formValues.filter((x): x is string => typeof x === "string");
+  const bools = formValues.filter((x): x is boolean => typeof x === "boolean");
+  const landName = strings[0]?.trim() ?? "";
+  const landStartPos = strings[1]?.trim() ?? "";
+  const landEndPos = strings[2]?.trim() ?? "";
+  const setTeleportPoint = bools[bools.length - 1] ?? false;
+  if (!landName || !landStartPos || !landEndPos) return null;
+  return { landName, landStartPos, landEndPos, setTeleportPoint };
+}
+
 function validateForm(
-  formValues: (string | number | boolean | undefined)[],
+  landStartPos: string,
+  landEndPos: string,
   player: Player,
   guildApply?: GuildLandApplyContext
 ): boolean {
-  if (formValues && formValues[0] && formValues[1] && formValues[2]) {
-    const landStartPos = formValues[1] as string;
-    const landEndPos = formValues[2] as string;
-
+  if (landStartPos && landEndPos) {
     const landStartPosVector3 = landManager.createVector3(landStartPos);
     const landEndPosVector3 = landManager.createVector3(landEndPos);
 
@@ -104,7 +134,7 @@ function validateForm(
           desc: color.red("表单格式填写有误，请重新填写！"),
         },
         () => {
-          openLandApplyForm(player, guildApply);
+          openLandApplyModalOnly(player, guildApply);
         }
       );
       return false;
@@ -122,42 +152,41 @@ function validateForm(
           desc: color.red("领地起始点和结束点不能在同一直线上，且不能为同一坐标点！"),
         },
         () => {
-          openLandApplyForm(player, guildApply);
+          openLandApplyModalOnly(player, guildApply);
         }
       );
       return false;
     }
 
     return true;
-  } else {
-    openDialogForm(
-      player,
-      {
-        title: "领地创建错误",
-        desc: color.red("表单未填写完整，请重新填写！"),
-      },
-      () => {
-        openLandApplyForm(player, guildApply);
-      }
-    );
-    return false;
   }
+  openDialogForm(
+    player,
+    {
+      title: "领地创建错误",
+      desc: color.red("表单未填写完整，请重新填写！"),
+    },
+    () => {
+      openLandApplyModalOnly(player, guildApply);
+    }
+  );
+  return false;
 }
 
-export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyContext): void {
+function openLandApplyModalOnly(player: Player, guildApply?: GuildLandApplyContext): void {
   const form = createLandApplyForm(player, guildApply);
 
   form.show(player).then(async (data) => {
     const { formValues, cancelationReason } = data;
-    if (cancelationReason === "UserClosed") return;
+    if (data.canceled || cancelationReason) {
+      return;
+    }
 
-    if (formValues && formValues[0] && formValues[1] && formValues[2]) {
-      const landName = formValues[0] as string;
-      const landStartPos = formValues[1] as string;
-      const landEndPos = formValues[2] as string;
-      const setTeleportPoint = formValues[3] as boolean;
+    const extracted = extractLandApplyFields(formValues);
+    if (extracted) {
+      const { landName, landStartPos, landEndPos, setTeleportPoint } = extracted;
 
-      if (validateForm(formValues, player, guildApply)) {
+      if (validateForm(landStartPos, landEndPos, player, guildApply)) {
         const landStartPosVector3 = landManager.createVector3(landStartPos);
         const landEndPosVector3 = landManager.createVector3(landEndPos);
 
@@ -240,7 +269,7 @@ export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyCon
                 desc: color.red("当前位置不在领地范围内！\n请确保您站在要创建的领地范围内，或取消设置传送点选项"),
               },
               () => {
-                openLandApplyForm(player, guildApply);
+                openLandApplyModalOnly(player, guildApply);
               }
             );
             return;
@@ -256,7 +285,7 @@ export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyCon
               desc: color.red(res),
             },
             () => {
-              openLandApplyForm(player, guildApply);
+              openLandApplyModalOnly(player, guildApply);
             }
           );
         } else {
@@ -281,11 +310,34 @@ export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyCon
           desc: color.red("表单未填写完整，请重新填写！"),
         },
         () => {
-          openLandApplyForm(player, guildApply);
+          openLandApplyModalOnly(player, guildApply);
         }
       );
     }
   });
+}
+
+/** 领地申请：公会圈地先 ActionForm 展示金库费用与余额（body），再打开 Modal 填写 */
+export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyContext): void {
+  if (guildApply?.guildId) {
+    const info = new ActionFormData();
+    info.title("§w创建公会领地");
+    info.body(buildGuildLandApplyInfoBody(guildApply.guildId));
+    info.button("§w继续填写", "textures/icons/ada");
+    info.button("§w返回", "textures/icons/back");
+    info.show(player).then((data) => {
+      if (data.canceled || data.cancelationReason) {
+        return;
+      }
+      if (data.selection === 0) {
+        openLandApplyModalOnly(player, guildApply);
+      } else if (data.selection === 1) {
+        guildApply.onCancel?.();
+      }
+    });
+    return;
+  }
+  openLandApplyModalOnly(player, undefined);
 }
 
 // ==================== 领地权限设置 ====================

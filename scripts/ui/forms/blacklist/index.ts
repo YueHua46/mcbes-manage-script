@@ -8,6 +8,7 @@
 import { Player, world } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
+import { formatDateOnlyBeijing, formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import { openDialogForm } from "../../components/dialog";
 import { IBlacklistEntry } from "../../../core/types";
 import blacklistService from "../../../features/blacklist/services/blacklist";
@@ -77,7 +78,7 @@ export function openBlacklistListForm(player: Player, page: number = 1): void {
   form.body(`共 ${all.length} 条记录 | 第 ${page} / ${totalPages} 页`);
 
   currentPage.forEach((entry) => {
-    const bannedDate = new Date(entry.bannedAt).toLocaleDateString("zh-CN");
+    const bannedDate = formatDateOnlyBeijing(entry.bannedAt);
     const reason = entry.reason || "未填写理由";
     form.button(
       `${color.darkRed(entry.name)}\n${color.darkGray(reason)} §8| §8${bannedDate}`,
@@ -122,7 +123,7 @@ function openBlacklistDetailForm(player: Player, entry: IBlacklistEntry, returnP
   const form = new ActionFormData();
   form.title("§w黑名单详情");
 
-  const bannedDate = new Date(entry.bannedAt).toLocaleString("zh-CN");
+  const bannedDate = formatDateTimeBeijing(entry.bannedAt);
   form.body(
     `§e玩家名：§f${entry.name}\n` +
     `§e XUID：§7${entry.xuid}\n` +

@@ -34,6 +34,8 @@ export type IModules =
   | "backToDeath"
   | "enableTreeCutOneClick"
   | "enableDigOreOneClick"
+  /** 一键挖矿是否连锁破坏黑曜石/哭泣黑曜石（默认开；关闭则仅连锁矿石等，不连锁黑曜石类） */
+  | "digOreChainObsidian"
   | "land1BlockPerPrice"
   | "daily_gold_limit"
   | "startingGold"
@@ -60,6 +62,7 @@ export type IModules =
   | "logPlaceLava"
   | "logIgniteFire"
   | "logPlaceTnt"
+  | "logPlaceEndCrystal"
   | "logSummonWither"
   | "logEnterLand"
   | "logLeaveLand"
@@ -84,7 +87,13 @@ export type IModules =
   | "guildMaxWaypointsPerGuild"
   | "guildTreasuryCostLandCreate"
   | "guildTreasuryCostLandBind"
-  | "guildTreasuryCostWaypointCreate";
+  | "guildTreasuryCostWaypointCreate"
+  /** 创建公会所需累计在线小时数，0 为不限制 */
+  | "guildCreateMinOnlineHours"
+  /** 其他功能：在线时长排行入口（第一项） */
+  | "onlineTime"
+  /** 全服红包有效时长（小时），过期未领退回发送者 */
+  | "redPacketExpiryHours";
 
 export type IValueType = boolean | string;
 
@@ -112,6 +121,7 @@ export const defaultSetting = {
   backToDeath: true,
   enableTreeCutOneClick: true,
   enableDigOreOneClick: true,
+  digOreChainObsidian: true,
   land1BlockPerPrice: "2",
   daily_gold_limit: "100000",
   startingGold: "500",
@@ -139,6 +149,7 @@ export const defaultSetting = {
   logPlaceLava: true,
   logIgniteFire: true,
   logPlaceTnt: true,
+  logPlaceEndCrystal: true,
   logSummonWither: true,
   logEnterLand: true,
   logLeaveLand: true,
@@ -149,7 +160,7 @@ export const defaultSetting = {
   logOpenOtherContainers: true,
   logLocationSnapshot: false,
   guild: true,
-  guildCreateCost: "1000",
+  guildCreateCost: "100000",
   guildMaxMembers: "50",
   guildTagMaxLen: "6",
   guildNameMaxLen: "16",
@@ -164,11 +175,15 @@ export const defaultSetting = {
   /** 每个公会最多可保存多少个公会坐标（不占成员私人路点名额） */
   guildMaxWaypointsPerGuild: "20",
   /** 新建公会领地时从金库扣除（0 为不扣）；不扣领主个人方块费 */
-  guildTreasuryCostLandCreate: "0",
+  guildTreasuryCostLandCreate: "10000",
   /** 将已有领地首次登记为公会领地时从金库扣除（0 为不扣） */
   guildTreasuryCostLandBind: "0",
   /** 新增公会坐标时从金库扣除（0 为不扣） */
   guildTreasuryCostWaypointCreate: "0",
+  guildCreateMinOnlineHours: "0",
+  onlineTime: true,
+  /** 红包从发放到过期的小时数（默认 24 小时即 1 天） */
+  redPacketExpiryHours: "24",
 };
 
 export class ServerSetting {

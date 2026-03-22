@@ -15,6 +15,7 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 import setting from "../../../features/system/services/setting";
 import { isAdmin } from "../../../shared/utils/common";
 import { openMyEnderChestForm } from "../system/player-inventory-admin";
+import { openOnlineTimeLeaderboardForm } from "../online-time";
 
 // ==================== 服务器信息 ====================
 
@@ -84,9 +85,20 @@ function openAuthorListForm(player: Player): void {
 export function openBaseFunctionForm(player: Player): void {
   const randomTeleport = setting.getState("randomTeleport") as boolean;
   const backToDeath = setting.getState("backToDeath") as boolean;
+  const onlineRankOn = setting.getState("onlineTime" as never) !== false;
 
   const form = new ActionFormData();
-  const buttons = [{ text: "§w留言板", icon: "textures/icons/8", action: () => openLeaveMessageForms(player) }];
+  const buttons: Array<{ text: string; icon: string; action: () => void }> = [];
+
+  if (onlineRankOn) {
+    buttons.push({
+      text: "§w在线时长排行",
+      icon: "textures/icons/saat",
+      action: () => openOnlineTimeLeaderboardForm(player),
+    });
+  }
+
+  buttons.push({ text: "§w留言板", icon: "textures/icons/8", action: () => openLeaveMessageForms(player) });
 
   if (randomTeleport) {
     buttons.push({

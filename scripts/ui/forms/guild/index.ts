@@ -18,13 +18,14 @@ import wayPoint from "../../../features/waypoint/services/waypoint";
 import { formatNumber, formatDateTime } from "../../../shared/utils/format";
 import { useFormatListInfo } from "../../../shared/hooks/use-form";
 import { getBehaviorEventLabel, type BehaviorLogEntry } from "../../../features/behavior-log/services/behavior-log";
+import onlineTimeService, { formatOnlineDuration } from "../../../features/player/services/online-time";
 
 function numSetting(key: "guildCreateCost" | "guildNameMaxLen" | "guildTagMaxLen"): number {
   const n = Number(setting.getState(key));
   return Number.isFinite(n) && n > 0
     ? Math.floor(n)
     : key === "guildCreateCost"
-      ? 1000
+      ? 100000
       : key === "guildNameMaxLen"
         ? 16
         : 6;
@@ -81,6 +82,10 @@ function formatGuildHistoryLine(entry: BehaviorLogEntry): string {
       return `§7${t} §f${who} §7批准 §f${tgt ?? "?"} §7加入`;
     case "guildApplyReject":
       return `§7${t} §f${who} §7拒绝 §f${tgt ?? "?"} §7的申请`;
+    case "guildDailyRedPacketGrant":
+      return `§7${t} §f${who} §7领取每日红包 §6${stripSectionForUi(m)}`;
+    case "guildDailyRedPacketSkipped":
+      return `§7${t} §f${who} §7触发每日红包判定：金库不足（需 §6${stripSectionForUi(m)}§7）`;
     case "guildPromote": {
       if (m.includes("transfer owner")) {
         const to = m.split("transfer owner ->")[1]?.trim();
@@ -226,6 +231,8 @@ async function openGuildBrowseListForm(player: Player, page: number = 1): Promis
       ``,
       `§7第 §b${snap.page}§7 / §b${snap.totalPages} §7页`,
       ``,
+      `§7按 §e累计金库贡献度§7（成员捐入总和）§7从高到低`,
+      ``,
       `§7点选公会可查看公开信息与加入方式`,
     ].join("\n")
   );
@@ -236,7 +243,7 @@ async function openGuildBrowseListForm(player: Player, page: number = 1): Promis
     const tagPlain = stripSectionForUi(row.tag);
     const namePlain = stripSectionForUi(row.name);
     // 第二行用 §0 深字 + §b 人数，避免 §8 整行包一层在表单按钮上发灰发白看不清
-    const line2 = `§0[${tagPlain}] ${namePlain} §8· §0人数 §b${row.memberCount}§0/§b${memberCap}`;
+    const line2 = `§0[${tagPlain}] ${namePlain} §8· §0贡献 §b${formatNumber(row.totalContribution)} §8· §0人数 §b${row.memberCount}§0/§b${memberCap}`;
     form.button(`§l§e${namePlain}§r\n${line2}`, "textures/icons/island");
     rowActions.push(() => openGuildPublicDetailMenu(player, row.id, snap.page));
   }
@@ -1081,7 +1088,11 @@ async function openGuildLandsMenu(player: Player): Promise<void> {
   if (role === "owner" || role === "officer") {
     form.button("§w新建公会领地（木棍圈地）", "textures/icons/ada");
     actions.push(() => {
-      openLandApplyForm(player, { guildId: g.id, onSuccess: () => void openGuildLandListSubmenu(player) });
+      openLandApplyForm(player, {
+        guildId: g.id,
+        onSuccess: () => void openGuildLandListSubmenu(player),
+        onCancel: () => void openGuildLandListSubmenu(player),
+      });
     });
     form.button("§w登记已有领地为公会领地", "textures/icons/add");
     actions.push(() => openBindGuildLandPickForm(player));
@@ -1186,8 +1197,10 @@ async function openGuildMyGuildMenu(player: Player): Promise<void> {
       form.button("§w申请加入列表", "textures/icons/social");
       actions.push(() => openGuildJoinRequestListForm(player, 1));
     }
-    form.button("§w公会金库", "textures/icons/clock");
+    form.button("§w公会金库", "textures/icons/sandik");
     actions.push(() => openGuildBankMenu(player));
+    form.button("§w每日红包", "textures/icons/gift");
+    actions.push(() => void openGuildDailyRedPacketMenu(player));
     if (role === "owner" || role === "officer") {
       form.button("§w编辑公告", "textures/icons/marker_quest");
       actions.push(() => openAnnounceForm(player));
@@ -1261,18 +1274,54 @@ async function openPendingInviteForm(player: Player): Promise<void> {
   }
 }
 
-async function openCreateGuildForm(player: Player): Promise<void> {
+function buildCreateGuildBody(player: Player): string {
+  const lines: string[] = [];
+  const economyOn = setting.getState("economy") === true;
   const cost = numSetting("guildCreateCost");
+  if (economyOn && cost > 0) {
+    lines.push(`${color.white("创建费用：")}${color.gold(`${cost} 金币`)}`);
+    lines.push(`${color.white("当前金币：")}${color.yellow(String(economic.getWallet(player.name).gold))}`);
+  } else if (economyOn) {
+    lines.push(color.gray("创建公会：个人金币不扣费（费用为 0）"));
+    lines.push(`${color.white("当前金币：")}${color.yellow(String(economic.getWallet(player.name).gold))}`);
+  } else {
+    lines.push(color.gray("经济系统已关闭，不涉及个人金币。"));
+  }
+  const rawMin = Number(setting.getState("guildCreateMinOnlineHours" as never));
+  const minReq = Number.isFinite(rawMin) && rawMin > 0 ? Math.floor(rawMin) : 0;
+  const disp = onlineTimeService.getDisplayTotalSeconds(player);
+  if (minReq > 0) {
+    lines.push(`${color.white("在线要求：累计在线 ≥ ")}${color.gold(String(minReq))}${color.white(" 小时")}`);
+  } else {
+    lines.push(color.gray("在线要求：无最低时长限制"));
+  }
+  lines.push(`${color.white("你的累计在线：")}${color.green(formatOnlineDuration(disp))}`);
+  lines.push("");
+  lines.push(color.darkGray("点「继续填写」后输入名称与标签。"));
+  return lines.join("\n");
+}
+
+async function openCreateGuildForm(player: Player): Promise<void> {
+  const info = new ActionFormData();
+  info.title("§w创建公会");
+  info.body(buildCreateGuildBody(player));
+  info.button("§w继续填写名称与标签", "textures/icons/island");
+  info.button("§w返回", "textures/icons/back");
+
+  const step1 = await info.show(player);
+  if (step1.canceled || step1.selection === 1) {
+    await openGuildMyGuildMenu(player);
+    return;
+  }
+  if (step1.selection !== 0) {
+    return;
+  }
+
   const nameMax = numSetting("guildNameMaxLen");
   const tagMax = numSetting("guildTagMaxLen");
 
   const form = new ModalFormData();
-  const economyOn = setting.getState("economy") === true;
-  form.title(
-    economyOn && cost > 0
-      ? `§w创建公会 §7(§6${cost}§7 金币 · 余额 §6${economic.getWallet(player.name).gold}§7)`
-      : "§w创建公会"
-  );
+  form.title("§w创建公会 · 名称与标签");
   form.textField(`公会展示名（最多 ${nameMax} 字）`, "输入名称", { defaultValue: "" });
   form.textField(`公会短标签（最多 ${tagMax} 字，用于聊天/头顶前缀）`, "例如 ABC", { defaultValue: "" });
   form.submitButton("确认创建");
@@ -1283,9 +1332,10 @@ async function openCreateGuildForm(player: Player): Promise<void> {
     return;
   }
 
-  const fv = res.formValues as string[] | undefined;
-  const name = String(fv?.[0] ?? "").trim();
-  const tag = String(fv?.[1] ?? "").trim();
+  const fv = res.formValues as (string | boolean | number | undefined)[] | undefined;
+  const strings = fv?.filter((x): x is string => typeof x === "string") ?? [];
+  const name = String(strings[0] ?? "").trim();
+  const tag = String(strings[1] ?? "").trim();
 
   if (!name || !tag) {
     openDialogForm(
@@ -1418,6 +1468,117 @@ async function openGuildBankMenu(player: Player): Promise<void> {
       desc: err ? color.red(err) : color.green(isDeposit ? "已存入公会金库。" : "已从金库取出到钱包。"),
     },
     () => void openGuildBankMenu(player)
+  );
+}
+
+async function openGuildDailyRedPacketMenu(player: Player): Promise<void> {
+  const g = guildService.getGuildForPlayer(player);
+  if (!g) {
+    openDialogForm(
+      player,
+      { title: "失败", desc: color.red("无法获取公会数据。") },
+      () => void openGuildMyGuildMenu(player)
+    );
+    return;
+  }
+
+  const role = guildService.getMemberRole(player);
+  const today = economic.getCalendarDateString();
+  const mem = g.members[player.name];
+  const perMember = Math.floor(g.dailyRedPacketGoldPerMember ?? 0);
+  const memberCount = Object.keys(g.members).length;
+  const enabled = g.dailyRedPacketEnabled === true;
+  const claimedToday = mem?.lastDailyRedPacketDay === today;
+
+  let body = `§7每人每日: §6${perMember > 0 ? String(perMember) : "—"} §7金币\n`;
+  body += `§7成员数: §f${memberCount} §7· 单次领取需金库 §6${perMember > 0 ? String(perMember) : "—"}\n`;
+  body += `§7金库余额: §6${g.treasuryGold}\n`;
+  body += `§7每日红包: ${enabled ? "§a已开启" : "§7未开启"}\n`;
+  body += claimedToday ? `§e今日领取: §a已领取\n` : `§e今日领取: §7未领取\n`;
+  body += `§8（领取时按当前金库实时判断，金库充足即可领）\n`;
+
+  const form = new ActionFormData();
+  form.title("§w公会每日红包");
+  form.body(body);
+  form.button("§w领取今日红包", "textures/icons/gift");
+  if (role === "owner" || role === "officer") {
+    form.button("§w红包设置", "textures/icons/edit2");
+  }
+  form.button("§w返回", "textures/icons/back");
+
+  const res = await form.show(player);
+  if (res.canceled || res.selection === undefined) return;
+
+  const hasSettings = role === "owner" || role === "officer";
+  const sel = res.selection;
+  if (sel === 0) {
+    const err = guildService.claimDailyRedPacket(player);
+    openDialogForm(
+      player,
+      {
+        title: err ? "领取失败" : "领取成功",
+        desc: err ? color.red(err) : color.green("金币已存入钱包。"),
+      },
+      () => void openGuildDailyRedPacketMenu(player)
+    );
+    return;
+  }
+  if (hasSettings && sel === 1) {
+    await openGuildDailyRedPacketSettingsForm(player);
+    return;
+  }
+  await openGuildMyGuildMenu(player);
+}
+
+async function openGuildDailyRedPacketSettingsForm(player: Player): Promise<void> {
+  const g = guildService.getGuildForPlayer(player);
+  if (!g) {
+    openDialogForm(
+      player,
+      { title: "失败", desc: color.red("无法获取公会数据。") },
+      () => void openGuildDailyRedPacketMenu(player)
+    );
+    return;
+  }
+
+  const form = new ModalFormData();
+  form.title("§w公会每日红包");
+  form.toggle("开启每日红包", { defaultValue: g.dailyRedPacketEnabled === true });
+  const defaultGold =
+    g.dailyRedPacketGoldPerMember != null && g.dailyRedPacketGoldPerMember > 0
+      ? String(Math.floor(g.dailyRedPacketGoldPerMember))
+      : "1";
+  form.textField("每人每日金币（开启时须为正整数）", "金币数", { defaultValue: defaultGold });
+  form.submitButton("保存");
+
+  const res = await form.show(player);
+  if (res.canceled) {
+    await openGuildDailyRedPacketMenu(player);
+    return;
+  }
+
+  const fv = res.formValues as [boolean, string] | undefined;
+  const enabled = fv?.[0] === true;
+  const raw = String(fv?.[1] ?? "").trim();
+  const n = Math.floor(Number(raw));
+
+  if (enabled && (!Number.isFinite(n) || n < 1)) {
+    openDialogForm(
+      player,
+      { title: "失败", desc: color.red("开启时每人金币须为正整数。") },
+      () => void openGuildDailyRedPacketMenu(player)
+    );
+    return;
+  }
+
+  const err = guildService.setDailyRedPacketSettings(player, enabled, enabled ? n : 0);
+  openDialogForm(
+    player,
+    {
+      title: err ? "失败" : "已保存",
+      desc: err ? color.red(err) : color.green("每日红包设置已更新。"),
+    },
+    () => void openGuildDailyRedPacketMenu(player)
   );
 }
 

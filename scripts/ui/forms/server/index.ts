@@ -88,7 +88,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "guild",
       text: "§w公会",
-      icon: "textures/icons/island",
+      icon: "textures/icons/discord",
       action: async (player: Player) => {
         await openGuildMenuForm(player);
       },
@@ -96,7 +96,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "pvp",
       text: "§wPVP系统",
-      icon: "textures/icons/sword",
+      icon: "textures/icons/kilic",
       action: async (player: Player) => {
         const { openPvpSystemForm } = await import("../pvp");
         openPvpSystemForm(player);

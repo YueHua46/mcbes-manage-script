@@ -8,6 +8,7 @@ import { Database } from "../../../shared/database/database";
 import { usePlayerByName } from "../../../shared/hooks/use-player";
 import setting from "../../system/services/setting";
 import { colorCodes } from "../../../shared/utils/color";
+import { formatDateOnlyBeijing } from "../../../shared/utils/datetime-beijing";
 import type { IUserWallet, IUserWalletWithDailyLimit, ITransaction } from "../models/economic.model";
 
 export class Economic {
@@ -59,8 +60,12 @@ export class Economic {
   }
 
   private getCurrentDateString(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    return formatDateOnlyBeijing(Date.now());
+  }
+
+  /** 与钱包每日重置、公会每日红包使用同一日历日（北京时间 YYYY-MM-DD） */
+  getCalendarDateString(): string {
+    return this.getCurrentDateString();
   }
 
   initWallet(name: string): IUserWalletWithDailyLimit {

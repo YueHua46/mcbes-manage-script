@@ -10,6 +10,7 @@ import auctionHouse, { ShopItem } from "../../../features/economic/services/auct
 import ChestFormData from "../../../ui/components/chest-ui/chest-forms";
 import { openDialogForm } from "../../components/dialog";
 import { colorCodes } from "../../../shared/utils/color";
+import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 
 import {
   buildChestItemListLores,
@@ -77,7 +78,7 @@ class AuctionHouseForm {
       const lore: (string | RawMessage)[] = [
         `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price}`,
         `${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}`,
-        `${colorCodes.green}上架时间: ${colorCodes.white}${new Date(item.data.createdAt).toLocaleString()}`,
+        `${colorCodes.green}上架时间: ${colorCodes.white}${formatDateTimeBeijing(item.data.createdAt)}`,
       ];
 
       if (item.data.description) {
@@ -152,7 +153,7 @@ class AuctionHouseForm {
     currentPageItems.forEach((item, index) => {
       const lore: (string | RawMessage)[] = [
         `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price}`,
-        `${colorCodes.green}上架时间: ${colorCodes.white}${new Date(item.data.createdAt).toLocaleString()}`,
+        `${colorCodes.green}上架时间: ${colorCodes.white}${formatDateTimeBeijing(item.data.createdAt)}`,
       ];
 
       lore.push(...getChestItemTooltipExtraLines(item.item));

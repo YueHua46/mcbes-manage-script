@@ -143,6 +143,7 @@ export function openGeneralSettingsForm(player: Player): void {
     { key: "land1BlockPerPrice", name: "领地每方块价格", type: "number" },
     { key: "daily_gold_limit", name: "每日金币获取上限", type: "number" },
     { key: "startingGold", name: "新玩家初始金币", type: "number" },
+    { key: "redPacketExpiryHours", name: "全服红包有效时长(小时，过期未领退回)", type: "number" },
     { key: "behaviorLogMaxEntries", name: "行为日志最大保留条数", type: "number" },
     { key: "behaviorLogLocationIntervalSec", name: "行为日志坐标采样间隔(秒)", type: "number" },
   ];
@@ -203,7 +204,19 @@ function openEditSettingForm(
           });
           return;
         }
-        setting.setState(key as any, newValue);
+        if (key === "redPacketExpiryHours") {
+          const h = Math.floor(numValue);
+          if (h < 1 || h > 8760) {
+            openDialogForm(player, {
+              title: "设置失败",
+              desc: color.red("红包有效时长须为 1～8760 之间的整数（小时）"),
+            });
+            return;
+          }
+          setting.setState(key as any, String(h));
+        } else {
+          setting.setState(key as any, newValue);
+        }
       } else {
         setting.setState(key as any, newValue);
       }
@@ -267,6 +280,7 @@ function openGuildNumericSettingsForm(player: Player): void {
     { key: "guildTreasuryCostLandCreate", name: "新建公会领地时从金库扣费(0为不扣)", type: "number" as const },
     { key: "guildTreasuryCostLandBind", name: "登记已有领地为公会领地时从金库扣费(0为不扣)", type: "number" as const },
     { key: "guildTreasuryCostWaypointCreate", name: "新增公会坐标时从金库扣费(0为不扣)", type: "number" as const },
+    { key: "guildCreateMinOnlineHours", name: "创建公会所需累计在线(小时,0为不限制)", type: "number" as const },
   ];
 
   settingItems.forEach((item) => {
@@ -435,6 +449,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "wayPoint", name: "坐标点功能模块" },
     { key: "economy", name: "经济系统" },
     { key: "guild", name: "公会系统" },
+    { key: "onlineTime", name: "在线时长排行（其他功能第一项）" },
     { key: "other", name: "其他功能模块" },
     { key: "help", name: "帮助功能" },
     { key: "sm", name: "服务器菜单" },
@@ -444,6 +459,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "backToDeath", name: "回到死亡地点功能" },
     { key: "enableTreeCutOneClick", name: "一键砍树" },
     { key: "enableDigOreOneClick", name: "一键挖矿" },
+    { key: "digOreChainObsidian", name: "一键挖矿：连锁黑曜石（含哭泣黑曜石）" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
     { key: "blacklistEnabled", name: "黑名单系统（仅 BDS 可用，需安装 BDS 版附加包）" },
     { key: "behaviorLogEnabled", name: "玩家行为日志" },

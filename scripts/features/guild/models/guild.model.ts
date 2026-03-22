@@ -2,7 +2,7 @@
  * 公会系统数据模型
  */
 
-export const CURRENT_GUILD_SCHEMA_VERSION = 2;
+export const CURRENT_GUILD_SCHEMA_VERSION = 3;
 
 export type GuildRole = "owner" | "officer" | "member";
 
@@ -11,6 +11,8 @@ export interface IGuildMemberEntry {
   joinedAt: number;
   /** 累计捐入本会金库的金币（仅 treasuryDeposit 成功时累加） */
   treasuryContributedGold?: number;
+  /** 上次成功领取公会每日红包的日历日 YYYY-MM-DD */
+  lastDailyRedPacketDay?: string;
 }
 
 export interface IGuild {
@@ -29,6 +31,14 @@ export interface IGuild {
   homeWaypointKey?: string;
   /** 待审加入申请（申请人名 → 申请时间） */
   joinRequests?: Record<string, { requestedAt: number }>;
+  /** 是否开启公会每日红包（会长/副会长配置） */
+  dailyRedPacketEnabled?: boolean;
+  /** 每人每日红包金币数（正整数） */
+  dailyRedPacketGoldPerMember?: number;
+  /** @deprecated 旧版整日门闩字段，已不再写入；可忽略 */
+  dailyRedPacketBudgetDay?: string;
+  /** @deprecated 旧版整日门闩字段，已不再写入；可忽略 */
+  dailyRedPacketBudgetSkipped?: boolean;
 }
 
 export interface IPendingGuildInvite {
