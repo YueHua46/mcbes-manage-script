@@ -152,14 +152,6 @@ task("useManifestBds", () => {
  * - runtime-id-map.js：固定包装，import runtime_map.js 并 export runtimeIdMap，不要改。
  * 数据来源：需先执行 typescript，读取 lib/scripts/assets/runtime_map.js。
  */
-/** 从 lib/scripts/assets/bedrock_commands.js 生成瘦身指令库 scripts/assets/bedrock_commands_slim.generated.ts（需先 typescript） */
-task("bundle:bedrock-commands-slim", async () => {
-  const { execSync } = await import("child_process");
-  execSync(`node "${path.join(__dirname, "scripts", "tools", "compact-bedrock-commands.mjs")}"`, {
-    stdio: "inherit",
-    cwd: __dirname,
-  });
-});
 
 task("bundle:runtime-id-map", async () => {
   const libAssets = path.join(__dirname, "lib", "scripts", "assets");
@@ -193,14 +185,8 @@ export const runtimeIdMap = new Map(Object.entries(runtimeMap));
   fs.writeFileSync(path.join(outDir, "runtime-id-map.js"), wrapperJs, "utf-8");
 });
 
-task(
-  "build",
-  series("useManifestStandard", "typescript", "bundle:bedrock-commands-slim", "bundle", "bundle:runtime-id-map")
-);
-task(
-  "build:bds",
-  series("useManifestBds", "typescript", "bundle:bedrock-commands-slim", "bundle:bds", "bundle:runtime-id-map")
-);
+task("build", series("useManifestStandard", "typescript", "bundle", "bundle:runtime-id-map"));
+task("build:bds", series("useManifestBds", "typescript", "bundle:bds", "bundle:runtime-id-map"));
 
 // Clean
 task("clean-local", cleanTask(DEFAULT_CLEAN_DIRECTORIES));
