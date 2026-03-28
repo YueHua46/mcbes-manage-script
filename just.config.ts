@@ -22,6 +22,7 @@ import * as esbuild from "esbuild";
 // Setup env variables
 setupEnvironment(path.resolve(__dirname, ".env"));
 const projectName = getOrThrowFromProcess("PROJECT_NAME");
+const bdsServerDeployPath = getOrThrowFromProcess("BDS_SERVER_DEPLOY_PATH");
 
 // You can use `npm run build:production` to build a "production" build that strips out statements labelled with "dev:".
 const isProduction = argv()["production"];
@@ -103,24 +104,32 @@ const mcaddonTaskOptions: ZipTaskParameters = {
 
 const behaviorPackDir = path.join(__dirname, "behavior_packs", projectName);
 const manifestPath = path.join(behaviorPackDir, "manifest.json");
+const manifestStandardPath = path.join(behaviorPackDir, "manifest.standard.json");
 const manifestBdsPath = path.join(behaviorPackDir, "manifest.bds.json");
-const manifestBackupPath = path.join(behaviorPackDir, "manifest.json.bak");
 
-/** 打包 BDS 版前：用 manifest.bds.json 覆盖 manifest.json */
-function swapManifestToBds() {
-  if (!fs.existsSync(manifestBdsPath)) {
-    throw new Error(`manifest.bds.json 不存在: ${manifestBdsPath}`);
+function useManifestVariant(sourcePath: string, label: string) {
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`${label} 不存在: ${sourcePath}`);
   }
-  fs.copyFileSync(manifestPath, manifestBackupPath);
-  fs.copyFileSync(manifestBdsPath, manifestPath);
+  fs.copyFileSync(sourcePath, manifestPath);
 }
 
-/** 打包 BDS 版后：恢复原 manifest.json */
-function restoreManifest() {
-  if (fs.existsSync(manifestBackupPath)) {
-    fs.copyFileSync(manifestBackupPath, manifestPath);
-    fs.unlinkSync(manifestBackupPath);
-  }
+function useStandardManifest() {
+  useManifestVariant(manifestStandardPath, "manifest.standard.json");
+}
+
+function useBdsManifest() {
+  useManifestVariant(manifestBdsPath, "manifest.bds.json");
+}
+
+function setDefaultDeployEnv() {
+  process.env.MINECRAFT_PRODUCT = "BedrockGDK";
+  process.env.CUSTOM_DEPLOYMENT_PATH = "";
+}
+
+function setBdsServerDeployEnv() {
+  process.env.MINECRAFT_PRODUCT = "Custom";
+  process.env.CUSTOM_DEPLOYMENT_PATH = bdsServerDeployPath;
 }
 
 // Lint
@@ -130,6 +139,12 @@ task("lint", coreLint(["scripts/**/*.ts"], argv().fix));
 task("bundle", () => runMainBundle(bundleTaskOptions));
 task("bundle:bds", () => runMainBundle(bundleTaskOptionsBds));
 task("typescript", tscTask());
+task("useManifestStandard", () => {
+  useStandardManifest();
+});
+task("useManifestBds", () => {
+  useBdsManifest();
+});
 
 /**
  * 从 runtime_map.ts 的编译结果生成 dist/scripts/assets/ 下两个可读、未压缩的 JS：
@@ -137,6 +152,15 @@ task("typescript", tscTask());
  * - runtime-id-map.js：固定包装，import runtime_map.js 并 export runtimeIdMap，不要改。
  * 数据来源：需先执行 typescript，读取 lib/scripts/assets/runtime_map.js。
  */
+/** 从 lib/scripts/assets/bedrock_commands.js 生成瘦身指令库 scripts/assets/bedrock_commands_slim.generated.ts（需先 typescript） */
+task("bundle:bedrock-commands-slim", async () => {
+  const { execSync } = await import("child_process");
+  execSync(`node "${path.join(__dirname, "scripts", "tools", "compact-bedrock-commands.mjs")}"`, {
+    stdio: "inherit",
+    cwd: __dirname,
+  });
+});
+
 task("bundle:runtime-id-map", async () => {
   const libAssets = path.join(__dirname, "lib", "scripts", "assets");
   const libJsPath = path.join(libAssets, "runtime_map.js");
@@ -169,8 +193,14 @@ export const runtimeIdMap = new Map(Object.entries(runtimeMap));
   fs.writeFileSync(path.join(outDir, "runtime-id-map.js"), wrapperJs, "utf-8");
 });
 
-task("build", series("typescript", "bundle", "bundle:runtime-id-map"));
-task("build:bds", series("typescript", "bundle:bds", "bundle:runtime-id-map"));
+task(
+  "build",
+  series("useManifestStandard", "typescript", "bundle:bedrock-commands-slim", "bundle", "bundle:runtime-id-map")
+);
+task(
+  "build:bds",
+  series("useManifestBds", "typescript", "bundle:bedrock-commands-slim", "bundle:bds", "bundle:runtime-id-map")
+);
 
 // Clean
 task("clean-local", cleanTask(DEFAULT_CLEAN_DIRECTORIES));
@@ -182,11 +212,24 @@ task("copyArtifacts", copyTask(copyTaskOptions));
 task("package", series("clean-collateral", "copyArtifacts"));
 
 // Local Deploy used for deploying local changes directly to output via the bundler. It does a full build and package first just in case.
+task("setDefaultDeployEnv", () => {
+  setDefaultDeployEnv();
+});
+task("setBdsServerDeployEnv", () => {
+  setBdsServerDeployEnv();
+});
 task(
   "local-deploy",
   watchTask(
     ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
-    series("clean-local", "build", "package")
+    series("setDefaultDeployEnv", "clean-local", "build", "package")
+  )
+);
+task(
+  "local-deploy:bds",
+  watchTask(
+    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
+    series("setBdsServerDeployEnv", "clean-local", "build:bds", "package")
   )
 );
 
@@ -195,12 +238,6 @@ task("createMcaddonFile", mcaddonTask(mcaddonTaskOptions));
 task("mcaddon", series("clean-local", "build", "createMcaddonFile"));
 
 // BDS 版 mcaddon（manifest 含 server-net，供需要黑名单等功能的 BDS 用户使用）
-task("swapManifestBds", () => {
-  swapManifestToBds();
-});
-task("restoreManifest", () => {
-  restoreManifest();
-});
 task(
   "createMcaddonFileBds",
   mcaddonTask({
@@ -208,10 +245,7 @@ task(
     outputFile: `./dist/packages/${projectName}_BDS.mcaddon`,
   })
 );
-task(
-  "mcaddon:bds",
-  series("clean-local", "build:bds", "swapManifestBds", "createMcaddonFileBds", "restoreManifest")
-);
+task("mcaddon:bds", series("clean-local", "build:bds", "createMcaddonFileBds"));
 
 // 同时产出标准版 + BDS 版两个 mcaddon（发布时运行一次即可）
-task("mcaddon:all", series("mcaddon", "swapManifestBds", "createMcaddonFileBds", "restoreManifest"));
+task("mcaddon:all", series("mcaddon", "build:bds", "createMcaddonFileBds", "useManifestStandard"));

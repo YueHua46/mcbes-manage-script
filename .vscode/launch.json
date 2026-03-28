@@ -3,10 +3,10 @@
   "configurations": [
     {
       "type": "minecraft-js",
-      "port": 19144,
-      "mode": "listen",
+      "request": "attach",
       "name": "Debug with Minecraft",
-      "preLaunchTask": "build",
+      "mode": "connect",
+      "port": 19144,
       "sourceMapRoot": "${workspaceFolder}/dist/debug/",
       "generatedSourceRoot": "${workspaceFolder}/dist/scripts/"
     }

@@ -16,9 +16,11 @@
   "scripts": {
     "lint": "just-scripts lint",
     "build": "just-scripts build",
+    "build:bds": "just-scripts build:bds",
     "build:production": "just-scripts build --production",
     "clean": "just-scripts clean",
     "local-deploy": "just-scripts local-deploy",
+    "local-deploy:bds": "just-scripts local-deploy:bds",
     "mcaddon": "just-scripts mcaddon",
     "mcaddon:production": "just-scripts mcaddon --production",
     "mcaddon:bds": "just-scripts mcaddon:bds",
