@@ -28,6 +28,13 @@ import serverInfo from "../../system/services/server-info";
 import { economic } from "../../economic";
 import * as tpaRequest from "../../player/services/tpa-request";
 import { teleportPlayer as tpaTeleport, notifyReject as tpaNotifyReject } from "../../player/services/tpa-logic";
+import {
+  addSubscription,
+  clearSubscriptions,
+  formatItemWatchSubscriptionLabel,
+  listSubscriptions,
+  removeSubscription,
+} from "../../item-watch/item-watch-subscription";
 
 // 防止重复注册的标志
 let commandsRegistered = false;
@@ -208,6 +215,25 @@ system.beforeEvents.startup.subscribe((init) => {
     optionalParameters: [{ type: CustomCommandParamType.String, name: "hand(手持)|all(背包全部)" }],
   };
   registry.registerCommand(getItemTypeIdCommand, handleGetItemTypeIdCommand);
+
+  // 13.1 登记「玩家获得指定物品时要记录背包」（写入行为日志）
+  registry.registerEnum("yuehua:SubscribeItemHoldOperationType", ["add", "remove", "list", "clear"]);
+
+  const subscribeItemHoldCommand: CustomCommand = {
+    name: "yuehua:subscribe_item_hold",
+    description:
+      "登记「玩家获得指定物品时要记录背包」：add/remove/list/clear。物品 id 用 get_item_typeid；生成蛋族群可 add spawn_egg_group",
+    permissionLevel: CommandPermissionLevel.Admin,
+    optionalParameters: [
+      {
+        type: CustomCommandParamType.String,
+        name: "操作(add/remove/list/clear)",
+        enumName: "yuehua:SubscribeItemHoldOperationType",
+      },
+      { type: CustomCommandParamType.String, name: "物品类型id（与游戏内完全一致，一般是 minecraft:xxx）" },
+    ],
+  };
+  registry.registerCommand(subscribeItemHoldCommand, handleSubscribeItemHoldCommand);
 
   // 14. TPA 接受/拒绝（勿扰模式下通过聊天处理请求时使用）
   const tpacceptCommand: CustomCommand = {
@@ -602,7 +628,8 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           guildTreasuryCostLandBind: "登记已有领地为公会领地时从金库扣费，0 为不扣 (数字)",
           guildTreasuryCostWaypointCreate: "新增公会坐标时从金库扣费，0 为不扣 (数字)",
           landFlightEnabled: "领地内飞行总开关 (true/false)，关闭后收回所有脚本授予的 mayfly",
-          landFlightUseEconomy: "领地飞行是否在飞行中按周期扣金币 (true/false)；需经济模块开启且每周期金额>0 才实际扣费",
+          landFlightUseEconomy:
+            "领地飞行是否在飞行中按周期扣金币 (true/false)；需经济模块开启且每周期金额>0 才实际扣费",
           landFlightBillingIntervalSec: "领地飞行扣费周期间隔秒数 (数字，建议 10～86400)",
           landFlightGoldPerInterval: "领地飞行每个周期扣除金币 (数字，非负整数；0 为不扣)",
           landFlightLeaveGraceSec:
@@ -973,9 +1000,7 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
       {
         const v = setting.getState("digOreChainObsidian");
         const on = v !== false && v !== "false";
-        player.sendMessage(
-          `${color.gray("一键挖矿连锁黑曜石:")} ${on ? color.green("开启") : color.red("关闭")}`
-        );
+        player.sendMessage(`${color.gray("一键挖矿连锁黑曜石:")} ${on ? color.green("开启") : color.red("关闭")}`);
       }
     } catch (error) {
       player.sendMessage(color.red(`获取服务器信息失败: ${(error as Error).message}`));
@@ -1221,7 +1246,7 @@ function handleMoneySettingOfflineCommand(
   amount: number
 ): CustomCommandResult {
   const entity = origin.sourceEntity;
-  
+
   // 如果是玩家
   if (entity instanceof Player) {
     const player = entity;
@@ -1250,15 +1275,13 @@ function handleMoneySettingOfflineCommand(
 
         // 检查玩家是否有钱包数据（是否进过服务器）
         if (!economic.hasWallet(targetPlayerName)) {
-          player.sendMessage(
-            color.red(`玩家 ${color.yellow(targetPlayerName)} 从未进入过服务器，无法操作金币！`)
-          );
+          player.sendMessage(color.red(`玩家 ${color.yellow(targetPlayerName)} 从未进入过服务器，无法操作金币！`));
           player.sendMessage(color.gray("提示：只能为进入过服务器的玩家操作金币。"));
           return;
         }
 
         const op = operation.toLowerCase();
-        
+
         // 尝试查找在线玩家以发送通知
         const targetPlayer = usePlayerByName(targetPlayerName);
         const wallet = economic.getWallet(targetPlayerName);
@@ -1272,9 +1295,7 @@ function handleMoneySettingOfflineCommand(
             const addedAmount = economic.addGold(targetPlayerName, amount, "管理员添加", true);
             if (addedAmount > 0) {
               player.sendMessage(
-                color.green(
-                  `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
-                )
+                color.green(`成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`)
               );
               player.sendMessage(
                 color.gray(
@@ -1309,9 +1330,7 @@ function handleMoneySettingOfflineCommand(
             const removeSuccess = economic.removeGold(targetPlayerName, amount, "管理员扣除");
             if (removeSuccess) {
               player.sendMessage(
-                color.green(
-                  `成功为玩家 ${color.yellow(targetPlayerName)} 扣除 ${color.gold(amount.toString())} 金币。`
-                )
+                color.green(`成功为玩家 ${color.yellow(targetPlayerName)} 扣除 ${color.gold(amount.toString())} 金币。`)
               );
 
               if (targetPlayer) {
@@ -1359,11 +1378,11 @@ function handleMoneySettingOfflineCommand(
         // SystemLog.error("命令方块执行金币管理指令时未指定目标玩家。");
         return { status: CustomCommandStatus.Failure, message: "未指定目标玩家" };
       }
-      
+
       // SystemLog.info(
       //   `命令方块 ${block.location.x},${block.location.y},${block.location.z} 执行了金币管理指令: ${operation} 目标玩家: ${targetPlayerName} 金额: ${amount}`
       // );
-      
+
       if (isNaN(amount) || amount < 0) {
         // SystemLog.error("请输入有效的金额 (必须大于等于0)。");
         return { status: CustomCommandStatus.Failure, message: "请输入有效的金额 (必须大于等于0)" };
@@ -1538,6 +1557,71 @@ function handleGetItemTypeIdCommand(origin: CustomCommandOrigin, mode?: string):
     } catch (error) {
       player.sendMessage(color.red(`获取物品ID失败: ${(error as Error).message}`));
     }
+  });
+
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleSubscribeItemHoldCommand(
+  origin: CustomCommandOrigin,
+  action?: string,
+  typeId?: string
+): CustomCommandResult {
+  const player = origin.sourceEntity as Player;
+  if (!player) return { status: CustomCommandStatus.Failure };
+  if (!isAdmin(player)) {
+    system.run(() => player.sendMessage(color.red("此功能仅管理员可用。")));
+    return { status: CustomCommandStatus.Failure };
+  }
+
+  system.run(() => {
+    const act = (action ?? "list").toLowerCase().trim();
+    if (!act || act === "list") {
+      const list = listSubscriptions(player);
+      if (list.length === 0) {
+        player.sendMessage(color.yellow("当前没有登记任何要监控的物品。"));
+        player.sendMessage(
+          color.gray(
+            "手拿物品后输入 /yuehua:get_item_typeid 可复制编号；看背包全部用 all。示例：add minecraft:diamond；全部生成蛋（后缀 _spawn_egg）：add spawn_egg_group"
+          )
+        );
+        return;
+      }
+      player.sendMessage(color.green(`已登记 ${list.length} 种物品（任意玩家拿到时会记背包）：`));
+      for (const id of list) {
+        const line = formatItemWatchSubscriptionLabel(id);
+        player.sendMessage(color.aqua(`  · ${line}`));
+      }
+      return;
+    }
+    if (act === "clear") {
+      clearSubscriptions(player);
+      player.sendMessage(color.green("已清空全部登记。"));
+      return;
+    }
+    if (act === "add") {
+      if (!typeId?.trim()) {
+        player.sendMessage(
+          color.red(
+            "请写上物品类型编号，例如：add minecraft:diamond；监控全部生成蛋：add spawn_egg_group（或 __spawn_egg_group__）"
+          )
+        );
+        return;
+      }
+      const r = addSubscription(player, typeId);
+      player.sendMessage(r.ok ? color.green(r.message) : color.red(r.message));
+      return;
+    }
+    if (act === "remove") {
+      if (!typeId?.trim()) {
+        player.sendMessage(color.red("请写上要取消监控的物品类型编号。"));
+        return;
+      }
+      const r = removeSubscription(player, typeId);
+      player.sendMessage(r.ok ? color.green(r.message) : color.red(r.message));
+      return;
+    }
+    player.sendMessage(color.red("未知操作。支持：add、remove、list、clear"));
   });
 
   return { status: CustomCommandStatus.Success };

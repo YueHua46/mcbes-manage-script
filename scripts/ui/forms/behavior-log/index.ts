@@ -1,10 +1,5 @@
 import { Player, system } from "@minecraft/server";
-import {
-  ActionFormData,
-  MessageFormData,
-  MessageFormResponse,
-  ModalFormData,
-} from "@minecraft/server-ui";
+import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import setting from "../../../features/system/services/setting";
 import behaviorLog, {
   BehaviorEventType,
@@ -15,8 +10,8 @@ import behaviorLog, {
   getBehaviorEventLabel,
 } from "../../../features/behavior-log/services/behavior-log";
 import { isAdmin } from "../../../shared/utils/common";
-import { isMessageBoxTopButton } from "../../components";
 import { openDialogForm } from "../../components/dialog";
+import { openItemWatchSubscribeForm } from "../item-watch";
 
 const ALL_PLAYERS_VALUE = "__all_players__";
 const ALL_TIME_VALUE = "all";
@@ -41,6 +36,7 @@ const groupLabels = {
   land: "领地行为",
   container: "容器行为",
   location: "坐标采样",
+  item: "物品订阅",
 } as const;
 
 interface BehaviorLogFilterState {
@@ -155,20 +151,6 @@ async function showForm(
   return { canceled: true };
 }
 
-async function showMessageForm(
-  form: MessageFormData,
-  player: Player,
-  failMessage: string
-): Promise<MessageFormResponse | null> {
-  try {
-    return await form.show(player);
-  } catch (error) {
-    console.warn(failMessage, error);
-    player.sendMessage("§c行为日志界面打开失败，请稍后再试。");
-    return null;
-  }
-}
-
 export async function openBehaviorLogForm(player: Player): Promise<void> {
   if (!isAdmin(player)) {
     player.sendMessage("§c只有管理员可以查看行为日志。");
@@ -187,7 +169,13 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
     .title("行为日志管理")
     .body(bodyLines.join("\n"))
     .button("查看日志")
-    .button("监控设置");
+    .button("监控设置")
+    .button(
+      {
+        text: "§w玩家获得物品监控\n§3自动记下当时背包里有什么",
+      },
+      "textures/blocks/chest_front"
+    );
 
   const result = await showForm(form, player, "打开行为日志首页失败:");
   if (result.canceled) return;
@@ -197,6 +185,15 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
   }
   if (result.selection === 1) {
     runAfterDelay(() => void openBehaviorLogSettingsForm(player));
+    return;
+  }
+  if (result.selection === 2) {
+    runAfterDelay(
+      () =>
+        void openItemWatchSubscribeForm(player, () => {
+          runAfterDelay(() => void openBehaviorLogForm(player));
+        })
+    );
   }
 }
 
@@ -257,39 +254,48 @@ async function openBehaviorLogResultBox(player: Player, session: BehaviorLogQuer
 
   const isFirstPage = session.currentPage === 0;
   const isLastPage = session.currentPage >= session.totalPages - 1;
-  const button1Text = isFirstPage ? "返回筛选" : "上一页";
-  const button2Text = isLastPage ? "重新筛选" : "下一页";
 
-  const form = new MessageFormData()
-    .title("日志结果")
-    .body(body)
-    .button1(button1Text)
-    .button2(button2Text);
+  const form = new ActionFormData().title("日志结果").body(body);
 
-  const result = await showMessageForm(form, player, "打开行为日志结果页失败:");
-  if (!result || result.canceled || typeof result.selection !== "number") {
+  if (isFirstPage) {
+    form.button("返回筛选");
+  } else {
+    form.button("上一页");
+  }
+  if (!isLastPage) {
+    form.button("下一页");
+  } else {
+    form.button("重新筛选");
+  }
+
+  const result = await showForm(form, player, "打开行为日志结果页失败:");
+  if (result.canceled || typeof result.selection !== "number") {
     return;
   }
 
-  if (isMessageBoxTopButton(result)) {
+  const sel = result.selection;
+
+  if (sel === 0) {
     if (isFirstPage) {
       runAfterDelay(() => void openBehaviorLogQueryForm(player));
-      return;
+    } else {
+      runAfterDelay(() => {
+        void openBehaviorLogResultBox(player, executeBehaviorLogQuery(session.filter, session.currentPage - 1));
+      });
     }
-    runAfterDelay(() => {
-      void openBehaviorLogResultBox(player, executeBehaviorLogQuery(session.filter, session.currentPage - 1));
-    });
     return;
   }
 
-  if (!isLastPage) {
-    runAfterDelay(() => {
-      void openBehaviorLogResultBox(player, executeBehaviorLogQuery(session.filter, session.currentPage + 1));
-    });
+  if (sel === 1) {
+    if (!isLastPage) {
+      runAfterDelay(() => {
+        void openBehaviorLogResultBox(player, executeBehaviorLogQuery(session.filter, session.currentPage + 1));
+      });
+    } else {
+      runAfterDelay(() => void openBehaviorLogQueryForm(player));
+    }
     return;
   }
-
-  runAfterDelay(() => void openBehaviorLogQueryForm(player));
 }
 
 async function openBehaviorLogQueryForm(player: Player): Promise<void> {
@@ -299,7 +305,9 @@ async function openBehaviorLogQueryForm(player: Player): Promise<void> {
 
   const form = new ModalFormData()
     .title("行为日志查询")
-    .label("支持按玩家、时间、关键词、领地相关和危险行为进行筛选。提交后将通过单独页面展示结果。重新打开本表单即重置筛选。")
+    .label(
+      "支持按玩家、时间、关键词、领地相关和危险行为进行筛选。提交后将通过单独页面展示结果。重新打开本表单即重置筛选。"
+    )
     .dropdown("目标玩家（下拉选择）", playerLabels, { defaultValueIndex: 0 })
     .textField("玩家名（可选，直接输入）", "留空则使用上方选择", { defaultValue: "" })
     .dropdown("时间范围", timeRangeLabels, { defaultValueIndex: 2 })
@@ -348,7 +356,12 @@ async function openBehaviorLogQueryForm(player: Player): Promise<void> {
     landOnly = Boolean(formValues[4]);
     dangerousOnly = Boolean(formValues[5]);
     eventToggleStartIndex = 6;
-  } else if (typeof b === "number" && typeof c === "string" && typeof d === "number" && typeof formValues[4] === "string") {
+  } else if (
+    typeof b === "number" &&
+    typeof c === "string" &&
+    typeof d === "number" &&
+    typeof formValues[4] === "string"
+  ) {
     playerIndex = b;
     playerNameInput = c.trim();
     timeRangeIndex = d;
@@ -362,7 +375,7 @@ async function openBehaviorLogQueryForm(player: Player): Promise<void> {
   }
 
   const playerName =
-    playerNameInput || (playerIndex <= 0 ? ALL_PLAYERS_VALUE : knownPlayers[playerIndex - 1] ?? ALL_PLAYERS_VALUE);
+    playerNameInput || (playerIndex <= 0 ? ALL_PLAYERS_VALUE : (knownPlayers[playerIndex - 1] ?? ALL_PLAYERS_VALUE));
   const timeRange =
     timeRangeIndex === 0
       ? "1h"
@@ -484,10 +497,7 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
   setting.setState("behaviorLogLocationIntervalSec" as never, String(Math.floor(locationIntervalNum)));
 
   for (let i = 0; i < behaviorEventDefinitions.length; i++) {
-    setting.setState(
-      behaviorEventDefinitions[i].settingKey as never,
-      Boolean(formValues[eventToggleStartIndex + i])
-    );
+    setting.setState(behaviorEventDefinitions[i].settingKey as never, Boolean(formValues[eventToggleStartIndex + i]));
   }
 
   runAfterDelay(() => void openBehaviorLogForm(player));

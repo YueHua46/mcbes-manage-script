@@ -3,6 +3,7 @@ import { Database } from "../../../shared/database/database";
 import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import setting from "../../system/services/setting";
+import itemWatchSnapshotStore, { type ItemWatchSnapshotPayload } from "./item-watch-snapshot-store";
 
 const DATABASE_NAME = "behaviorLog";
 const STORE_KEY = "state";
@@ -46,7 +47,8 @@ export type BehaviorEventType =
   | "guildApplyApprove"
   | "guildApplyReject"
   | "guildDailyRedPacketGrant"
-  | "guildDailyRedPacketSkipped";
+  | "guildDailyRedPacketSkipped"
+  | "itemWatchSnapshot";
 
 export interface BehaviorLogEntry {
   t: number;
@@ -106,7 +108,7 @@ export const behaviorEventDefinitions: Array<{
   type: BehaviorEventType;
   label: string;
   settingKey: string;
-  group: "basic" | "dangerous" | "land" | "container" | "location" | "combat" | "guild";
+  group: "basic" | "dangerous" | "land" | "container" | "location" | "combat" | "guild" | "item";
   isDangerous?: boolean;
 }> = [
   { type: "playerJoin", label: "玩家登录", settingKey: "logPlayerJoin", group: "basic" },
@@ -149,6 +151,12 @@ export const behaviorEventDefinitions: Array<{
     label: "公会事件（创建/加入/踢人/金库/邀请等）",
     settingKey: "logGuildEvents",
     group: "guild",
+  },
+  {
+    type: "itemWatchSnapshot",
+    label: "指定物品获得时的背包存档",
+    settingKey: "logItemWatchSnapshot",
+    group: "item",
   },
 ];
 
@@ -260,6 +268,14 @@ function normalizeText(text: string, maxLength: number = MAX_META_LENGTH): strin
   return text.replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
+/** 从行为日志 m 字段解析 sid=xxx（物品背包存档） */
+export function parseItemWatchSnapshotId(meta?: string): string | undefined {
+  if (!meta) return undefined;
+  const s = meta.trim();
+  if (s.startsWith("sid=")) return s.slice(4).trim() || undefined;
+  return undefined;
+}
+
 function shortTypeId(typeId: string | undefined): string {
   if (!typeId) return "unknown";
   return typeId.replace("minecraft:", "");
@@ -304,7 +320,12 @@ export function summarizeBehaviorEntry(entry: BehaviorLogEntry): string {
       ? ` @ ${entry.x}, ${entry.y}, ${entry.z}`
       : "";
   const land = entry.l ? ` | 领地:${entry.l}` : "";
-  const target = entry.v ? ` | 对象:${entry.v}` : "";
+  const target =
+    entry.e === "itemWatchSnapshot" && entry.v
+      ? ` | 物品:${entry.v}`
+      : entry.v
+        ? ` | 对象:${entry.v}`
+        : "";
   const meta = entry.m ? ` | ${entry.m}` : "";
   return `[${formatBehaviorTimestamp(entry.t)}] ${eventLabel}${coord}${land}${target}${meta}`;
 }
@@ -323,11 +344,20 @@ function buildBehaviorExtraParts(entry: BehaviorLogEntry): string[] {
   if (entry.l) {
     parts.push(`领地 ${entry.l}`);
   }
-  if (entry.v) {
-    parts.push(`对象 ${entry.v}`);
-  }
-  if (entry.m) {
-    parts.push(entry.m);
+  if (entry.e === "itemWatchSnapshot") {
+    if (entry.v) {
+      parts.push(`物品 ${entry.v}`);
+    }
+    if (entry.m) {
+      parts.push(entry.m);
+    }
+  } else {
+    if (entry.v) {
+      parts.push(`对象 ${entry.v}`);
+    }
+    if (entry.m) {
+      parts.push(entry.m);
+    }
   }
 
   return parts;
@@ -353,6 +383,16 @@ function buildBehaviorSearchText(entry: BehaviorLogEntry): string {
   if (typeof entry.x === "number" && typeof entry.y === "number" && typeof entry.z === "number") {
     parts.push(`${entry.x} ${entry.y} ${entry.z}`);
     parts.push("坐标");
+  }
+
+  if (entry.e === "itemWatchSnapshot") {
+    parts.push("指定物品");
+    parts.push("背包存档");
+    parts.push("获得物品");
+    if (entry.v) {
+      parts.push(entry.v);
+      parts.push(entry.v.replace(/^minecraft:/, ""));
+    }
   }
 
   return parts.join(" ").toLowerCase();
@@ -391,11 +431,18 @@ function formatBehaviorMessageBoxEntry(entry: BehaviorLogEntry, index: number): 
   if (entry.l) {
     detailParts.push(`${color.gray("领地")} ${color.lightPurple(entry.l)}`);
   }
-  if (entry.v) {
-    detailParts.push(`${color.gray("对象")} ${color.green(entry.v)}`);
-  }
-  if (entry.m) {
-    detailParts.push(`${color.gray("备注")} ${color.white(entry.m)}`);
+  if (entry.e === "itemWatchSnapshot") {
+    if (entry.v) {
+      detailParts.push(`${color.gray("物品")} ${color.green(entry.v)}`);
+    }
+    // sid= 存档编号不在通用日志正文中展示，在专属背包存档查看功能中使用
+  } else {
+    if (entry.v) {
+      detailParts.push(`${color.gray("对象")} ${color.green(entry.v)}`);
+    }
+    if (entry.m) {
+      detailParts.push(`${color.gray("备注")} ${color.white(entry.m)}`);
+    }
   }
 
   if (detailParts.length > 0) {
@@ -459,12 +506,21 @@ export function describeBehaviorEntry(entry: BehaviorLogEntry): string {
     lines.push(`${color.gold("领地：")}${color.lightPurple(entry.l)}`);
   }
 
-  if (entry.v) {
-    lines.push(`${color.gold("对象：")}${color.green(entry.v)}`);
-  }
+  if (entry.e === "itemWatchSnapshot") {
+    if (entry.v) {
+      lines.push(`${color.gold("物品 typeId：")}${color.green(entry.v)}`);
+    }
+    if (entry.m) {
+      lines.push(`${color.gold("存档编号：")}${color.gray(entry.m)}`);
+    }
+  } else {
+    if (entry.v) {
+      lines.push(`${color.gold("对象：")}${color.green(entry.v)}`);
+    }
 
-  if (entry.m) {
-    lines.push(`${color.gold("附加：")}${color.gray(entry.m)}`);
+    if (entry.m) {
+      lines.push(`${color.gold("附加：")}${color.gray(entry.m)}`);
+    }
   }
 
   return lines.join("\n");
@@ -797,6 +853,19 @@ class BehaviorLogService {
       },
       true
     );
+  }
+
+  logItemWatchSnapshot(player: Player, acquiredTypeId: string, payload: ItemWatchSnapshotPayload): void {
+    if (!this.shouldTrack("itemWatchSnapshot")) return;
+    const sid = itemWatchSnapshotStore.save(payload);
+    this.append({
+      p: player.name,
+      e: "itemWatchSnapshot",
+      d: toDimensionCode(player.dimension.id),
+      ...toLocation(player.location),
+      v: normalizeText(acquiredTypeId, MAX_META_LENGTH),
+      m: normalizeText(`sid=${sid}`, MAX_META_LENGTH),
+    });
   }
 
   logGuildEvent(playerName: string, eventType: BehaviorEventType, meta?: string): void {

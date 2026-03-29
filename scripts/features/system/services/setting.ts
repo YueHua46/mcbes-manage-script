@@ -72,6 +72,7 @@ export type IModules =
   | "logOpenShulker"
   | "logOpenOtherContainers"
   | "logLocationSnapshot"
+  | "logItemWatchSnapshot"
   | "guild"
   | "guildCreateCost"
   | "guildMaxMembers"
@@ -171,6 +172,7 @@ export const defaultSetting = {
   logOpenShulker: true,
   logOpenOtherContainers: true,
   logLocationSnapshot: false,
+  logItemWatchSnapshot: true,
   guild: true,
   guildCreateCost: "100000",
   guildMaxMembers: "50",
