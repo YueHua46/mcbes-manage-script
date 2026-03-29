@@ -39,12 +39,18 @@ const snapshotTimeRangeOptions = [
 function getSnapshotStartTime(value: string): number | undefined {
   const now = Date.now();
   switch (value) {
-    case "1h": return now - 60 * 60 * 1000;
-    case "6h": return now - 6 * 60 * 60 * 1000;
-    case "24h": return now - 24 * 60 * 60 * 1000;
-    case "3d": return now - 3 * 24 * 60 * 60 * 1000;
-    case "7d": return now - 7 * 24 * 60 * 60 * 1000;
-    default: return undefined;
+    case "1h":
+      return now - 60 * 60 * 1000;
+    case "6h":
+      return now - 6 * 60 * 60 * 1000;
+    case "24h":
+      return now - 24 * 60 * 60 * 1000;
+    case "3d":
+      return now - 3 * 24 * 60 * 60 * 1000;
+    case "7d":
+      return now - 7 * 24 * 60 * 60 * 1000;
+    default:
+      return undefined;
   }
 }
 
@@ -61,11 +67,7 @@ function snapshotArchiveRowLabel(
 ): RawMessage | string {
   if (localizationKey) {
     return {
-      rawtext: [
-        { text: `§b${playerName}§r §8· §f` },
-        { translate: localizationKey },
-        { text: `\n§8${shortTs}` },
-      ],
+      rawtext: [{ text: `§b${playerName}§r §8· §f` }, { translate: localizationKey }, { text: `\n§8${shortTs}` }],
     };
   }
   const itemShort = typeId ? shortTypeId(typeId) : "?";
@@ -102,7 +104,7 @@ function delayNav(fn: () => void): void {
 const BODY_HINT = [
   "§f登记后，任意玩家拿到对应物品时，服务器会自动存一份当时的背包快照。点「§b查看背包存档记录§f」可按玩家和时间筛选并进入箱子界面查看。",
   "",
-  "§e全部生成蛋：§f点「§e登记全部生成蛋§f」或命令 §eadd spawn_egg_group§f，可一次监控任意 typeId 以 §7_spawn_egg§f 结尾的物品（含作弊注入的未知 ID），只占登记列表 §71§f 条配额。",
+  "§e全部生成蛋：§f点「§e登记全部生成蛋§f」或命令 §eadd spawn_egg_group§f，可一次添加监控任意 typeId 以 §7_spawn_egg§f 结尾的物品（既那些可能含开挂获得的生成蛋），只占登记列表 §71§f 条配额。",
   "",
   "§b怎么填「物品类型」？§f先在游戏里§e手拿§f那件物品，聊天输入 §e/yuehua:get_item_typeid§f 可复制编号；背包内全部编号用 §e/yuehua:get_item_typeid all§f。亦可用管理员命令 §e/yuehua:subscribe_item_hold§f 来管理登记列表。",
   "",
@@ -267,10 +269,7 @@ async function openSnapshotResultPage(
     const sid = parseItemWatchSnapshotId(entry.m);
     const snap = sid ? itemWatchSnapshotStore.get(sid) : undefined;
     const locKey = resolveItemLocalizationKey(entry.v ?? "", snap?.acquiredLocalizationKey);
-    form.button(
-      snapshotArchiveRowLabel(entry.p, shortTs, entry.v, locKey),
-      "textures/icons/quest_chest"
-    );
+    form.button(snapshotArchiveRowLabel(entry.p, shortTs, entry.v, locKey), "textures/icons/quest_chest");
   }
 
   // 导航按钮不传 iconPath：客户端会把路径当按钮下方辅助小字，浅灰在白色底上几乎看不清
@@ -389,18 +388,26 @@ async function openSnapshotFilterForm(player: Player, onBack: () => void): Promi
   let timeRangeIndex: number;
   let keyword: string;
 
-  const a = fv[0], b = fv[1], c = fv[2], d = fv[3];
+  const a = fv[0],
+    b = fv[1],
+    c = fv[2],
+    d = fv[3];
   if (typeof a === "number" && typeof b === "string" && typeof c === "number" && typeof d === "string") {
-    playerIndex = a; playerNameInput = b.trim(); timeRangeIndex = c; keyword = d.trim();
+    playerIndex = a;
+    playerNameInput = b.trim();
+    timeRangeIndex = c;
+    keyword = d.trim();
   } else if (typeof b === "number" && typeof c === "string" && typeof d === "number" && typeof fv[4] === "string") {
-    playerIndex = b; playerNameInput = c.trim(); timeRangeIndex = d; keyword = String(fv[4] ?? "").trim();
+    playerIndex = b;
+    playerNameInput = c.trim();
+    timeRangeIndex = d;
+    keyword = String(fv[4] ?? "").trim();
   } else {
     onBack();
     return;
   }
 
-  const playerName =
-    playerNameInput || (playerIndex <= 0 ? undefined : (knownPlayers[playerIndex - 1] ?? undefined));
+  const playerName = playerNameInput || (playerIndex <= 0 ? undefined : (knownPlayers[playerIndex - 1] ?? undefined));
   const timeRange = snapshotTimeRangeOptions[timeRangeIndex]?.value ?? "all";
 
   const filter: SnapshotFilter = {
