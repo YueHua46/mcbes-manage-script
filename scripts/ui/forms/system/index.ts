@@ -18,6 +18,7 @@ import { openPlayerInventoryAdminForm } from "./player-inventory-admin";
 import { openNotifyForms } from "../notify";
 import { openBehaviorLogForm } from "../behavior-log";
 import { openOfflineDurationQueryMenu } from "./offline-duration-query";
+import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
@@ -172,6 +173,11 @@ export function openSystemSettingForm(player: Player): void {
       text: "§w玩家行为日志",
       icon: "textures/icons/eyes",
       action: () => openBehaviorLogForm(player),
+    },
+    {
+      text: "§w防刷物品设置",
+      icon: "textures/icons/infinibag",
+      action: () => openAntiDupeSettingsForm(player),
     },
     {
       text: "§w离线玩家时长查询",
@@ -550,6 +556,10 @@ export function openModuleToggleForm(player: Player): void {
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
     { key: "blacklistEnabled", name: "黑名单系统（仅 BDS 可用，需安装 BDS 版附加包）" },
     { key: "behaviorLogEnabled", name: "玩家行为日志" },
+    {
+      key: "antiDupeEnabled",
+      name: "防刷物品总开关（关闭后所有防刷规则与方块白名单登记均不生效；子项在防刷物品设置）",
+    },
   ];
 
   modules.forEach((module) => {

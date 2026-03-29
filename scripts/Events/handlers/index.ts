@@ -13,3 +13,4 @@ export { registerOnlineTimeEvents } from "./online-time";
 export { registerLandFlightEvents } from "./land-flight";
 export { registerPlayerStatsEvents } from "./player-stats";
 export { registerItemHoldSubscribeEvents } from "./item-hold-subscribe";
+export { registerAntiDupeEvents } from "./anti-dupe";

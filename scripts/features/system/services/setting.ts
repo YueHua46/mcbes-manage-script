@@ -106,7 +106,13 @@ export type IModules =
   /** 领地内飞行：每个周期扣除金币（字符串存整数） */
   | "landFlightGoldPerInterval"
   /** 领地内飞行：离开领地后宽限秒数（0=立即收回，建议 0～30） */
-  | "landFlightLeaveGraceSec";
+  | "landFlightLeaveGraceSec"
+  /** 防刷物品：总开关（功能开关管理；关则所有防刷逻辑与白名单登记不运行） */
+  | "antiDupeEnabled"
+  /** 防刷物品：禁止收纳袋放入非常规容器（子项，受总开关约束） */
+  | "antiDupeBundleRestrictEnabled"
+  /** 防刷物品：防刷白名单玩家名（JSON 字符串数组，存储键名历史兼容） */
+  | "antiDupeTrustedPlacers";
 
 export type IValueType = boolean | string;
 
@@ -209,6 +215,12 @@ export const defaultSetting = {
   landFlightGoldPerInterval: "0",
   /** 离开领地后仍可飞行的宽限秒数；0 表示一出领地立即收回 */
   landFlightLeaveGraceSec: "5",
+  /** 防刷物品总开关（默认开；仅「功能开关管理」中切换） */
+  antiDupeEnabled: true,
+  /** 收纳袋防刷：不得放入漏斗/投掷器等（默认开；总开关关则不生效） */
+  antiDupeBundleRestrictEnabled: true,
+  /** 防刷白名单玩家 JSON，如 ["Steve","Alex"]（键名 antiDupeTrustedPlacers 为兼容保留） */
+  antiDupeTrustedPlacers: "[]",
 };
 
 export class ServerSetting {
