@@ -24,7 +24,7 @@ export interface ChestFormResponse extends ActionFormResponse {
 
 /**
  * show() 的选项：appendViewerInventory 为 true 时，在下方追加当前查看者（player）的背包 UI
- * 同时会在标题后追加 §inv§1，RP 根据该标记决定是否渲染「下方背包」区域，实现两套 ChestUI：带/不带下方物品栏
+ * 若尺寸前缀尚未含 §i§n§v（非 *_inv），会在标题中追加 §inv§1；*_inv 与 RP 的 $condition 已对齐，勿重复追加（否则界面会露出 inv/nv）
  */
 export interface ChestFormShowOptions {
   appendViewerInventory?: boolean;
@@ -252,9 +252,14 @@ export class ChestFormData {
 
   show(player: Player, options?: ChestFormShowOptions): Promise<ChestFormResponse> {
     const appendInventory = inventory_enabled || options?.appendViewerInventory === true;
-    const titleForForm = appendInventory
-      ? { rawtext: [this.titleText.rawtext[0], { text: "§inv§1" }, ...this.titleText.rawtext.slice(1)] }
-      : this.titleText;
+    const firstSeg = this.titleText.rawtext[0];
+    const firstText = typeof firstSeg === "object" && firstSeg && "text" in firstSeg ? String(firstSeg.text ?? "") : "";
+    /** *_inv 尺寸的 magic 前缀已含 §i§n§v；再追加 §inv§1 会在标题里露出 inv/nv 等杂字 */
+    const prefixAlreadyHasInvMarker = firstText.includes("§i§n§v");
+    const titleForForm =
+      appendInventory && !prefixAlreadyHasInvMarker
+        ? { rawtext: [this.titleText.rawtext[0], { text: "§inv§1" }, ...this.titleText.rawtext.slice(1)] }
+        : this.titleText;
     const form = new ActionFormData().title(titleForForm as typeof this.titleText);
     this.buttonArray.forEach((button) => {
       form.button(button[0] as RawMessage, button[1]?.toString());

@@ -123,8 +123,12 @@ function useBdsManifest() {
 }
 
 function setDefaultDeployEnv() {
-  process.env.MINECRAFT_PRODUCT = "BedrockGDK";
-  process.env.CUSTOM_DEPLOYMENT_PATH = "";
+  if (!process.env.MINECRAFT_PRODUCT) {
+    process.env.MINECRAFT_PRODUCT = "BedrockGDK";
+  }
+  if (process.env.MINECRAFT_PRODUCT !== "Custom") {
+    process.env.CUSTOM_DEPLOYMENT_PATH = "";
+  }
 }
 
 function setBdsServerDeployEnv() {
