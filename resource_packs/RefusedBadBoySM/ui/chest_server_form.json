@@ -66,6 +66,11 @@
                           "text@chest_ui.chest_label": {}
                         },
                         {
+                          "title_grid_gap@common.empty_panel": {
+                            "size": ["100%", 5]
+                          }
+                        },
+                        {
                           "grid@chest_ui.grid_items": {}
                         },
                         {

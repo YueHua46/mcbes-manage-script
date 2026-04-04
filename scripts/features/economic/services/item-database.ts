@@ -4,7 +4,7 @@
  * 使用实体容器存储物品的高级数据库系统
  */
 
-import { Entity, ItemStack, system, world } from "@minecraft/server";
+import { Dimension, Entity, ItemStack, LocationInUnloadedChunkError, system, world } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import { SystemLog } from "../../../shared/utils/common";
 
@@ -12,6 +12,14 @@ import { SystemLog } from "../../../shared/utils/common";
 const ITEM_MAX_PER_ENTITY = 256;
 // 在世界中用于存储的实体类型
 const ENTITY_TYPE_ID = "pao:new_database";
+/** 存储实体固定坐标（与 tickingarea 圆心一致） */
+const DB_ANCHOR = { x: 8, y: 0, z: 8 };
+/** 常驻加载区：保证 anchor 区块进入 tick 后再 spawn / 访问 */
+const TICKING_AREA_CMD = `tickingarea add circle 8 0 8 4 "PaoDatabase" true`;
+/** tickingarea 生效后再等待的 tick 数 */
+const ANCHOR_LOAD_WAIT_TICKS = 25;
+/** spawn 遇未加载区块时的最大重试次数 */
+const SPAWN_ANCHOR_MAX_ATTEMPTS = 45;
 // 记录已注册的数据库名称，防止重复
 const nameRegistered: string[] = [];
 
@@ -36,6 +44,49 @@ function waitLoaded(): Promise<void> {
       }
     }, 10);
   });
+}
+
+/**
+ * 等待若干游戏刻（从下一次 system.run 起算）
+ */
+function waitTicks(tickCount: number): Promise<void> {
+  return new Promise((resolve) => {
+    const step = (left: number) => {
+      if (left <= 0) {
+        resolve();
+        return;
+      }
+      system.run(() => step(left - 1));
+    };
+    step(tickCount);
+  });
+}
+
+/**
+ * 注册常驻加载区并在几 tick 后再继续，避免 (DB_ANCHOR) 尚未加载/tick 就 spawn。
+ */
+async function prepareDatabaseAnchorRegion(dimension: Dimension = world.getDimension("minecraft:overworld")): Promise<void> {
+  await new Promise<void>((resolve) => {
+    system.run(() => {
+      dimension.runCommand(TICKING_AREA_CMD);
+      void waitTicks(ANCHOR_LOAD_WAIT_TICKS).then(resolve);
+    });
+  });
+}
+
+async function spawnEntityAtAnchorWithRetry(dimension: Dimension, attemptSpawn: () => Entity): Promise<Entity> {
+  for (let i = 0; i < SPAWN_ANCHOR_MAX_ATTEMPTS; i++) {
+    try {
+      return attemptSpawn();
+    } catch (e) {
+      if (e instanceof LocationInUnloadedChunkError && i < SPAWN_ANCHOR_MAX_ATTEMPTS - 1) {
+        await waitTicks(2);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error("spawnEntityAtAnchorWithRetry: exhausted retries");
 }
 
 /**
@@ -120,15 +171,13 @@ export default class ItemDatabase {
   /** 初始化，加载已有实体与槽位数据 */
   private async init(): Promise<void> {
     await waitLoaded();
-    system.run(() => {
-      world.getDimension("minecraft:overworld").runCommand(`tickingarea add circle 8 0 8 4 "PaoDatabase" true`);
-    });
+    const overworld = world.getDimension("minecraft:overworld");
+    await prepareDatabaseAnchorRegion(overworld);
 
     const start = Date.now();
     const loadedTimes: number[] = [];
 
-    const ents = world
-      .getDimension("minecraft:overworld")
+    const ents = overworld
       .getEntities()
       .filter((e) => e.typeId === ENTITY_TYPE_ID && e.nameTag === `DB_${this.#name}`)
       .sort((a, b) => {
@@ -168,28 +217,13 @@ export default class ItemDatabase {
         entityCount++;
       }
     } else {
-      const id = system.run(() => {
-        if (this.#entities.length === 0) {
-          const e = world
-            .getDimension("minecraft:overworld")
-            .spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, { x: 8, y: 0, z: 8 });
-          e.nameTag = `DB_${this.#name}`;
-          e.addTag(`spawntime:${Date.now()}`);
-          this.#entities.push(e);
-        } else {
-          system.clearRun(id);
-        }
-      });
+      const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
+        overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
+      );
+      e.nameTag = `DB_${this.#name}`;
+      e.addTag(`spawntime:${Date.now()}`);
+      this.#entities.push(e);
     }
-
-    await new Promise<void>((resolve) => {
-      const id = system.run(() => {
-        if (this.#entities.length > 0) {
-          system.clearRun(id);
-          resolve();
-        }
-      });
-    });
 
     this.#loaded = true;
     const avg = calculateAverage(loadedTimes) || 0;
@@ -243,6 +277,47 @@ export default class ItemDatabase {
     delete this.#itemData[slot];
   }
 
+  /** 在已加载的 anchor 上生成一只存储实体并加入列表 */
+  #spawnAndRegisterOneEntity(): void {
+    const overworld = world.getDimension("minecraft:overworld");
+    const e = overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR);
+    e.nameTag = `DB_${this.#name}`;
+    e.addTag(`spawntime:${Date.now()}`);
+    this.#entities.push(e);
+  }
+
+  async #finishAddAfterAnchorReady(item: ItemStack, data: Record<string, any>): Promise<void> {
+    try {
+      const overworld = world.getDimension("minecraft:overworld");
+      await prepareDatabaseAnchorRegion(overworld);
+      const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
+        overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
+      );
+      e.nameTag = `DB_${this.#name}`;
+      e.addTag(`spawntime:${Date.now()}`);
+      this.#entities.push(e);
+      const slot = this.#findEmptySlot()[0]!;
+      this.#setItem(slot, item, data);
+    } catch (err) {
+      console.error(`[ItemDatabase ${this.#name}] deferred add failed`, err);
+    }
+  }
+
+  async #finishClearAfterAnchorReady(): Promise<void> {
+    try {
+      const overworld = world.getDimension("minecraft:overworld");
+      await prepareDatabaseAnchorRegion(overworld);
+      const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
+        overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
+      );
+      e.nameTag = `DB_${this.#name}`;
+      e.addTag(`spawntime:${Date.now()}`);
+      this.#entities.push(e);
+    } catch (err) {
+      console.error(`[ItemDatabase ${this.#name}] deferred clear respawn failed`, err);
+    }
+  }
+
   /** 当前已存储的物品数量 */
   get length(): number {
     return Object.keys(this.#itemData).length;
@@ -259,12 +334,15 @@ export default class ItemDatabase {
   add(item: ItemStack, data: Record<string, any> = {}): void {
     if (!this.#loaded) throw new ReferenceError("Database is not loaded");
     if (this.#findEmptySlot().length === 0) {
-      const e = world
-        .getDimension("minecraft:overworld")
-        .spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, { x: 8, y: 0, z: 8 });
-      e.nameTag = `DB_${this.#name}`;
-      e.addTag(`spawntime:${Date.now()}`);
-      this.#entities.push(e);
+      try {
+        this.#spawnAndRegisterOneEntity();
+      } catch (e) {
+        if (e instanceof LocationInUnloadedChunkError) {
+          void this.#finishAddAfterAnchorReady(item, data);
+          return;
+        }
+        throw e;
+      }
     }
     const slot = this.#findEmptySlot()[0]!;
     this.#setItem(slot, item, data);
@@ -330,12 +408,15 @@ export default class ItemDatabase {
     this.#itemData = {};
     this.#database.clear();
 
-    const e = world
-      .getDimension("minecraft:overworld")
-      .spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, { x: 8, y: 0, z: 8 });
-    e.nameTag = `DB_${this.#name}`;
-    e.addTag(`spawntime:${Date.now()}`);
-    this.#entities.push(e);
+    try {
+      this.#spawnAndRegisterOneEntity();
+    } catch (e) {
+      if (e instanceof LocationInUnloadedChunkError) {
+        void this.#finishClearAfterAnchorReady();
+        return;
+      }
+      throw e;
+    }
   }
 
   /**
@@ -353,27 +434,20 @@ export default class ItemDatabase {
    * 硬重置：删除所有实体并重建
    */
   async hardReset(): Promise<void> {
+    const overworld = world.getDimension("minecraft:overworld");
     this.#entities = [];
-    world
-      .getDimension("minecraft:overworld")
+    overworld
       .getEntities()
       .filter((e) => e.typeId === ENTITY_TYPE_ID && e.nameTag === `DB_${this.#name}`)
       .forEach((e) => e.remove());
 
-    await new Promise<void>((resolve) => {
-      const id = system.run(() => {
-        if (this.#entities.length === 0) {
-          const e = world
-            .getDimension("minecraft:overworld")
-            .spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, { x: 8, y: 0, z: 8 });
-          e.nameTag = `DB_${this.#name}`;
-          e.addTag(`spawntime:${Date.now()}`);
-          this.#entities.push(e);
-          system.clearRun(id);
-          resolve();
-        }
-      });
-    });
+    await prepareDatabaseAnchorRegion(overworld);
+    const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
+      overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
+    );
+    e.nameTag = `DB_${this.#name}`;
+    e.addTag(`spawntime:${Date.now()}`);
+    this.#entities.push(e);
 
     this.#itemData = {};
   }

@@ -14,6 +14,9 @@ import {
   CustomCommandOrigin,
   CustomCommandResult,
   CustomCommandStatus,
+  CustomCommandError,
+  CustomCommandErrorReason,
+  CustomCommandRegistry,
   EntityEquippableComponent,
   EquipmentSlot,
 } from "@minecraft/server";
@@ -38,6 +41,39 @@ import {
 
 // 防止重复注册的标志
 let commandsRegistered = false;
+
+/**
+ * 脚本 /reload 时引擎会锁定已有自定义命令的参数签名，仅允许更新回调；
+ * 若重复 registerEnum / registerCommand 触发了 RegistryReadOnly，则静默跳过以免刷屏。
+ */
+function registerEnumIgnoreReloadLock(registry: CustomCommandRegistry, name: string, values: string[]): void {
+  try {
+    registry.registerEnum(name, values);
+  } catch (e) {
+    if (
+      e instanceof CustomCommandError &&
+      (e.reason === CustomCommandErrorReason.RegistryReadOnly || e.reason === CustomCommandErrorReason.AlreadyRegistered)
+    ) {
+      return;
+    }
+    throw e;
+  }
+}
+
+function registerCommandIgnoreReloadLock(
+  registry: CustomCommandRegistry,
+  command: CustomCommand,
+  handler: (origin: CustomCommandOrigin, ...args: any[]) => CustomCommandResult | undefined
+): void {
+  try {
+    registry.registerCommand(command, handler);
+  } catch (e) {
+    if (e instanceof CustomCommandError && e.reason === CustomCommandErrorReason.RegistryReadOnly) {
+      return;
+    }
+    throw e;
+  }
+}
 
 /**
  * 注册所有自定义命令
@@ -195,7 +231,7 @@ system.beforeEvents.startup.subscribe((init) => {
   registry.registerCommand(giveMenuCommand, handleGiveMenuCommand);
 
   // 12. 注册 camera 指令 (实体视角观察)
-  registry.registerEnum("yuehua:CameraOperationType", ["start", "stop", "perspective", "next"]);
+  registerEnumIgnoreReloadLock(registry, "yuehua:CameraOperationType", ["start", "stop", "perspective", "next"]);
   const cameraCommand: CustomCommand = {
     name: "yuehua:camera",
     description: "实体视角观察系统 - 用法: /yuehua:camera <操作> [参数]",
@@ -217,7 +253,7 @@ system.beforeEvents.startup.subscribe((init) => {
   registry.registerCommand(getItemTypeIdCommand, handleGetItemTypeIdCommand);
 
   // 13.1 登记「玩家获得指定物品时要记录背包」（写入行为日志）
-  registry.registerEnum("yuehua:SubscribeItemHoldOperationType", ["add", "remove", "list", "clear"]);
+  registerEnumIgnoreReloadLock(registry, "yuehua:SubscribeItemHoldOperationType", ["add", "remove", "list", "clear"]);
 
   const subscribeItemHoldCommand: CustomCommand = {
     name: "yuehua:subscribe_item_hold",
@@ -226,14 +262,14 @@ system.beforeEvents.startup.subscribe((init) => {
     permissionLevel: CommandPermissionLevel.Admin,
     optionalParameters: [
       {
-        type: CustomCommandParamType.String,
+        type: CustomCommandParamType.Enum,
         name: "操作(add/remove/list/clear)",
         enumName: "yuehua:SubscribeItemHoldOperationType",
       },
       { type: CustomCommandParamType.String, name: "物品类型id（与游戏内完全一致，一般是 minecraft:xxx）" },
     ],
   };
-  registry.registerCommand(subscribeItemHoldCommand, handleSubscribeItemHoldCommand);
+  registerCommandIgnoreReloadLock(registry, subscribeItemHoldCommand, handleSubscribeItemHoldCommand);
 
   // 14. TPA 接受/拒绝（勿扰模式下通过聊天处理请求时使用）
   const tpacceptCommand: CustomCommand = {
