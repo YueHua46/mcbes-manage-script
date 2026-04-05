@@ -17,6 +17,7 @@ import {
 } from "@minecraft/core-build-tasks";
 import path from "path";
 import fs from "fs";
+import { execSync } from "child_process";
 import * as esbuild from "esbuild";
 
 // Setup env variables
@@ -139,6 +140,17 @@ function setBdsServerDeployEnv() {
 // Lint
 task("lint", coreLint(["scripts/**/*.ts"], argv().fix));
 
+/**
+ * 从 models/mcfunction/*.mcfunction 生成 scripts/generated/mcfunction-models（每模型 JSON 分片 + registry.ts）。
+ * 目录为空或缺少 .mcfunction 时失败；更新模型后需重新构建以刷新嵌入数据。
+ */
+task("generate-mcfunction-models", () => {
+  execSync("node tools/generate-mcfunction-models.cjs", {
+    cwd: __dirname,
+    stdio: "inherit",
+  });
+});
+
 // Build（主包用自定义 esbuild，以便应用 external runtime-id-map 插件）
 task("bundle", () => runMainBundle(bundleTaskOptions));
 task("bundle:bds", () => runMainBundle(bundleTaskOptionsBds));
@@ -189,8 +201,14 @@ export const runtimeIdMap = new Map(Object.entries(runtimeMap));
   fs.writeFileSync(path.join(outDir, "runtime-id-map.js"), wrapperJs, "utf-8");
 });
 
-task("build", series("useManifestStandard", "typescript", "bundle", "bundle:runtime-id-map"));
-task("build:bds", series("useManifestBds", "typescript", "bundle:bds", "bundle:runtime-id-map"));
+task(
+  "build",
+  series("useManifestStandard", "generate-mcfunction-models", "typescript", "bundle", "bundle:runtime-id-map")
+);
+task(
+  "build:bds",
+  series("useManifestBds", "generate-mcfunction-models", "typescript", "bundle:bds", "bundle:runtime-id-map")
+);
 
 // Clean
 task("clean-local", cleanTask(DEFAULT_CLEAN_DIRECTORIES));
@@ -211,14 +229,24 @@ task("setBdsServerDeployEnv", () => {
 task(
   "local-deploy",
   watchTask(
-    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
+    [
+      "scripts/**/*.ts",
+      "models/mcfunction/**/*.mcfunction",
+      "behavior_packs/**/*.{json,lang,png}",
+      "resource_packs/**/*.{json,lang,png}",
+    ],
     series("setDefaultDeployEnv", "clean-local", "build", "package")
   )
 );
 task(
   "local-deploy:bds",
   watchTask(
-    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
+    [
+      "scripts/**/*.ts",
+      "models/mcfunction/**/*.mcfunction",
+      "behavior_packs/**/*.{json,lang,png}",
+      "resource_packs/**/*.{json,lang,png}",
+    ],
     series("setBdsServerDeployEnv", "clean-local", "build:bds", "package")
   )
 );

@@ -1,0 +1,49 @@
+{
+  "$schemaNote": "构建期 Java→Bedrock setblock 转写。可删本行。",
+  "options": {
+    "appendReplace": true,
+    "stripMinecraftPrefix": true,
+    "strictPalette": false
+  },
+  "blockIds": {
+    "minecraft:grass_path": "minecraft:dirt_path",
+    "minecraft:snow_block": "minecraft:snow",
+    "minecraft:waxed_copper_block": "minecraft:waxed_copper",
+    "minecraft:light_gray_glazed_terracotta": "minecraft:silver_glazed_terracotta",
+    "minecraft:red_nether_bricks": "minecraft:red_nether_brick",
+    "minecraft:nether_quartz_ore": "minecraft:quartz_ore",
+    "minecraft:rooted_dirt": "minecraft:dirt_with_roots",
+    "minecraft:terracotta": "minecraft:hardened_clay",
+    "minecraft:note_block": "minecraft:noteblock"
+  },
+  "defaultStates": {
+    "minecraft:white_glazed_terracotta": { "facing": "north" },
+    "minecraft:orange_glazed_terracotta": { "facing": "north" },
+    "minecraft:magenta_glazed_terracotta": { "facing": "north" },
+    "minecraft:light_blue_glazed_terracotta": { "facing": "north" },
+    "minecraft:yellow_glazed_terracotta": { "facing": "north" },
+    "minecraft:lime_glazed_terracotta": { "facing": "north" },
+    "minecraft:pink_glazed_terracotta": { "facing": "north" },
+    "minecraft:gray_glazed_terracotta": { "facing": "north" },
+    "minecraft:light_gray_glazed_terracotta": { "facing": "north" },
+    "minecraft:cyan_glazed_terracotta": { "facing": "north" },
+    "minecraft:purple_glazed_terracotta": { "facing": "north" },
+    "minecraft:blue_glazed_terracotta": { "facing": "north" },
+    "minecraft:brown_glazed_terracotta": { "facing": "north" },
+    "minecraft:green_glazed_terracotta": { "facing": "north" },
+    "minecraft:red_glazed_terracotta": { "facing": "north" },
+    "minecraft:black_glazed_terracotta": { "facing": "north" }
+  },
+  "globalStateKeyMap": {},
+  "axisRemapBlockIdPatterns": [
+    "_log$",
+    "_wood$",
+    "_hyphae$",
+    "_stem$",
+    "^minecraft:hay_block$",
+    "^minecraft:basalt$",
+    "^minecraft:polished_basalt$",
+    "^minecraft:chain$"
+  ],
+  "allowedBlockIds": null
+}

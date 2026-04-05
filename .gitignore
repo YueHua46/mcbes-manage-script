@@ -3,3 +3,9 @@ dist
 node_modules/
 /lib/
 lib/
+
+# mcfunction 模型：由 tools/generate-mcfunction-models.cjs 从 models/mcfunction/*.mcfunction 生成
+scripts/generated/mcfunction-models/**/*.json
+scripts/generated/mcfunction-models/**/index.js
+scripts/generated/mcfunction-models/**/index.d.ts
+scripts/generated/mcfunction-models/registry.ts

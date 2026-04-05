@@ -38,6 +38,7 @@ import {
   listSubscriptions,
   removeSubscription,
 } from "../../item-watch/item-watch-subscription";
+import { registerMcfunctionModelCommands } from "../../anime-build/register-mcfunction-model-commands";
 
 // 防止重复注册的标志
 let commandsRegistered = false;
@@ -270,6 +271,9 @@ system.beforeEvents.startup.subscribe((init) => {
     ],
   };
   registerCommandIgnoreReloadLock(registry, subscribeItemHoldCommand, handleSubscribeItemHoldCommand);
+
+  // 13.2 models/mcfunction 分片放置（构建期嵌入各 .mcfunction）
+  registerMcfunctionModelCommands(registry);
 
   // 14. TPA 接受/拒绝（勿扰模式下通过聊天处理请求时使用）
   const tpacceptCommand: CustomCommand = {
