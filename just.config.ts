@@ -106,12 +106,12 @@ const copyTaskOptions: CopyTaskParameters = {
 
 const mcaddonTaskOptionsStandard: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_Standard_Local-BDS-Realms.mcaddon`,
+  outputFile: `./dist/packages/${projectName}_普通兼容版（适用本地、BDS、Realms领域服）.mcaddon`,
 };
 
 const mcaddonTaskOptionsBdsAdmin: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_BDS_ServerAdmin-ServerNet_Only.mcaddon`,
+  outputFile: `./dist/packages/${projectName}_BDS增强版（仅适用BDS服务器，含额外黑名单功能等）.mcaddon`,
 };
 
 const behaviorPackDir = path.join(__dirname, "behavior_packs", projectName);
