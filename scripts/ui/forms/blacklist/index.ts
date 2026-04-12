@@ -12,15 +12,36 @@ import { formatDateOnlyBeijing, formatDateTimeBeijing } from "../../../shared/ut
 import { openDialogForm } from "../../components/dialog";
 import { IBlacklistEntry } from "../../../core/types";
 import blacklistService from "../../../features/blacklist/services/blacklist";
+import { playerPersistentIdMap } from "../../../features/blacklist/services/persistent-id-map";
+import setting from "../../../features/system/services/setting";
 
 const PAGE_SIZE = 10;
 
 // ==================== 主菜单 ====================
 
 export function openBlacklistManageForm(player: Player): void {
+  if (typeof __SERVER_ADMIN_BUILD__ === "undefined" || !__SERVER_ADMIN_BUILD__) {
+    openDialogForm(
+      player,
+      {
+        title: "黑名单管理不可用",
+        desc:
+          color.yellow("当前附加包为普通兼容版。\n\n") +
+          color.gray("该版本不包含 @minecraft/server-admin 与 @minecraft/server-net，无法提供黑名单管理与进服前拦截。\n") +
+          color.white("如需黑名单功能，请改用仅适用于 BDS 服务器的增强版附加包。"),
+      },
+      () => import("../system").then(({ openSystemSettingForm }) => openSystemSettingForm(player))
+    );
+    return;
+  }
+
+  const isEnabled = setting.getState("blacklistEnabled") as boolean;
   const form = new ActionFormData();
   form.title("§w黑名单管理");
-  form.body("§e⚠ 黑名单当前仅用于记录封禁名单，并在封禁当下尝试踢出在线玩家\n§c已不再提供进服前拦截能力\n§7管理员可在此添加、查看、移除被封禁的玩家");
+  const warningLine = isEnabled
+    ? "§a✔ 黑名单进服前拦截已启用"
+    : "§c✘ 黑名单进服前拦截【未启用】\n§e请先前往系统设置开启「黑名单系统」";
+  form.body(`§e⚠ 当前为 BDS 增强版\n${warningLine}\n§7管理员可在此添加、查看、移除被封禁的玩家`);
 
   form.button("§w查看黑名单列表", "textures/icons/social");
   form.button("§w添加到黑名单", "textures/icons/deny");
@@ -285,7 +306,8 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
     return;
   }
 
-  blacklistService.add(targetName, xuid, null, reason, player.name);
+  const persistentId = playerPersistentIdMap.get(targetName) ?? null;
+  blacklistService.add(targetName, xuid, persistentId, reason, player.name);
 
   try {
     const { default: guildService } = await import("../../../features/guild/services/guild-service");
@@ -315,7 +337,7 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
         color.gray(`XUID: ${xuid}\n`) +
         (reason ? color.gray(`理由: ${reason}\n`) : color.darkGray("（未填写理由，将使用默认提示）\n")) +
         color.yellow("该记录会保存在黑名单中；若玩家当前在线，将已尝试立即踢出。\n") +
-        color.red("后续重新进服不会再做进服前拦截。"),
+        color.green("若已启用黑名单系统，后续重新进服时也会进行拦截。"),
     },
     () => openBlacklistManageForm(player)
   );

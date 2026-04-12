@@ -41,27 +41,34 @@ const externalRuntimeIdMapPlugin: esbuild.Plugin = {
   },
 };
 
-/** 标准版构建：不包含 @minecraft/server-net 相关代码，供单人/Realms/本地部署使用 */
-const bundleTaskOptions = {
-  entryPoint: path.join(__dirname, "./scripts/main.ts"),
-  external: ["@minecraft/server", "@minecraft/server-ui", "@minecraft/server-net"],
-  outfile: path.resolve(__dirname, "./dist/scripts/main.js"),
-  minifyWhitespace: false,
-  sourcemap: true,
-  outputSourcemapPath: path.resolve(__dirname, "./dist/debug"),
-  dropLabels: isProduction ? ["dev"] : undefined,
-  define: { __BDS_BUILD__: "false" },
-  plugins: [externalRuntimeIdMapPlugin],
-} as BundleTaskParameters & { define?: Record<string, string>; plugins?: esbuild.Plugin[] };
+function createBundleTaskOptions(entryPoint: string, define: Record<string, string>) {
+  return {
+    entryPoint: path.join(__dirname, entryPoint),
+    external: ["@minecraft/server", "@minecraft/server-ui", "@minecraft/server-net", "@minecraft/server-admin"],
+    outfile: path.resolve(__dirname, "./dist/scripts/main.js"),
+    minifyWhitespace: false,
+    sourcemap: true,
+    outputSourcemapPath: path.resolve(__dirname, "./dist/debug"),
+    dropLabels: isProduction ? ["dev"] : undefined,
+    define,
+    plugins: [externalRuntimeIdMapPlugin],
+  } as BundleTaskParameters & { define?: Record<string, string>; plugins?: esbuild.Plugin[] };
+}
 
-/** BDS 版构建：包含 xuid 解析等 server-net 功能，供 BDS 服主使用 */
-const bundleTaskOptionsBds = {
-  ...bundleTaskOptions,
-  define: { __BDS_BUILD__: "true" },
-} as BundleTaskParameters & { define?: Record<string, string> };
+/** 普通兼容版构建：不包含 server-net / server-admin 运行时能力，供本地、BDS、Realms 使用 */
+const bundleTaskOptionsStandard = createBundleTaskOptions("./scripts/main.standard.ts", {
+  __BDS_BUILD__: "false",
+  __SERVER_ADMIN_BUILD__: "false",
+});
+
+/** BDS 增强版构建：包含 server-net / server-admin 相关能力，仅供 BDS 服务器使用 */
+const bundleTaskOptionsBdsAdmin = createBundleTaskOptions("./scripts/main.bds.ts", {
+  __BDS_BUILD__: "true",
+  __SERVER_ADMIN_BUILD__: "true",
+});
 
 /** 使用 esbuild 直接打主包（应用 external runtime-id-map 插件，官方 bundleTask 不传 plugins） */
-async function runMainBundle(options: typeof bundleTaskOptions): Promise<void> {
+async function runMainBundle(options: typeof bundleTaskOptionsStandard): Promise<void> {
   const outDir = path.dirname(options.outfile);
   if (!fs.existsSync(outDir)) {
     fs.mkdirSync(outDir, { recursive: true });
@@ -97,9 +104,14 @@ const copyTaskOptions: CopyTaskParameters = {
   copyToResourcePacks: [`./resource_packs/${projectName}`],
 };
 
-const mcaddonTaskOptions: ZipTaskParameters = {
+const mcaddonTaskOptionsStandard: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}.mcaddon`,
+  outputFile: `./dist/packages/${projectName}_Standard_Local-BDS-Realms.mcaddon`,
+};
+
+const mcaddonTaskOptionsBdsAdmin: ZipTaskParameters = {
+  ...copyTaskOptions,
+  outputFile: `./dist/packages/${projectName}_BDS_ServerAdmin-ServerNet_Only.mcaddon`,
 };
 
 const behaviorPackDir = path.join(__dirname, "behavior_packs", projectName);
@@ -140,8 +152,8 @@ function setBdsServerDeployEnv() {
 task("lint", coreLint(["scripts/**/*.ts"], argv().fix));
 
 // Build（主包用自定义 esbuild，以便应用 external runtime-id-map 插件）
-task("bundle", () => runMainBundle(bundleTaskOptions));
-task("bundle:bds", () => runMainBundle(bundleTaskOptionsBds));
+task("bundle:standard", () => runMainBundle(bundleTaskOptionsStandard));
+task("bundle:bds-admin", () => runMainBundle(bundleTaskOptionsBdsAdmin));
 task("typescript", tscTask());
 task("useManifestStandard", () => {
   useStandardManifest();
@@ -189,8 +201,9 @@ export const runtimeIdMap = new Map(Object.entries(runtimeMap));
   fs.writeFileSync(path.join(outDir, "runtime-id-map.js"), wrapperJs, "utf-8");
 });
 
-task("build", series("useManifestStandard", "typescript", "bundle", "bundle:runtime-id-map"));
-task("build:bds", series("useManifestBds", "typescript", "bundle:bds", "bundle:runtime-id-map"));
+task("build:standard", series("useManifestStandard", "typescript", "bundle:standard", "bundle:runtime-id-map"));
+task("build:bds-admin", series("useManifestBds", "typescript", "bundle:bds-admin", "bundle:runtime-id-map"));
+task("build", series("build:standard"));
 
 // Clean
 task("clean-local", cleanTask(DEFAULT_CLEAN_DIRECTORIES));
@@ -212,30 +225,27 @@ task(
   "local-deploy",
   watchTask(
     ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
-    series("setDefaultDeployEnv", "clean-local", "build", "package")
+    series("setDefaultDeployEnv", "clean-local", "build:standard", "package")
   )
 );
 task(
-  "local-deploy:bds",
+  "local-deploy:bds-admin",
   watchTask(
     ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
-    series("setBdsServerDeployEnv", "clean-local", "build:bds", "package")
+    series("setBdsServerDeployEnv", "clean-local", "build:bds-admin", "package")
   )
 );
+task("local-deploy:bds", series("local-deploy:bds-admin"));
 
 // Mcaddon
-task("createMcaddonFile", mcaddonTask(mcaddonTaskOptions));
-task("mcaddon", series("clean-local", "build", "createMcaddonFile"));
+task("createMcaddonFile:standard", mcaddonTask(mcaddonTaskOptionsStandard));
+task("createMcaddonFile:bds-admin", mcaddonTask(mcaddonTaskOptionsBdsAdmin));
+task("package:standard", series("build:standard", "createMcaddonFile:standard"));
+task("package:bds-admin", series("build:bds-admin", "createMcaddonFile:bds-admin"));
+task("mcaddon:standard", series("clean-local", "package:standard"));
+task("mcaddon:bds-admin", series("clean-local", "package:bds-admin"));
+task("mcaddon", series("mcaddon:standard"));
+task("mcaddon:bds", series("mcaddon:bds-admin"));
 
-// BDS 版 mcaddon（manifest 含 server-net，供需要 server-net 功能的 BDS 用户使用）
-task(
-  "createMcaddonFileBds",
-  mcaddonTask({
-    ...copyTaskOptions,
-    outputFile: `./dist/packages/${projectName}_BDS.mcaddon`,
-  })
-);
-task("mcaddon:bds", series("clean-local", "build:bds", "createMcaddonFileBds"));
-
-// 同时产出标准版 + BDS 版两个 mcaddon（发布时运行一次即可）
-task("mcaddon:all", series("mcaddon", "build:bds", "createMcaddonFileBds", "useManifestStandard"));
+// 同时产出普通兼容版 + BDS 增强版两个 mcaddon（发布时运行一次即可）
+task("mcaddon:all", series("clean-local", "package:standard", "package:bds-admin", "useManifestStandard"));

@@ -164,16 +164,22 @@ export function openSystemSettingForm(player: Player): void {
     {
       text: "§w黑名单管理",
       icon: "textures/icons/mod_shield",
-      action: () => {
+      action: async () => {
+        if (typeof __SERVER_ADMIN_BUILD__ !== "undefined" && __SERVER_ADMIN_BUILD__) {
+          const { openBlacklistManageForm } = await import("../blacklist");
+          openBlacklistManageForm(player);
+          return;
+        }
+
         openDialogForm(
           player,
           {
             title: "黑名单管理不可用",
             desc:
-              color.yellow("当前附加包为移除 @minecraft/server-admin 模块的版本。\n\n") +
+              color.yellow("当前附加包为普通兼容版（不含 @minecraft/server-admin 与 @minecraft/server-net）。\n\n") +
               color.gray("因此本版本无法提供黑名单管理、进服前黑名单校验等相关功能。\n") +
-              color.white("移除了该模块的版本附加包才可以在 Realms 领域服中正常生效。\n\n") +
-              color.white("如需使用黑名单这类能力，请改用包含对应模块支持的专用版本。"),
+              color.white("但也正因为移除了这些模块，本版本才可用于本地存档、BDS 与 Realms 领域服。\n\n") +
+              color.white("如需使用黑名单这类能力，请改用仅适用于 BDS 服务器的增强版附加包。"),
           },
           () => openSystemSettingForm(player)
         );
@@ -564,6 +570,9 @@ export function openModuleToggleForm(player: Player): void {
     { key: "enableDigOreOneClick", name: "一键挖矿" },
     { key: "digOreChainObsidian", name: "一键挖矿：连锁黑曜石（含哭泣黑曜石）" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
+    ...(typeof __SERVER_ADMIN_BUILD__ !== "undefined" && __SERVER_ADMIN_BUILD__
+      ? ([{ key: "blacklistEnabled", name: "黑名单系统（仅 BDS 增强版可用）" }] as const)
+      : []),
     { key: "behaviorLogEnabled", name: "玩家行为日志" },
     {
       key: "antiDupeEnabled",
