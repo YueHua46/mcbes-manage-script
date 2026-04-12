@@ -79,10 +79,17 @@ export function initPlayerTimer(player: Player): void {
 
   if (!isEnabled) return;
 
-  if (isAdmin(player) || player.hasTag('vip') || memberManager.isMember(player.name)) {
-    if (memberManager.isMember(player.name) && !player.hasTag('vip')) {
-      player.addTag('vip');
-    }
+  const isMember = memberManager.isMember(player.name);
+
+  // 以数据库中的会员记录为准，同步修正玩家身上残留/缺失的 vip 标签。
+  if (isMember && !player.hasTag('vip')) {
+    player.addTag('vip');
+  }
+  if (!isMember && player.hasTag('vip')) {
+    player.removeTag('vip');
+  }
+
+  if (isAdmin(player) || isMember) {
     return;
   }
 
@@ -133,10 +140,6 @@ world.afterEvents.playerSpawn.subscribe((event) => {
   const { player } = event;
   const isJoin = player.getDynamicProperty('join');
   if (isJoin) return;
-
-  if (memberManager.isMember(player.name) && !player.hasTag('vip')) {
-    player.addTag('vip');
-  }
 
   initPlayerTimer(player);
 });
