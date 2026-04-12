@@ -44,7 +44,7 @@ const externalRuntimeIdMapPlugin: esbuild.Plugin = {
 /** 标准版构建：不包含 @minecraft/server-net 相关代码，供单人/Realms/本地部署使用 */
 const bundleTaskOptions = {
   entryPoint: path.join(__dirname, "./scripts/main.ts"),
-  external: ["@minecraft/server", "@minecraft/server-ui", "@minecraft/server-admin", "@minecraft/server-net"],
+  external: ["@minecraft/server", "@minecraft/server-ui", "@minecraft/server-net"],
   outfile: path.resolve(__dirname, "./dist/scripts/main.js"),
   minifyWhitespace: false,
   sourcemap: true,
@@ -227,7 +227,7 @@ task(
 task("createMcaddonFile", mcaddonTask(mcaddonTaskOptions));
 task("mcaddon", series("clean-local", "build", "createMcaddonFile"));
 
-// BDS 版 mcaddon（manifest 含 server-net，供需要黑名单等功能的 BDS 用户使用）
+// BDS 版 mcaddon（manifest 含 server-net，供需要 server-net 功能的 BDS 用户使用）
 task(
   "createMcaddonFileBds",
   mcaddonTask({

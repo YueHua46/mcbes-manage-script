@@ -33,7 +33,6 @@
     "@mcbe-mods/utils": "^0.1.1",
     "@minecraft/math": "^1.5.2",
     "@minecraft/server": "2.8.0-beta.1.26.20-preview.20",
-    "@minecraft/server-admin": "1.0.0-beta.1.26.20-preview.20",
     "@minecraft/server-net": "1.0.0-beta.1.26.20-preview.20",
     "@minecraft/server-ui": "2.1.0-beta.1.26.20-preview.20",
     "@minecraft/vanilla-data": "1.26.20-preview.20",

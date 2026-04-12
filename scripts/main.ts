@@ -18,7 +18,7 @@ import "./features/one-click/dig-ore"; // 一键挖矿
 import "./features/one-click/tree"; // 一键砍树
 import "./features/player/services/name-display"; // 玩家名称显示
 import "./features/command/services/command"; // 自定义命令系统
-import "./features/blacklist/services/blacklist"; // 黑名单系统（仅 BDS 可用）
+import "./features/blacklist/services/blacklist"; // 黑名单系统
 import "./features/guild"; // 公会系统
 
 // ==================== 事件系统导入 ====================

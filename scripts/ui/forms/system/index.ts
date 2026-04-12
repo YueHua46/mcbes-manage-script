@@ -554,7 +554,6 @@ export function openModuleToggleForm(player: Player): void {
     { key: "enableDigOreOneClick", name: "一键挖矿" },
     { key: "digOreChainObsidian", name: "一键挖矿：连锁黑曜石（含哭泣黑曜石）" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
-    { key: "blacklistEnabled", name: "黑名单系统（仅 BDS 可用，需安装 BDS 版附加包）" },
     { key: "behaviorLogEnabled", name: "玩家行为日志" },
     {
       key: "antiDupeEnabled",
@@ -576,12 +575,6 @@ export function openModuleToggleForm(player: Player): void {
     const { formValues } = data;
     if (!formValues) return;
 
-    // 检测 blacklistEnabled 是否由 false 变为 true，若是则先弹前置说明
-    const blacklistIndex = modules.findIndex((m) => m.key === "blacklistEnabled");
-    const wasBlacklistEnabled = setting.getState("blacklistEnabled") as boolean;
-    const willBlacklistEnabled = formValues[blacklistIndex] as boolean;
-    const blacklistJustEnabled = !wasBlacklistEnabled && willBlacklistEnabled;
-
     const applySettings = () => {
       modules.forEach((module, index) => {
         setting.setState(module.key as any, formValues[index] as boolean);
@@ -596,47 +589,7 @@ export function openModuleToggleForm(player: Player): void {
       );
     };
 
-    if (blacklistJustEnabled) {
-      // 弹出 BDS 前置说明弹窗，用户确认后再保存
-      openDialogForm(
-        player,
-        {
-          title: "⚠ 黑名单系统使用须知",
-          desc:
-            color.yellow("黑名单系统仅限 BDS 服务器使用\n") +
-            color.gray("在个人存档中开启此功能无任何效果。\n\n") +
-            color.white("启用前请确认：\n") +
-            color.aqua("1. ") +
-            color.white("单独安装「BDS 版」附加包\n") +
-            color.gray("   （文件名含 _BDS，非标准版，详见群文件或网盘，否则无法使用！！！）\n\n") +
-            color.aqua("2. ") +
-            color.white(
-              "当你安装了带有_BDS后缀的杜绝熊孩附加包后，请在你的面板服\n服务器文件管理\n在当前服务器目录下的 config/default/permissions.json 文件中，\n"
-            ) +
-            color.white("   的 allowed_modules 中新增一行数据：\n") +
-            color.green("   · @minecraft/server-net\n\n") +
-            color.white("   并确保最后数据张下面这样：\n") +
-            color.gray(
-              "{\n" +
-                '  "allowed_modules": [\n' +
-                '    "@minecraft/server-gametest",\n' +
-                '    "@minecraft/server",\n' +
-                '    "@minecraft/server-ui",\n' +
-                '    "@minecraft/server-admin",\n' +
-                '    "@minecraft/server-editor", // ← 这里要加个英文逗号结尾，否则会报错！\n' +
-                '    "@minecraft/server-net" // ← 必须加入此行，否则无法使用黑名单功能！\n' +
-                "  ]\n" +
-                "}"
-            ) +
-            "\n" +
-            color.red("未满足以上条件则黑名单功能不会生效！！！\n") +
-            color.white("如果你不知道如何操作，请加q群后询问群主或其他人！避免乱操作导致无法启动服务器！"),
-        },
-        applySettings
-      );
-    } else {
-      applySettings();
-    }
+    applySettings();
   });
 }
 

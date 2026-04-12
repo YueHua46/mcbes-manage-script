@@ -155,7 +155,7 @@ export const defaultSetting = {
   serverName: "服务器", // 服务器名称
   welcomeMessage:
     "§a欢迎使用杜绝熊孩服务器插件~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限", // 进服欢迎消息
-  blacklistEnabled: false, // 黑名单系统（仅 BDS 可用，默认关闭）
+  blacklistEnabled: false, // 兼容旧存档保留键，当前不再用于进服前拦截
   behaviorLogEnabled: true, // 玩家行为日志
   behaviorLogMaxEntries: "20000", // 行为日志最大保留条数
   behaviorLogLocationIntervalSec: "60", // 玩家坐标采样间隔（秒）
