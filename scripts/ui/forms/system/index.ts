@@ -164,9 +164,19 @@ export function openSystemSettingForm(player: Player): void {
     {
       text: "§w黑名单管理",
       icon: "textures/icons/mod_shield",
-      action: async () => {
-        const { openBlacklistManageForm } = await import("../blacklist");
-        openBlacklistManageForm(player);
+      action: () => {
+        openDialogForm(
+          player,
+          {
+            title: "黑名单管理不可用",
+            desc:
+              color.yellow("当前附加包为移除 @minecraft/server-admin 模块的版本。\n\n") +
+              color.gray("因此本版本无法提供黑名单管理、进服前黑名单校验等相关功能。\n") +
+              color.white("移除了该模块的版本附加包才可以在 Realms 领域服中正常生效。\n\n") +
+              color.white("如需使用黑名单这类能力，请改用包含对应模块支持的专用版本。"),
+          },
+          () => openSystemSettingForm(player)
+        );
       },
     },
     {
