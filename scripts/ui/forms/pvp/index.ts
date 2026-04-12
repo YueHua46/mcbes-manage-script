@@ -16,9 +16,28 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
   const data = pvpManager.getPlayerData(player.name);
   const config = pvpManager.getConfig();
 
-  // 检查PVP功能是否启用
-  if (!config.enabled) {
-    player.sendMessage(color.red("PVP功能未启用！"));
+  if (config.mode === "vanilla") {
+    const form = new ActionFormData();
+    form.title("§wPVP系统");
+    form.body(
+      "当前服务器处于§e原版模式§f。\n\n" +
+        "玩家之间是否可以互相伤害，完全由原版世界/存档的“玩家互相伤害”设置决定。\n" +
+        "本插件不会接管个人PVP开关、战斗状态、PVP统计或金币夺取。"
+    );
+    form.button("§w返回", "textures/icons/back");
+    form.show(player).then(() => openServerMenuForm(player));
+    return;
+  }
+
+  if (config.mode === "off") {
+    const form = new ActionFormData();
+    form.title("§wPVP系统");
+    form.body(
+      "当前服务器处于§c禁止模式§f。\n\n" +
+        "插件已强制禁止玩家之间互相伤害，且不受原版世界PVP设置影响。"
+    );
+    form.button("§w返回", "textures/icons/back");
+    form.show(player).then(() => openServerMenuForm(player));
     return;
   }
 
@@ -29,7 +48,7 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
   const combatStatus = data.inCombat ? "§c战斗中" : "§a安全";
 
   form.body(
-    `当前PVP状态：${status}\n战斗状态：${combatStatus}\n\n§e击杀数：§f${data.kills}\n§e死亡数：§f${data.deaths}\n§e当前连杀：§f${data.killStreak}\n§e最佳连杀：§f${data.bestKillStreak}\n§e总夺取金币：§f${data.totalSeized}\n§e总被夺取金币：§f${data.totalLost}`
+    `当前模式：§a${pvpManager.getModeDisplay(config.mode)}\n当前PVP状态：${status}\n战斗状态：${combatStatus}\n\n§e击杀数：§f${data.kills}\n§e死亡数：§f${data.deaths}\n§e当前连杀：§f${data.killStreak}\n§e最佳连杀：§f${data.bestKillStreak}\n§e总夺取金币：§f${data.totalSeized}\n§e总被夺取金币：§f${data.totalLost}`
   );
 
   form.button(data.pvpEnabled ? "§c关闭PVP" : "§a开启PVP", "textures/icons/sword");
