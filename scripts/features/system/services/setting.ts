@@ -149,8 +149,8 @@ export const defaultSetting = {
   monsterKillGoldReward: true,
   allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
   pvp: true, // PVP系统菜单显示开关
-  pvpMode: "off", // PVP模式：vanilla=原版，plugin=插件，off=禁止
-  pvpEnabled: false, // PVP功能全局开关（默认关闭）
+  pvpMode: "vanilla", // PVP模式：vanilla=原版，plugin=插件，off=禁止
+  pvpEnabled: false, // 旧版兼容开关：true=插件模式，false=原版模式
   pvpSeizeAmount: "100", // 固定夺取金额
   pvpMinProtection: "100", // 最低金币保护
   pvpToggleCooldown: "30", // 切换冷却时间（秒）

@@ -563,6 +563,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "land", name: "领地功能模块" },
     { key: "wayPoint", name: "坐标点功能模块" },
     { key: "economy", name: "经济系统" },
+    { key: "pvp", name: "PVP系统（关闭后插件不接管PVP，按原版世界设置处理）" },
     { key: "stats", name: "数据统计（仅此项控制入口，子榜无单独开关）" },
     { key: "guild", name: "公会系统" },
     { key: "other", name: "其他功能模块" },

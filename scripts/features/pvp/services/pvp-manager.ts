@@ -36,13 +36,18 @@ class PvpManager {
   }
 
   getMode(): PvpMode {
+    // 服务器菜单里的 PVP 系统总开关关闭时，插件完全放手，交回原版世界设置处理。
+    if (setting.getState("pvp") !== true) {
+      return "vanilla";
+    }
+
     const rawMode = setting.getState("pvpMode");
     if (rawMode === "vanilla" || rawMode === "plugin" || rawMode === "off") {
       return rawMode;
     }
 
     // 兼容旧存档：历史上仅有 pvpEnabled 布尔开关
-    return setting.getState("pvpEnabled") === true ? "plugin" : "off";
+    return setting.getState("pvpEnabled") === true ? "plugin" : "vanilla";
   }
 
   getModeDisplay(mode: PvpMode): string {
@@ -79,7 +84,7 @@ class PvpManager {
       setting.setState("pvpEnabled", config.mode === "plugin");
     }
     if (config.enabled !== undefined) {
-      const nextMode = config.enabled ? "plugin" : "off";
+      const nextMode = config.enabled ? "plugin" : "vanilla";
       setting.setState("pvpMode", nextMode);
       setting.setState("pvpEnabled", config.enabled);
     }
