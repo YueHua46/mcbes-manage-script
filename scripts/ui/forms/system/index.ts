@@ -20,6 +20,7 @@ import { openBehaviorLogForm } from "../behavior-log";
 import { openOfflineDurationQueryMenu } from "./offline-duration-query";
 import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
+import { openLiveServerPanel } from "./live-server-panel";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
@@ -110,6 +111,11 @@ export function openSystemSettingForm(player: Player): void {
   form.title("§w服务器设置");
 
   const buttons = [
+    {
+      text: "§w服务器实时面板",
+      icon: "textures/icons/info",
+      action: () => void openLiveServerPanel(player, () => openSystemSettingForm(player)),
+    },
     {
       text: "§w通用系统设置",
       icon: "textures/icons/gear",
