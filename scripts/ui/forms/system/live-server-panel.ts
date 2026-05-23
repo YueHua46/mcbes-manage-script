@@ -10,6 +10,14 @@ function boolState(value: unknown): string {
   return value === true ? color.green("开") : color.red("关");
 }
 
+function stat(label: string, value: string | number, labelColor: (text: string) => string = color.aqua): string {
+  return `${labelColor(label)} ${color.white(String(value))}`;
+}
+
+function switchStat(label: string, value: unknown): string {
+  return `${color.yellow(label)} ${boolState(value)}`;
+}
+
 function countDimensionEntities(type?: string): number {
   const dimensions = ["overworld", "nether", "the_end"];
   let total = 0;
@@ -28,20 +36,19 @@ function countDimensionEntities(type?: string): number {
 function buildSnapshot(): string {
   const onlinePlayers = world.getAllPlayers();
   const totalEntities = countDimensionEntities();
+  const tps = serverInfo.TPS || 0;
+  const mobs = serverInfo.organismLength || 0;
+  const items = serverInfo.itemsLength || 0;
 
   return [
-    `${color.gold("TPS")} ${color.white(String(serverInfo.TPS || 0))}`,
-    `${color.aqua("在线玩家")} ${color.white(String(onlinePlayers.length))}`,
-    `${color.aqua("生物/非掉落物")} ${color.white(String(serverInfo.organismLength || 0))}`,
-    `${color.aqua("掉落物")} ${color.white(String(serverInfo.itemsLength || 0))}`,
-    `${color.gray("实体总数")} ${color.white(String(totalEntities))}`,
+    `${stat("TPS", tps, color.gold)}  ${color.darkGray("|")}  ${stat("在线", onlinePlayers.length)}`,
+    `${stat("实体", totalEntities)}  ${color.darkGray("(")}生物 ${color.white(String(mobs))}${color.darkGray(" / ")}掉落 ${color.white(String(items))}${color.darkGray(")")}`,
     "",
-    `${color.yellow("经济系统")} ${boolState(setting.getState("economy"))}`,
-    `${color.yellow("领地系统")} ${boolState(setting.getState("land"))}`,
-    `${color.yellow("行为日志")} ${boolState(setting.getState("behaviorLogEnabled"))}`,
-    `${color.yellow("防刷物品")} ${boolState(setting.getState("antiDupeEnabled"))}`,
-    `${color.yellow("公会系统")} ${boolState(setting.getState("guild"))}`,
-    `${color.yellow("PVP 菜单")} ${boolState(setting.getState("pvp"))}`,
+    `${switchStat("经济", setting.getState("economy"))}  ${switchStat("领地", setting.getState("land"))}`,
+    `${switchStat("日志", setting.getState("behaviorLogEnabled"))}  ${switchStat("防刷", setting.getState("antiDupeEnabled"))}`,
+    `${switchStat("公会", setting.getState("guild"))}  ${switchStat("PVP", setting.getState("pvp"))}`,
+    "",
+    `${color.gray(`更新 tick ${system.currentTick}`)}`,
   ].join("\n");
 }
 
@@ -88,18 +95,13 @@ export async function openLiveServerPanel(player: Player, returnForm?: () => voi
   }
 
   const snapshot = Observable.create(buildSnapshot());
-  const lastRefresh = Observable.create(`最后刷新 tick: ${system.currentTick}`);
   const form = CustomForm.create(player, "服务器实时面板");
 
   form
-    .closeButton()
-    .header("运行状态")
     .label(snapshot)
-    .label(lastRefresh)
     .divider()
-    .button("立即刷新", () => {
+    .button("刷新", () => {
       snapshot.setData(buildSnapshot());
-      lastRefresh.setData(`最后刷新 tick: ${system.currentTick}`);
     })
     .button("返回", () => {
       safeClose(form);
@@ -110,7 +112,6 @@ export async function openLiveServerPanel(player: Player, returnForm?: () => voi
     try {
       if (!form.isShowing()) return;
       snapshot.setData(buildSnapshot());
-      lastRefresh.setData(`最后刷新 tick: ${system.currentTick}`);
     } catch {
       system.clearRun(refreshRun);
     }
