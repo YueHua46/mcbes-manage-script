@@ -84,6 +84,96 @@ function directionToRotation(direction: { x: number; y: number; z: number }): { 
   return { x: pitch, y: yaw };
 }
 
+function normalizeVector(vector: { x: number; y: number; z: number }): { x: number; y: number; z: number } | undefined {
+  const length = Math.sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+  if (!Number.isFinite(length) || length < 0.0001) return undefined;
+  return {
+    x: vector.x / length,
+    y: vector.y / length,
+    z: vector.z / length,
+  };
+}
+
+function directionBetween(
+  from: { x: number; y: number; z: number },
+  to: { x: number; y: number; z: number }
+): { x: number; y: number; z: number } | undefined {
+  return normalizeVector({
+    x: to.x - from.x,
+    y: to.y - from.y,
+    z: to.z - from.z,
+  });
+}
+
+function getEntityHeadLocation(entity: Entity): { x: number; y: number; z: number } {
+  try {
+    const headLocation = entity.getHeadLocation();
+    return {
+      x: headLocation.x,
+      y: headLocation.y,
+      z: headLocation.z,
+    };
+  } catch {
+    const location = entity.location;
+    return {
+      x: location.x,
+      y: location.y,
+      z: location.z,
+    };
+  }
+}
+
+function isLikelyLookTarget(viewer: Player, observed: Entity, candidate: Entity): boolean {
+  if (candidate.id === observed.id || candidate.id === viewer.id) return false;
+  if (candidate.typeId === "minecraft:item" || candidate.typeId === "minecraft:xp_orb") return false;
+  return true;
+}
+
+function findLikelyMobLookTarget(
+  viewer: Player,
+  observed: Entity,
+  headLocation: { x: number; y: number; z: number }
+): Entity | undefined {
+  try {
+    const candidates = observed.dimension
+      .getEntities({
+        location: headLocation,
+        maxDistance: 12,
+      })
+      .filter((candidate) => isLikelyLookTarget(viewer, observed, candidate));
+
+    candidates.sort((a, b) => {
+      const aPlayerBonus = a.typeId === "minecraft:player" ? -100 : 0;
+      const bPlayerBonus = b.typeId === "minecraft:player" ? -100 : 0;
+      const aScore = distanceSq(headLocation, getEntityHeadLocation(a)) + aPlayerBonus;
+      const bScore = distanceSq(headLocation, getEntityHeadLocation(b)) + bPlayerBonus;
+      return aScore - bScore;
+    });
+
+    return candidates[0];
+  } catch {
+    return undefined;
+  }
+}
+
+function getCameraViewDirection(
+  observed: Entity,
+  viewer: Player,
+  headLocation: { x: number; y: number; z: number },
+  perspectiveType: PerspectiveType
+): { x: number; y: number; z: number } {
+  if (!(observed instanceof Player) && perspectiveType === "first_person") {
+    const lookTarget = findLikelyMobLookTarget(viewer, observed, headLocation);
+    if (lookTarget) {
+      const targetHead = getEntityHeadLocation(lookTarget);
+      const inferredDirection = directionBetween(headLocation, targetHead);
+      if (inferredDirection) return inferredDirection;
+    }
+  }
+
+  return observed.getViewDirection();
+}
+
 function distanceSq(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
@@ -235,13 +325,17 @@ class CameraService {
 
           // 获取实体的视角方向，将观察者位置稍微往前移动
           // 默认使用第一人称视角位置
+          const defaultPerspective: PerspectiveType = "first_person";
           let observerLocation: { x: number; y: number; z: number };
           let targetLookLocation: { x: number; y: number; z: number };
 
           try {
-            // 使用 getViewDirection() 直接获取实体眼睛看向的方向向量
-            // 这样可以准确同步实体的视角方向
-            const targetViewDirection = targetEntity.getViewDirection();
+            const targetViewDirection = getCameraViewDirection(
+              targetEntity,
+              player,
+              targetHeadLocation,
+              defaultPerspective
+            );
 
             // 使用配置的第一人称偏移量
             observerLocation = {
@@ -268,15 +362,18 @@ class CameraService {
           }
 
           // 使用 Camera API 实现平滑过渡
-          // 默认使用第一人称视角
-          const defaultPerspective: PerspectiveType = "first_person";
           let cameraApiAvailable = false;
           const cameraCache: CameraFrameCache = {};
 
           try {
             // 尝试使用第一人称视角预设
             const presets = PERSPECTIVE_PRESETS[defaultPerspective];
-            const targetViewDirection = targetEntity.getViewDirection();
+            const targetViewDirection = getCameraViewDirection(
+              targetEntity,
+              player,
+              targetHeadLocation,
+              defaultPerspective
+            );
             const targetRotation = directionToRotation(targetViewDirection);
             cameraApiAvailable = applyCameraFrame(player, cameraCache, presets, observerLocation, targetRotation, 0.05, true);
           } catch (cameraError) {
@@ -352,9 +449,12 @@ class CameraService {
               }
 
               try {
-                // 使用 getViewDirection() 直接获取实体眼睛看向的方向向量
-                // 这样可以准确同步实体的视角方向
-                const targetViewDirection = targetEntity.getViewDirection();
+                const targetViewDirection = getCameraViewDirection(
+                  targetEntity,
+                  player,
+                  currentTargetHeadLocation,
+                  state.perspectiveType
+                );
 
                 // 根据视角类型使用对应的偏移配置
                 const offset = state.perspectiveType === "first_person" ? FIRST_PERSON_OFFSET : THIRD_PERSON_OFFSET;
@@ -399,7 +499,12 @@ class CameraService {
               // 每 tick 都平滑更新，确保最流畅的跟随效果
               try {
                 const presets = PERSPECTIVE_PRESETS[state.perspectiveType];
-                const targetViewDirection = targetEntity.getViewDirection();
+                const targetViewDirection = getCameraViewDirection(
+                  targetEntity,
+                  player,
+                  currentTargetHeadLocation,
+                  state.perspectiveType
+                );
                 const targetRotation = directionToRotation(targetViewDirection);
                 const cameraSet = applyCameraFrame(
                   player,
@@ -476,7 +581,12 @@ class CameraService {
               // 更新旋转缓存（使用视角方向推导的角度，保持与相机同步）
               if (state) {
                 try {
-                  const targetViewDirection = targetEntity.getViewDirection();
+                  const targetViewDirection = getCameraViewDirection(
+                    targetEntity,
+                    player,
+                    currentTargetHeadLocation,
+                    state.perspectiveType
+                  );
                   const targetRotation = directionToRotation(targetViewDirection);
                   state.lastTargetRotation = {
                     x: targetRotation.x,
@@ -726,9 +836,12 @@ class CameraService {
       let targetLookLocation: { x: number; y: number; z: number };
 
       try {
-        // 使用 getViewDirection() 直接获取实体眼睛看向的方向向量
-        // 这样可以准确同步实体的视角方向
-        const targetViewDirection = state.targetEntity.getViewDirection();
+        const targetViewDirection = getCameraViewDirection(
+          state.targetEntity,
+          player,
+          currentTargetHeadLocation,
+          perspectiveType
+        );
 
         // 根据视角类型使用对应的偏移配置
         const offset = perspectiveType === "first_person" ? FIRST_PERSON_OFFSET : THIRD_PERSON_OFFSET;
@@ -756,7 +869,12 @@ class CameraService {
 
       // 应用新的相机预设
       const presets = PERSPECTIVE_PRESETS[perspectiveType];
-      const targetViewDirection = state.targetEntity.getViewDirection();
+      const targetViewDirection = getCameraViewDirection(
+        state.targetEntity,
+        player,
+        currentTargetHeadLocation,
+        perspectiveType
+      );
       const targetRotation = directionToRotation(targetViewDirection);
       const cameraSet = applyCameraFrame(
         player,
