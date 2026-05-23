@@ -22,6 +22,7 @@ import { useNotify } from "../../shared/hooks";
 import { MinecraftBlockTypes } from "@minecraft/vanilla-data";
 import type { ILand, Vector3 } from "../../core/types";
 import { guildFacade } from "../../features/guild/services/guild-facade";
+import behaviorLog from "../../features/behavior-log/services/behavior-log";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
@@ -59,6 +60,90 @@ const LandLog = new Map<string, ILand>();
 // 用于拦截 fireTick（damagingEntity 为空）造成的持续燃烧伤害
 const landEntityFireSourceMap = new Map<string, number>();
 const LAND_FIRE_SOURCE_TIMEOUT_MS = 15_000;
+const landBreakWarningState = new Map<string, string>();
+const recentLandBreakAttemptLog = new Map<string, number>();
+const LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS = 1500;
+
+function isLandBreakAllowed(player: Player, land: ILand): boolean {
+  if (land.owner === player.name) return true;
+  if (isAdmin(player)) return true;
+  if (land.public_auth.break) return true;
+  if (landManager.isPlayerTrustedOnLand(land, player.name)) return true;
+  return false;
+}
+
+function landBreakAttemptKey(player: Player, block: { location: Vector3; dimension: { id: string } }): string {
+  const { location } = block;
+  return `${player.id}:${block.dimension.id}:${Math.floor(location.x)},${Math.floor(location.y)},${Math.floor(location.z)}`;
+}
+
+function logLandBreakAttemptOnce(player: Player, block: any, land: ILand): void {
+  const key = landBreakAttemptKey(player, block);
+  const now = Date.now();
+  const prev = recentLandBreakAttemptLog.get(key) ?? 0;
+  if (now - prev < LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS) return;
+
+  recentLandBreakAttemptLog.set(key, now);
+  behaviorLog.logLandBreakAttempt(
+    player,
+    block.typeId,
+    block.location,
+    block.dimension.id,
+    { name: land.name, owner: land.owner }
+  );
+}
+
+function warnDeniedLandBreaking(player: Player, block: any, land: ILand): void {
+  const key = landBreakAttemptKey(player, block);
+  landBreakWarningState.set(player.id, key);
+  logLandBreakAttemptOnce(player, block, land);
+
+  system.run(() => {
+    const p = world.getPlayers().find((pl) => pl.id === player.id);
+    if (!p) return;
+    useNotify(
+      "actionbar",
+      p,
+      color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地方块`)
+    );
+  });
+}
+
+function registerLandBreakingPreviewEvents(): void {
+  const beforeEvents = world.beforeEvents as any;
+  const afterEvents = world.afterEvents as any;
+  const playerStartBreakingBlock = beforeEvents.playerStartBreakingBlock ?? afterEvents.playerStartBreakingBlock;
+  const playerCancelBreakingBlock = beforeEvents.playerCancelBreakingBlock ?? afterEvents.playerCancelBreakingBlock;
+
+  if (typeof playerStartBreakingBlock?.subscribe === "function") {
+    playerStartBreakingBlock.subscribe((event: any) => {
+      const { player, block } = event;
+      if (!player || !block) return;
+
+      const { isInside, insideLand } = landManager.testLand(block.location, block.dimension.id);
+      if (!isInside || !insideLand || isLandBreakAllowed(player, insideLand)) return;
+
+      warnDeniedLandBreaking(player, block, insideLand);
+    });
+  }
+
+  if (typeof playerCancelBreakingBlock?.subscribe === "function") {
+    playerCancelBreakingBlock.subscribe((event: any) => {
+      const { player, block } = event;
+      if (!player) return;
+
+      const activeKey = landBreakWarningState.get(player.id);
+      if (!activeKey) return;
+      if (block && activeKey !== landBreakAttemptKey(player, block)) return;
+
+      landBreakWarningState.delete(player.id);
+      system.run(() => {
+        const p = world.getPlayers().find((pl) => pl.id === player.id);
+        p?.onScreenDisplay.setActionBar("");
+      });
+    });
+  }
+}
 
 /**
  * 判断实体是否为敌对生物（会主动攻击玩家的生物）
@@ -125,6 +210,8 @@ function clearLandWaterByGetBlocks(landData: ILand): void {
  * 注册领地事件处理器
  */
 export function registerLandEvents(): void {
+  registerLandBreakingPreviewEvents();
+
   // ==================== 定时任务 ====================
 
   /**
@@ -472,12 +559,10 @@ export function registerLandEvents(): void {
     const { isInside, insideLand } = landManager.testLand(block.location, block.dimension.id);
 
     if (!isInside || !insideLand) return;
-    if (insideLand.owner === player.name) return;
-    if (isAdmin(player)) return;
-    if (insideLand.public_auth.break) return;
-    if (landManager.isPlayerTrustedOnLand(insideLand, player.name)) return;
+    if (isLandBreakAllowed(player, insideLand)) return;
 
     event.cancel = true;
+    warnDeniedLandBreaking(player, block, insideLand);
     // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
     const playerName = player.name;
     const ownerName = insideLand.owner;

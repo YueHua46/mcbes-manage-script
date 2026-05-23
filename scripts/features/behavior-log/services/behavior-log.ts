@@ -28,6 +28,7 @@ export type BehaviorEventType =
   | "summonWither"
   | "enterLand"
   | "leaveLand"
+  | "landBreakAttempt"
   | "attackMobInLand"
   | "openChest"
   | "openBarrel"
@@ -134,6 +135,7 @@ export const behaviorEventDefinitions: Array<{
   { type: "summonWither", label: "召唤凋零", settingKey: "logSummonWither", group: "dangerous", isDangerous: true },
   { type: "enterLand", label: "进入领地", settingKey: "logEnterLand", group: "land" },
   { type: "leaveLand", label: "离开领地", settingKey: "logLeaveLand", group: "land" },
+  { type: "landBreakAttempt", label: "领地破坏尝试", settingKey: "logLandBreakAttempt", group: "land" },
   { type: "attackMobInLand", label: "领地内攻击生物", settingKey: "logAttackMobInLand", group: "land" },
   { type: "openChest", label: "打开箱子", settingKey: "logOpenChest", group: "container" },
   { type: "openBarrel", label: "打开木桶", settingKey: "logOpenBarrel", group: "container" },
@@ -834,6 +836,24 @@ class BehaviorLogService {
       ...toLocation(location),
       l: formatLandLabel(land),
       v: shortTypeId(targetTypeId),
+    });
+  }
+
+  logLandBreakAttempt(
+    player: Player,
+    targetTypeId: string,
+    location: Vector3,
+    dimensionId: string,
+    land: LandLogInfo
+  ): void {
+    this.append({
+      p: player.name,
+      e: "landBreakAttempt",
+      d: toDimensionCode(dimensionId),
+      ...toLocation(location),
+      l: formatLandLabel(land),
+      v: shortTypeId(targetTypeId),
+      m: "startBreaking",
     });
   }
 
