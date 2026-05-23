@@ -235,7 +235,7 @@ system.beforeEvents.startup.subscribe((init) => {
   const cameraCommand: CustomCommand = {
     name: "yuehua:camera",
     description: "实体视角观察系统 - 用法: /yuehua:camera <操作> [参数]",
-    permissionLevel: CommandPermissionLevel.Admin,
+    permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
       { type: CustomCommandParamType.Enum, name: "操作", enumName: "yuehua:CameraOperationType" },
       { type: CustomCommandParamType.EntitySelector, name: "目标实体选择器或视角类型" },
@@ -1712,6 +1712,10 @@ function handleCameraCommand(
 ): CustomCommandResult {
   const player = origin.sourceEntity as Player;
   if (!player) return { status: CustomCommandStatus.Failure };
+  if (!isAdmin(player)) {
+    player.sendMessage(color.red("只有管理员可以使用实体视角观察指令"));
+    return { status: CustomCommandStatus.Failure, message: "权限不足" };
+  }
 
   system.run(async () => {
     try {
