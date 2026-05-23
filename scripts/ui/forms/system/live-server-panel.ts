@@ -42,7 +42,7 @@ function buildSnapshot(): string {
 
   return [
     `${stat("TPS", tps, color.gold)}  ${color.darkGray("|")}  ${stat("在线", onlinePlayers.length)}`,
-    `${stat("实体", totalEntities)}  ${color.darkGray("(")}生物 ${color.white(String(mobs))}${color.darkGray(" / ")}掉落 ${color.white(String(items))}${color.darkGray(")")}`,
+    `${stat("实体", totalEntities)}  ${color.gray("(")}${color.green("生物")} ${color.white(String(mobs))}${color.gray(" / ")}${color.gold("掉落")} ${color.white(String(items))}${color.gray(")")}`,
     "",
     `${switchStat("经济", setting.getState("economy"))}  ${switchStat("领地", setting.getState("land"))}`,
     `${switchStat("日志", setting.getState("behaviorLogEnabled"))}  ${switchStat("防刷", setting.getState("antiDupeEnabled"))}`,
