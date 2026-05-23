@@ -19,6 +19,7 @@ import { openNotifyForms } from "../notify";
 import { openBehaviorLogForm } from "../behavior-log";
 import { openOfflineDurationQueryMenu } from "./offline-duration-query";
 import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
+import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
@@ -142,6 +143,11 @@ export function openSystemSettingForm(player: Player): void {
       action: async () => {
         openNotifyForms(player);
       },
+    },
+    {
+      text: "§w进服弹窗公告",
+      icon: "textures/icons/info",
+      action: () => openJoinPopupAnnouncementManageForm(player),
     },
     {
       text: "§w试玩模式管理",

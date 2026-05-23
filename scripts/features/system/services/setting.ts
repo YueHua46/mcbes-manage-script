@@ -50,6 +50,7 @@ export type IModules =
   | "pvpCombatTagDuration"
   | "serverName"
   | "welcomeMessage"
+  | "joinPopupAnnouncements"
   | "blacklistEnabled"
   | "behaviorLogEnabled"
   | "behaviorLogMaxEntries"
@@ -157,6 +158,7 @@ export const defaultSetting = {
   serverName: "服务器", // 服务器名称
   welcomeMessage:
     "§a欢迎使用杜绝熊孩服务器插件~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限", // 进服欢迎消息
+  joinPopupAnnouncements: "[]", // 进服弹窗公告，JSON 字符串数组，最多 5 条
   blacklistEnabled: false, // 黑名单进服前拦截开关（仅 BDS 增强版有效）
   behaviorLogEnabled: true, // 玩家行为日志
   behaviorLogMaxEntries: "20000", // 行为日志最大保留条数

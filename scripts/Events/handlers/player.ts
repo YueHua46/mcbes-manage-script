@@ -7,6 +7,7 @@ import { eventRegistry } from "../registry";
 import { welcomeFoxGlyphs, welcomeGlyphs } from "../../assets/glyph-map";
 import playerSettings from "../../features/player/services/player-settings";
 import setting from "../../features/system/services/setting";
+import { showJoinPopupAnnouncements } from "../../features/system/services/join-popup-announcement";
 
 /**
  * 注册玩家事件处理器
@@ -42,6 +43,10 @@ export function registerPlayerEvents(): void {
       if (welcomeMessage) {
         player.sendMessage(welcomeMessage);
       }
+
+      system.runTimeout(() => {
+        showJoinPopupAnnouncements(player);
+      }, 40);
     });
   });
 
