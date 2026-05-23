@@ -758,7 +758,7 @@ async function openAddGuildWaypointForm(player: Player): Promise<void> {
   const form = new ModalFormData();
   form.title("§w添加公会坐标");
   form.label("§7添加公会坐标时，若管理员配置了费用，将从§6公会金库§7扣除（不按私人坐标规则扣个人）。");
-  form.textField("§w坐标点名称", "与私人坐标相同：当前位置 + 名称；不占私人名额，不可含冒号");
+  form.textField("§w坐标点名称", "请输入坐标点名称");
   form.submitButton("确定");
 
   const res = await form.show(player);
@@ -766,7 +766,8 @@ async function openAddGuildWaypointForm(player: Player): Promise<void> {
     await openGuildCoordMenu(player);
     return;
   }
-  const raw = (res.formValues as unknown[] | undefined)?.[0];
+  const values = res.formValues as unknown[] | undefined;
+  const raw = values?.[values.length - 1];
   const name = raw !== undefined && raw !== null ? String(raw) : "";
   const err = guildService.addGuildWaypoint(player, name);
   openDialogForm(
