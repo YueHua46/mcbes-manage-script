@@ -37,6 +37,75 @@ function getLandInfoAt(location: Vector3, dimensionId: string): LandLogInfo | un
   return toLandInfo(landManager.testLand(location, dimensionId));
 }
 
+function asPlayer(entity: any): Player | undefined {
+  return entity?.typeId === "minecraft:player" ? (entity as Player) : undefined;
+}
+
+function registerNativeContainerAccessEvents(): {
+  hasBlockContainerAccessEvents: boolean;
+  hasEntityContainerAccessEvents: boolean;
+} {
+  const afterEvents = world.afterEvents as any;
+  const blockContainerOpened = afterEvents.blockContainerOpened;
+  const blockContainerClosed = afterEvents.blockContainerClosed;
+  const entityContainerOpened = afterEvents.entityContainerOpened;
+  const entityContainerClosed = afterEvents.entityContainerClosed;
+
+  const hasBlockContainerAccessEvents =
+    typeof blockContainerOpened?.subscribe === "function" && typeof blockContainerClosed?.subscribe === "function";
+  const hasEntityContainerAccessEvents =
+    typeof entityContainerOpened?.subscribe === "function" && typeof entityContainerClosed?.subscribe === "function";
+
+  if (hasBlockContainerAccessEvents) {
+    blockContainerOpened.subscribe((event: any) => {
+      const player = asPlayer(event.openSource?.entity);
+      const block = event.block;
+      const eventType = behaviorLog.getContainerEventType(block?.typeId, "open");
+      if (!player || !block || !eventType) return;
+
+      const landInfo = getLandInfoAt(block.location, block.dimension.id);
+      behaviorLog.logOpenContainer(player, eventType, block.typeId, block.location, block.dimension.id, landInfo);
+    });
+
+    blockContainerClosed.subscribe((event: any) => {
+      const player = asPlayer(event.closeSource?.entity);
+      const block = event.block;
+      const eventType = behaviorLog.getContainerEventType(block?.typeId, "close");
+      if (!player || !block || !eventType) return;
+
+      const landInfo = getLandInfoAt(block.location, block.dimension.id);
+      behaviorLog.logOpenContainer(player, eventType, block.typeId, block.location, block.dimension.id, landInfo);
+    });
+  }
+
+  if (hasEntityContainerAccessEvents) {
+    entityContainerOpened.subscribe((event: any) => {
+      const player = asPlayer(event.openSource?.entity);
+      const target = event.entity;
+      const eventType = behaviorLog.getContainerEventType(target?.typeId, "open");
+      if (!player || !target || !eventType) return;
+
+      const landInfo = getLandInfoAt(target.location, target.dimension.id);
+      behaviorLog.logOpenContainer(player, eventType, target.typeId, target.location, target.dimension.id, landInfo);
+    });
+
+    entityContainerClosed.subscribe((event: any) => {
+      const player = asPlayer(event.closeSource?.entity);
+      const target = event.entity;
+      const eventType = behaviorLog.getContainerEventType(target?.typeId, "close");
+      if (!player || !target || !eventType) return;
+
+      const landInfo = getLandInfoAt(target.location, target.dimension.id);
+      behaviorLog.logOpenContainer(player, eventType, target.typeId, target.location, target.dimension.id, landInfo);
+    });
+  }
+
+  return {
+    hasBlockContainerAccessEvents,
+    hasEntityContainerAccessEvents,
+  };
+}
+
 function isWaterBlock(typeId: string): boolean {
   return typeId === "minecraft:water" || typeId === "minecraft:flowing_water";
 }
@@ -135,6 +204,8 @@ function findWitherSummoner(location: Vector3, dimensionId: string): string | un
 }
 
 export function registerBehaviorLogEvents(): void {
+  const { hasBlockContainerAccessEvents, hasEntityContainerAccessEvents } = registerNativeContainerAccessEvents();
+
   world.afterEvents.playerSpawn.subscribe((event) => {
     const { player } = event;
     const joined = player.getDynamicProperty(JOIN_FLAG) as boolean | undefined;
@@ -224,11 +295,13 @@ export function registerBehaviorLogEvents(): void {
       behaviorLog.logIgniteFire(player, block.location, block.dimension.id, blockTypeId);
     }
 
-    const containerEventType = behaviorLog.getContainerEventType(blockTypeId);
-    if (!containerEventType) return;
+    if (!hasBlockContainerAccessEvents) {
+      const containerEventType = behaviorLog.getContainerEventType(blockTypeId, "open");
+      if (!containerEventType) return;
 
-    const landInfo = getLandInfoAt(block.location, block.dimension.id);
-    behaviorLog.logOpenContainer(player, containerEventType, blockTypeId, block.location, block.dimension.id, landInfo);
+      const landInfo = getLandInfoAt(block.location, block.dimension.id);
+      behaviorLog.logOpenContainer(player, containerEventType, blockTypeId, block.location, block.dimension.id, landInfo);
+    }
   });
 
   world.beforeEvents.playerInteractWithEntity.subscribe((event: any) => {
@@ -236,7 +309,9 @@ export function registerBehaviorLogEvents(): void {
     const { player, target } = event;
     if (!target) return;
 
-    const containerEventType = behaviorLog.getContainerEventType(target.typeId);
+    if (hasEntityContainerAccessEvents) return;
+
+    const containerEventType = behaviorLog.getContainerEventType(target.typeId, "open");
     if (!containerEventType) return;
 
     const landInfo = getLandInfoAt(target.location, target.dimension.id);

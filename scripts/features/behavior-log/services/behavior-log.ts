@@ -33,6 +33,10 @@ export type BehaviorEventType =
   | "openBarrel"
   | "openShulker"
   | "openOtherContainer"
+  | "closeChest"
+  | "closeBarrel"
+  | "closeShulker"
+  | "closeOtherContainer"
   | "locationSnapshot"
   | "guildCreate"
   | "guildJoin"
@@ -137,6 +141,15 @@ export const behaviorEventDefinitions: Array<{
   {
     type: "openOtherContainer",
     label: "打开其他容器",
+    settingKey: "logOpenOtherContainers",
+    group: "container",
+  },
+  { type: "closeChest", label: "关闭箱子", settingKey: "logOpenChest", group: "container" },
+  { type: "closeBarrel", label: "关闭木桶", settingKey: "logOpenBarrel", group: "container" },
+  { type: "closeShulker", label: "关闭潜影盒", settingKey: "logOpenShulker", group: "container" },
+  {
+    type: "closeOtherContainer",
+    label: "关闭其他容器",
     settingKey: "logOpenOtherContainers",
     group: "container",
   },
@@ -647,7 +660,7 @@ class BehaviorLogService {
     return Math.min(Math.floor(rawValue), 3600);
   }
 
-  getContainerEventType(typeId: string | undefined): BehaviorEventType | undefined {
+  getContainerEventType(typeId: string | undefined, access: "open" | "close" = "open"): BehaviorEventType | undefined {
     if (!typeId || typeId === "minecraft:ender_chest") return undefined;
 
     if (
@@ -656,15 +669,15 @@ class BehaviorLogService {
       typeId === "minecraft:chest_boat" ||
       typeId === "minecraft:chest_minecart"
     ) {
-      return "openChest";
+      return access === "open" ? "openChest" : "closeChest";
     }
 
     if (typeId === "minecraft:barrel") {
-      return "openBarrel";
+      return access === "open" ? "openBarrel" : "closeBarrel";
     }
 
     if (typeId.includes("shulker_box")) {
-      return "openShulker";
+      return access === "open" ? "openShulker" : "closeShulker";
     }
 
     if (
@@ -676,7 +689,7 @@ class BehaviorLogService {
       typeId === "minecraft:dropper" ||
       typeId === "minecraft:dispenser"
     ) {
-      return "openOtherContainer";
+      return access === "open" ? "openOtherContainer" : "closeOtherContainer";
     }
 
     return undefined;
