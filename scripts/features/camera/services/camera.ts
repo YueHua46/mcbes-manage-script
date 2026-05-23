@@ -43,6 +43,13 @@ interface ObserverState {
   lastTargetRotation?: { x: number; y: number }; // 缓存上次目标旋转
   cameraApiEnabled: boolean; // Camera API 是否启用（必须启用才能观察）
   perspectiveType: PerspectiveType; // 当前视角类型
+  cameraCache: CameraFrameCache;
+}
+
+interface CameraFrameCache {
+  lastPreset?: string;
+  lastLocation?: { x: number; y: number; z: number };
+  lastRotation?: { x: number; y: number };
 }
 
 /**
@@ -75,6 +82,66 @@ function directionToRotation(direction: { x: number; y: number; z: number }): { 
   const pitch = (pitchRad * 180) / Math.PI;
 
   return { x: pitch, y: yaw };
+}
+
+function distanceSq(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  const dz = a.z - b.z;
+  return dx * dx + dy * dy + dz * dz;
+}
+
+function rotationDelta(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+function shouldRefreshCameraFrame(
+  cache: CameraFrameCache,
+  preset: string,
+  location: { x: number; y: number; z: number },
+  rotation: { x: number; y: number },
+  force: boolean
+): boolean {
+  if (force) return true;
+  if (cache.lastPreset !== preset || !cache.lastLocation || !cache.lastRotation) return true;
+  // 站桩观察时不再每 tick 重发 setCamera；移动或转头仍会及时刷新。
+  return distanceSq(cache.lastLocation, location) > 0.0004 || rotationDelta(cache.lastRotation, rotation) > 0.35;
+}
+
+function applyCameraFrame(
+  player: Player,
+  cache: CameraFrameCache,
+  presets: string[],
+  location: { x: number; y: number; z: number },
+  rotation: { x: number; y: number },
+  easeTime: number,
+  force: boolean = false
+): boolean {
+  for (const preset of presets) {
+    try {
+      if (!shouldRefreshCameraFrame(cache, preset, location, rotation, force)) {
+        return true;
+      }
+
+      player.camera.setCamera(preset, {
+        location,
+        rotation,
+        easeOptions: {
+          easeTime,
+          easeType: EasingType.Linear,
+        },
+      });
+
+      cache.lastPreset = preset;
+      cache.lastLocation = { ...location };
+      cache.lastRotation = { ...rotation };
+      return true;
+    } catch {
+      continue;
+    }
+  }
+
+  return false;
 }
 
 class CameraService {
@@ -204,32 +271,14 @@ class CameraService {
           // 默认使用第一人称视角
           const defaultPerspective: PerspectiveType = "first_person";
           let cameraApiAvailable = false;
+          const cameraCache: CameraFrameCache = {};
 
           try {
             // 尝试使用第一人称视角预设
             const presets = PERSPECTIVE_PRESETS[defaultPerspective];
-            for (const preset of presets) {
-              try {
-                // 使用 getViewDirection() 获取实体眼睛看向的方向，然后转换为旋转角度
-                // 这样可以准确同步实体的头部视角旋转（包括左右和上下），而不是身体旋转
-                const targetViewDirection = targetEntity.getViewDirection();
-                const targetRotation = directionToRotation(targetViewDirection);
-                player.camera.setCamera(preset, {
-                  location: observerLocation,
-                  rotation: targetRotation, // 使用从视角方向推导的旋转角度
-                  easeOptions: {
-                    easeTime: 0.05, // 极短的过渡时间（约1 tick），实现平滑但及时的更新
-                    easeType: EasingType.Linear, // 使用线性过渡，最自然
-                  },
-                });
-                cameraApiAvailable = true;
-                break; // 成功设置，退出循环
-              } catch (presetError) {
-                // 当前预设不可用，尝试下一个
-                console.error(`相机预设 ${preset} 不可用:`, presetError);
-                continue;
-              }
-            }
+            const targetViewDirection = targetEntity.getViewDirection();
+            const targetRotation = directionToRotation(targetViewDirection);
+            cameraApiAvailable = applyCameraFrame(player, cameraCache, presets, observerLocation, targetRotation, 0.05, true);
           } catch (cameraError) {
             // Camera API 完全不可用
             console.error("Camera API 初始化失败:", cameraError);
@@ -350,29 +399,16 @@ class CameraService {
               // 每 tick 都平滑更新，确保最流畅的跟随效果
               try {
                 const presets = PERSPECTIVE_PRESETS[state.perspectiveType];
-                let cameraSet = false;
-
-                for (const preset of presets) {
-                  try {
-                    // 使用 getViewDirection() 获取实体眼睛看向的方向，然后转换为旋转角度
-                    // 这样可以准确同步实体的头部视角旋转（包括左右和上下），而不是身体旋转
-                    const targetViewDirection = targetEntity.getViewDirection();
-                    const targetRotation = directionToRotation(targetViewDirection);
-                    player.camera.setCamera(preset, {
-                      location: observerLocation,
-                      rotation: targetRotation, // 使用从视角方向推导的旋转角度
-                      easeOptions: {
-                        easeTime: 0.05, // 极短的过渡时间（约等于 1 tick），实现平滑但及时的更新
-                        easeType: EasingType.Linear, // 使用线性过渡，最自然
-                      },
-                    });
-                    cameraSet = true;
-                    break; // 成功设置，退出循环
-                  } catch (presetError) {
-                    // 当前预设不可用，尝试下一个
-                    continue;
-                  }
-                }
+                const targetViewDirection = targetEntity.getViewDirection();
+                const targetRotation = directionToRotation(targetViewDirection);
+                const cameraSet = applyCameraFrame(
+                  player,
+                  state.cameraCache,
+                  presets,
+                  observerLocation,
+                  targetRotation,
+                  0.05
+                );
 
                 if (!cameraSet) {
                   // 所有预设都失败，停止观察
@@ -467,6 +503,7 @@ class CameraService {
             intervalId,
             cameraApiEnabled: cameraApiAvailable,
             perspectiveType: defaultPerspective,
+            cameraCache,
           });
 
           // 显示提示信息
@@ -719,28 +756,17 @@ class CameraService {
 
       // 应用新的相机预设
       const presets = PERSPECTIVE_PRESETS[perspectiveType];
-      let cameraSet = false;
-
-      for (const preset of presets) {
-        try {
-          // 使用 getViewDirection() 获取实体眼睛看向的方向，然后转换为旋转角度
-          // 这样可以准确同步实体的头部视角旋转（包括左右和上下），而不是身体旋转
-          const targetViewDirection = state.targetEntity.getViewDirection();
-          const targetRotation = directionToRotation(targetViewDirection);
-          player.camera.setCamera(preset, {
-            location: observerLocation,
-            rotation: targetRotation, // 使用从视角方向推导的旋转角度
-            easeOptions: {
-              easeTime: 0.1, // 稍长的过渡时间，让切换更平滑
-              easeType: EasingType.Linear,
-            },
-          });
-          cameraSet = true;
-          break;
-        } catch (presetError) {
-          continue;
-        }
-      }
+      const targetViewDirection = state.targetEntity.getViewDirection();
+      const targetRotation = directionToRotation(targetViewDirection);
+      const cameraSet = applyCameraFrame(
+        player,
+        state.cameraCache,
+        presets,
+        observerLocation,
+        targetRotation,
+        0.1,
+        true
+      );
 
       if (!cameraSet) {
         return `无法切换到 ${perspectiveType} 视角：相机预设不可用`;
