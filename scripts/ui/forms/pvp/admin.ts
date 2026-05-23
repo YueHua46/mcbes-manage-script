@@ -18,11 +18,22 @@ export function openPvpManagementForm(player: Player): void {
   }
 
   const config = pvpManager.getConfig();
+  const modeOptions = [
+    "原版模式：按世界/存档原版的玩家互相伤害设置决定",
+    "插件模式：按插件规则控制，支持个人开关、统计、夺金",
+    "禁止模式：强制禁止玩家互相伤害",
+  ];
+  const modeValues = ["vanilla", "plugin", "off"] as const;
+  const currentModeIndex = modeValues.indexOf(config.mode);
 
   const form = new ModalFormData();
   form.title("§wPVP管理");
 
-  form.toggle("启用PVP功能", { defaultValue: config.enabled });
+  form.dropdown(
+    `PVP模式\n当前：${pvpManager.getModeDisplay(config.mode)}\n${pvpManager.getModeDescription(config.mode)}`,
+    modeOptions,
+    { defaultValueIndex: currentModeIndex === -1 ? 2 : currentModeIndex }
+  );
   form.slider("夺取金额", 0, 1000, { valueStep: 10, defaultValue: config.seizeAmount });
   form.slider("最低金币保护", 0, 500, { valueStep: 10, defaultValue: config.minGoldProtection });
   form.slider("切换冷却时间(秒)", 0, 120, { valueStep: 5, defaultValue: config.toggleCooldown });
@@ -31,17 +42,18 @@ export function openPvpManagementForm(player: Player): void {
   form.show(player).then((response) => {
     if (response.canceled) return;
 
-    const [enabled, seizeAmount, minProtection, cooldown, combatTag] = response.formValues as [
-      boolean,
+    const [modeIndex, seizeAmount, minProtection, cooldown, combatTag] = response.formValues as [
+      number,
       number,
       number,
       number,
       number
     ];
+    const mode = modeValues[modeIndex] ?? "off";
 
     // 更新配置
     pvpManager.updateConfig({
-      enabled,
+      mode,
       seizeAmount,
       minGoldProtection: minProtection,
       toggleCooldown: cooldown,
@@ -49,7 +61,8 @@ export function openPvpManagementForm(player: Player): void {
     });
 
     player.sendMessage(color.green("PVP配置已更新！"));
-    player.sendMessage(color.yellow(`启用PVP功能：${enabled ? "是" : "否"}`));
+    player.sendMessage(color.yellow(`当前模式：${pvpManager.getModeDisplay(mode)}`));
+    player.sendMessage(color.gray(pvpManager.getModeDescription(mode)));
     player.sendMessage(color.yellow(`夺取金额：${seizeAmount}`));
     player.sendMessage(color.yellow(`最低金币保护：${minProtection}`));
     player.sendMessage(color.yellow(`切换冷却时间：${cooldown}秒`));

@@ -4,6 +4,8 @@
 
 import type { Vector3 } from "../../../core/types";
 
+export type PvpMode = "vanilla" | "plugin" | "off";
+
 /**
  * 玩家PVP状态数据
  */
@@ -26,6 +28,7 @@ export interface IPvpPlayerData {
  * PVP全局配置
  */
 export interface IPvpConfig {
+  mode: PvpMode;                  // PVP模式
   enabled: boolean;                 // 全局PVP开关
   seizeAmount: number;              // 固定夺取金额
   minGoldProtection: number;        // 最低金币保护

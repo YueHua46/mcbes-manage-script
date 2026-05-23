@@ -27,16 +27,17 @@ function checkPvpWithReason(
   attacker: Player,
   victim: Player
 ): { canPvp: boolean; reason: string } {
-  // 1. 检查全局开关
   const config = pvpManager.getConfig();
-  if (!config.enabled) {
+  if (config.mode === "off") {
     return {
       canPvp: false,
-      reason: color.red("⚠ PVP功能未启用！请联系管理员开启"),
+      reason: color.red("⚠ 当前服务器已强制禁止玩家互相伤害！"),
     };
   }
+  if (config.mode === "vanilla") {
+    return { canPvp: true, reason: "" };
+  }
 
-  // 2. 管理员可以攻击任何人（直接返回成功）
   if (isAdmin(attacker)) {
     return { canPvp: true, reason: "" };
   }
@@ -88,6 +89,7 @@ export function registerPvpEvents(): void {
   world.beforeEvents.entityHurt.subscribe((event) => {
     const { hurtEntity, damageSource } = event;
     const cause = damageSource.cause;
+    const config = pvpManager.getConfig();
 
     // 只处理玩家受伤
     if (hurtEntity.typeId !== "minecraft:player") return;
@@ -98,6 +100,8 @@ export function registerPvpEvents(): void {
 
     // ===== 情形二：fire/fireTick 且无 damagingEntity（fireTick 兜底）=====
     if (isFireDamage && !damageSource.damagingEntity) {
+      if (config.mode !== "plugin") return;
+
       const fireTs = pvpFireSourceMap.get(victim.id);
       if (fireTs && Date.now() - fireTs < PVP_FIRE_SOURCE_TIMEOUT_MS) {
         event.cancel = true;
@@ -120,6 +124,10 @@ export function registerPvpEvents(): void {
     // 防止自己攻击自己
     if (attacker.id === victim.id) {
       event.cancel = true;
+      return;
+    }
+
+    if (config.mode === "vanilla") {
       return;
     }
 
@@ -196,7 +204,7 @@ export function registerPvpEvents(): void {
 
     // 检查PVP是否启用（额外验证）
     const config = pvpManager.getConfig();
-    if (!config.enabled) return;
+    if (config.mode !== "plugin") return;
 
     // 获取击杀者的数据（用于获取连杀数）
     const killerData = pvpManager.getPlayerData(killer.name);
@@ -218,6 +226,9 @@ export function registerPvpEvents(): void {
    */
   system.runInterval(() => {
     const config = pvpManager.getConfig();
+    if (config.mode !== "plugin") {
+      return;
+    }
     const combatDuration = config.combatTagDuration;
 
     // 检查所有在线玩家的战斗状态

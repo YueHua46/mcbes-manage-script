@@ -5,7 +5,7 @@
 
 import { Player, system } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
-import type { IPvpPlayerData, IPvpConfig } from "../models/pvp-data";
+import type { IPvpPlayerData, IPvpConfig, PvpMode } from "../models/pvp-data";
 import { isAdmin } from "../../../shared/utils/common";
 import landManager from "../../land/services/land-manager";
 import setting from "../../system/services/setting";
@@ -24,8 +24,10 @@ class PvpManager {
    * 获取PVP全局配置
    */
   getConfig(): IPvpConfig {
+    const mode = this.getMode();
     return {
-      enabled: setting.getState("pvpEnabled") as boolean,
+      mode,
+      enabled: mode === "plugin",
       seizeAmount: Number(setting.getState("pvpSeizeAmount")) || 100,
       minGoldProtection: Number(setting.getState("pvpMinProtection")) || 100,
       toggleCooldown: Number(setting.getState("pvpToggleCooldown")) || 30,
@@ -33,11 +35,52 @@ class PvpManager {
     };
   }
 
+  getMode(): PvpMode {
+    const rawMode = setting.getState("pvpMode");
+    if (rawMode === "vanilla" || rawMode === "plugin" || rawMode === "off") {
+      return rawMode;
+    }
+
+    // 兼容旧存档：历史上仅有 pvpEnabled 布尔开关
+    return setting.getState("pvpEnabled") === true ? "plugin" : "off";
+  }
+
+  getModeDisplay(mode: PvpMode): string {
+    switch (mode) {
+      case "vanilla":
+        return "原版模式";
+      case "plugin":
+        return "插件模式";
+      case "off":
+      default:
+        return "禁止模式";
+    }
+  }
+
+  getModeDescription(mode: PvpMode): string {
+    switch (mode) {
+      case "vanilla":
+        return "是否可互相伤害完全由原版世界/存档的玩家互相伤害设置决定，插件不接管PVP规则。";
+      case "plugin":
+        return "由插件接管PVP，按全局开关、双方个人PVP状态、领地限制、战斗状态和夺金规则执行。";
+      case "off":
+      default:
+        return "插件会强制禁止玩家之间互相伤害，不受原版世界PVP设置影响。";
+    }
+  }
+
   /**
    * 更新PVP配置
    */
   updateConfig(config: Partial<IPvpConfig>): void {
+    if (config.mode !== undefined) {
+      setting.setState("pvpMode", config.mode);
+      // 兼容旧逻辑：仅插件模式视为旧版的“启用PVP功能”
+      setting.setState("pvpEnabled", config.mode === "plugin");
+    }
     if (config.enabled !== undefined) {
+      const nextMode = config.enabled ? "plugin" : "off";
+      setting.setState("pvpMode", nextMode);
       setting.setState("pvpEnabled", config.enabled);
     }
     if (config.seizeAmount !== undefined) {
@@ -104,7 +147,7 @@ class PvpManager {
   canPvp(attacker: Player, victim: Player): boolean {
     // 1. 检查全局开关
     const config = this.getConfig();
-    if (!config.enabled) {
+    if (config.mode !== "plugin") {
       return false;
     }
 
@@ -135,6 +178,12 @@ class PvpManager {
   togglePvp(player: Player): { success: boolean; message: string } {
     const data = this.getPlayerData(player.name);
     const config = this.getConfig();
+    if (config.mode !== "plugin") {
+      return {
+        success: false,
+        message: `当前为${this.getModeDisplay(config.mode)}，个人PVP开关不生效`,
+      };
+    }
     const now = Date.now();
 
     // 检查冷却
