@@ -54,6 +54,10 @@ export interface LandSnapshotPlan {
   chunks: Array<Omit<LandSnapshotChunk, "structureId">>;
 }
 
+export interface CreateLandSnapshotOptions {
+  includeEntities?: boolean;
+}
+
 function floorVector(v: Vector3): Vector3 {
   return {
     x: Math.floor(v.x),
@@ -122,6 +126,26 @@ function notify(playerName: string, message: string, actionBar = true): void {
 
 function formatVector(v: Vector3): string {
   return `${v.x}, ${v.y}, ${v.z}`;
+}
+
+function clearNonPlayerEntities(dimension: Dimension, from: Vector3, size: Vector3): number {
+  let removed = 0;
+  const entities = dimension.getEntities({
+    location: from,
+    volume: size,
+  });
+
+  for (const entity of entities) {
+    if (entity.typeId === "minecraft:player") continue;
+    try {
+      entity.remove();
+      removed++;
+    } catch {
+      /* ignore invalid or non-removable entities */
+    }
+  }
+
+  return removed;
 }
 
 class LandSnapshotService {
@@ -212,7 +236,7 @@ class LandSnapshotService {
     return this.db?.get(snapshotId);
   }
 
-  createSnapshot(player: Player, landName: string): string | true {
+  createSnapshot(player: Player, landName: string, options: CreateLandSnapshotOptions = {}): string | true {
     const land = landManager.getLand(landName);
     if (typeof land === "string") return land;
     if (!this.db) return "快照数据库尚未初始化，请稍后再试";
@@ -226,7 +250,7 @@ class LandSnapshotService {
 
     const snapshotId = makeSnapshotId();
     this.activeLandJobs.add(land.name);
-    system.runJob(this.createSnapshotJob(player.name, land, snapshotId, plan));
+    system.runJob(this.createSnapshotJob(player.name, land, snapshotId, plan, options.includeEntities === true));
     return true;
   }
 
@@ -265,7 +289,8 @@ class LandSnapshotService {
     playerName: string,
     land: ILand,
     snapshotId: string,
-    plan: LandSnapshotPlan
+    plan: LandSnapshotPlan,
+    includeEntities: boolean
   ): Generator<void, void, void> {
     const savedChunks: LandSnapshotChunk[] = [];
     try {
@@ -278,7 +303,7 @@ class LandSnapshotService {
         );
         world.structureManager.createFromWorld(structureId, dimension, chunk.from, chunk.to, {
           includeBlocks: true,
-          includeEntities: false,
+          includeEntities,
           saveMode: StructureSaveMode.World,
         });
         savedChunks.push({
@@ -306,7 +331,7 @@ class LandSnapshotService {
         },
         chunkCount: savedChunks.length,
         chunks: savedChunks,
-        includeEntities: false,
+        includeEntities,
       };
       this.db?.set(snapshotId, record);
       this.db?.save();
@@ -335,9 +360,13 @@ class LandSnapshotService {
           playerName,
           color.yellow(`正在恢复领地快照 ${chunk.index + 1}/${snapshot.chunkCount}：${snapshot.landName}`)
         );
+        if (snapshot.includeEntities) {
+          clearNonPlayerEntities(dimension, chunk.from, chunk.size);
+          yield;
+        }
         world.structureManager.place(chunk.structureId, dimension, chunk.from, {
           includeBlocks: true,
-          includeEntities: false,
+          includeEntities: snapshot.includeEntities === true,
         });
         yield;
       }
