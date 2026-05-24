@@ -58,6 +58,7 @@ export type IModules =
   | "behaviorLogEnabled"
   | "behaviorLogMaxEntries"
   | "behaviorLogLocationIntervalSec"
+  | "behaviorLogInspectorRadius"
   | "logPlayerJoin"
   | "logPlayerLeave"
   | "logPlayerChat"
@@ -172,6 +173,7 @@ export const defaultSetting = {
   behaviorLogEnabled: true, // 玩家行为日志
   behaviorLogMaxEntries: "20000", // 行为日志最大保留条数
   behaviorLogLocationIntervalSec: "60", // 玩家坐标采样间隔（秒）
+  behaviorLogInspectorRadius: "3", // 行为日志查询器点击方块时的查询半径
   logPlayerJoin: true,
   logPlayerLeave: true,
   logPlayerChat: true,
