@@ -14,6 +14,7 @@ import "./features/one-click/tree";
 import "./features/player/services/name-display";
 import "./features/command/services/command";
 import "./features/blacklist/services/blacklist";
+import "./features/behavior-log/services/log-inspector-tool";
 import "./features/guild";
 import { eventRegistry } from "./events/registry";
 import "./events/handlers/index.bds";

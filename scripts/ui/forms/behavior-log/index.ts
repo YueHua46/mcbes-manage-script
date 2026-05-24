@@ -1,4 +1,4 @@
-import { Player, system } from "@minecraft/server";
+import { Player, Vector3, system } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import setting from "../../../features/system/services/setting";
 import behaviorLog, {
@@ -16,6 +16,7 @@ import { openItemWatchSubscribeForm } from "../item-watch";
 const ALL_PLAYERS_VALUE = "__all_players__";
 const ALL_TIME_VALUE = "all";
 const PAGE_SIZE = 30;
+const BLOCK_INSPECT_PAGE_SIZE = 12;
 const FORM_OPEN_MAX_ATTEMPTS = 8;
 const FORM_OPEN_RETRY_TICKS = 2;
 const FORM_NAVIGATION_DELAY_TICKS = 2;
@@ -117,6 +118,73 @@ function runAfterDelay(nextAction: () => void): void {
   }, FORM_NAVIGATION_DELAY_TICKS);
 }
 
+export async function openBehaviorLogBlockInspectorForm(
+  player: Player,
+  dimensionId: string,
+  location: Vector3,
+  page = 0,
+  radius = 3
+): Promise<void> {
+  if (!isAdmin(player)) {
+    player.sendMessage("§c只有管理员可以使用行为日志查询器。");
+    return;
+  }
+
+  const queryResult = behaviorLog.queryNearLocation({
+    dimensionId,
+    location,
+    radius,
+    limit: BLOCK_INSPECT_PAGE_SIZE,
+    offset: page * BLOCK_INSPECT_PAGE_SIZE,
+  });
+  const totalPages = Math.max(1, Math.ceil(queryResult.total / BLOCK_INSPECT_PAGE_SIZE));
+  const safePage = Math.min(Math.max(0, page), totalPages - 1);
+  const finalResult =
+    safePage === page
+      ? queryResult
+      : behaviorLog.queryNearLocation({
+          dimensionId,
+          location,
+          radius,
+          limit: BLOCK_INSPECT_PAGE_SIZE,
+          offset: safePage * BLOCK_INSPECT_PAGE_SIZE,
+        });
+
+  const summary = `筛选条件：方块 ${Math.floor(location.x)}, ${Math.floor(location.y)}, ${Math.floor(location.z)} 附近 ${radius} 格 / 全部时间 / 全部事件`;
+  const body = formatBehaviorMessageBoxPage(summary, finalResult.items, safePage, totalPages, finalResult.total);
+  const form = new ActionFormData().title("方块行为记录").body(body);
+  const buttons: Array<{ text: string; action: () => void }> = [];
+
+  if (safePage > 0) {
+    buttons.push({
+      text: "上一页",
+      action: () => runAfterDelay(() => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage - 1, radius)),
+    });
+  }
+  if (safePage < totalPages - 1) {
+    buttons.push({
+      text: "下一页",
+      action: () => runAfterDelay(() => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage + 1, radius)),
+    });
+  }
+  buttons.push({
+    text: "打开完整筛选",
+    action: () => runAfterDelay(() => void openBehaviorLogQueryForm(player)),
+  });
+  buttons.push({
+    text: "关闭",
+    action: () => undefined,
+  });
+
+  for (const button of buttons) {
+    form.button(button.text);
+  }
+
+  const result = await showForm(form, player, "打开方块行为记录失败:");
+  if (result.canceled || typeof result.selection !== "number") return;
+  buttons[result.selection]?.action();
+}
+
 type TraditionalFormData = ActionFormData | ModalFormData;
 
 async function showForm(
@@ -175,6 +243,12 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
         text: "§w玩家获得物品监控\n§3自动记下当时背包里有什么",
       },
       "textures/blocks/chest_front"
+    )
+    .button(
+      {
+        text: "§w获取日志查询器\n§3拿在手上点击方块查看附近记录",
+      },
+      "textures/icons/quest_log"
     );
 
   const result = await showForm(form, player, "打开行为日志首页失败:");
@@ -194,6 +268,11 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
           runAfterDelay(() => void openBehaviorLogForm(player));
         })
     );
+    return;
+  }
+  if (result.selection === 3) {
+    player.runCommand("give @s yuehua:log_inspector");
+    player.sendMessage("§a已给予行为日志查询器。手持它点击方块可查看附近记录。");
   }
 }
 

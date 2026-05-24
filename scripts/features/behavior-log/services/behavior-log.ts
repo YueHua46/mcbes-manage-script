@@ -96,6 +96,15 @@ export interface BehaviorLogQueryResult {
   items: BehaviorLogEntry[];
 }
 
+export interface BehaviorLogLocationQuery {
+  dimensionId: string;
+  location: Vector3;
+  radius?: number;
+  limit?: number;
+  offset?: number;
+  startTime?: number;
+}
+
 export interface LandLogInfo {
   name: string;
   owner?: string;
@@ -639,6 +648,43 @@ class BehaviorLogService {
     return {
       total: mergedEntries.length,
       items: mergedEntries.slice(offset, offset + limit),
+    };
+  }
+
+  queryNearLocation(query: BehaviorLogLocationQuery): BehaviorLogQueryResult {
+    this.flush();
+    const radius = Math.max(0, Math.floor(query.radius ?? 3));
+    const limit = Math.max(1, Math.floor(query.limit ?? 10));
+    const offset = Math.max(0, Math.floor(query.offset ?? 0));
+    const dimensionCode = toDimensionCode(query.dimensionId);
+    const target = toLocation(query.location);
+    const state = this.getState();
+
+    const matchedEntries = [...state.es, ...state.ls]
+      .sort((a, b) => b.t - a.t)
+      .filter((entry) => {
+        if (typeof dimensionCode === "number" && entry.d !== dimensionCode) return false;
+        if (typeof query.startTime === "number" && entry.t < query.startTime) return false;
+        if (
+          typeof entry.x !== "number" ||
+          typeof entry.y !== "number" ||
+          typeof entry.z !== "number" ||
+          typeof target.x !== "number" ||
+          typeof target.y !== "number" ||
+          typeof target.z !== "number"
+        ) {
+          return false;
+        }
+        return (
+          Math.abs(entry.x - target.x) <= radius &&
+          Math.abs(entry.y - target.y) <= radius &&
+          Math.abs(entry.z - target.z) <= radius
+        );
+      });
+
+    return {
+      total: matchedEntries.length,
+      items: matchedEntries.slice(offset, offset + limit),
     };
   }
 

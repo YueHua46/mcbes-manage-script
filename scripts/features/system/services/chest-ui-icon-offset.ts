@@ -8,6 +8,7 @@ const FALLBACK_OFFSET_START_ID = 257;
 const DIAGNOSTIC_CACHE_TTL_MS = 30000;
 const BUILTIN_CUSTOM_ICON_MAP: Record<string, string> = {
   "yuehua:sm": "textures/items/sm",
+  "yuehua:log_inspector": "textures/icons/quest_log",
 };
 
 let cachedOffsetStartId: number | undefined;

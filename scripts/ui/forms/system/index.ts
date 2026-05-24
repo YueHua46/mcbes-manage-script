@@ -2261,7 +2261,7 @@ function openModifyItemPriceForm(player: Player): void {
 
   for (let i = 0; i < container.size; i++) {
     const item = container.getItem(i);
-    if (item && item.typeId !== "yuehua:sm") {
+    if (item && item.typeId !== "yuehua:sm" && item.typeId !== "yuehua:log_inspector") {
       hasItems = true;
       const currentPrice = itemPriceDb.getPrice(item.typeId);
 
