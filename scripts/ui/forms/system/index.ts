@@ -1153,18 +1153,34 @@ function openAdminGuildWaypointManageForm(player: Player, page: number = 1, retu
 
 // ==================== 领地系统管理菜单 ====================
 
-function openLandSnapshotChunkLimitForm(player: Player): void {
-  const current = landSnapshotService.getChunkLimit();
+function openLandSnapshotSettingsForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w领地快照切块上限");
+  form.title("§w领地快照设置");
   form.label(
     [
-      "领地快照会按结构大小限制自动切块保存与恢复。",
-      "提高上限意味着允许更大的领地快照，但每个分片都需要读写世界结构。",
-      "过大的上限会让保存/恢复任务造成明显卡顿，建议默认保持 10，仅在必要时临时提高。",
+      "管理员可开启自动保存快照。开启后系统会按间隔为所有领地排队保存自动快照。",
+      "达到每块领地的自动快照数量上限后，会自动删除最旧的自动快照；管理员手动保存的快照不会被自动覆盖。",
+      "恢复快照仍只允许管理员操作。",
+      "",
+      "切块上限越高，允许的领地越大，但保存/恢复时越容易造成卡顿。",
     ].join("\n")
   );
-  form.textField("自动切块上限", "默认 10，建议 1～30", { defaultValue: String(current) });
+  form.toggle("启用自动保存快照", {
+    defaultValue: landSnapshotService.isAutoEnabled(),
+  });
+  form.textField("自动保存间隔（分钟）", "最小 5，例如 360 表示 6 小时", {
+    defaultValue: String(landSnapshotService.getAutoIntervalMinutes()),
+  });
+  form.textField("每块领地自动快照上限", "1～50；达到上限后覆盖最旧自动快照", {
+    defaultValue: String(landSnapshotService.getAutoMaxPerLand()),
+  });
+  form.toggle("自动快照包含实体", {
+    defaultValue: landSnapshotService.getAutoIncludeEntities(),
+    tooltip: "开启后会保存画、展示框、生物、掉落物等非玩家实体；恢复时会先清理区域内非玩家实体。",
+  });
+  form.textField("结构自动切块上限", "默认 10，建议 1～30", {
+    defaultValue: String(landSnapshotService.getChunkLimit()),
+  });
   form.submitButton("保存");
 
   form.show(player).then((data) => {
@@ -1173,21 +1189,47 @@ function openLandSnapshotChunkLimitForm(player: Player): void {
       return;
     }
     const values = data.formValues ?? [];
-    const raw = values.find((value): value is string => typeof value === "string") ?? "";
-    const result = landSnapshotService.setChunkLimit(Number(raw));
-    if (typeof result === "string") {
-      openDialogForm(player, { title: "设置失败", desc: color.red(result) }, () =>
-        openLandSnapshotChunkLimitForm(player)
+    const boolValues = values.filter((value): value is boolean => typeof value === "boolean");
+    const numericStrings = values
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .filter((value) => value !== "" && Number.isFinite(Number(value)));
+    const enabled = boolValues[0] ?? false;
+    const includeEntities = boolValues[1] ?? false;
+    const intervalMinutes = Number(numericStrings[0]);
+    const maxPerLand = Number(numericStrings[1]);
+    const chunkLimit = Number(numericStrings[2]);
+
+    const autoResult = landSnapshotService.setAutoConfig({
+      enabled,
+      intervalMinutes,
+      maxPerLand,
+      includeEntities,
+    });
+    if (typeof autoResult === "string") {
+      openDialogForm(player, { title: "设置失败", desc: color.red(autoResult) }, () =>
+        openLandSnapshotSettingsForm(player)
       );
       return;
     }
+
+    const chunkResult = landSnapshotService.setChunkLimit(chunkLimit);
+    if (typeof chunkResult === "string") {
+      openDialogForm(player, { title: "设置失败", desc: color.red(chunkResult) }, () =>
+        openLandSnapshotSettingsForm(player)
+      );
+      return;
+    }
+
     openDialogForm(
       player,
       {
         title: "设置成功",
         desc:
-          color.green(`领地快照自动切块上限已更新为 ${Math.floor(Number(raw))}。\n`) +
-          color.gray("如果上限过大，大型领地保存/恢复时会造成明显卡顿。"),
+          color.green("领地快照设置已更新。\n\n") +
+          landSnapshotService.describeAutoConfig() +
+          "\n" +
+          color.gray(`结构切块上限：${landSnapshotService.getChunkLimit()}`),
       },
       () => void openLandManageForm(player)
     );
@@ -1201,7 +1243,7 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
   form.button("§w所有玩家领地管理", "textures/icons/topraklar");
   form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
   form.button("§w领地飞行设置", "textures/icons/durbun");
-  form.button("§w快照切块上限", "textures/icons/fotograf");
+  form.button("§w快照功能设置", "textures/icons/fotograf");
   form.button("§w公会领地（管理员）", "textures/icons/island");
   form.button("§w公会坐标（管理员）", "textures/icons/fast_travel");
   form.button("§w返回", "textures/icons/back");
@@ -1221,7 +1263,7 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
         openLandFlightSettingsForm(player);
         break;
       case 3:
-        openLandSnapshotChunkLimitForm(player);
+        openLandSnapshotSettingsForm(player);
         break;
       case 4: {
         const { openAdminGuildLandListForm } = await import("../land");

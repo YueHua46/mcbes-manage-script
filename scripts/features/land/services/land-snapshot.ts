@@ -19,6 +19,10 @@ const MAX_STRUCTURE_Y = 257;
 const MAX_STRUCTURE_Z = 64;
 const DEFAULT_MAX_CHUNKS = 10;
 const HARD_MAX_CHUNKS = 200;
+const AUTO_SNAPSHOT_CHECK_TICKS = 1200;
+const AUTO_SNAPSHOT_WORKER_TICKS = 100;
+const DEFAULT_AUTO_INTERVAL_MINUTES = 360;
+const DEFAULT_AUTO_MAX_PER_LAND = 3;
 
 export interface LandSnapshotChunk {
   index: number;
@@ -44,6 +48,7 @@ export interface LandSnapshotRecord {
   chunkCount: number;
   chunks: LandSnapshotChunk[];
   includeEntities: boolean;
+  source?: "manual" | "auto";
 }
 
 export interface LandSnapshotPlan {
@@ -56,6 +61,8 @@ export interface LandSnapshotPlan {
 
 export interface CreateLandSnapshotOptions {
   includeEntities?: boolean;
+  source?: "manual" | "auto";
+  createdBy?: string;
 }
 
 function floorVector(v: Vector3): Vector3 {
@@ -151,11 +158,15 @@ function clearNonPlayerEntities(dimension: Dimension, from: Vector3, size: Vecto
 class LandSnapshotService {
   private db?: Database<LandSnapshotRecord>;
   private activeLandJobs = new Set<string>();
+  private activeAutoJob = false;
+  private autoQueue: string[] = [];
+  private nextAutoRunAt = 0;
 
   constructor() {
     system.run(() => {
       this.db = new Database<LandSnapshotRecord>(DATABASE_NAME);
     });
+    this.registerAutoSnapshotScheduler();
   }
 
   getChunkLimit(): number {
@@ -170,6 +181,62 @@ class LandSnapshotService {
     if (n > HARD_MAX_CHUNKS) return `切块上限不能超过 ${HARD_MAX_CHUNKS}`;
     setting.setState("landSnapshotMaxChunks" as never, String(n));
     return true;
+  }
+
+  isAutoEnabled(): boolean {
+    return setting.getState("landSnapshotAutoEnabled" as never) === true;
+  }
+
+  getAutoIntervalMinutes(): number {
+    const raw = Number(setting.getState("landSnapshotAutoIntervalMinutes" as never));
+    if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_AUTO_INTERVAL_MINUTES;
+    return Math.max(5, Math.floor(raw));
+  }
+
+  getAutoMaxPerLand(): number {
+    const raw = Number(setting.getState("landSnapshotAutoMaxPerLand" as never));
+    if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_AUTO_MAX_PER_LAND;
+    return Math.min(Math.floor(raw), 50);
+  }
+
+  getAutoIncludeEntities(): boolean {
+    return setting.getState("landSnapshotAutoIncludeEntities" as never) === true;
+  }
+
+  setAutoConfig(config: {
+    enabled: boolean;
+    intervalMinutes: number;
+    maxPerLand: number;
+    includeEntities: boolean;
+  }): string | true {
+    const interval = Math.floor(config.intervalMinutes);
+    const maxPerLand = Math.floor(config.maxPerLand);
+    if (!Number.isFinite(interval) || interval < 5) return "自动保存间隔不能小于 5 分钟";
+    if (!Number.isFinite(maxPerLand) || maxPerLand < 1 || maxPerLand > 50) {
+      return "每块领地自动快照上限必须是 1～50";
+    }
+
+    setting.setState("landSnapshotAutoEnabled" as never, config.enabled);
+    setting.setState("landSnapshotAutoIntervalMinutes" as never, String(interval));
+    setting.setState("landSnapshotAutoMaxPerLand" as never, String(maxPerLand));
+    setting.setState("landSnapshotAutoIncludeEntities" as never, config.includeEntities);
+    this.nextAutoRunAt = Date.now() + interval * 60 * 1000;
+    if (!config.enabled) {
+      this.autoQueue = [];
+    }
+    return true;
+  }
+
+  describeAutoConfig(): string {
+    const enabled = this.isAutoEnabled();
+    const maxPerLand = this.getAutoMaxPerLand();
+    return [
+      `${color.gray("状态：")}${enabled ? color.green("已开启") : color.red("已关闭")}`,
+      `${color.gray("间隔：")}${color.yellow(`${this.getAutoIntervalMinutes()} 分钟`)}`,
+      `${color.gray("每块领地自动快照上限：")}${color.yellow(String(maxPerLand))}`,
+      `${color.gray("包含实体：")}${this.getAutoIncludeEntities() ? color.green("是") : color.gray("否")}`,
+      color.darkGray(`达到 ${maxPerLand} 个自动快照后，会自动删除最旧的自动快照。手动快照不会被自动覆盖。`),
+    ].join("\n");
   }
 
   buildPlan(land: ILand): LandSnapshotPlan {
@@ -232,6 +299,10 @@ class LandSnapshotService {
       .sort((a, b) => b.createdAt - a.createdAt);
   }
 
+  listAutoByLand(landName: string): LandSnapshotRecord[] {
+    return this.listByLand(landName).filter((snapshot) => snapshot.source === "auto");
+  }
+
   getSnapshot(snapshotId: string): LandSnapshotRecord | undefined {
     return this.db?.get(snapshotId);
   }
@@ -250,7 +321,16 @@ class LandSnapshotService {
 
     const snapshotId = makeSnapshotId();
     this.activeLandJobs.add(land.name);
-    system.runJob(this.createSnapshotJob(player.name, land, snapshotId, plan, options.includeEntities === true));
+    system.runJob(
+      this.createSnapshotJob(
+        options.createdBy ?? player.name,
+        land,
+        snapshotId,
+        plan,
+        options.includeEntities === true,
+        options.source ?? "manual"
+      )
+    );
     return true;
   }
 
@@ -273,6 +353,11 @@ class LandSnapshotService {
     if (!snapshot || !this.db) return "快照不存在或已被删除";
     if (this.activeLandJobs.has(snapshot.landName)) return "该领地已有快照任务正在执行";
 
+    this.deleteSnapshotRecord(snapshot);
+    return true;
+  }
+
+  private deleteSnapshotRecord(snapshot: LandSnapshotRecord): void {
     for (const chunk of snapshot.chunks) {
       try {
         world.structureManager.delete(chunk.structureId);
@@ -280,9 +365,82 @@ class LandSnapshotService {
         SystemLog.warn(`[LandSnapshot] 删除结构 ${chunk.structureId} 失败: ${error}`);
       }
     }
-    this.db.delete(snapshot.id);
-    this.db.save();
-    return true;
+    this.db?.delete(snapshot.id);
+    this.db?.save();
+  }
+
+  private registerAutoSnapshotScheduler(): void {
+    system.runInterval(() => {
+      this.enqueueAutoSnapshotsIfDue();
+    }, AUTO_SNAPSHOT_CHECK_TICKS);
+
+    system.runInterval(() => {
+      this.processAutoSnapshotQueue();
+    }, AUTO_SNAPSHOT_WORKER_TICKS);
+  }
+
+  private enqueueAutoSnapshotsIfDue(): void {
+    if (!this.db || !this.isAutoEnabled()) return;
+    const now = Date.now();
+    if (this.nextAutoRunAt === 0) {
+      this.nextAutoRunAt = now + this.getAutoIntervalMinutes() * 60 * 1000;
+      return;
+    }
+    if (now < this.nextAutoRunAt) return;
+
+    const queued = new Set(this.autoQueue);
+    for (const land of Object.values(landManager.getLandList())) {
+      if (!queued.has(land.name) && !this.activeLandJobs.has(land.name)) {
+        this.autoQueue.push(land.name);
+      }
+    }
+
+    this.nextAutoRunAt = now + this.getAutoIntervalMinutes() * 60 * 1000;
+    SystemLog.info(`[LandSnapshot] 已排队 ${this.autoQueue.length} 个自动快照任务`);
+  }
+
+  private processAutoSnapshotQueue(): void {
+    if (!this.db || !this.isAutoEnabled() || this.activeAutoJob) return;
+    const landName = this.autoQueue.shift();
+    if (!landName) return;
+
+    const land = landManager.getLand(landName);
+    if (typeof land === "string") return;
+    if (this.activeLandJobs.has(land.name)) {
+      this.autoQueue.push(land.name);
+      return;
+    }
+
+    const plan = this.buildPlan(land);
+    const limit = this.getChunkLimit();
+    if (plan.chunkCount > limit) {
+      SystemLog.warn(
+        `[LandSnapshot] 自动快照跳过 ${land.name}: 分片 ${plan.chunkCount} 超过上限 ${limit}`
+      );
+      return;
+    }
+
+    const snapshotId = makeSnapshotId();
+    this.activeLandJobs.add(land.name);
+    this.activeAutoJob = true;
+    system.runJob(
+      this.createSnapshotJob(
+        "自动保存",
+        land,
+        snapshotId,
+        plan,
+        this.getAutoIncludeEntities(),
+        "auto"
+      )
+    );
+  }
+
+  private trimAutoSnapshots(landName: string): void {
+    const max = this.getAutoMaxPerLand();
+    const snapshots = this.listAutoByLand(landName).sort((a, b) => b.createdAt - a.createdAt);
+    for (const snapshot of snapshots.slice(max)) {
+      this.deleteSnapshotRecord(snapshot);
+    }
   }
 
   private *createSnapshotJob(
@@ -290,7 +448,8 @@ class LandSnapshotService {
     land: ILand,
     snapshotId: string,
     plan: LandSnapshotPlan,
-    includeEntities: boolean
+    includeEntities: boolean,
+    source: "manual" | "auto"
   ): Generator<void, void, void> {
     const savedChunks: LandSnapshotChunk[] = [];
     try {
@@ -332,10 +491,16 @@ class LandSnapshotService {
         chunkCount: savedChunks.length,
         chunks: savedChunks,
         includeEntities,
+        source,
       };
       this.db?.set(snapshotId, record);
       this.db?.save();
-      notify(playerName, color.green(`领地 ${land.name} 快照保存完成，共 ${savedChunks.length} 个分片`), false);
+      if (source === "auto") {
+        this.trimAutoSnapshots(land.name);
+        SystemLog.info(`[LandSnapshot] 自动快照完成: ${land.name} (${savedChunks.length} 分片)`);
+      } else {
+        notify(playerName, color.green(`领地 ${land.name} 快照保存完成，共 ${savedChunks.length} 个分片`), false);
+      }
     } catch (error) {
       for (const chunk of savedChunks) {
         try {
@@ -345,9 +510,16 @@ class LandSnapshotService {
         }
       }
       SystemLog.error("[LandSnapshot] 保存快照失败", error);
-      notify(playerName, color.red(`领地 ${land.name} 快照保存失败：${(error as Error).message}`), false);
+      if (source === "auto") {
+        SystemLog.warn(`[LandSnapshot] 自动快照失败 ${land.name}: ${(error as Error).message}`);
+      } else {
+        notify(playerName, color.red(`领地 ${land.name} 快照保存失败：${(error as Error).message}`), false);
+      }
     } finally {
       this.activeLandJobs.delete(land.name);
+      if (source === "auto") {
+        this.activeAutoJob = false;
+      }
       yield;
     }
   }

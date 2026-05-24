@@ -26,6 +26,7 @@ function formatSnapshotLine(snapshot: LandSnapshotRecord): string {
   const size = snapshot.bounds.size;
   return [
     `${color.gray("创建：")}${color.yellow(formatDateTime(snapshot.createdAt))}`,
+    `${color.gray("来源：")}${snapshot.source === "auto" ? color.aqua("自动保存") : color.white("手动保存")}`,
     `${color.gray("分片：")}${color.aqua(String(snapshot.chunkCount))}`,
     `${color.gray("尺寸：")}${color.white(`${size.x}x${size.y}x${size.z}`)}`,
     `${color.gray("实体：")}${snapshot.includeEntities ? color.green("包含") : color.gray("不包含")}`,
@@ -212,8 +213,9 @@ export function openLandSnapshotForm(player: Player, land: ILand, back: () => vo
 
   form.button("§w保存当前快照", "textures/icons/fotograf");
   for (const snapshot of snapshots.slice(0, 12)) {
+    const sourceLabel = snapshot.source === "auto" ? "自动" : "手动";
     form.button(
-      `§w${formatDateTime(snapshot.createdAt)}\n§8${snapshot.chunkCount} 分片 · ${snapshot.createdBy}`,
+      `§w${formatDateTime(snapshot.createdAt)}\n§8${sourceLabel} · ${snapshot.chunkCount} 分片 · ${snapshot.createdBy}`,
       "textures/icons/region"
     );
   }

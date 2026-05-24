@@ -25,6 +25,10 @@ export type IModules =
   | "maxLandPerPlayer"
   | "maxLandBlocks"
   | "landSnapshotMaxChunks"
+  | "landSnapshotAutoEnabled"
+  | "landSnapshotAutoIntervalMinutes"
+  | "landSnapshotAutoMaxPerLand"
+  | "landSnapshotAutoIncludeEntities"
   | "maxPrivatePointsPerPlayer"
   | "maxPublicPointsPerPlayer"
   | "playerNameColor"
@@ -138,6 +142,10 @@ export const defaultSetting = {
   maxLandPerPlayer: "5",
   maxLandBlocks: "30000",
   landSnapshotMaxChunks: "10",
+  landSnapshotAutoEnabled: false,
+  landSnapshotAutoIntervalMinutes: "360",
+  landSnapshotAutoMaxPerLand: "3",
+  landSnapshotAutoIncludeEntities: false,
   maxPrivatePointsPerPlayer: "10",
   maxPublicPointsPerPlayer: "10",
   playerNameColor: "§f",
