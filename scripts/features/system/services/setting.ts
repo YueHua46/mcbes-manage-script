@@ -45,6 +45,8 @@ export type IModules =
   | "daily_gold_limit"
   | "startingGold"
   | "monsterKillGoldReward"
+  | "deathGoldPenaltyEnabled"
+  | "deathGoldPenaltyAmount"
   | "chestUiIconOffset"
   | "chestUiCustomIconMap"
   | "allowPlayerDisplaySettings"
@@ -161,6 +163,8 @@ export const defaultSetting = {
   daily_gold_limit: "100000",
   startingGold: "500",
   monsterKillGoldReward: true,
+  deathGoldPenaltyEnabled: true,
+  deathGoldPenaltyAmount: "100",
   /** Chest UI 非原版物品图标偏移量：服务器加载了其他自定义物品附加包时，用于修正 runtime id 偏移 */
   chestUiIconOffset: "0",
   /** Chest UI 自定义物品 typeId -> 贴图路径 映射（JSON 对象字符串），用于外部附加包自定义物品图标 */

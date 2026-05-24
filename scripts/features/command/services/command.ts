@@ -649,6 +649,8 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           daily_gold_limit: "每日金币获取上限 (数字)",
           startingGold: "新玩家初始金币 (数字)",
           monsterKillGoldReward: "杀怪掉金币功能 (true/false)",
+          deathGoldPenaltyEnabled: "死亡损失金币功能 (true/false)，默认开启",
+          deathGoldPenaltyAmount: "玩家死亡时扣除金币数量 (数字，非负整数；余额不足时扣到 0)",
           guild: "公会系统总开关 (true/false)，细项请在服务器菜单或下列键配置",
           guildCreateCost: "创建公会费用，从个人钱包扣除 (数字)",
           guildMaxMembers: "每公会最大人数 (数字)",

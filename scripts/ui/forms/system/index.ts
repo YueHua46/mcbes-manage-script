@@ -1290,7 +1290,7 @@ export function openEconomyManageForm(player: Player): void {
   form.button("§w官方商店管理", "textures/icons/shop");
   form.button("§w物品出售价格管理", "textures/icons/clock");
   form.button("§w玩家金币管理", "textures/icons/rewards");
-  form.button("§w功能开关", "textures/icons/gadgets");
+  form.button("§w功能设置", "textures/icons/gadgets");
   form.button("§w物品图标显示修复", "textures/icons/info");
   form.button("§w返回", "textures/icons/back");
 
@@ -1474,15 +1474,21 @@ function openChestUiCustomIconMapListForm(player: Player): void {
 // 经济系统功能开关表单
 function openEconomyFeatureToggleForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w经济系统功能开关");
+  form.title("§w经济系统功能设置");
 
-  const features = [{ key: "monsterKillGoldReward", name: "杀怪掉金币" }];
+  const features: { key: "monsterKillGoldReward" | "deathGoldPenaltyEnabled"; name: string }[] = [
+    { key: "monsterKillGoldReward", name: "杀怪掉金币" },
+    { key: "deathGoldPenaltyEnabled", name: "死亡损失金币" },
+  ];
 
   features.forEach((feature) => {
-    const currentValue = setting.getState(feature.key as any);
+    const currentValue = setting.getState(feature.key);
     form.toggle(`${feature.name}`, {
       defaultValue: currentValue as boolean,
     });
+  });
+  form.textField("死亡损失金币数量", "非负整数，例如 100；余额不足时扣到 0", {
+    defaultValue: String(setting.getState("deathGoldPenaltyAmount")),
   });
 
   form.submitButton("确认");
@@ -1491,15 +1497,29 @@ function openEconomyFeatureToggleForm(player: Player): void {
     if (data.cancelationReason) return;
     const { formValues } = data;
     if (formValues) {
+      const deathPenaltyAmount = Math.floor(Number(formValues[features.length]));
+      if (!Number.isFinite(deathPenaltyAmount) || deathPenaltyAmount < 0) {
+        openDialogForm(
+          player,
+          {
+            title: "设置失败",
+            desc: color.red("死亡损失金币数量须为 0 或正整数"),
+          },
+          () => openEconomyFeatureToggleForm(player)
+        );
+        return;
+      }
+
       features.forEach((feature, index) => {
-        setting.setState(feature.key as any, formValues[index] as boolean);
+        setting.setState(feature.key, formValues[index] as boolean);
       });
+      setting.setState("deathGoldPenaltyAmount", String(deathPenaltyAmount));
 
       openDialogForm(
         player,
         {
           title: "设置成功",
-          desc: color.green("功能开关已更新！"),
+          desc: color.green("经济系统功能设置已更新！"),
         },
         () => openEconomyManageForm(player)
       );
