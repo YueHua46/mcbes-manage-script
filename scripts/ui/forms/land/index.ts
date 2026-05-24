@@ -25,6 +25,7 @@ import {
 import { openSystemSettingForm } from "../system";
 import { formatDateTime } from "../../../shared/utils/format";
 import { isAdmin } from "../../../shared/utils/common";
+import { openLandSnapshotForm } from "./snapshot";
 
 /** 从公会菜单「纯公会圈地」创建时传入，写入 ILand.guildId */
 export type GuildLandApplyContext = {
@@ -1031,6 +1032,13 @@ export const openLandDetailForm = (
     }
 
     if (canManageGuildLand) {
+      if (isAdmin) {
+        buttons.push({
+          text: "领地快照",
+          icon: "textures/icons/fotograf",
+          action: () => openLandSnapshotForm(player, landData, reopenDetail),
+        });
+      }
       buttons.push({
         text: landData.teleportPoint ? "修改传送点" : "设置传送点",
         icon: "textures/icons/ada",
@@ -1173,6 +1181,15 @@ export const openLandDetailForm = (
 
   if (isOwner || isAdmin) {
     const actions: Btn[] = [
+      ...(isAdmin
+        ? [
+            {
+              text: "领地快照",
+              icon: "textures/icons/fotograf",
+              action: () => openLandSnapshotForm(player, landData, reopenDetail),
+            },
+          ]
+        : []),
       {
         text: "领地成员管理",
         icon: "textures/icons/party_unavailable",

@@ -24,6 +24,7 @@ export type IModules =
   | "randomTpRange"
   | "maxLandPerPlayer"
   | "maxLandBlocks"
+  | "landSnapshotMaxChunks"
   | "maxPrivatePointsPerPlayer"
   | "maxPublicPointsPerPlayer"
   | "playerNameColor"
@@ -135,6 +136,7 @@ export const defaultSetting = {
   randomTpRange: "50000",
   maxLandPerPlayer: "5",
   maxLandBlocks: "30000",
+  landSnapshotMaxChunks: "10",
   maxPrivatePointsPerPlayer: "10",
   maxPublicPointsPerPlayer: "10",
   playerNameColor: "§f",
