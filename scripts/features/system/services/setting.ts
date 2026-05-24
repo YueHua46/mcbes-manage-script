@@ -40,6 +40,8 @@ export type IModules =
   | "daily_gold_limit"
   | "startingGold"
   | "monsterKillGoldReward"
+  | "chestUiIconOffset"
+  | "chestUiCustomIconMap"
   | "allowPlayerDisplaySettings"
   | "pvp"
   | "pvpMode"
@@ -148,6 +150,10 @@ export const defaultSetting = {
   daily_gold_limit: "100000",
   startingGold: "500",
   monsterKillGoldReward: true,
+  /** Chest UI 非原版物品图标偏移量：服务器加载了其他自定义物品附加包时，用于修正 runtime id 偏移 */
+  chestUiIconOffset: "0",
+  /** Chest UI 自定义物品 typeId -> 贴图路径 映射（JSON 对象字符串），用于外部附加包自定义物品图标 */
+  chestUiCustomIconMap: "{}",
   allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
   pvp: true, // PVP系统菜单显示开关
   pvpMode: "vanilla", // PVP模式：vanilla=原版，plugin=插件，off=禁止

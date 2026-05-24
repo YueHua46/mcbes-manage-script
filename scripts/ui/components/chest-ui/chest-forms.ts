@@ -7,6 +7,10 @@ import { ActionFormData, ActionFormResponse } from "@minecraft/server-ui";
 import { Player, RawMessage } from "@minecraft/server";
 import { typeIdToDataId, typeIdToID } from "./type-ids";
 import {
+  applyChestUiIconOffset,
+  resolveChestUiCustomIconTexture,
+} from "../../../features/system/services/chest-ui-icon-offset";
+import {
   custom_content,
   custom_content_keys,
   inventory_enabled,
@@ -53,6 +57,8 @@ function isTexturePath(texture: string): boolean {
  */
 function getDisplayTexture(texture: string): string {
   if (isTexturePath(texture)) return texture;
+  const customIconTexture = resolveChestUiCustomIconTexture(texture);
+  if (customIconTexture) return customIconTexture;
   const targetTexture = custom_content_keys.has(texture) ? custom_content[texture]?.texture : texture;
   if (isTexturePath(targetTexture)) return targetTexture;
   const isRegistered = typeIdToDataId.has(targetTexture) || typeIdToID.has(targetTexture);
@@ -64,6 +70,7 @@ function getDisplayTexture(texture: string): string {
  * 根据 texture 解析出用于按钮的 targetTexture 与 ID（使用 runtime_map / typeIdToDataId）
  */
 function resolveTextureAndId(texture: string): { targetTexture: string; ID: number | undefined } {
+  if (isTexturePath(texture)) return { targetTexture: texture, ID: undefined };
   const targetTexture = custom_content_keys.has(texture) ? custom_content[texture]?.texture : texture;
   const ID = typeIdToDataId.get(targetTexture) ?? typeIdToID.get(targetTexture);
   return { targetTexture, ID };
@@ -78,7 +85,7 @@ function toButtonIcon(
   enchanted: boolean
 ): string | number {
   if (ID === undefined) return targetTexture;
-  return ID * 65536 + (enchanted ? 32768 : 0);
+  return applyChestUiIconOffset(targetTexture, ID) * 65536 + (enchanted ? 32768 : 0);
 }
 
 export class ChestFormData {
@@ -312,7 +319,7 @@ export class ChestFormData {
       const loreText = item.getLore().join("\n");
       if (loreText) buttonRawtext.rawtext.push({ text: loreText });
 
-      const finalID = ID === undefined ? targetTexture : ID * 65536;
+      const finalID = ID === undefined ? targetTexture : applyChestUiIconOffset(targetTexture, ID) * 65536;
       form.button(buttonRawtext, finalID.toString());
     }
 
@@ -485,7 +492,7 @@ export class FurnaceFormData {
       const loreText = item.getLore().join("\n");
       if (loreText) buttonRawtext.rawtext.push({ text: loreText });
 
-      const finalID = ID === undefined ? targetTexture : ID * 65536;
+      const finalID = ID === undefined ? targetTexture : applyChestUiIconOffset(targetTexture, ID) * 65536;
       form.button(buttonRawtext, finalID.toString());
     }
 

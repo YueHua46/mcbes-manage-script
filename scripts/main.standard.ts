@@ -2,10 +2,12 @@
  * 杜绝熊孩服务器插件 - 标准兼容版入口
  */
 
+import { system } from "@minecraft/server";
 import { SystemLog } from "./shared/utils/common";
 import "./shared/database/database";
 import serverInfo from "./features/system/services/server-info";
 import setting from "./features/system/services/setting";
+import { autoApplyChestUiIconFixOnStartup } from "./features/system/services/chest-ui-icon-offset";
 import "./features/system/services/trial-mode";
 import "./features/one-click/dig-ore";
 import "./features/one-click/tree";
@@ -37,6 +39,7 @@ function initializeApp(): void {
 
     SystemLog.info("[3/3] 初始化事件系统...");
     eventRegistry.initializeAll();
+    system.runTimeout(() => autoApplyChestUiIconFixOnStartup(), 100);
 
     SystemLog.info("========================================");
     SystemLog.info("✓ 所有模块已加载成功");

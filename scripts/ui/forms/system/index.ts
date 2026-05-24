@@ -24,6 +24,14 @@ import { openLiveServerPanel } from "./live-server-panel";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
+import {
+  diagnoseChestUiIconOffset,
+  formatChestUiIconDiagnostic,
+  getChestUiCustomIconMap,
+  guessChestUiCustomIconTexture,
+  removeChestUiCustomIcon,
+  setChestUiCustomIcon,
+} from "../../../features/system/services/chest-ui-icon-offset";
 
 // ==================== 领地飞行（管理） ====================
 
@@ -1195,6 +1203,7 @@ export function openEconomyManageForm(player: Player): void {
   form.button("§w物品出售价格管理", "textures/icons/clock");
   form.button("§w玩家金币管理", "textures/icons/rewards");
   form.button("§w功能开关", "textures/icons/gadgets");
+  form.button("§w物品图标显示修复", "textures/icons/info");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -1213,9 +1222,162 @@ export function openEconomyManageForm(player: Player): void {
         openEconomyFeatureToggleForm(player);
         break;
       case 4:
+        openChestUiIconDiagnosticForm(player);
+        break;
+      case 5:
         openSystemSettingForm(player);
         break;
     }
+  });
+}
+
+function openChestUiIconDiagnosticForm(player: Player, forceScan: boolean = false): void {
+  const result = diagnoseChestUiIconOffset(forceScan);
+  const form = new ActionFormData();
+  form.title("§w物品图标显示修复");
+  form.body(formatChestUiIconDiagnostic(result));
+  form.button("§w指定自定义物品贴图", "textures/icons/edit2");
+  form.button("§w重新检测", "textures/icons/requeue");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    switch (data.selection) {
+      case 0:
+        openChestUiCustomIconMapForm(player);
+        break;
+      case 1:
+        openChestUiIconDiagnosticForm(player, true);
+        break;
+      case 2:
+        openEconomyManageForm(player);
+        break;
+    }
+  });
+}
+
+function getDetectedCustomItemIdsForIconMap(): string[] {
+  const result = diagnoseChestUiIconOffset();
+  return Array.from(new Set([...result.ownCustomItemIds, ...result.externalCustomItemIds])).sort();
+}
+
+function openChestUiCustomIconMapForm(player: Player): void {
+  const map = getChestUiCustomIconMap();
+  const entries = Object.entries(map);
+  const result = diagnoseChestUiIconOffset();
+  const form = new ActionFormData();
+  form.title("§w指定自定义物品贴图");
+  form.body(
+    [
+      "§b这里用于修复个别自定义物品显示成占位图标的问题。",
+      "§7脚本无法自动读取其他附加包资源包里的贴图路径，所以需要管理员手动填一次。",
+      "§7如果不知道路径，可以查看那个附加包的资源包文件，通常在 textures/items/ 下面。",
+      "",
+      `§f检测到自定义物品: §e${result.customItemCount}`,
+      `§f已指定贴图: §e${entries.length}`,
+      "§7路径示例: textures/items/my_item",
+    ].join("\n")
+  );
+  form.button("§w添加或修改贴图", "textures/icons/add");
+  form.button("§w查看或删除贴图", "textures/icons/edit2");
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    switch (data.selection) {
+      case 0:
+        openEditChestUiCustomIconMapForm(player);
+        break;
+      case 1:
+        openChestUiCustomIconMapListForm(player);
+        break;
+      case 2:
+        openChestUiIconDiagnosticForm(player);
+        break;
+    }
+  });
+}
+
+function openEditChestUiCustomIconMapForm(player: Player): void {
+  const ids = getDetectedCustomItemIdsForIconMap();
+  const options = ids.length > 0 ? ids : ["-- 未检测到自定义物品 --"];
+  const firstTypeId = ids[0] ?? "";
+  const form = new ModalFormData();
+  form.title("§w添加或修改物品贴图");
+  form.dropdown("选择检测到的自定义物品", options, { defaultValueIndex: 0 });
+  form.textField("或直接输入 typeId（优先使用这里）", "例如 other:item_name", { defaultValue: "" });
+  form.textField("贴图路径", "例如 textures/items/item_name", {
+    defaultValue: firstTypeId ? guessChestUiCustomIconTexture(firstTypeId) : "textures/items/",
+  });
+  form.submitButton("保存");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) {
+      openChestUiCustomIconMapForm(player);
+      return;
+    }
+
+    const selectedIndex = Number(data.formValues?.[0] ?? 0);
+    const typedTypeId = String(data.formValues?.[1] ?? "").trim();
+    const texturePath = String(data.formValues?.[2] ?? "").trim();
+    const selectedTypeId = ids[selectedIndex] ?? "";
+    const typeId = typedTypeId || selectedTypeId;
+
+    if (!typeId.includes(":") || !texturePath) {
+      openDialogForm(
+        player,
+        {
+          title: "保存失败",
+          desc: color.red("请输入有效的 typeId 和贴图路径。"),
+        },
+        () => openEditChestUiCustomIconMapForm(player)
+      );
+      return;
+    }
+
+    setChestUiCustomIcon(typeId, texturePath);
+    openDialogForm(
+      player,
+      {
+        title: "保存成功",
+        desc: `§a已设置 §e${typeId} §a的图标贴图。\n§7请重新打开相关界面来确认效果。`,
+      },
+      () => openChestUiCustomIconMapForm(player)
+    );
+  });
+}
+
+function openChestUiCustomIconMapListForm(player: Player): void {
+  const entries = Object.entries(getChestUiCustomIconMap()).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  if (entries.length === 0) {
+    openDialogForm(player, { title: "暂无映射", desc: "§7当前还没有手动配置任何自定义物品贴图映射。" }, () =>
+      openChestUiCustomIconMapForm(player)
+    );
+    return;
+  }
+
+  const form = new ActionFormData();
+  form.title("§w已指定的物品贴图");
+  form.body("§7点击一项可删除该贴图设置。");
+  entries.forEach(([typeId, texturePath]) => {
+    form.button(`§e${typeId}\n§7${texturePath}`, texturePath);
+  });
+  form.button("§w返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) return;
+    const selection = data.selection;
+    if (selection === undefined) return;
+    if (selection === entries.length) {
+      openChestUiCustomIconMapForm(player);
+      return;
+    }
+
+    const [typeId] = entries[selection];
+    removeChestUiCustomIcon(typeId);
+    openDialogForm(player, { title: "已删除", desc: `§a已删除 §e${typeId} §a的贴图设置。` }, () =>
+      openChestUiCustomIconMapListForm(player)
+    );
   });
 }
 
