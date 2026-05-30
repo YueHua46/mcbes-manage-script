@@ -8,6 +8,8 @@ import pvpManager from "../../features/pvp/services/pvp-manager";
 import effectManager from "../../features/pvp/services/effect-manager";
 import statsManager from "../../features/pvp/services/pvp-stats";
 import landManager from "../../features/land/services/land-manager";
+import { taskScheduler } from "../../features/platform/scheduler";
+import setting from "../../features/system/services/setting";
 import { isAdmin } from "../../shared/utils/common";
 import { color } from "../../shared/utils/color";
 import { useNotify } from "../../shared/hooks";
@@ -23,10 +25,7 @@ const PVP_FIRE_SOURCE_TIMEOUT_MS = 15_000;
 /**
  * 检查是否可以PVP并返回详细原因
  */
-function checkPvpWithReason(
-  attacker: Player,
-  victim: Player
-): { canPvp: boolean; reason: string } {
+function checkPvpWithReason(attacker: Player, victim: Player): { canPvp: boolean; reason: string } {
   const config = pvpManager.getConfig();
   if (config.mode === "off") {
     return {
@@ -95,8 +94,7 @@ export function registerPvpEvents(): void {
     if (hurtEntity.typeId !== "minecraft:player") return;
 
     const victim = hurtEntity as Player;
-    const isFireDamage =
-      cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick;
+    const isFireDamage = cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick;
 
     // ===== 情形二：fire/fireTick 且无 damagingEntity（fireTick 兜底）=====
     if (isFireDamage && !damageSource.damagingEntity) {
@@ -224,46 +222,45 @@ export function registerPvpEvents(): void {
   /**
    * 定时检查战斗超时并显示战斗计时器（每秒一次）
    */
-  system.runInterval(() => {
-    const config = pvpManager.getConfig();
-    if (config.mode !== "plugin") {
-      return;
-    }
-    const combatDuration = config.combatTagDuration;
+  taskScheduler.register({
+    id: "pvp.combatTimer",
+    label: "PVP 战斗计时",
+    category: "pvp",
+    intervalTicks: 20,
+    when: () => {
+      if (setting.getState("pvp") !== true) return false;
+      return pvpManager.getConfig().mode === "plugin";
+    },
+    run: () => {
+      const config = pvpManager.getConfig();
+      const combatDuration = config.combatTagDuration;
 
-    // 检查所有在线玩家的战斗状态
-    world.getAllPlayers().forEach((player) => {
-      try {
-        const playerData = pvpManager.getPlayerData(player.name);
+      world.getAllPlayers().forEach((player) => {
+        try {
+          const playerData = pvpManager.getPlayerData(player.name);
 
-        if (playerData.inCombat) {
-          // 计算剩余战斗时间
-          const now = Date.now();
-          const timeSinceLastCombat = now - playerData.lastCombatTime;
-          const remainingTime = Math.max(
-            0,
-            combatDuration - Math.floor(timeSinceLastCombat / 1000)
-          );
+          if (playerData.inCombat) {
+            const now = Date.now();
+            const timeSinceLastCombat = now - playerData.lastCombatTime;
+            const remainingTime = Math.max(0, combatDuration - Math.floor(timeSinceLastCombat / 1000));
 
-          // 显示战斗计时器
-          if (remainingTime > 0) {
-            effectManager.showCombatTimer(player, remainingTime);
+            if (remainingTime > 0) {
+              effectManager.showCombatTimer(player, remainingTime);
+            }
+
+            if (remainingTime === 0 && playerCombatStatus.get(player.name)) {
+              effectManager.playExitCombatEffects(player);
+              playerCombatStatus.delete(player.name);
+            }
           }
-
-          // 如果战斗时间结束，播放脱离战斗特效
-          if (remainingTime === 0 && playerCombatStatus.get(player.name)) {
-            effectManager.playExitCombatEffects(player);
-            playerCombatStatus.delete(player.name);
-          }
+        } catch {
+          // 忽略错误，继续处理其他玩家
         }
-      } catch (error) {
-        // 忽略错误，继续处理其他玩家
-      }
-    });
+      });
 
-    // 检查战斗超时
-    pvpManager.checkCombatTimeout();
-  }, 20); // 20 ticks = 1秒
+      pvpManager.checkCombatTimeout();
+    },
+  });
 
   // ==================== 玩家离开清理 ====================
 
@@ -282,4 +279,3 @@ export function registerPvpEvents(): void {
 
 // 注册到事件中心
 eventRegistry.register("pvp", registerPvpEvents);
-

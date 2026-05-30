@@ -1,6 +1,8 @@
 import { Player, system, Vector3, world } from "@minecraft/server";
 import behaviorLog, { LandLogInfo } from "../../features/behavior-log/services/behavior-log";
 import { landManager } from "../../features/land/services";
+import { taskScheduler } from "../../features/platform/scheduler";
+import setting from "../../features/system/services/setting";
 import { eventRegistry } from "../registry";
 
 const JOIN_FLAG = "behaviorLogJoinState";
@@ -116,9 +118,7 @@ function isLavaBlock(typeId: string): boolean {
 
 function isWitherPrepBlock(typeId: string): boolean {
   return (
-    typeId === "minecraft:soul_sand" ||
-    typeId === "minecraft:soul_soil" ||
-    typeId.includes("wither_skeleton_skull")
+    typeId === "minecraft:soul_sand" || typeId === "minecraft:soul_soil" || typeId.includes("wither_skeleton_skull")
   );
 }
 
@@ -300,7 +300,14 @@ export function registerBehaviorLogEvents(): void {
       if (!containerEventType) return;
 
       const landInfo = getLandInfoAt(block.location, block.dimension.id);
-      behaviorLog.logOpenContainer(player, containerEventType, blockTypeId, block.location, block.dimension.id, landInfo);
+      behaviorLog.logOpenContainer(
+        player,
+        containerEventType,
+        blockTypeId,
+        block.location,
+        block.dimension.id,
+        landInfo
+      );
     }
   });
 
@@ -315,7 +322,14 @@ export function registerBehaviorLogEvents(): void {
     if (!containerEventType) return;
 
     const landInfo = getLandInfoAt(target.location, target.dimension.id);
-    behaviorLog.logOpenContainer(player, containerEventType, target.typeId, target.location, target.dimension.id, landInfo);
+    behaviorLog.logOpenContainer(
+      player,
+      containerEventType,
+      target.typeId,
+      target.location,
+      target.dimension.id,
+      landInfo
+    );
   });
 
   world.beforeEvents.entityHurt.subscribe((event: any) => {
@@ -362,65 +376,80 @@ export function registerBehaviorLogEvents(): void {
     behaviorLog.logSummonWither(playerName, entity.location, entity.dimension.id, "检测到凋零生成");
   });
 
-  system.runInterval(() => {
-    const onlineIds = new Set(world.getAllPlayers().map((player) => player.id));
+  taskScheduler.register({
+    id: "behaviorLog.landScan",
+    label: "行为日志领地扫描",
+    category: "log",
+    intervalTicks: LAND_SCAN_INTERVAL_TICKS,
+    when: () => setting.getState("behaviorLogEnabled") === true && setting.getState("land") === true,
+    run: () => {
+      const onlineIds = new Set(world.getAllPlayers().map((player) => player.id));
 
-    for (const [playerId] of playerLandState) {
-      if (!onlineIds.has(playerId)) {
-        playerLandState.delete(playerId);
-      }
-    }
-
-    for (const player of world.getAllPlayers()) {
-      const landInfo = getLandInfoAt(player.location, player.dimension.id);
-      const previous = playerLandState.get(player.id);
-
-      if (!previous && landInfo) {
-        playerLandState.set(player.id, {
-          name: landInfo.name,
-          owner: landInfo.owner,
-          dimensionId: player.dimension.id,
-        });
-        behaviorLog.logEnterLand(player, landInfo);
-        continue;
+      for (const [playerId] of playerLandState) {
+        if (!onlineIds.has(playerId)) {
+          playerLandState.delete(playerId);
+        }
       }
 
-      if (previous && !landInfo) {
-        behaviorLog.logLeaveLand(player.name, player.location, player.dimension.id, previous);
-        playerLandState.delete(player.id);
-        continue;
+      for (const player of world.getAllPlayers()) {
+        const landInfo = getLandInfoAt(player.location, player.dimension.id);
+        const previous = playerLandState.get(player.id);
+
+        if (!previous && landInfo) {
+          playerLandState.set(player.id, {
+            name: landInfo.name,
+            owner: landInfo.owner,
+            dimensionId: player.dimension.id,
+          });
+          behaviorLog.logEnterLand(player, landInfo);
+          continue;
+        }
+
+        if (previous && !landInfo) {
+          behaviorLog.logLeaveLand(player.name, player.location, player.dimension.id, previous);
+          playerLandState.delete(player.id);
+          continue;
+        }
+
+        if (
+          previous &&
+          landInfo &&
+          (previous.name !== landInfo.name ||
+            previous.owner !== landInfo.owner ||
+            previous.dimensionId !== player.dimension.id)
+        ) {
+          behaviorLog.logLeaveLand(player.name, player.location, previous.dimensionId, previous);
+          behaviorLog.logEnterLand(player, landInfo);
+          playerLandState.set(player.id, {
+            name: landInfo.name,
+            owner: landInfo.owner,
+            dimensionId: player.dimension.id,
+          });
+        }
       }
+    },
+  });
 
-      if (
-        previous &&
-        landInfo &&
-        (previous.name !== landInfo.name || previous.owner !== landInfo.owner || previous.dimensionId !== player.dimension.id)
-      ) {
-        behaviorLog.logLeaveLand(player.name, player.location, previous.dimensionId, previous);
-        behaviorLog.logEnterLand(player, landInfo);
-        playerLandState.set(player.id, {
-          name: landInfo.name,
-          owner: landInfo.owner,
-          dimensionId: player.dimension.id,
-        });
+  taskScheduler.register({
+    id: "behaviorLog.locationSnapshot",
+    label: "行为日志位置采样",
+    category: "log",
+    intervalTicks: 20,
+    when: () => setting.getState("behaviorLogEnabled") === true,
+    run: () => {
+      const intervalTicks = Math.max(20, behaviorLog.getLocationIntervalSeconds() * 20);
+      const currentTick = system.currentTick;
+      if (currentTick - lastLocationSnapshotTick < intervalTicks) {
+        return;
       }
-    }
-  }, LAND_SCAN_INTERVAL_TICKS);
+      lastLocationSnapshotTick = currentTick;
 
-  system.runInterval(() => {
-    const intervalTicks = Math.max(20, behaviorLog.getLocationIntervalSeconds() * 20);
-    const currentTick = system.currentTick;
-    // 用“距上次记录的 tick 数”判断，避免依赖 currentTick % intervalTicks 可能永远不成立
-    if (currentTick - lastLocationSnapshotTick < intervalTicks) {
-      return;
-    }
-    lastLocationSnapshotTick = currentTick;
-
-    for (const player of world.getAllPlayers()) {
-      const landInfo = getLandInfoAt(player.location, player.dimension.id);
-      behaviorLog.logLocationSnapshot(player, landInfo);
-    }
-  }, 20);
+      for (const player of world.getAllPlayers()) {
+        const landInfo = getLandInfoAt(player.location, player.dimension.id);
+        behaviorLog.logLocationSnapshot(player, landInfo);
+      }
+    },
+  });
 }
 
 eventRegistry.register("behaviorLog", registerBehaviorLogEvents);

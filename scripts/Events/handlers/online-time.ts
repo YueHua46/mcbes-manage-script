@@ -1,5 +1,6 @@
 import { Player, system, world } from "@minecraft/server";
 import onlineTimeService, { ONLINE_TIME_TICK_INTERVAL } from "../../features/player/services/online-time";
+import { taskScheduler } from "../../features/platform/scheduler";
 import { eventRegistry } from "../registry";
 
 export function registerOnlineTimeEvents(): void {
@@ -14,9 +15,13 @@ export function registerOnlineTimeEvents(): void {
     }
   });
 
-  system.runInterval(() => {
-    onlineTimeService.onTick();
-  }, ONLINE_TIME_TICK_INTERVAL);
+  taskScheduler.register({
+    id: "player.onlineTime",
+    label: "在线时长累计",
+    category: "player",
+    intervalTicks: ONLINE_TIME_TICK_INTERVAL,
+    run: () => onlineTimeService.onTick(),
+  });
 }
 
 eventRegistry.register("onlineTime", registerOnlineTimeEvents);
