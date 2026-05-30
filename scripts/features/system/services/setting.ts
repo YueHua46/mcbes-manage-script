@@ -76,6 +76,11 @@ export type IModules =
   | "logLocationSnapshot"
   | "logItemWatchSnapshot"
   | "guild"
+  | "feedback"
+  | "feedbackAllowPublicView"
+  | "feedbackSubmitCost"
+  | "feedbackMaxContentLength"
+  | "feedbackMaxEntries"
   | "guildCreateCost"
   | "guildMaxMembers"
   | "guildTagMaxLen"
@@ -184,6 +189,15 @@ export const defaultSetting = {
   logLocationSnapshot: false,
   logItemWatchSnapshot: true,
   guild: true,
+  feedback: true,
+  /** 允许无管理员权限玩家查看/处理举报工单；关闭时仅 admin / OP / feedback_staff 标签可处理 */
+  feedbackAllowPublicView: false,
+  /** 每次提交举报或工单扣除金币；0 为免费 */
+  feedbackSubmitCost: "0",
+  /** 举报/工单内容最大字数 */
+  feedbackMaxContentLength: "200",
+  /** 最多保留举报/工单记录数，超出后删除最旧记录 */
+  feedbackMaxEntries: "300",
   guildCreateCost: "100000",
   guildMaxMembers: "50",
   guildTagMaxLen: "6",

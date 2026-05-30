@@ -20,6 +20,7 @@ import { openBehaviorLogForm } from "../behavior-log";
 import { openOfflineDurationQueryMenu } from "./offline-duration-query";
 import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
+import { openFeedbackForm } from "../feedback";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
@@ -138,6 +139,11 @@ export function openSystemSettingForm(player: Player): void {
       action: () => openGuildSystemSettingsMenu(player),
     },
     {
+      text: "§w举报/工单管理",
+      icon: "textures/icons/quest_log",
+      action: () => openFeedbackForm(player),
+    },
+    {
       text: "§w通知管理",
       icon: "textures/icons/duyuru",
       action: async () => {
@@ -253,6 +259,9 @@ export function openGeneralSettingsForm(player: Player): void {
     { key: "daily_gold_limit", name: "每日金币获取上限", type: "number" },
     { key: "startingGold", name: "新玩家初始金币", type: "number" },
     { key: "redPacketExpiryHours", name: "全服红包有效时长(小时，过期未领退回)", type: "number" },
+    { key: "feedbackSubmitCost", name: "举报/工单每次提交费用(金币，0为免费)", type: "number" },
+    { key: "feedbackMaxContentLength", name: "举报/工单内容最大字数", type: "number" },
+    { key: "feedbackMaxEntries", name: "举报/工单最多保留记录数", type: "number" },
     { key: "behaviorLogMaxEntries", name: "行为日志最大保留条数", type: "number" },
     { key: "behaviorLogLocationIntervalSec", name: "行为日志坐标采样间隔(秒)", type: "number" },
   ];
@@ -323,6 +332,26 @@ function openEditSettingForm(
             return;
           }
           setting.setState(key as any, String(h));
+        } else if (key === "feedbackSubmitCost") {
+          const cost = Math.floor(numValue);
+          if (cost < 0) {
+            openDialogForm(player, {
+              title: "设置失败",
+              desc: color.red("提交费用须为 0 或正整数"),
+            });
+            return;
+          }
+          setting.setState(key as any, String(cost));
+        } else if (key === "feedbackMaxContentLength" || key === "feedbackMaxEntries") {
+          const n = Math.floor(numValue);
+          if (n < 20 || n > 2000) {
+            openDialogForm(player, {
+              title: "设置失败",
+              desc: color.red("该数值须为 20～2000 之间的整数"),
+            });
+            return;
+          }
+          setting.setState(key as any, String(n));
         } else {
           setting.setState(key as any, newValue);
         }
@@ -566,6 +595,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "pvp", name: "PVP系统（关闭后插件不接管PVP，按原版世界设置处理）" },
     { key: "stats", name: "数据统计（仅此项控制入口，子榜无单独开关）" },
     { key: "guild", name: "公会系统" },
+    { key: "feedback", name: "举报/工单系统" },
     { key: "other", name: "其他功能模块" },
     { key: "help", name: "帮助功能" },
     { key: "sm", name: "服务器菜单" },
@@ -577,6 +607,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "enableDigOreOneClick", name: "一键挖矿" },
     { key: "digOreChainObsidian", name: "一键挖矿：连锁黑曜石（含哭泣黑曜石）" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
+    { key: "feedbackAllowPublicView", name: "允许非管理员查看/处理举报工单" },
     ...(typeof __SERVER_ADMIN_BUILD__ !== "undefined" && __SERVER_ADMIN_BUILD__
       ? ([{ key: "blacklistEnabled", name: "黑名单系统（仅 BDS 增强版可用）" }] as const)
       : []),
