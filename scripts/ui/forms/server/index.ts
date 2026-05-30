@@ -15,6 +15,7 @@ import { openBaseFunctionForm } from "../other";
 import { openHelpMenuForm } from "../help";
 import { openSystemSettingForm } from "../system";
 import { openGuildMenuForm } from "../guild";
+import { openFeedbackForm } from "../feedback";
 
 interface MenuItem {
   text: string;
@@ -91,6 +92,14 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       icon: "textures/icons/discord",
       action: async (player: Player) => {
         await openGuildMenuForm(player);
+      },
+    },
+    {
+      id: "feedback",
+      text: "§w举报与工单",
+      icon: "textures/icons/quest_log",
+      action: async (player: Player) => {
+        openFeedbackForm(player);
       },
     },
     {
