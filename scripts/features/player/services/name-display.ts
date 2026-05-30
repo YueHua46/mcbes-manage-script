@@ -3,10 +3,11 @@
  * 完整迁移自 Modules/Player/NameDisplay.ts (91行)
  */
 
-import { Player, system, world } from '@minecraft/server';
-import PlayerSetting from './player-settings';
-import { guildFacade } from '../../guild/services/guild-facade';
-import setting from '../../system/services/setting';
+import { Player, system, world } from "@minecraft/server";
+import PlayerSetting from "./player-settings";
+import { guildFacade } from "../../guild/services/guild-facade";
+import setting from "../../system/services/setting";
+import { taskScheduler } from "../../platform/scheduler";
 
 export class NameDisplay {
   private static instance: NameDisplay;
@@ -24,10 +25,14 @@ export class NameDisplay {
   }
 
   private init(): void {
-    // 定期更新所有玩家的名字显示
-    system.runInterval(() => {
-      this.updateAllPlayersNameDisplay();
-    }, this.updateInterval);
+    taskScheduler.register({
+      id: "player.nameDisplay",
+      label: "玩家名称显示",
+      category: "player",
+      intervalTicks: this.updateInterval,
+      when: () => setting.getState("player") === true,
+      run: () => this.updateAllPlayersNameDisplay(),
+    });
 
     // 监听玩家加入事件
     world.afterEvents.playerSpawn.subscribe((event: any) => {
@@ -51,10 +56,7 @@ export class NameDisplay {
   public updatePlayerNameDisplay(player: Player): void {
     try {
       let displayName = PlayerSetting.getPlayerDisplayName(player);
-      if (
-        guildFacade.isGuildModuleEnabled() &&
-        setting.getState('guildShowTagInName') === true
-      ) {
+      if (guildFacade.isGuildModuleEnabled() && setting.getState("guildShowTagInName") === true) {
         const gTag = guildFacade.getGuildTagPrefixForNameTag(player.name);
         if (gTag) {
           displayName = `${gTag} ${displayName}`;
@@ -80,10 +82,7 @@ export class NameDisplay {
    */
   public getPlayerFullDisplayName(player: Player): string {
     let displayName = PlayerSetting.getPlayerDisplayName(player);
-    if (
-      guildFacade.isGuildModuleEnabled() &&
-      setting.getState('guildShowTagInName') === true
-    ) {
+    if (guildFacade.isGuildModuleEnabled() && setting.getState("guildShowTagInName") === true) {
       const gTag = guildFacade.getGuildTagPrefixForNameTag(player.name);
       if (gTag) {
         displayName = `${gTag} ${displayName}`;
@@ -114,5 +113,3 @@ export class NameDisplay {
 // 创建全局实例
 const nameDisplay = NameDisplay.getInstance();
 export default nameDisplay;
-
-

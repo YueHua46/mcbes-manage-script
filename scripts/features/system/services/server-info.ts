@@ -5,7 +5,7 @@
 
 import { world } from "@minecraft/server";
 import { getTPS } from "../../../shared/utils/tps";
-import { oneSecondRunInterval } from "../../../shared/utils/common";
+import { taskScheduler } from "../../platform/scheduler";
 
 class Server {
   TPS: number = 0;
@@ -13,51 +13,44 @@ class Server {
   itemsLength: number = 0;
 
   constructor() {
-    this.getTps();
-    this.getEntityLength();
-    this.getItemsLength();
+    this.registerScheduledTasks();
   }
 
-  /**
-   * 获取服务器TPS
-   */
-  getTps(): void {
-    oneSecondRunInterval(() => (this.TPS = getTPS()));
-  }
-
-  /**
-   * 获取实体数量
-   */
-  getEntityLength(): void {
-    oneSecondRunInterval(() => {
-      const owLength = world.getDimension("overworld").getEntities({
-        excludeTypes: ["item"],
-      }).length;
-      const netherLength = world.getDimension("nether").getEntities({
-        excludeTypes: ["item"],
-      }).length;
-      const endLength = world.getDimension("the_end").getEntities({
-        excludeTypes: ["item"],
-      }).length;
-      this.organismLength = owLength + netherLength + endLength;
+  private registerScheduledTasks(): void {
+    taskScheduler.register({
+      id: "server.tps",
+      label: "TPS 采样",
+      category: "core",
+      intervalTicks: 20,
+      run: () => {
+        this.TPS = getTPS();
+      },
     });
-  }
 
-  /**
-   * 获取掉落物数量
-   */
-  getItemsLength(): void {
-    oneSecondRunInterval(() => {
-      const owLength = world.getDimension("overworld").getEntities({
-        type: "item",
-      }).length;
-      const netherLength = world.getDimension("nether").getEntities({
-        type: "item",
-      }).length;
-      const endLength = world.getDimension("the_end").getEntities({
-        type: "item",
-      }).length;
-      this.itemsLength = owLength + netherLength + endLength;
+    taskScheduler.register({
+      id: "server.entityCount",
+      label: "生物实体统计",
+      category: "core",
+      intervalTicks: 20,
+      run: () => {
+        const owLength = world.getDimension("overworld").getEntities({ excludeTypes: ["item"] }).length;
+        const netherLength = world.getDimension("nether").getEntities({ excludeTypes: ["item"] }).length;
+        const endLength = world.getDimension("the_end").getEntities({ excludeTypes: ["item"] }).length;
+        this.organismLength = owLength + netherLength + endLength;
+      },
+    });
+
+    taskScheduler.register({
+      id: "server.itemCount",
+      label: "掉落物统计",
+      category: "core",
+      intervalTicks: 20,
+      run: () => {
+        const owLength = world.getDimension("overworld").getEntities({ type: "item" }).length;
+        const netherLength = world.getDimension("nether").getEntities({ type: "item" }).length;
+        const endLength = world.getDimension("the_end").getEntities({ type: "item" }).length;
+        this.itemsLength = owLength + netherLength + endLength;
+      },
     });
   }
 }

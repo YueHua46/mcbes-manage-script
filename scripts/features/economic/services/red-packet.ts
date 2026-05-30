@@ -10,6 +10,7 @@ import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import { SystemLog } from "../../../shared/utils/common";
 import setting from "../../system/services/setting";
 import economic from "./economic";
+import { taskScheduler } from "../../platform/scheduler";
 import type { IRedPacket, RedPacketMode } from "../models/red-packet.model";
 
 /** 未配置时的默认有效时长：24 小时（毫秒） */
@@ -207,13 +208,20 @@ class RedPacketService {
   constructor() {
     system.run(() => {
       this.db = new Database<IRedPacket>("eco_red_packets");
-      system.runInterval(() => {
-        try {
-          this.processExpiredPackets();
-        } catch (e) {
-          SystemLog.error("红包过期处理失败", e);
-        }
-      }, SCAN_INTERVAL_TICKS);
+      taskScheduler.register({
+        id: "economy.redPacketExpiry",
+        label: "红包过期处理",
+        category: "economy",
+        intervalTicks: SCAN_INTERVAL_TICKS,
+        when: () => setting.getState("economy") === true,
+        run: () => {
+          try {
+            this.processExpiredPackets();
+          } catch (e) {
+            SystemLog.error("红包过期处理失败", e);
+          }
+        },
+      });
     });
   }
 

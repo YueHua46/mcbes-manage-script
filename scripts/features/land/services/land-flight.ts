@@ -9,6 +9,7 @@ import setting from "../../system/services/setting";
 import economic from "../../economic/services/economic";
 import { isAdmin } from "../../../shared/utils/common";
 import { color } from "../../../shared/utils/color";
+import { taskScheduler } from "../../platform/scheduler";
 
 const TICK_INTERVAL = 5;
 /** 与基岩逻辑 tick 对齐，宽限结束用 currentTick 计算，避免与 Date.now 不同步 */
@@ -395,9 +396,7 @@ export function tryStartLandFlightSession(player: Player): string | void {
 
   if (periodicCharge) {
     if (!economic.hasEnoughGold(player.name, goldPerInterval)) {
-      return color.red(
-        `金币不足，至少需要 ${goldPerInterval} 金币才能开启（每个扣费周期都会扣这么多）。`
-      );
+      return color.red(`金币不足，至少需要 ${goldPerInterval} 金币才能开启（每个扣费周期都会扣这么多）。`);
     }
   }
 
@@ -436,10 +435,7 @@ export function tryStartLandFlightSession(player: Player): string | void {
         `\n§7离开领地、换维度或死亡等也会结束飞行。`
     );
   } else if (admin) {
-    player.sendMessage(
-      color.green("§a领地飞行已开启。") +
-        `\n§7管理员不扣金币。离开领地、换维度或死亡等会结束飞行。`
-    );
+    player.sendMessage(color.green("§a领地飞行已开启。") + `\n§7管理员不扣金币。离开领地、换维度或死亡等会结束飞行。`);
   } else {
     player.sendMessage(
       color.green("§a领地飞行已开启。") +
@@ -449,111 +445,115 @@ export function tryStartLandFlightSession(player: Player): string | void {
 }
 
 export function initLandFlight(): void {
-  system.runInterval(() => {
-    const landOn = setting.getState("land") === true;
-    const flightOn = setting.getState("landFlightEnabled") === true;
+  taskScheduler.register({
+    id: "land.flightBilling",
+    label: "领地飞行计费",
+    category: "land",
+    intervalTicks: TICK_INTERVAL,
+    when: () => setting.getState("land") === true && setting.getState("landFlightEnabled") === true,
+    run: () => {
+      const landOn = setting.getState("land") === true;
+      const flightOn = setting.getState("landFlightEnabled") === true;
 
-    if (!landOn || !flightOn) {
-      if (sessions.size > 0) {
-        for (const id of [...sessions.keys()]) {
-          const p = world.getPlayers().find((pl) => pl.id === id);
-          if (p) {
-            revokeLandFlightImmediate(p);
-          } else {
-            sessions.delete(id);
+      if (!landOn || !flightOn) {
+        if (sessions.size > 0) {
+          for (const id of [...sessions.keys()]) {
+            const p = world.getPlayers().find((pl) => pl.id === id);
+            if (p) {
+              revokeLandFlightImmediate(p);
+            } else {
+              sessions.delete(id);
+            }
           }
         }
-      }
-      return;
-    }
-
-    const now = Date.now();
-    const intervalSec = clampBillingIntervalSec(Number(setting.getState("landFlightBillingIntervalSec")));
-    const goldPerInterval = clampGold(Number(setting.getState("landFlightGoldPerInterval")));
-    const useEconomy = setting.getState("landFlightUseEconomy") === true;
-    const economyOn = setting.getState("economy") === true;
-    const leaveGraceSec = clampLeaveGraceSec(Number(setting.getState("landFlightLeaveGraceSec")));
-
-    for (const [playerId, sess] of [...sessions.entries()]) {
-      const player = world.getPlayers().find((pl) => pl.id === playerId);
-      if (!player) {
-        sessions.delete(playerId);
-        continue;
+        return;
       }
 
-      if (player.dimension.id !== sess.dimensionId) {
-        revokeLandFlightImmediate(player);
-        continue;
-      }
+      const now = Date.now();
+      const intervalSec = clampBillingIntervalSec(Number(setting.getState("landFlightBillingIntervalSec")));
+      const goldPerInterval = clampGold(Number(setting.getState("landFlightGoldPerInterval")));
+      const useEconomy = setting.getState("landFlightUseEconomy") === true;
+      const economyOn = setting.getState("economy") === true;
+      const leaveGraceSec = clampLeaveGraceSec(Number(setting.getState("landFlightLeaveGraceSec")));
 
-      const loc = getLandProbeLocation(player);
-      const { isInside, insideLand } = landManager.testLand(loc, player.dimension.id);
-      const adm = isAdmin(player);
-
-      const onTrustedLand =
-        Boolean(isInside && insideLand) &&
-        (adm || landManager.isPlayerTrustedOnLand(insideLand!, player.name));
-
-      if (onTrustedLand) {
-        if (sess.phase === "graceOutside") {
-          sess.phase = "normal";
-          sess.graceEndTick = undefined;
-          sess.lastGraceRemainingSec = undefined;
-          clearLandFlightHud(player);
+      for (const [playerId, sess] of [...sessions.entries()]) {
+        const player = world.getPlayers().find((pl) => pl.id === playerId);
+        if (!player) {
+          sessions.delete(playerId);
+          continue;
         }
 
-        const shouldBill = useEconomy && economyOn && !adm && goldPerInterval > 0;
-        if (shouldBill && sess.nextBillingAtMs !== undefined && now >= sess.nextBillingAtMs) {
-          const ok = economic.removeGold(player.name, goldPerInterval, "landFlight:billing");
-          if (!ok) {
-            revokeLandFlightImmediate(player);
-            player.sendMessage(color.red("§c金币不足，领地飞行已关闭。请补充金币后再开启。"));
-            continue;
-          }
-          sess.nextBillingAtMs = now + intervalSec * 1000;
-        }
-        continue;
-      }
-
-      if (isInside && insideLand && !adm && !landManager.isPlayerTrustedOnLand(insideLand, player.name)) {
-        const inLeaveGrace =
-          sess.phase === "graceOutside" &&
-          sess.graceEndTick !== undefined &&
-          system.currentTick < sess.graceEndTick;
-        if (!inLeaveGrace) {
+        if (player.dimension.id !== sess.dimensionId) {
           revokeLandFlightImmediate(player);
           continue;
         }
-      }
 
-      if (leaveGraceSec === 0) {
-        revokeLandFlightImmediate(player);
-        continue;
-      }
+        const loc = getLandProbeLocation(player);
+        const { isInside, insideLand } = landManager.testLand(loc, player.dimension.id);
+        const adm = isAdmin(player);
 
-      if (sess.phase === "normal") {
-        sess.phase = "graceOutside";
-        sess.graceEndTick = system.currentTick + leaveGraceSec * TPS;
-        sess.lastGraceRemainingSec = undefined;
-      }
+        const onTrustedLand =
+          Boolean(isInside && insideLand) && (adm || landManager.isPlayerTrustedOnLand(insideLand!, player.name));
 
-      if (sess.graceEndTick === undefined) {
-        revokeLandFlightImmediate(player);
-        continue;
-      }
+        if (onTrustedLand) {
+          if (sess.phase === "graceOutside") {
+            sess.phase = "normal";
+            sess.graceEndTick = undefined;
+            sess.lastGraceRemainingSec = undefined;
+            clearLandFlightHud(player);
+          }
 
-      if (system.currentTick >= sess.graceEndTick) {
-        revokeLandFlightAfterGrace(player);
-        continue;
-      }
+          const shouldBill = useEconomy && economyOn && !adm && goldPerInterval > 0;
+          if (shouldBill && sess.nextBillingAtMs !== undefined && now >= sess.nextBillingAtMs) {
+            const ok = economic.removeGold(player.name, goldPerInterval, "landFlight:billing");
+            if (!ok) {
+              revokeLandFlightImmediate(player);
+              player.sendMessage(color.red("§c金币不足，领地飞行已关闭。请补充金币后再开启。"));
+              continue;
+            }
+            sess.nextBillingAtMs = now + intervalSec * 1000;
+          }
+          continue;
+        }
 
-      const remaining = Math.max(0, Math.ceil((sess.graceEndTick - system.currentTick) / TPS));
-      if (sess.lastGraceRemainingSec !== remaining) {
-        sess.lastGraceRemainingSec = remaining;
-        showGraceCountdown(player, remaining);
+        if (isInside && insideLand && !adm && !landManager.isPlayerTrustedOnLand(insideLand, player.name)) {
+          const inLeaveGrace =
+            sess.phase === "graceOutside" && sess.graceEndTick !== undefined && system.currentTick < sess.graceEndTick;
+          if (!inLeaveGrace) {
+            revokeLandFlightImmediate(player);
+            continue;
+          }
+        }
+
+        if (leaveGraceSec === 0) {
+          revokeLandFlightImmediate(player);
+          continue;
+        }
+
+        if (sess.phase === "normal") {
+          sess.phase = "graceOutside";
+          sess.graceEndTick = system.currentTick + leaveGraceSec * TPS;
+          sess.lastGraceRemainingSec = undefined;
+        }
+
+        if (sess.graceEndTick === undefined) {
+          revokeLandFlightImmediate(player);
+          continue;
+        }
+
+        if (system.currentTick >= sess.graceEndTick) {
+          revokeLandFlightAfterGrace(player);
+          continue;
+        }
+
+        const remaining = Math.max(0, Math.ceil((sess.graceEndTick - system.currentTick) / TPS));
+        if (sess.lastGraceRemainingSec !== remaining) {
+          sess.lastGraceRemainingSec = remaining;
+          showGraceCountdown(player, remaining);
+        }
       }
-    }
-  }, TICK_INTERVAL);
+    },
+  });
 
   world.beforeEvents.playerLeave.subscribe((event) => {
     const { player } = event;

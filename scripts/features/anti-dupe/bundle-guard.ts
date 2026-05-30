@@ -7,6 +7,7 @@ import { system, world } from "@minecraft/server";
 import { getBlockInventoryContainer, getEntityInventoryContainer } from "./block-inventory-access";
 import { isBundleTypeId } from "./constants";
 import setting from "../system/services/setting";
+import { taskScheduler } from "../platform/scheduler";
 
 const ANTI_DUPE_MSG =
   "§c当前服务器已禁止在非常规箱子类容器内放入收纳袋（防止刷物）。如有特殊需求请联系管理员将你加入防刷白名单后再放置。";
@@ -73,7 +74,9 @@ export function clearSessionForPlayer(player: Player): void {
   sessions.delete(player.id);
 }
 
-function resolveContainer(session: OpenContainerSession): { container: Container; dimension: Dimension; pos: Vector3 } | undefined {
+function resolveContainer(
+  session: OpenContainerSession
+): { container: Container; dimension: Dimension; pos: Vector3 } | undefined {
   try {
     if (session.kind === "block") {
       const dim = world.getDimension(session.dimensionId);
@@ -172,7 +175,12 @@ function processAllSessionsTick(nowTick: number): void {
 function ensureTickLoop(): void {
   if (tickLoopStarted) return;
   tickLoopStarted = true;
-  system.runInterval(() => {
-    processAllSessionsTick(system.currentTick);
-  }, 4);
+  taskScheduler.register({
+    id: "antiDupe.bundleGuard",
+    label: "防刷收纳袋扫描",
+    category: "system",
+    intervalTicks: 4,
+    when: () => setting.getState("antiDupeEnabled") === true,
+    run: () => processAllSessionsTick(system.currentTick),
+  });
 }

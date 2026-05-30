@@ -1,5 +1,6 @@
 import { Entity, Player, Vector3, system, world } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
+import { taskScheduler } from "../../platform/scheduler";
 import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import setting from "../../system/services/setting";
@@ -345,11 +346,7 @@ export function summarizeBehaviorEntry(entry: BehaviorLogEntry): string {
       : "";
   const land = entry.l ? ` | 领地:${entry.l}` : "";
   const target =
-    entry.e === "itemWatchSnapshot" && entry.v
-      ? ` | 物品:${entry.v}`
-      : entry.v
-        ? ` | 对象:${entry.v}`
-        : "";
+    entry.e === "itemWatchSnapshot" && entry.v ? ` | 物品:${entry.v}` : entry.v ? ` | 对象:${entry.v}` : "";
   const meta = entry.m ? ` | ${entry.m}` : "";
   return `[${formatBehaviorTimestamp(entry.t)}] ${eventLabel}${coord}${land}${target}${meta}`;
 }
@@ -388,13 +385,7 @@ function buildBehaviorExtraParts(entry: BehaviorLogEntry): string[] {
 }
 
 function buildBehaviorSearchText(entry: BehaviorLogEntry): string {
-  const parts = [
-    entry.p,
-    getBehaviorEventLabel(entry.e),
-    entry.m ?? "",
-    entry.l ?? "",
-    entry.v ?? "",
-  ];
+  const parts = [entry.p, getBehaviorEventLabel(entry.e), entry.m ?? "", entry.l ?? "", entry.v ?? ""];
 
   if (typeof entry.d === "number") {
     parts.push(getBehaviorDimensionLabel(entry.d));
@@ -423,8 +414,7 @@ function buildBehaviorSearchText(entry: BehaviorLogEntry): string {
 }
 
 export function formatBehaviorListEntry(entry: BehaviorLogEntry, index?: number): string {
-  const numberPrefix =
-    typeof index === "number" ? `${color.darkGray(`${index + 1}.`.padStart(2, " "))} ` : "";
+  const numberPrefix = typeof index === "number" ? `${color.darkGray(`${index + 1}.`.padStart(2, " "))} ` : "";
   const line1 =
     `${numberPrefix}${color.gray(formatBehaviorShortTimestamp(entry.t))} ` +
     `${color.aqua(getBehaviorEventLabel(entry.e))} ${color.darkGray("·")} ${color.yellow(entry.p)}`;
@@ -562,9 +552,15 @@ class BehaviorLogService {
       this.flush();
     });
 
-    system.runInterval(() => {
-      this.flush();
-    }, FLUSH_INTERVAL_TICKS);
+    taskScheduler.register({
+      id: "behaviorLog.flush",
+      label: "行为日志落库",
+      category: "log",
+      intervalTicks: FLUSH_INTERVAL_TICKS,
+      when: () => setting.getState("behaviorLogEnabled") === true,
+      skipIfRunning: true,
+      run: () => this.flush(),
+    });
   }
 
   getEventTypes(): BehaviorEventType[] {
@@ -624,9 +620,7 @@ class BehaviorLogService {
     const state = this.getState();
     const keywordValue = keyword ? normalizeText(keyword).toLowerCase() : "";
     const eventTypeSet = eventTypes?.length ? new Set(eventTypes) : undefined;
-    const effectiveEventSet = guildIdFilter
-      ? eventTypeSet ?? new Set(GUILD_HISTORY_EVENT_TYPES)
-      : eventTypeSet;
+    const effectiveEventSet = guildIdFilter ? (eventTypeSet ?? new Set(GUILD_HISTORY_EVENT_TYPES)) : eventTypeSet;
 
     const mergedEntries = [...state.es, ...state.ls]
       .sort((a, b) => b.t - a.t)

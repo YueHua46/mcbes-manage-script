@@ -3,7 +3,9 @@ import { ActionFormData } from "@minecraft/server-ui";
 import serverInfo from "../../../features/system/services/server-info";
 import setting from "../../../features/system/services/setting";
 import { getLiveFormCapabilities } from "../../../features/platform/sapi-capabilities";
+import { taskScheduler } from "../../../features/platform/scheduler";
 import { color } from "../../../shared/utils/color";
+import { openSchedulerDetailForm } from "./scheduler-panel";
 
 function boolState(value: unknown): string {
   return value === true ? color.green("开") : color.red("关");
@@ -38,6 +40,8 @@ function buildSnapshot(): string {
   const tps = serverInfo.TPS || 0;
   const mobs = serverInfo.organismLength || 0;
   const items = serverInfo.itemsLength || 0;
+  const taskCount = taskScheduler.getSnapshots().length;
+  const runningTasks = taskScheduler.getSnapshots().filter((task) => task.isRunning).length;
 
   return [
     `${stat("TPS", tps, color.gold)}  ${color.darkGray("|")}  ${stat("在线", onlinePlayers.length)}`,
@@ -47,6 +51,9 @@ function buildSnapshot(): string {
     `${switchStat("日志", setting.getState("behaviorLogEnabled"))}  ${switchStat("防刷", setting.getState("antiDupeEnabled"))}`,
     `${switchStat("公会", setting.getState("guild"))}  ${switchStat("PVP", setting.getState("pvp"))}`,
     "",
+    `${color.gold("── 调度器 ──")}  ${color.gray(`任务 ${taskCount}`)}${runningTasks > 0 ? color.yellow(`  执行中 ${runningTasks}`) : ""}`,
+    taskScheduler.formatPanelSection(5),
+    "",
     `${color.gray(`更新 tick ${system.currentTick}`)}`,
   ].join("\n");
 }
@@ -55,11 +62,16 @@ function openFallbackServerPanel(player: Player, returnForm?: () => void): void 
   const form = new ActionFormData();
   form.title("§w服务器实时面板");
   form.body({ rawtext: [{ text: buildSnapshot() }] });
+  form.button("§w调度详情", "textures/icons/gear");
   form.button("§w刷新", "textures/icons/requeue");
   form.button("§w返回", "textures/icons/back");
   form.show(player).then((response) => {
     if (response.canceled || response.cancelationReason) return;
     if (response.selection === 0) {
+      openSchedulerDetailForm(player, () => openFallbackServerPanel(player, returnForm));
+      return;
+    }
+    if (response.selection === 1) {
       openFallbackServerPanel(player, returnForm);
       return;
     }
@@ -89,6 +101,10 @@ export async function openLiveServerPanel(player: Player, returnForm?: () => voi
   form
     .label(snapshot)
     .divider()
+    .button("调度详情", () => {
+      safeClose(form);
+      system.run(() => openSchedulerDetailForm(player, () => openLiveServerPanel(player, returnForm)));
+    })
     .button("刷新", () => {
       snapshot.setData(buildSnapshot());
     })

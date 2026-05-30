@@ -1,17 +1,11 @@
-import {
-  Dimension,
-  Player,
-  StructureSaveMode,
-  Vector3,
-  system,
-  world,
-} from "@minecraft/server";
+import { Dimension, Player, StructureSaveMode, Vector3, system, world } from "@minecraft/server";
 import type { ILand } from "../../../core/types";
 import { Database } from "../../../shared/database/database";
 import { color } from "../../../shared/utils/color";
 import { SystemLog } from "../../../shared/utils/common";
 import setting from "../../system/services/setting";
 import landManager from "./land-manager";
+import { taskScheduler } from "../../platform/scheduler";
 
 const DATABASE_NAME = "landSnapshots";
 const MAX_STRUCTURE_X = 64;
@@ -99,9 +93,7 @@ function getBounds(land: ILand): { from: Vector3; to: Vector3; size: Vector3 } {
 
 function chunkCountForSize(size: Vector3): number {
   return (
-    Math.ceil(size.x / MAX_STRUCTURE_X) *
-    Math.ceil(size.y / MAX_STRUCTURE_Y) *
-    Math.ceil(size.z / MAX_STRUCTURE_Z)
+    Math.ceil(size.x / MAX_STRUCTURE_X) * Math.ceil(size.y / MAX_STRUCTURE_Y) * Math.ceil(size.z / MAX_STRUCTURE_Z)
   );
 }
 
@@ -370,13 +362,24 @@ class LandSnapshotService {
   }
 
   private registerAutoSnapshotScheduler(): void {
-    system.runInterval(() => {
-      this.enqueueAutoSnapshotsIfDue();
-    }, AUTO_SNAPSHOT_CHECK_TICKS);
+    taskScheduler.register({
+      id: "land.snapshotAutoEnqueue",
+      label: "领地快照自动入队",
+      category: "land",
+      intervalTicks: AUTO_SNAPSHOT_CHECK_TICKS,
+      when: () => setting.getState("land") === true,
+      run: () => this.enqueueAutoSnapshotsIfDue(),
+    });
 
-    system.runInterval(() => {
-      this.processAutoSnapshotQueue();
-    }, AUTO_SNAPSHOT_WORKER_TICKS);
+    taskScheduler.register({
+      id: "land.snapshotAutoWorker",
+      label: "领地快照队列处理",
+      category: "land",
+      intervalTicks: AUTO_SNAPSHOT_WORKER_TICKS,
+      when: () => setting.getState("land") === true,
+      skipIfRunning: true,
+      run: () => this.processAutoSnapshotQueue(),
+    });
   }
 
   private enqueueAutoSnapshotsIfDue(): void {
@@ -414,25 +417,14 @@ class LandSnapshotService {
     const plan = this.buildPlan(land);
     const limit = this.getChunkLimit();
     if (plan.chunkCount > limit) {
-      SystemLog.warn(
-        `[LandSnapshot] 自动快照跳过 ${land.name}: 分片 ${plan.chunkCount} 超过上限 ${limit}`
-      );
+      SystemLog.warn(`[LandSnapshot] 自动快照跳过 ${land.name}: 分片 ${plan.chunkCount} 超过上限 ${limit}`);
       return;
     }
 
     const snapshotId = makeSnapshotId();
     this.activeLandJobs.add(land.name);
     this.activeAutoJob = true;
-    system.runJob(
-      this.createSnapshotJob(
-        "自动保存",
-        land,
-        snapshotId,
-        plan,
-        this.getAutoIncludeEntities(),
-        "auto"
-      )
-    );
+    system.runJob(this.createSnapshotJob("自动保存", land, snapshotId, plan, this.getAutoIncludeEntities(), "auto"));
   }
 
   private trimAutoSnapshots(landName: string): void {
@@ -456,10 +448,7 @@ class LandSnapshotService {
       const dimension = getDimension(land.dimension);
       for (const chunk of plan.chunks) {
         const structureId = makeStructureId(snapshotId, chunk.index);
-        notify(
-          playerName,
-          color.yellow(`正在保存领地快照 ${chunk.index + 1}/${plan.chunkCount}：${land.name}`)
-        );
+        notify(playerName, color.yellow(`正在保存领地快照 ${chunk.index + 1}/${plan.chunkCount}：${land.name}`));
         world.structureManager.createFromWorld(structureId, dimension, chunk.from, chunk.to, {
           includeBlocks: true,
           includeEntities,
