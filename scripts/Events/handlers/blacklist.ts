@@ -18,77 +18,80 @@
  *   在每次 asyncPlayerJoin 触发时写入，供封禁 UI 读取在线玩家的 persistentId。
  */
 
-import { beforeEvents } from "@minecraft/server-admin";
-import { AsyncPlayerJoinBeforeEvent } from "@minecraft/server-admin";
+import type { AsyncPlayerJoinBeforeEvent } from "@minecraft/server-admin";
 import { system } from "@minecraft/server";
 import { IBlacklistEntry } from "../../core/types";
 import { eventRegistry } from "../registry";
 import blacklistService from "../../features/blacklist/services/blacklist";
 import { playerPersistentIdMap } from "../../features/blacklist/services/persistent-id-map";
 import setting from "../../features/system/services/setting";
+import { isBdsBuild, subscribeAsyncPlayerJoin } from "../../features/platform/sapi-capabilities";
 import { SystemLog } from "../../shared/utils/common";
 
 const DEFAULT_BAN_REASON = "您已被该服务器封禁，如有疑问请联系管理员";
 
-export function registerBlacklistEvents(): void {
-  system.run(() => {
-    beforeEvents.asyncPlayerJoin.subscribe(async (event: AsyncPlayerJoinBeforeEvent) => {
-      const { name, persistentId } = event;
+async function handleAsyncPlayerJoin(event: AsyncPlayerJoinBeforeEvent): Promise<void> {
+  const { name, persistentId } = event;
 
-      if (persistentId) {
-        playerPersistentIdMap.set(name, persistentId);
-      }
+  if (persistentId) {
+    playerPersistentIdMap.set(name, persistentId);
+  }
 
-      let hitEntry: IBlacklistEntry | undefined;
-      let hitBy = "";
-      let resolvedXuid: string | null = null;
+  let hitEntry: IBlacklistEntry | undefined;
+  let hitBy = "";
+  let resolvedXuid: string | null = null;
 
-      try {
-        const enabled = setting.getState("blacklistEnabled") as boolean;
-        if (!enabled) return;
+  try {
+    const enabled = setting.getState("blacklistEnabled") as boolean;
+    if (!enabled) return;
 
-        hitEntry = blacklistService.isBlacklistedByName(name);
-        if (hitEntry) {
-          hitBy = "名字";
-        }
+    hitEntry = blacklistService.isBlacklistedByName(name);
+    if (hitEntry) {
+      hitBy = "名字";
+    }
 
-        if (!hitEntry && persistentId) {
-          hitEntry = blacklistService.isBlacklistedByPersistentId(persistentId);
-          if (hitEntry) {
-            hitBy = "persistentId";
-            blacklistService.syncEntry(hitEntry.xuid, name, persistentId);
-          }
-        }
-
-        if (!hitEntry && typeof __BDS_BUILD__ !== "undefined" && __BDS_BUILD__) {
-          try {
-            const { resolveXuid } = await import("../../features/blacklist/services/xuid-resolver");
-            resolvedXuid = await resolveXuid(name);
-          } catch (e) {
-            SystemLog.info(`[Blacklist] xuid 查询不可用（server-net 未配置或接口异常）: ${e}`);
-          }
-        }
-
-        if (resolvedXuid) {
-          hitEntry = blacklistService.isBlacklistedByXuid(resolvedXuid);
-          if (hitEntry) {
-            hitBy = "xuid";
-            blacklistService.syncEntry(hitEntry.xuid, name, persistentId ?? null);
-          }
-        }
-      } catch (checkError) {
-        SystemLog.error(`[Blacklist] 黑名单检查异常，玩家 ${name} 被放行: ${checkError}`);
-        return;
-      }
-
+    if (!hitEntry && persistentId) {
+      hitEntry = blacklistService.isBlacklistedByPersistentId(persistentId);
       if (hitEntry) {
-        const reason = hitEntry.reason || DEFAULT_BAN_REASON;
-        SystemLog.info(`[Blacklist] 玩家 ${name} 被拦截（${hitBy} 匹配，原名: ${hitEntry.name}），理由: ${reason}`);
-        event.disallowJoin(reason);
+        hitBy = "persistentId";
+        blacklistService.syncEntry(hitEntry.xuid, name, persistentId);
       }
-    });
+    }
 
-    SystemLog.info("[Blacklist] asyncPlayerJoin 黑名单校验已注册（三步拦截：名字 → persistentId → xuid）");
+    if (!hitEntry && isBdsBuild()) {
+      try {
+        const { resolveXuid } = await import("../../features/blacklist/services/xuid-resolver");
+        resolvedXuid = await resolveXuid(name);
+      } catch (e) {
+        SystemLog.info(`[Blacklist] xuid 查询不可用（server-net 未配置或接口异常）: ${e}`);
+      }
+    }
+
+    if (resolvedXuid) {
+      hitEntry = blacklistService.isBlacklistedByXuid(resolvedXuid);
+      if (hitEntry) {
+        hitBy = "xuid";
+        blacklistService.syncEntry(hitEntry.xuid, name, persistentId ?? null);
+      }
+    }
+  } catch (checkError) {
+    SystemLog.error(`[Blacklist] 黑名单检查异常，玩家 ${name} 被放行: ${checkError}`);
+    return;
+  }
+
+  if (hitEntry) {
+    const reason = hitEntry.reason || DEFAULT_BAN_REASON;
+    SystemLog.info(`[Blacklist] 玩家 ${name} 被拦截（${hitBy} 匹配，原名: ${hitEntry.name}），理由: ${reason}`);
+    event.disallowJoin(reason);
+  }
+}
+
+export function registerBlacklistEvents(): void {
+  system.run(async () => {
+    const registered = await subscribeAsyncPlayerJoin(handleAsyncPlayerJoin);
+    if (registered) {
+      SystemLog.info("[Blacklist] asyncPlayerJoin 黑名单校验已注册（三步拦截：名字 → persistentId → xuid）");
+    }
   });
 }
 

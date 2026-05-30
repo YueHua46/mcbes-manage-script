@@ -22,6 +22,11 @@ import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
 import { openLiveServerPanel } from "./live-server-panel";
 import { openFeedbackForm } from "../feedback";
+import {
+  BDS_ONLY_FEATURE_HINT,
+  isServerAdminBuild,
+  STANDARD_BUILD_LIMITATION_HINT,
+} from "../../../features/platform/sapi-capabilities";
 import landSnapshotService from "../../../features/land/services/land-snapshot";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
@@ -192,7 +197,7 @@ export function openSystemSettingForm(player: Player): void {
       text: "§w黑名单管理",
       icon: "textures/icons/mod_shield",
       action: async () => {
-        if (typeof __SERVER_ADMIN_BUILD__ !== "undefined" && __SERVER_ADMIN_BUILD__) {
+        if (isServerAdminBuild()) {
           const { openBlacklistManageForm } = await import("../blacklist");
           openBlacklistManageForm(player);
           return;
@@ -203,10 +208,10 @@ export function openSystemSettingForm(player: Player): void {
           {
             title: "黑名单管理不可用",
             desc:
-              color.yellow("当前附加包为普通兼容版（不含 @minecraft/server-admin 与 @minecraft/server-net）。\n\n") +
+              color.yellow(`${STANDARD_BUILD_LIMITATION_HINT}\n\n`) +
               color.gray("因此本版本无法提供黑名单管理、进服前黑名单校验等相关功能。\n") +
               color.white("但也正因为移除了这些模块，本版本才可用于本地存档、BDS 与 Realms 领域服。\n\n") +
-              color.white("如需使用黑名单这类能力，请改用仅适用于 BDS 服务器的增强版附加包。"),
+              color.white(BDS_ONLY_FEATURE_HINT),
           },
           () => openSystemSettingForm(player)
         );
@@ -623,7 +628,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "digOreChainObsidian", name: "一键挖矿：连锁黑曜石（含哭泣黑曜石）" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
     { key: "feedbackAllowPublicView", name: "允许非管理员查看/处理举报工单" },
-    ...(typeof __SERVER_ADMIN_BUILD__ !== "undefined" && __SERVER_ADMIN_BUILD__
+    ...(isServerAdminBuild()
       ? ([{ key: "blacklistEnabled", name: "黑名单系统（仅 BDS 增强版可用）" }] as const)
       : []),
     { key: "behaviorLogEnabled", name: "玩家行为日志" },
@@ -1388,12 +1393,12 @@ function openChestUiCustomIconMapForm(player: Player): void {
   form.title("§w指定自定义物品贴图");
   form.body(
     [
-      "§b这里用于修复个别自定义物品显示成占位图标的问题。",
-      "§7脚本无法自动读取其他附加包资源包里的贴图路径，所以需要管理员手动填一次。",
-      "§7如果不知道路径，可以查看那个附加包的资源包文件，通常在 textures/items/ 下面。",
+      "§b这里用于修复个别自定义物品显示成占位图标或错误贴图的问题。",
+      "§7系统会自动尝试使用 textures/items/物品名 作为自定义物品贴图。",
+      "§7如果某个附加包的贴图路径不符合这个规则，再在这里手动指定。",
       "",
       `§f检测到自定义物品: §e${result.customItemCount}`,
-      `§f已指定贴图: §e${entries.length}`,
+      `§f已手动指定贴图: §e${entries.length}`,
       "§7路径示例: textures/items/my_item",
     ].join("\n")
   );

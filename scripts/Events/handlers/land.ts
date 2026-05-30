@@ -23,6 +23,7 @@ import { MinecraftBlockTypes } from "@minecraft/vanilla-data";
 import type { ILand, Vector3 } from "../../core/types";
 import { guildFacade } from "../../features/guild/services/guild-facade";
 import behaviorLog from "../../features/behavior-log/services/behavior-log";
+import { subscribePreviewEvent } from "../../features/platform/sapi-capabilities";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
@@ -63,6 +64,10 @@ const LAND_FIRE_SOURCE_TIMEOUT_MS = 15_000;
 const landBreakWarningState = new Map<string, string>();
 const recentLandBreakAttemptLog = new Map<string, number>();
 const LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS = 1500;
+const WITHER_BOSS_TYPE_ID = "minecraft:wither";
+const WITHER_BOSS_EJECT_MARGIN = 4;
+const WITHER_BOSS_CHECK_INTERVAL_TICKS = 10;
+const LAND_DIMENSION_IDS = ["overworld", "nether", "the_end"] as const;
 
 function isLandBreakAllowed(player: Player, land: ILand): boolean {
   if (land.owner === player.name) return true;
@@ -84,13 +89,10 @@ function logLandBreakAttemptOnce(player: Player, block: any, land: ILand): void 
   if (now - prev < LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS) return;
 
   recentLandBreakAttemptLog.set(key, now);
-  behaviorLog.logLandBreakAttempt(
-    player,
-    block.typeId,
-    block.location,
-    block.dimension.id,
-    { name: land.name, owner: land.owner }
-  );
+  behaviorLog.logLandBreakAttempt(player, block.typeId, block.location, block.dimension.id, {
+    name: land.name,
+    owner: land.owner,
+  });
 }
 
 function warnDeniedLandBreaking(player: Player, block: any, land: ILand): void {
@@ -101,22 +103,94 @@ function warnDeniedLandBreaking(player: Player, block: any, land: ILand): void {
   system.run(() => {
     const p = world.getPlayers().find((pl) => pl.id === player.id);
     if (!p) return;
-    useNotify(
-      "actionbar",
-      p,
-      color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地方块`)
-    );
+    useNotify("actionbar", p, color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地方块`));
   });
 }
 
-function registerLandBreakingPreviewEvents(): void {
-  const beforeEvents = world.beforeEvents as any;
-  const afterEvents = world.afterEvents as any;
-  const playerStartBreakingBlock = beforeEvents.playerStartBreakingBlock ?? afterEvents.playerStartBreakingBlock;
-  const playerCancelBreakingBlock = beforeEvents.playerCancelBreakingBlock ?? afterEvents.playerCancelBreakingBlock;
+function ensureLandAuthDefaults(landData: ILand): void {
+  // 修复旧存档burn权限初始化问题
+  if (landData.public_auth.burn === undefined) {
+    landData.public_auth.burn = false;
+  }
 
-  if (typeof playerStartBreakingBlock?.subscribe === "function") {
-    playerStartBreakingBlock.subscribe((event: any) => {
+  // 修复旧存档attackNeutralMobs权限初始化问题
+  if (landData.public_auth.attackNeutralMobs === undefined) {
+    landData.public_auth.attackNeutralMobs = false;
+  }
+
+  // 修复旧存档allowEnter权限初始化问题
+  if (landData.public_auth.allowEnter === undefined) {
+    landData.public_auth.allowEnter = true;
+  }
+
+  // 修复旧存档allowWater权限初始化问题
+  if (landData.public_auth.allowWater === undefined) {
+    landData.public_auth.allowWater = true;
+  }
+
+  // 修复旧存档allowWitherBoss权限初始化问题：默认不允许凋零BOSS进入领地
+  if (landData.public_auth.allowWitherBoss === undefined) {
+    landData.public_auth.allowWitherBoss = false;
+  }
+
+  if (landData.config_public_auth && landData.config_public_auth.allowWitherBoss === undefined) {
+    landData.config_public_auth.allowWitherBoss = false;
+  }
+}
+
+function getNearestOutsideLandPosition(location: Vector3, land: ILand): Vector3 {
+  const minX = Math.min(land.vectors.start.x, land.vectors.end.x);
+  const maxX = Math.max(land.vectors.start.x, land.vectors.end.x);
+  const minZ = Math.min(land.vectors.start.z, land.vectors.end.z);
+  const maxZ = Math.max(land.vectors.start.z, land.vectors.end.z);
+
+  const candidates = [
+    { distance: Math.abs(location.x - minX), position: { ...location, x: minX - WITHER_BOSS_EJECT_MARGIN } },
+    { distance: Math.abs(location.x - maxX), position: { ...location, x: maxX + WITHER_BOSS_EJECT_MARGIN } },
+    { distance: Math.abs(location.z - minZ), position: { ...location, z: minZ - WITHER_BOSS_EJECT_MARGIN } },
+    { distance: Math.abs(location.z - maxZ), position: { ...location, z: maxZ + WITHER_BOSS_EJECT_MARGIN } },
+  ];
+
+  candidates.sort((a, b) => a.distance - b.distance);
+  return candidates[0].position;
+}
+
+function ejectWitherBossFromLand(wither: Entity, land: ILand): void {
+  try {
+    const target = getNearestOutsideLandPosition(wither.location, land);
+    wither.teleport(target, { dimension: wither.dimension });
+    wither.clearVelocity();
+  } catch (error) {
+    SystemLog.warn(`[Land] failed to eject wither boss from protected land: ${error}`);
+  }
+}
+
+function enforceWitherBossLandAccess(): void {
+  for (const dimensionId of LAND_DIMENSION_IDS) {
+    let withers: Entity[] = [];
+    try {
+      withers = world.getDimension(dimensionId).getEntities({ type: WITHER_BOSS_TYPE_ID });
+    } catch (error) {
+      continue;
+    }
+
+    for (const wither of withers) {
+      try {
+        const { isInside, insideLand } = landManager.testLand(wither.location, wither.dimension.id);
+        if (!isInside || !insideLand) continue;
+        if (insideLand.public_auth.allowWitherBoss === true) continue;
+        ejectWitherBossFromLand(wither, insideLand);
+      } catch (error) {
+        // 忽略实体失效、维度卸载等瞬时错误
+      }
+    }
+  }
+}
+
+function registerLandBreakingPreviewEvents(): void {
+  subscribePreviewEvent(
+    "playerStartBreakingBlock",
+    (event: any) => {
       const { player, block } = event;
       if (!player || !block) return;
 
@@ -124,11 +198,13 @@ function registerLandBreakingPreviewEvents(): void {
       if (!isInside || !insideLand || isLandBreakAllowed(player, insideLand)) return;
 
       warnDeniedLandBreaking(player, block, insideLand);
-    });
-  }
+    },
+    "playerStartBreakingBlock"
+  );
 
-  if (typeof playerCancelBreakingBlock?.subscribe === "function") {
-    playerCancelBreakingBlock.subscribe((event: any) => {
+  subscribePreviewEvent(
+    "playerCancelBreakingBlock",
+    (event: any) => {
       const { player, block } = event;
       if (!player) return;
 
@@ -141,8 +217,9 @@ function registerLandBreakingPreviewEvents(): void {
         const p = world.getPlayers().find((pl) => pl.id === player.id);
         p?.onScreenDisplay.setActionBar("");
       });
-    });
-  }
+    },
+    "playerCancelBreakingBlock"
+  );
 }
 
 /**
@@ -255,26 +332,7 @@ export function registerLandEvents(): void {
     const lands = landManager.getLandList();
     for (const landName in lands) {
       const landData = lands[landName];
-
-      // 修复旧存档burn权限初始化问题
-      if (landData.public_auth.burn === undefined) {
-        landData.public_auth.burn = false;
-      }
-
-      // 修复旧存档attackNeutralMobs权限初始化问题
-      if (landData.public_auth.attackNeutralMobs === undefined) {
-        landData.public_auth.attackNeutralMobs = false;
-      }
-
-      // 修复旧存档allowEnter权限初始化问题
-      if (landData.public_auth.allowEnter === undefined) {
-        landData.public_auth.allowEnter = true;
-      }
-
-      // 修复旧存档allowWater权限初始化问题
-      if (landData.public_auth.allowWater === undefined) {
-        landData.public_auth.allowWater = true;
-      }
+      ensureLandAuthDefaults(landData);
 
       // 清除燃烧方块
       if (!landData.public_auth.burn) {
@@ -295,6 +353,13 @@ export function registerLandEvents(): void {
       }
     }
   }, 20);
+
+  /**
+   * 凋零BOSS进入权限检查
+   */
+  system.runInterval(() => {
+    enforceWitherBossLandAccess();
+  }, WITHER_BOSS_CHECK_INTERVAL_TICKS);
 
   /**
    * 玩家进入/离开领地提示和权限检查
@@ -859,10 +924,7 @@ export function registerLandEvents(): void {
     }
 
     // 0.5. fire/fireTick 且无 damagingEntity：检查是否为受保护实体的持续燃烧
-    if (
-      (cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick) &&
-      !damageSource.damagingEntity
-    ) {
+    if ((cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick) && !damageSource.damagingEntity) {
       const fireTs = landEntityFireSourceMap.get(hurtEntity.id);
       if (fireTs && Date.now() - fireTs < LAND_FIRE_SOURCE_TIMEOUT_MS) {
         event.cancel = true;

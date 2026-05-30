@@ -2,9 +2,8 @@ import { Player, system, world } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 import serverInfo from "../../../features/system/services/server-info";
 import setting from "../../../features/system/services/setting";
+import { getLiveFormCapabilities } from "../../../features/platform/sapi-capabilities";
 import { color } from "../../../shared/utils/color";
-
-type ServerUiModule = typeof import("@minecraft/server-ui");
 
 function boolState(value: unknown): string {
   return value === true ? color.green("开") : color.red("关");
@@ -77,23 +76,13 @@ function safeClose(form: { close?: () => void }): void {
 }
 
 export async function openLiveServerPanel(player: Player, returnForm?: () => void): Promise<void> {
-  let ui: ServerUiModule;
-
-  try {
-    ui = await import("@minecraft/server-ui");
-  } catch {
+  const liveForm = await getLiveFormCapabilities();
+  if (!liveForm) {
     openFallbackServerPanel(player, returnForm);
     return;
   }
 
-  const CustomForm = (ui as any).CustomForm;
-  const Observable = (ui as any).Observable;
-
-  if (!CustomForm || !Observable) {
-    openFallbackServerPanel(player, returnForm);
-    return;
-  }
-
+  const { CustomForm, Observable } = liveForm;
   const snapshot = Observable.create(buildSnapshot());
   const form = CustomForm.create(player, "服务器实时面板");
 
