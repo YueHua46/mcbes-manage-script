@@ -18,19 +18,24 @@ export function openPvpManagementForm(player: Player): void {
   }
 
   const config = pvpManager.getConfig();
+  const storedMode = pvpManager.getStoredMode();
+  const moduleEnabled = pvpManager.isModuleEnabled();
   const modeOptions = [
     "原版模式：按世界/存档原版的玩家互相伤害设置决定",
     "插件模式：按插件规则控制，支持个人开关、统计、夺金",
     "禁止模式：强制禁止玩家互相伤害",
   ];
   const modeValues = ["vanilla", "plugin", "off"] as const;
-  const currentModeIndex = modeValues.indexOf(config.mode);
+  const currentModeIndex = modeValues.indexOf(storedMode);
 
   const form = new ModalFormData();
   form.title("§wPVP管理");
 
+  const moduleHint = moduleEnabled
+    ? "功能开关：§a已开启"
+    : "功能开关：§c已关闭§f（对外暂按原版处理，以下模式保存后会在重新开启功能开关时生效）";
   form.dropdown(
-    `PVP模式\n当前：${pvpManager.getModeDisplay(config.mode)}\n${pvpManager.getModeDescription(config.mode)}`,
+    `PVP模式\n${moduleHint}\n已保存模式：${pvpManager.getModeDisplay(storedMode)}\n对外生效：${pvpManager.getModeDisplay(config.mode)}\n${pvpManager.getModeDescription(storedMode)}`,
     modeOptions,
     { defaultValueIndex: currentModeIndex === -1 ? 2 : currentModeIndex }
   );

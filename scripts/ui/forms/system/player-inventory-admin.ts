@@ -132,6 +132,11 @@ function moveItemToAdminInventory(
 }
 
 function copyItemToAdminInventory(adminPlayer: Player, item: ItemStack): void {
+  if (!isAdmin(adminPlayer)) {
+    adminPlayer.sendMessage("§c只有管理员可以复制物品。");
+    return;
+  }
+
   const adminContainer = adminPlayer.getComponent("inventory")?.container;
   if (!adminContainer) return;
   const clone = item.clone();
@@ -166,17 +171,22 @@ function openShulkerActionForm(
   }
 
   const placeLabel = inventoryMode === "ender" ? "末影箱" : "玩家背包";
+  const canCopy = isAdmin(adminPlayer);
   const form = new ActionFormData()
     .title("§d潜影盒操作")
     .body(
-      `§b你选择的是潜影盒（${placeLabel}）。\n\n§3可先取走整盒，或复制一份；无法在脚本内展开盒内格子（与游戏内打开盒子不同）。`
+      canCopy
+        ? `§b你选择的是潜影盒（${placeLabel}）。\n\n§3可先取走整盒，或复制一份；无法在脚本内展开盒内格子（与游戏内打开盒子不同）。`
+        : `§b你选择的是潜影盒（${placeLabel}）。\n\n§3普通玩家只能取出整盒，不能复制潜影盒。`
     )
-    .button(`§a取走潜影盒（从目标${placeLabel}移除）`)
-    .button("§b复制一份潜影盒（目标保留原件）")
-    .button("§3返回");
+    .button(`§a取走潜影盒（从目标${placeLabel}移除）`);
+
+  if (canCopy) form.button("§b复制一份潜影盒（目标保留原件）");
+  form.button("§3返回");
 
   form.show(adminPlayer).then((res) => {
-    if (res.canceled || res.selection === undefined || res.selection === 2) {
+    const backSelection = canCopy ? 2 : 1;
+    if (res.canceled || res.selection === undefined || res.selection === backSelection) {
       doReopen();
       return;
     }
@@ -191,7 +201,7 @@ function openShulkerActionForm(
       );
       return;
     }
-    if (res.selection === 1) {
+    if (canCopy && res.selection === 1) {
       copyItemToAdminInventory(adminPlayer, item);
       doReopen();
     }
@@ -446,7 +456,11 @@ export function openEnderChestDualForm(viewer: Player, target: Player, opts: End
         lores.push(`§e耐久: §f${pct}%`);
       }
       if (isShulkerBox(item.typeId)) {
-        lores.push("§3末影箱槽 · 潜影盒 · 点击选择取走或复制");
+        lores.push(
+          isAdmin(viewer)
+            ? "§3末影箱槽 · 潜影盒 · 点击选择取走或复制"
+            : "§3末影箱槽 · 潜影盒 · 点击取到你的背包"
+        );
       } else {
         lores.push("§3末影箱槽 · 点击 → 取到你的背包");
       }

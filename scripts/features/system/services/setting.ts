@@ -39,6 +39,10 @@ export type IModules =
   | "backToDeath"
   | "enableTreeCutOneClick"
   | "enableDigOreOneClick"
+  /** 下蹲连锁收割作物（默认开） */
+  | "enableCropHarvestOneClick"
+  /** 下蹲一键连锁播种（默认开） */
+  | "enableCropPlantOneClick"
   /** 一键挖矿是否连锁破坏黑曜石/哭泣黑曜石（默认开；关闭则仅连锁矿石等，不连锁黑曜石类） */
   | "digOreChainObsidian"
   | "land1BlockPerPrice"
@@ -47,12 +51,12 @@ export type IModules =
   | "monsterKillGoldReward"
   | "deathGoldPenaltyEnabled"
   | "deathGoldPenaltyAmount"
-  | "chestUiIconOffset"
-  | "chestUiCustomIconMap"
   | "allowPlayerDisplaySettings"
   | "pvp"
   | "pvpMode"
   | "pvpEnabled"
+  /** 关闭 PVP 功能开关前暂存的模式，重新开启时恢复（vanilla/plugin/off） */
+  | "pvpSuspendedMode"
   | "pvpSeizeAmount"
   | "pvpMinProtection"
   | "pvpToggleCooldown"
@@ -87,11 +91,6 @@ export type IModules =
   | "logLocationSnapshot"
   | "logItemWatchSnapshot"
   | "guild"
-  | "feedback"
-  | "feedbackAllowPublicView"
-  | "feedbackSubmitCost"
-  | "feedbackMaxContentLength"
-  | "feedbackMaxEntries"
   | "guildCreateCost"
   | "guildMaxMembers"
   | "guildTagMaxLen"
@@ -163,6 +162,8 @@ export const defaultSetting = {
   backToDeath: true,
   enableTreeCutOneClick: true,
   enableDigOreOneClick: true,
+  enableCropHarvestOneClick: true,
+  enableCropPlantOneClick: true,
   digOreChainObsidian: true,
   land1BlockPerPrice: "2",
   daily_gold_limit: "100000",
@@ -170,14 +171,11 @@ export const defaultSetting = {
   monsterKillGoldReward: true,
   deathGoldPenaltyEnabled: true,
   deathGoldPenaltyAmount: "100",
-  /** Chest UI 非原版物品图标偏移量：服务器加载了其他自定义物品附加包时，用于修正 runtime id 偏移 */
-  chestUiIconOffset: "0",
-  /** Chest UI 自定义物品 typeId -> 贴图路径 映射（JSON 对象字符串），用于外部附加包自定义物品图标 */
-  chestUiCustomIconMap: "{}",
   allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
   pvp: true, // PVP系统菜单显示开关
   pvpMode: "vanilla", // PVP模式：vanilla=原版，plugin=插件，off=禁止
   pvpEnabled: false, // 旧版兼容开关：true=插件模式，false=原版模式
+  pvpSuspendedMode: "", // 功能开关关闭前暂存的 pvpMode
   pvpSeizeAmount: "100", // 固定夺取金额
   pvpMinProtection: "100", // 最低金币保护
   pvpToggleCooldown: "30", // 切换冷却时间（秒）
@@ -213,15 +211,6 @@ export const defaultSetting = {
   logLocationSnapshot: false,
   logItemWatchSnapshot: true,
   guild: true,
-  feedback: true,
-  /** 允许无管理员权限玩家查看/处理举报工单；关闭时仅 admin / OP / feedback_staff 标签可处理 */
-  feedbackAllowPublicView: false,
-  /** 每次提交举报或工单扣除金币；0 为免费 */
-  feedbackSubmitCost: "0",
-  /** 举报/工单内容最大字数 */
-  feedbackMaxContentLength: "200",
-  /** 最多保留举报/工单记录数，超出后删除最旧记录 */
-  feedbackMaxEntries: "300",
   guildCreateCost: "100000",
   guildMaxMembers: "50",
   guildTagMaxLen: "6",

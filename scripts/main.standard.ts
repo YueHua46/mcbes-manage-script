@@ -2,21 +2,22 @@
  * 杜绝熊孩服务器插件 - 标准兼容版入口
  */
 
-import { system } from "@minecraft/server";
 import { SystemLog } from "./shared/utils/common";
 import "./shared/database/database";
 import serverInfo from "./features/system/services/server-info";
 import setting from "./features/system/services/setting";
-import { autoApplyChestUiIconFixOnStartup } from "./features/system/services/chest-ui-icon-offset";
 import "./features/system/services/trial-mode";
 import "./features/one-click/dig-ore";
 import "./features/one-click/tree";
+import "./features/one-click/crop-harvest";
+import "./features/one-click/crop-plant";
 import "./features/player/services/name-display";
 import "./features/command/services/command";
 import "./features/blacklist/services/blacklist";
 import "./features/behavior-log/services/log-inspector-tool";
 import "./features/guild";
 import { eventRegistry } from "./events/registry";
+import { scheduleItemIconKeyCacheWarmup } from "./features/system/services/item-icon-key-cache";
 import "./events/handlers/index.standard";
 
 function initializeApp(): void {
@@ -34,13 +35,15 @@ function initializeApp(): void {
     SystemLog.info("[2/3] 功能模块加载完成");
     SystemLog.info("  ✓ 一键挖矿功能");
     SystemLog.info("  ✓ 一键砍树功能");
+    SystemLog.info("  ✓ 下蹲连锁收割作物");
+    SystemLog.info("  ✓ 下蹲一键连锁播种");
     SystemLog.info("  ✓ 玩家名称显示");
     SystemLog.info("  ✓ 自定义命令系统");
     SystemLog.info("  ✓ 试玩模式系统");
 
     SystemLog.info("[3/3] 初始化事件系统...");
     eventRegistry.initializeAll();
-    system.runTimeout(() => autoApplyChestUiIconFixOnStartup(), 100);
+    scheduleItemIconKeyCacheWarmup();
 
     SystemLog.info("========================================");
     SystemLog.info("✓ 所有模块已加载成功");

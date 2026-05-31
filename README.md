@@ -34,7 +34,7 @@ Minecraft 基岩版（Bedrock）服务器管理插件，基于 Script API（SAPI
 | 黑名单 | 名字 / persistentId / xuid 三层匹配 | — | ✓ |
 | 进服前拦截 | `asyncPlayerJoin` 拒绝封禁玩家 | — | ✓ |
 | 服务器实时面板 | CustomForm + Observable，不支持时降级 ActionForm | ✓ | ✓ |
-| 试玩模式 / 举报工单 / 在线时长 / 数据统计 | 服主管理面板子模块 | ✓ | ✓ |
+| 试玩模式 / 在线时长 / 数据统计 | 服主管理面板子模块 | ✓ | ✓ |
 | 一键挖矿 / 一键砍树 | 可配置开关 | ✓ | ✓ |
 | Chest UI 图标修复 | 启动时自动偏移修复 | ✓ | ✓ |
 
@@ -66,14 +66,13 @@ npm run local-deploy:bds # 监听变更并部署 BDS 版
 
 fork 后修改并提交 PR，请在描述中说明改动内容与测试方式。需具备基础 JavaScript/TypeScript 知识。
 
-### 更新物品 ID 映射（供服主 / 无编译环境用户）
+### 更新 Chest UI 原版物品贴图映射
 
-菜单等 UI 使用的物品 typeId → 数字 ID 来自 **`scripts/assets/runtime_map.js`**（可读、未压缩）。构建会在 `dist/scripts/assets/` 下生成两个文件：
+商店、拍卖行等界面使用 **`textures/...` 贴图路径**显示物品图标（不再依赖 runtime 数字 id）。
 
-- **runtime_map.js**：纯数据，格式为 `export const runtimeMap = { "typeId": 数字, ... };`。**替换映射时只需用最新的 runtime_map.js 覆盖该文件即可，无需改 runtime-id-map.js。**
-- **runtime-id-map.js**：固定包装（import runtime_map.js 并 export runtimeIdMap），请勿修改。
-
-有编译环境时：改完 `scripts/assets/runtime_map.ts` 后执行 `npm run build` 或 `npm run build:runtime-map`，再把 `dist/scripts/assets/runtime_map.js` 覆盖到行为包内同路径。无编译环境时：直接替换行为包里的 `scripts/assets/runtime_map.js`，保持 `export const runtimeMap = { ... };` 格式即可。
+- 映射数据：`scripts/assets/vanilla-item-icon-paths.ts`（自动生成）
+- 游戏版本升级后执行：`npm run build:vanilla-icon-map`，再 `npm run build`
+- 附加包自定义物品默认尝试 `textures/items/物品名`
 
 ## 版权
 

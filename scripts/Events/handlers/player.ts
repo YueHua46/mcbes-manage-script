@@ -40,7 +40,7 @@ export function registerPlayerEvents(): void {
       // 获取自定义的欢迎消息并处理换行符
       const welcomeMessageRaw = (setting.getState("welcomeMessage") as string) || "";
       const welcomeMessage = welcomeMessageRaw.replace(/\\n/g, "\n");
-      
+
       if (welcomeMessage) {
         player.sendMessage(welcomeMessage);
       }

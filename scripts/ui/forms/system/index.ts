@@ -21,24 +21,16 @@ import { openOfflineDurationQueryMenu } from "./offline-duration-query";
 import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
 import { openLiveServerPanel } from "./live-server-panel";
-import { openFeedbackForm } from "../feedback";
 import {
   BDS_ONLY_FEATURE_HINT,
   isServerAdminBuild,
   STANDARD_BUILD_LIMITATION_HINT,
 } from "../../../features/platform/sapi-capabilities";
+import pvpManager from "../../../features/pvp/services/pvp-manager";
 import landSnapshotService from "../../../features/land/services/land-snapshot";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
-import {
-  diagnoseChestUiIconOffset,
-  formatChestUiIconDiagnostic,
-  getChestUiCustomIconMap,
-  guessChestUiCustomIconTexture,
-  removeChestUiCustomIcon,
-  setChestUiCustomIcon,
-} from "../../../features/system/services/chest-ui-icon-offset";
 
 // ==================== 领地飞行（管理） ====================
 
@@ -159,11 +151,6 @@ export function openSystemSettingForm(player: Player): void {
       action: () => openGuildSystemSettingsMenu(player),
     },
     {
-      text: "§w举报/工单管理",
-      icon: "textures/icons/quest_log",
-      action: () => openFeedbackForm(player),
-    },
-    {
       text: "§w通知管理",
       icon: "textures/icons/duyuru",
       action: async () => {
@@ -279,9 +266,6 @@ export function openGeneralSettingsForm(player: Player): void {
     { key: "daily_gold_limit", name: "每日金币获取上限", type: "number" },
     { key: "startingGold", name: "新玩家初始金币", type: "number" },
     { key: "redPacketExpiryHours", name: "全服红包有效时长(小时，过期未领退回)", type: "number" },
-    { key: "feedbackSubmitCost", name: "举报/工单每次提交费用(金币，0为免费)", type: "number" },
-    { key: "feedbackMaxContentLength", name: "举报/工单内容最大字数", type: "number" },
-    { key: "feedbackMaxEntries", name: "举报/工单最多保留记录数", type: "number" },
     { key: "behaviorLogMaxEntries", name: "行为日志最大保留条数", type: "number" },
     { key: "behaviorLogLocationIntervalSec", name: "行为日志坐标采样间隔(秒)", type: "number" },
   ];
@@ -352,26 +336,6 @@ function openEditSettingForm(
             return;
           }
           setting.setState(key as any, String(h));
-        } else if (key === "feedbackSubmitCost") {
-          const cost = Math.floor(numValue);
-          if (cost < 0) {
-            openDialogForm(player, {
-              title: "设置失败",
-              desc: color.red("提交费用须为 0 或正整数"),
-            });
-            return;
-          }
-          setting.setState(key as any, String(cost));
-        } else if (key === "feedbackMaxContentLength" || key === "feedbackMaxEntries") {
-          const n = Math.floor(numValue);
-          if (n < 20 || n > 2000) {
-            openDialogForm(player, {
-              title: "设置失败",
-              desc: color.red("该数值须为 20～2000 之间的整数"),
-            });
-            return;
-          }
-          setting.setState(key as any, String(n));
         } else {
           setting.setState(key as any, newValue);
         }
@@ -615,7 +579,6 @@ export function openModuleToggleForm(player: Player): void {
     { key: "pvp", name: "PVP系统（关闭后插件不接管PVP，按原版世界设置处理）" },
     { key: "stats", name: "数据统计（仅此项控制入口，子榜无单独开关）" },
     { key: "guild", name: "公会系统" },
-    { key: "feedback", name: "举报/工单系统" },
     { key: "other", name: "其他功能模块" },
     { key: "help", name: "帮助功能" },
     { key: "sm", name: "服务器菜单" },
@@ -625,9 +588,10 @@ export function openModuleToggleForm(player: Player): void {
     { key: "backToDeath", name: "回到死亡地点功能" },
     { key: "enableTreeCutOneClick", name: "一键砍树" },
     { key: "enableDigOreOneClick", name: "一键挖矿" },
+    { key: "enableCropHarvestOneClick", name: "下蹲连锁收割作物" },
+    { key: "enableCropPlantOneClick", name: "下蹲一键连锁播种" },
     { key: "digOreChainObsidian", name: "一键挖矿：连锁黑曜石（含哭泣黑曜石）" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
-    { key: "feedbackAllowPublicView", name: "允许非管理员查看/处理举报工单" },
     ...(isServerAdminBuild()
       ? ([{ key: "blacklistEnabled", name: "黑名单系统（仅 BDS 增强版可用）" }] as const)
       : []),
@@ -653,9 +617,22 @@ export function openModuleToggleForm(player: Player): void {
     if (!formValues) return;
 
     const applySettings = () => {
+      const prevPvpEnabled = setting.getState("pvp") === true;
+      const pvpModuleIndex = modules.findIndex((m) => m.key === "pvp");
+      const nextPvpEnabled =
+        pvpModuleIndex >= 0 ? (formValues[pvpModuleIndex] as boolean) : prevPvpEnabled;
+
       modules.forEach((module, index) => {
-        setting.setState(module.key as any, formValues[index] as boolean);
+        const nextValue = formValues[index] as boolean;
+        if (module.key === "pvp" && prevPvpEnabled && !nextValue) {
+          pvpManager.snapshotModeBeforeModuleOff();
+        }
+        setting.setState(module.key as any, nextValue);
       });
+
+      if (!prevPvpEnabled && nextPvpEnabled) {
+        pvpManager.restoreModeAfterModuleOn();
+      }
       openDialogForm(
         player,
         {
@@ -1327,7 +1304,6 @@ export function openEconomyManageForm(player: Player): void {
   form.button("§w物品出售价格管理", "textures/icons/clock");
   form.button("§w玩家金币管理", "textures/icons/rewards");
   form.button("§w功能设置", "textures/icons/gadgets");
-  form.button("§w物品图标显示修复", "textures/icons/info");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -1346,162 +1322,9 @@ export function openEconomyManageForm(player: Player): void {
         openEconomyFeatureToggleForm(player);
         break;
       case 4:
-        openChestUiIconDiagnosticForm(player);
-        break;
-      case 5:
         openSystemSettingForm(player);
         break;
     }
-  });
-}
-
-function openChestUiIconDiagnosticForm(player: Player, forceScan: boolean = false): void {
-  const result = diagnoseChestUiIconOffset(forceScan);
-  const form = new ActionFormData();
-  form.title("§w物品图标显示修复");
-  form.body(formatChestUiIconDiagnostic(result));
-  form.button("§w指定自定义物品贴图", "textures/icons/edit2");
-  form.button("§w重新检测", "textures/icons/requeue");
-  form.button("§w返回", "textures/icons/back");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
-    switch (data.selection) {
-      case 0:
-        openChestUiCustomIconMapForm(player);
-        break;
-      case 1:
-        openChestUiIconDiagnosticForm(player, true);
-        break;
-      case 2:
-        openEconomyManageForm(player);
-        break;
-    }
-  });
-}
-
-function getDetectedCustomItemIdsForIconMap(): string[] {
-  const result = diagnoseChestUiIconOffset();
-  return Array.from(new Set([...result.ownCustomItemIds, ...result.externalCustomItemIds])).sort();
-}
-
-function openChestUiCustomIconMapForm(player: Player): void {
-  const map = getChestUiCustomIconMap();
-  const entries = Object.entries(map);
-  const result = diagnoseChestUiIconOffset();
-  const form = new ActionFormData();
-  form.title("§w指定自定义物品贴图");
-  form.body(
-    [
-      "§b这里用于修复个别自定义物品显示成占位图标或错误贴图的问题。",
-      "§7系统会自动尝试使用 textures/items/物品名 作为自定义物品贴图。",
-      "§7如果某个附加包的贴图路径不符合这个规则，再在这里手动指定。",
-      "",
-      `§f检测到自定义物品: §e${result.customItemCount}`,
-      `§f已手动指定贴图: §e${entries.length}`,
-      "§7路径示例: textures/items/my_item",
-    ].join("\n")
-  );
-  form.button("§w添加或修改贴图", "textures/icons/add");
-  form.button("§w查看或删除贴图", "textures/icons/edit2");
-  form.button("§w返回", "textures/icons/back");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
-    switch (data.selection) {
-      case 0:
-        openEditChestUiCustomIconMapForm(player);
-        break;
-      case 1:
-        openChestUiCustomIconMapListForm(player);
-        break;
-      case 2:
-        openChestUiIconDiagnosticForm(player);
-        break;
-    }
-  });
-}
-
-function openEditChestUiCustomIconMapForm(player: Player): void {
-  const ids = getDetectedCustomItemIdsForIconMap();
-  const options = ids.length > 0 ? ids : ["-- 未检测到自定义物品 --"];
-  const firstTypeId = ids[0] ?? "";
-  const form = new ModalFormData();
-  form.title("§w添加或修改物品贴图");
-  form.dropdown("选择检测到的自定义物品", options, { defaultValueIndex: 0 });
-  form.textField("或直接输入 typeId（优先使用这里）", "例如 other:item_name", { defaultValue: "" });
-  form.textField("贴图路径", "例如 textures/items/item_name", {
-    defaultValue: firstTypeId ? guessChestUiCustomIconTexture(firstTypeId) : "textures/items/",
-  });
-  form.submitButton("保存");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) {
-      openChestUiCustomIconMapForm(player);
-      return;
-    }
-
-    const selectedIndex = Number(data.formValues?.[0] ?? 0);
-    const typedTypeId = String(data.formValues?.[1] ?? "").trim();
-    const texturePath = String(data.formValues?.[2] ?? "").trim();
-    const selectedTypeId = ids[selectedIndex] ?? "";
-    const typeId = typedTypeId || selectedTypeId;
-
-    if (!typeId.includes(":") || !texturePath) {
-      openDialogForm(
-        player,
-        {
-          title: "保存失败",
-          desc: color.red("请输入有效的 typeId 和贴图路径。"),
-        },
-        () => openEditChestUiCustomIconMapForm(player)
-      );
-      return;
-    }
-
-    setChestUiCustomIcon(typeId, texturePath);
-    openDialogForm(
-      player,
-      {
-        title: "保存成功",
-        desc: `§a已设置 §e${typeId} §a的图标贴图。\n§7请重新打开相关界面来确认效果。`,
-      },
-      () => openChestUiCustomIconMapForm(player)
-    );
-  });
-}
-
-function openChestUiCustomIconMapListForm(player: Player): void {
-  const entries = Object.entries(getChestUiCustomIconMap()).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  if (entries.length === 0) {
-    openDialogForm(player, { title: "暂无映射", desc: "§7当前还没有手动配置任何自定义物品贴图映射。" }, () =>
-      openChestUiCustomIconMapForm(player)
-    );
-    return;
-  }
-
-  const form = new ActionFormData();
-  form.title("§w已指定的物品贴图");
-  form.body("§7点击一项可删除该贴图设置。");
-  entries.forEach(([typeId, texturePath]) => {
-    form.button(`§e${typeId}\n§7${texturePath}`, texturePath);
-  });
-  form.button("§w返回", "textures/icons/back");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) return;
-    const selection = data.selection;
-    if (selection === undefined) return;
-    if (selection === entries.length) {
-      openChestUiCustomIconMapForm(player);
-      return;
-    }
-
-    const [typeId] = entries[selection];
-    removeChestUiCustomIcon(typeId);
-    openDialogForm(player, { title: "已删除", desc: `§a已删除 §e${typeId} §a的贴图设置。` }, () =>
-      openChestUiCustomIconMapListForm(player)
-    );
   });
 }
 

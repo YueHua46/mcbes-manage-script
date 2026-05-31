@@ -220,6 +220,7 @@ function openLandApplyModalOnly(player: Player, guildApply?: GuildLandApplyConte
             attackNeutralMobs: false,
             allowEnter: true,
             allowWater: true,
+            allowWitherBoss: false,
           },
           config_public_auth: {
             break: false,
@@ -236,6 +237,7 @@ function openLandApplyModalOnly(player: Player, guildApply?: GuildLandApplyConte
             attackNeutralMobs: false,
             allowEnter: false,
             allowWater: false,
+            allowWitherBoss: false,
           },
           vectors: {
             start: landStartPosVector3 as Vector3,
@@ -413,6 +415,10 @@ export function openLandAuthForm(player: Player, myLand: ILand, reopenDetail?: (
     defaultValue: _myLand.public_auth.allowWater ?? true,
     tooltip: "如果关闭，领地内的水方块会被自动清除（类似岩浆）",
   });
+  form.toggle(color.white("是否允许凋零BOSS进入领地"), {
+    defaultValue: _myLand.public_auth.allowWitherBoss ?? false,
+    tooltip: "如果关闭，凋零BOSS进入领地时会被自动传送到领地边界外",
+  });
 
   form.submitButton("确认");
 
@@ -435,6 +441,7 @@ export function openLandAuthForm(player: Player, myLand: ILand, reopenDetail?: (
       attackNeutralMobs: formValues?.[11] as boolean,
       allowEnter: (formValues?.[12] as boolean) ?? true,
       allowWater: (formValues?.[13] as boolean) ?? true,
+      allowWitherBoss: (formValues?.[14] as boolean) ?? false,
     };
 
     landManager.db.set(_myLand.name, {
@@ -808,6 +815,10 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
     defaultValue: _land.config_public_auth?.allowWater ?? false,
     tooltip: "设置是否允许成员修改领地内的水权限设置",
   });
+  form.toggle(color.white("是否允许成员配置 是否允许凋零BOSS进入领地"), {
+    defaultValue: _land.config_public_auth?.allowWitherBoss ?? false,
+    tooltip: "设置是否允许成员修改领地内的凋零BOSS进入权限设置",
+  });
   form.submitButton("确认");
 
   form.show(player).then((data) => {
@@ -829,6 +840,7 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
       attackNeutralMobs: formValues?.[11] as boolean,
       allowEnter: (formValues?.[12] as boolean) ?? false,
       allowWater: (formValues?.[13] as boolean) ?? true,
+      allowWitherBoss: (formValues?.[14] as boolean) ?? false,
     };
 
     landManager.db.set(_land.name, {

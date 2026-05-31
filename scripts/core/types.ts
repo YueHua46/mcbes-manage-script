@@ -60,6 +60,7 @@ export interface ILandPublicAuth {
   attackNeutralMobs: boolean;
   allowEnter: boolean; // 是否允许玩家进入领地
   allowWater: boolean; // 是否允许领地里有水
+  allowWitherBoss: boolean; // 是否允许凋零BOSS进入领地
 }
 
 export interface ILand {

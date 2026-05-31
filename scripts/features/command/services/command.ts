@@ -167,7 +167,7 @@ system.beforeEvents.startup.subscribe((init) => {
   // 7. 注册 oneclick 指令
   const oneclickCommand: CustomCommand = {
     name: "yuehua:oneclick",
-    description: "一键功能开关(仅管理员) - 用法: /yuehua:oneclick <ore|tree>",
+    description: "一键功能开关(仅管理员) - 用法: /yuehua:oneclick <ore|tree|harvest|plant>",
     permissionLevel: CommandPermissionLevel.Admin,
     mandatoryParameters: [{ type: CustomCommandParamType.String, name: "功能类型(ore=挖矿/tree=砍树)" }],
   };
@@ -625,11 +625,6 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           economy: "经济系统 (true/false)",
           other: "其他功能模块 (true/false)",
           help: "帮助功能 (true/false)",
-          feedback: "举报/工单系统入口 (true/false)",
-          feedbackAllowPublicView: "允许非管理员查看/处理举报工单 (true/false)",
-          feedbackSubmitCost: "每次提交举报或工单扣除金币，0 为免费 (数字)",
-          feedbackMaxContentLength: "举报/工单内容最大字数，建议 20～2000 (数字)",
-          feedbackMaxEntries: "最多保留举报/工单记录数，建议 20～2000 (数字)",
           sm: "服务器菜单 (true/false)",
           setting: "设置功能 (true/false)",
           killItem: "击杀掉落物品 (true/false)",
@@ -649,6 +644,8 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           backToDeath: "回到死亡地点功能 (true/false)",
           enableTreeCutOneClick: "一键砍树 (true/false)",
           enableDigOreOneClick: "一键挖矿 (true/false)",
+          enableCropHarvestOneClick: "下蹲连锁收割作物 (true/false)",
+          enableCropPlantOneClick: "下蹲一键连锁播种 (true/false)",
           digOreChainObsidian: "一键挖矿是否连锁黑曜石/哭泣黑曜石 (true/false)，默认 true",
           land1BlockPerPrice: "领地每方块价格 (数字)",
           daily_gold_limit: "每日金币获取上限 (数字)",
@@ -761,8 +758,16 @@ function handleOneClickCommand(origin: CustomCommandOrigin, feature: string): Cu
         const current = setting.getState("enableTreeCutOneClick");
         setting.setState("enableTreeCutOneClick", !current);
         player.sendMessage(color.green(`一键砍树已${!current ? "开启" : "关闭"}`));
+      } else if (featureLower === "crop" || featureLower === "harvest") {
+        const current = setting.getState("enableCropHarvestOneClick");
+        setting.setState("enableCropHarvestOneClick", !current);
+        player.sendMessage(color.green(`下蹲连锁收割作物已${!current ? "开启" : "关闭"}`));
+      } else if (featureLower === "plant" || featureLower === "sow") {
+        const current = setting.getState("enableCropPlantOneClick");
+        setting.setState("enableCropPlantOneClick", !current);
+        player.sendMessage(color.green(`下蹲一键连锁播种已${!current ? "开启" : "关闭"}`));
       } else {
-        player.sendMessage(color.yellow("用法: /oneclick <ore|tree>"));
+        player.sendMessage(color.yellow("用法: /oneclick <ore|tree|harvest|plant>"));
       }
     } catch (error) {
       player.sendMessage(color.red(`设置失败: ${(error as Error).message}`));
@@ -1039,6 +1044,12 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
       );
       player.sendMessage(
         `${color.gray("一键挖矿:")} ${setting.getState("enableDigOreOneClick") ? color.green("开启") : color.red("关闭")}`
+      );
+      player.sendMessage(
+        `${color.gray("连锁收割作物:")} ${setting.getState("enableCropHarvestOneClick") ? color.green("开启") : color.red("关闭")}`
+      );
+      player.sendMessage(
+        `${color.gray("连锁播种作物:")} ${setting.getState("enableCropPlantOneClick") ? color.green("开启") : color.red("关闭")}`
       );
       {
         const v = setting.getState("digOreChainObsidian");

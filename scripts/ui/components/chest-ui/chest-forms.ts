@@ -1,22 +1,13 @@
 /**
  * ChestFormData & FurnaceFormData - 箱子/熔炉 UI
- * 基于 Herobrine643928/Chest-UI 最新逻辑，物品 ID 使用本项目 runtime_map（type-ids）
+ * 物品图标一律使用 textures/... 贴图路径（不走 runtime 数字 id）
  */
 
 import { ActionFormData, ActionFormResponse } from "@minecraft/server-ui";
 import { Player, RawMessage } from "@minecraft/server";
-import { typeIdToDataId, typeIdToID } from "./type-ids";
-import {
-  applyChestUiIconOffset,
-  resolveChestUiCustomIconTexture,
-} from "../../../features/system/services/chest-ui-icon-offset";
-import {
-  custom_content,
-  custom_content_keys,
-  inventory_enabled,
-  CHEST_UI_SIZES,
-  ChestUISize,
-} from "./constants";
+import { resolveChestUiItemDisplayTexture } from "../../../features/system/services/chest-ui-icon-paths";
+import { getChestItemTextureKey } from "./item-chest-display";
+import { inventory_enabled, CHEST_UI_SIZES, ChestUISize } from "./constants";
 
 /**
  * 增强的响应接口，包含物品栏槽位映射（本项目扩展）
@@ -28,13 +19,12 @@ export interface ChestFormResponse extends ActionFormResponse {
 
 /**
  * show() 的选项：appendViewerInventory 为 true 时，在下方追加当前查看者（player）的背包 UI
- * 若尺寸前缀尚未含 §i§n§v（非 *_inv），会在标题中追加 §inv§1；*_inv 与 RP 的 $condition 已对齐，勿重复追加（否则界面会露出 inv/nv）
  */
 export interface ChestFormShowOptions {
   appendViewerInventory?: boolean;
 }
 
-type ButtonData = [RawMessage | string, string | number | undefined];
+type ButtonData = [RawMessage | string, string | undefined];
 
 /**
  * pattern() 中每个字符对应的数据
@@ -46,46 +36,6 @@ export interface PatternKeyData {
   durability?: number;
   enchanted?: boolean;
   texture: string;
-}
-
-function isTexturePath(texture: string): boolean {
-  return texture.startsWith("textures/");
-}
-
-/**
- * 解析显示用纹理：纹理路径直接返回；typeId 走 custom_content 或映射，未注册则回退
- */
-function getDisplayTexture(texture: string): string {
-  if (isTexturePath(texture)) return texture;
-  const customIconTexture = resolveChestUiCustomIconTexture(texture);
-  if (customIconTexture) return customIconTexture;
-  const targetTexture = custom_content_keys.has(texture) ? custom_content[texture]?.texture : texture;
-  if (isTexturePath(targetTexture)) return targetTexture;
-  const isRegistered = typeIdToDataId.has(targetTexture) || typeIdToID.has(targetTexture);
-  if (!isRegistered) return "minecraft:info_update2";
-  return targetTexture;
-}
-
-/**
- * 根据 texture 解析出用于按钮的 targetTexture 与 ID（使用 runtime_map / typeIdToDataId）
- */
-function resolveTextureAndId(texture: string): { targetTexture: string; ID: number | undefined } {
-  if (isTexturePath(texture)) return { targetTexture: texture, ID: undefined };
-  const targetTexture = custom_content_keys.has(texture) ? custom_content[texture]?.texture : texture;
-  const ID = typeIdToDataId.get(targetTexture) ?? typeIdToID.get(targetTexture);
-  return { targetTexture, ID };
-}
-
-/**
- * 计算传给 ActionForm 的按钮 icon：ID 由外部脚本提供，此处直接使用
- */
-function toButtonIcon(
-  targetTexture: string,
-  ID: number | undefined,
-  enchanted: boolean
-): string | number {
-  if (ID === undefined) return targetTexture;
-  return applyChestUiIconOffset(targetTexture, ID) * 65536 + (enchanted ? 32768 : 0);
 }
 
 export class ChestFormData {
@@ -125,12 +75,11 @@ export class ChestFormData {
     texture?: string,
     stackSize: number = 1,
     durability: number = 0,
-    enchanted: boolean = false
+    _enchanted: boolean = false
   ): ChestFormData {
     if (!texture) return this;
 
-    const displayTexture = getDisplayTexture(texture);
-    const { targetTexture, ID } = resolveTextureAndId(displayTexture);
+    const iconTexture = resolveChestUiItemDisplayTexture(texture);
 
     const buttonRawtext: { rawtext: RawMessage[] } = {
       rawtext: [
@@ -182,10 +131,9 @@ export class ChestFormData {
       }
     }
 
-    const icon = toButtonIcon(targetTexture, ID, enchanted);
     this.buttonArray.splice(Math.max(0, Math.min(slot, this.slotCount - 1)), 1, [
       buttonRawtext as unknown as RawMessage,
-      icon.toString(),
+      iconTexture,
     ]);
     return this;
   }
@@ -199,9 +147,8 @@ export class ChestFormData {
         if (!data) continue;
 
         const slot = j + i * 9;
-        const displayTexture = getDisplayTexture(data.texture);
-        const { targetTexture, ID } = resolveTextureAndId(displayTexture);
-        const { stackAmount = 1, durability = 0, itemName, itemDesc, enchanted = false } = data;
+        const iconTexture = resolveChestUiItemDisplayTexture(data.texture);
+        const { stackAmount = 1, durability = 0, itemName, itemDesc, enchanted: _enchanted = false } = data;
         const stackSize = String(Math.min(Math.max(stackAmount, 1), 99)).padStart(2, "0");
         const durValue = String(Math.min(Math.max(durability, 0), 99)).padStart(2, "0");
 
@@ -247,10 +194,9 @@ export class ChestFormData {
           }
         }
 
-        const icon = toButtonIcon(targetTexture, ID, enchanted);
         this.buttonArray.splice(Math.max(0, Math.min(slot, this.slotCount - 1)), 1, [
           buttonRawtext as unknown as RawMessage,
-          icon.toString(),
+          iconTexture,
         ]);
       }
     }
@@ -261,7 +207,6 @@ export class ChestFormData {
     const appendInventory = inventory_enabled || options?.appendViewerInventory === true;
     const firstSeg = this.titleText.rawtext[0];
     const firstText = typeof firstSeg === "object" && firstSeg && "text" in firstSeg ? String(firstSeg.text ?? "") : "";
-    /** *_inv 尺寸的 magic 前缀已含 §i§n§v；再追加 §inv§1 会在标题里露出 inv/nv 等杂字 */
     const prefixAlreadyHasInvMarker = firstText.includes("§i§n§v");
     const titleForForm =
       appendInventory && !prefixAlreadyHasInvMarker
@@ -269,7 +214,7 @@ export class ChestFormData {
         : this.titleText;
     const form = new ActionFormData().title(titleForForm as typeof this.titleText);
     this.buttonArray.forEach((button) => {
-      form.button(button[0] as RawMessage, button[1]?.toString());
+      form.button(button[0] as RawMessage, button[1]);
     });
 
     if (!appendInventory) {
@@ -294,9 +239,7 @@ export class ChestFormData {
         continue;
       }
 
-      const typeId = item.typeId;
-      const displayTexture = getDisplayTexture(typeId);
-      const { targetTexture, ID } = resolveTextureAndId(displayTexture);
+      const iconTexture = getChestItemTextureKey(item);
       const durabilityComponent = item.getComponent("durability");
       const durDamage = durabilityComponent
         ? Math.round(
@@ -304,7 +247,7 @@ export class ChestFormData {
           )
         : 0;
       const amount = item.amount;
-      const formattedItemName = typeId
+      const formattedItemName = item.typeId
         .replace(/.*(?<=:)/, "")
         .replace(/_/g, " ")
         .replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
@@ -319,8 +262,7 @@ export class ChestFormData {
       const loreText = item.getLore().join("\n");
       if (loreText) buttonRawtext.rawtext.push({ text: loreText });
 
-      const finalID = ID === undefined ? targetTexture : applyChestUiIconOffset(targetTexture, ID) * 65536;
-      form.button(buttonRawtext, finalID.toString());
+      form.button(buttonRawtext, iconTexture);
     }
 
     return form.show(player).then((response) => {
@@ -374,12 +316,11 @@ export class FurnaceFormData {
     texture?: string,
     stackSize: number = 1,
     durability: number = 0,
-    enchanted: boolean = false
+    _enchanted: boolean = false
   ): FurnaceFormData {
     if (!texture) return this;
 
-    const displayTexture = getDisplayTexture(texture);
-    const { targetTexture, ID } = resolveTextureAndId(displayTexture);
+    const iconTexture = resolveChestUiItemDisplayTexture(texture);
 
     const buttonRawtext: { rawtext: RawMessage[] } = {
       rawtext: [
@@ -431,10 +372,9 @@ export class FurnaceFormData {
       });
     }
 
-    const icon = toButtonIcon(targetTexture, ID, enchanted);
     this.buttonArray.splice(Math.max(0, Math.min(slot, this.slotCount - 1)), 1, [
       buttonRawtext as unknown as RawMessage,
-      icon.toString(),
+      iconTexture,
     ]);
     return this;
   }
@@ -442,7 +382,7 @@ export class FurnaceFormData {
   show(player: Player): Promise<ChestFormResponse> {
     const form = new ActionFormData().title(this.titleText);
     this.buttonArray.forEach((button) => {
-      form.button(button[0] as RawMessage, button[1]?.toString());
+      form.button(button[0] as RawMessage, button[1]);
     });
 
     if (!inventory_enabled) {
@@ -467,9 +407,7 @@ export class FurnaceFormData {
         continue;
       }
 
-      const typeId = item.typeId;
-      const displayTexture = getDisplayTexture(typeId);
-      const { targetTexture, ID } = resolveTextureAndId(displayTexture);
+      const iconTexture = getChestItemTextureKey(item);
       const durabilityComponent = item.getComponent("durability");
       const durDamage = durabilityComponent
         ? Math.round(
@@ -477,7 +415,7 @@ export class FurnaceFormData {
           )
         : 0;
       const amount = item.amount;
-      const formattedItemName = typeId
+      const formattedItemName = item.typeId
         .replace(/.*(?<=:)/, "")
         .replace(/_/g, " ")
         .replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
@@ -492,8 +430,7 @@ export class FurnaceFormData {
       const loreText = item.getLore().join("\n");
       if (loreText) buttonRawtext.rawtext.push({ text: loreText });
 
-      const finalID = ID === undefined ? targetTexture : applyChestUiIconOffset(targetTexture, ID) * 65536;
-      form.button(buttonRawtext, finalID.toString());
+      form.button(buttonRawtext, iconTexture);
     }
 
     return form.show(player).then((response) => {

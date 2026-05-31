@@ -13,6 +13,4 @@ export * from './notify';
 export * from './other';
 export * from './behavior-log';
 export * from './guild';
-export * from './feedback';
-
 

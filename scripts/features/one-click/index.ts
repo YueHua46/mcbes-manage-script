@@ -4,5 +4,8 @@
 
 export * from './dig-ore';
 export * from './tree';
+export * from './crop-profiles';
+export * from './crop-harvest';
+export * from './crop-plant';
 
 

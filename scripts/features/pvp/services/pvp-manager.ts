@@ -35,19 +35,40 @@ class PvpManager {
     };
   }
 
-  getMode(): PvpMode {
-    // 服务器菜单里的 PVP 系统总开关关闭时，插件完全放手，交回原版世界设置处理。
-    if (setting.getState("pvp") !== true) {
-      return "vanilla";
-    }
+  isModuleEnabled(): boolean {
+    return setting.getState("pvp") === true;
+  }
 
+  /** 读取持久化的 PVP 模式，不受功能开关关闭时的「对外表现为原版」影响 */
+  getStoredMode(): PvpMode {
     const rawMode = setting.getState("pvpMode");
     if (rawMode === "vanilla" || rawMode === "plugin" || rawMode === "off") {
       return rawMode;
     }
-
-    // 兼容旧存档：历史上仅有 pvpEnabled 布尔开关
     return setting.getState("pvpEnabled") === true ? "plugin" : "vanilla";
+  }
+
+  getMode(): PvpMode {
+    // 服务器菜单里的 PVP 系统总开关关闭时，插件完全放手，交回原版世界设置处理。
+    if (!this.isModuleEnabled()) {
+      return "vanilla";
+    }
+    return this.getStoredMode();
+  }
+
+  /** 关闭 PVP 功能开关前调用，暂存当前模式以便重新开启时恢复 */
+  snapshotModeBeforeModuleOff(): void {
+    setting.setState("pvpSuspendedMode", this.getStoredMode());
+  }
+
+  /** 重新开启 PVP 功能开关后调用，恢复关闭前的模式 */
+  restoreModeAfterModuleOn(): void {
+    const suspended = setting.getState("pvpSuspendedMode");
+    if (suspended === "vanilla" || suspended === "plugin" || suspended === "off") {
+      setting.setState("pvpMode", suspended);
+      setting.setState("pvpEnabled", suspended === "plugin");
+    }
+    setting.setState("pvpSuspendedMode", "");
   }
 
   getModeDisplay(mode: PvpMode): string {
@@ -182,13 +203,21 @@ class PvpManager {
    */
   togglePvp(player: Player): { success: boolean; message: string } {
     const data = this.getPlayerData(player.name);
-    const config = this.getConfig();
-    if (config.mode !== "plugin") {
+    if (!this.isModuleEnabled()) {
       return {
         success: false,
-        message: `当前为${this.getModeDisplay(config.mode)}，个人PVP开关不生效`,
+        message: "PVP 功能开关已在管理面板关闭，请联系管理员在「功能开关管理」中重新开启",
       };
     }
+
+    const storedMode = this.getStoredMode();
+    if (storedMode !== "plugin") {
+      return {
+        success: false,
+        message: `当前为${this.getModeDisplay(storedMode)}，个人 PVP 开关不生效；请管理员在「PVP 管理」中切换为插件模式`,
+      };
+    }
+    const config = this.getConfig();
     const now = Date.now();
 
     // 检查冷却

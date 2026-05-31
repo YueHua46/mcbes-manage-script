@@ -29,10 +29,7 @@ export function registerItemHoldSubscribeEvents(): void {
     if (!matchesItemWatchSubscribedType(itemStack.typeId)) return;
 
     const before = beforeItemStack;
-    const gain =
-      !before ||
-      before.typeId !== itemStack.typeId ||
-      itemStack.amount > before.amount;
+    const gain = !before || before.typeId !== itemStack.typeId || itemStack.amount > before.amount;
     if (!gain) return;
 
     const dk = debounceKey(player.id, itemStack.typeId);
