@@ -1,4 +1,4 @@
-import { Player, system } from "@minecraft/server";
+import { Player, Vector3, system } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import setting from "../../../features/system/services/setting";
 import behaviorLog, {
@@ -16,9 +16,12 @@ import { openItemWatchSubscribeForm } from "../item-watch";
 const ALL_PLAYERS_VALUE = "__all_players__";
 const ALL_TIME_VALUE = "all";
 const PAGE_SIZE = 30;
+const BLOCK_INSPECT_PAGE_SIZE = 12;
 const FORM_OPEN_MAX_ATTEMPTS = 8;
 const FORM_OPEN_RETRY_TICKS = 2;
 const FORM_NAVIGATION_DELAY_TICKS = 2;
+const DEFAULT_BLOCK_INSPECT_RADIUS = 3;
+const MAX_BLOCK_INSPECT_RADIUS = 32;
 
 const timeRangeOptions = [
   { label: "最近 1 小时", value: 0 },
@@ -117,6 +120,79 @@ function runAfterDelay(nextAction: () => void): void {
   }, FORM_NAVIGATION_DELAY_TICKS);
 }
 
+function getBlockInspectorRadius(): number {
+  const raw = Number(setting.getState("behaviorLogInspectorRadius" as never));
+  if (!Number.isFinite(raw) || raw < 0) return DEFAULT_BLOCK_INSPECT_RADIUS;
+  return Math.min(Math.floor(raw), MAX_BLOCK_INSPECT_RADIUS);
+}
+
+export async function openBehaviorLogBlockInspectorForm(
+  player: Player,
+  dimensionId: string,
+  location: Vector3,
+  page = 0,
+  radius = getBlockInspectorRadius()
+): Promise<void> {
+  if (!isAdmin(player)) {
+    player.sendMessage("§c只有管理员可以使用行为日志查询器。");
+    return;
+  }
+
+  const queryResult = behaviorLog.queryNearLocation({
+    dimensionId,
+    location,
+    radius,
+    limit: BLOCK_INSPECT_PAGE_SIZE,
+    offset: page * BLOCK_INSPECT_PAGE_SIZE,
+  });
+  const totalPages = Math.max(1, Math.ceil(queryResult.total / BLOCK_INSPECT_PAGE_SIZE));
+  const safePage = Math.min(Math.max(0, page), totalPages - 1);
+  const finalResult =
+    safePage === page
+      ? queryResult
+      : behaviorLog.queryNearLocation({
+          dimensionId,
+          location,
+          radius,
+          limit: BLOCK_INSPECT_PAGE_SIZE,
+          offset: safePage * BLOCK_INSPECT_PAGE_SIZE,
+        });
+
+  const summary = `筛选条件：方块 ${Math.floor(location.x)}, ${Math.floor(location.y)}, ${Math.floor(location.z)} 附近 ${radius} 格 / 全部时间 / 全部事件`;
+  const body = formatBehaviorMessageBoxPage(summary, finalResult.items, safePage, totalPages, finalResult.total);
+  const form = new ActionFormData().title("方块行为记录").body(body);
+  const buttons: Array<{ text: string; action: () => void }> = [];
+
+  if (safePage > 0) {
+    buttons.push({
+      text: "上一页",
+      action: () => runAfterDelay(() => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage - 1, radius)),
+    });
+  }
+  if (safePage < totalPages - 1) {
+    buttons.push({
+      text: "下一页",
+      action: () => runAfterDelay(() => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage + 1, radius)),
+    });
+  }
+  buttons.push({
+    text: "打开完整筛选",
+    action: () => runAfterDelay(() => void openBehaviorLogQueryForm(player)),
+  });
+  buttons.push({
+    text: "关闭",
+    action: () => undefined,
+  });
+
+  for (const button of buttons) {
+    form.button(button.text);
+  }
+
+  const result = await showForm(form, player, "打开方块行为记录失败:");
+  if (result.canceled || typeof result.selection !== "number") return;
+  buttons[result.selection]?.action();
+}
+
 type TraditionalFormData = ActionFormData | ModalFormData;
 
 async function showForm(
@@ -175,6 +251,12 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
         text: "§w玩家获得物品监控\n§3自动记下当时背包里有什么",
       },
       "textures/blocks/chest_front"
+    )
+    .button(
+      {
+        text: "§w获取日志查询器\n§3拿在手上点击方块查看附近记录",
+      },
+      "textures/icons/quest_log"
     );
 
   const result = await showForm(form, player, "打开行为日志首页失败:");
@@ -194,6 +276,11 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
           runAfterDelay(() => void openBehaviorLogForm(player));
         })
     );
+    return;
+  }
+  if (result.selection === 3) {
+    player.runCommand("give @s yuehua:log_inspector");
+    player.sendMessage("§a已给予行为日志查询器。手持它点击方块可查看附近记录。");
   }
 }
 
@@ -414,6 +501,7 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
   const enabled = setting.getState("behaviorLogEnabled" as never) as boolean;
   const maxEntries = String(setting.getState("behaviorLogMaxEntries" as never));
   const locationInterval = String(setting.getState("behaviorLogLocationIntervalSec" as never));
+  const inspectorRadius = String(getBlockInspectorRadius());
 
   const form = new ModalFormData()
     .title("行为日志监控设置")
@@ -422,7 +510,10 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
     )
     .toggle("启用行为日志系统", { defaultValue: enabled })
     .textField("行为日志最大保留条数", "全服总日志上限，例如 20000", { defaultValue: maxEntries })
-    .textField("坐标采样间隔（秒）", "对所有在线玩家进行一次坐标记录的间隔", { defaultValue: locationInterval });
+    .textField("坐标采样间隔（秒）", "对所有在线玩家进行一次坐标记录的间隔", { defaultValue: locationInterval })
+    .textField("日志查询器范围半径（格）", `点击方块后查询附近日志，0～${MAX_BLOCK_INSPECT_RADIUS}`, {
+      defaultValue: inspectorRadius,
+    });
 
   for (const definition of behaviorEventDefinitions) {
     form.toggle(definition.label, {
@@ -439,35 +530,39 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
   }
 
   const formValues = result.formValues;
-  // 表单顺序：.label() 可能占 formValues[0]（视 API 而定），然后 toggle、textField、textField、若干 toggle
-  const minLength = 4 + behaviorEventDefinitions.length;
+  // 表单顺序：.label() 可能占 formValues[0]（视 API 而定），然后 toggle、3 个 textField、若干 toggle
+  const minLength = 5 + behaviorEventDefinitions.length;
   if (!formValues || formValues.length < minLength) {
     runAfterDelay(() => void openBehaviorLogForm(player));
     return;
   }
 
-  // 若 .label() 占一位：索引为 [1]=启用 toggle, [2]=最大条数, [3]=坐标间隔, [4+i]=事件 toggle
-  // 若 .label() 不占位：索引为 [0]=启用, [1]=最大条数, [2]=坐标间隔, [3+i]=事件 toggle
-  // 通过类型判断：前两位中一个是 boolean（启用），两个是 string（数字输入框）
+  // 若 .label() 占一位：索引为 [1]=启用 toggle, [2]=最大条数, [3]=坐标间隔, [4]=查询器半径, [5+i]=事件 toggle
+  // 若 .label() 不占位：索引为 [0]=启用, [1]=最大条数, [2]=坐标间隔, [3]=查询器半径, [4+i]=事件 toggle
+  // 通过类型判断：启用为 boolean，后面三个是 string（数字输入框）
   const a = formValues[0];
   const b = formValues[1];
   const c = formValues[2];
   const d = formValues[3];
+  const e = formValues[4];
   let enableToggle: boolean;
   let maxEntriesStr: string;
   let locationIntervalStr: string;
+  let inspectorRadiusStr: string;
   let eventToggleStartIndex: number;
 
-  if (typeof a === "boolean" && typeof b === "string" && typeof c === "string") {
+  if (typeof a === "boolean" && typeof b === "string" && typeof c === "string" && typeof d === "string") {
     enableToggle = a;
     maxEntriesStr = b.trim() || maxEntries;
     locationIntervalStr = c.trim() || locationInterval;
-    eventToggleStartIndex = 3;
-  } else if (typeof b === "boolean" && typeof c === "string" && typeof d === "string") {
+    inspectorRadiusStr = d.trim() || inspectorRadius;
+    eventToggleStartIndex = 4;
+  } else if (typeof b === "boolean" && typeof c === "string" && typeof d === "string" && typeof e === "string") {
     enableToggle = b;
     maxEntriesStr = c.trim() || maxEntries;
     locationIntervalStr = d.trim() || locationInterval;
-    eventToggleStartIndex = 4;
+    inspectorRadiusStr = e.trim() || inspectorRadius;
+    eventToggleStartIndex = 5;
   } else {
     openDialogForm(player, { title: "保存失败", desc: "表单数据异常，请重试。" }, () => {
       void openBehaviorLogSettingsForm(player);
@@ -477,6 +572,7 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
 
   const maxEntriesNum = Number(maxEntriesStr);
   const locationIntervalNum = Number(locationIntervalStr);
+  const inspectorRadiusNum = Number(inspectorRadiusStr);
 
   if (!Number.isFinite(maxEntriesNum) || maxEntriesNum <= 0) {
     openDialogForm(player, { title: "保存失败", desc: "行为日志最大保留条数必须是大于 0 的数字。" }, () => {
@@ -492,9 +588,21 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
     return;
   }
 
+  if (!Number.isFinite(inspectorRadiusNum) || inspectorRadiusNum < 0 || inspectorRadiusNum > MAX_BLOCK_INSPECT_RADIUS) {
+    openDialogForm(
+      player,
+      { title: "保存失败", desc: `日志查询器范围半径必须是 0～${MAX_BLOCK_INSPECT_RADIUS} 之间的数字。` },
+      () => {
+        void openBehaviorLogSettingsForm(player);
+      }
+    );
+    return;
+  }
+
   setting.setState("behaviorLogEnabled" as never, enableToggle);
   setting.setState("behaviorLogMaxEntries" as never, String(Math.floor(maxEntriesNum)));
   setting.setState("behaviorLogLocationIntervalSec" as never, String(Math.floor(locationIntervalNum)));
+  setting.setState("behaviorLogInspectorRadius" as never, String(Math.floor(inspectorRadiusNum)));
 
   for (let i = 0; i < behaviorEventDefinitions.length; i++) {
     setting.setState(behaviorEventDefinitions[i].settingKey as never, Boolean(formValues[eventToggleStartIndex + i]));

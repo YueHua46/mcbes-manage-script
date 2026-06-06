@@ -6,10 +6,10 @@
  * 2. mc-api.io  https://mc-api.io/uuid/{name}/bedrock
  * 3. GeyserMC   https://api.geysermc.org/v2/xbox/xuid/{gamertag}
  *
- * 注意：此文件在运行时依赖 @minecraft/server-net（BDS 版专用）。
- * 由调用方保证仅在 server-net 可用时调用。
+ * HTTP 出站经 sapi-capabilities/server-net 封装，由调用方保证仅在 BDS 构建中调用。
  */
 
+import { httpGet } from "../../platform/sapi-capabilities";
 import { SystemLog } from "../../../shared/utils/common";
 
 /**
@@ -18,11 +18,9 @@ import { SystemLog } from "../../../shared/utils/common";
  */
 async function resolveFromMCProfile(gamertag: string): Promise<string | null> {
   try {
-    // 动态 import 避免顶层 static import，防止在非 BDS 环境加载 main.js 时触发 Module unrecognized 错误
-    const { http } = await import("@minecraft/server-net");
     const url = `https://mcprofile.io/api/v1/bedrock/gamertag/${encodeURIComponent(gamertag)}`;
-    const response = await http.get(url);
-    if (response.status === 200 && response.body) {
+    const response = await httpGet(url);
+    if (response?.status === 200 && response.body) {
       const body = JSON.parse(response.body);
       const xuid = body?.xuid;
       if (xuid && String(xuid).trim() !== "") {
@@ -41,10 +39,9 @@ async function resolveFromMCProfile(gamertag: string): Promise<string | null> {
  */
 async function resolveFromMCApiIO(gamertag: string): Promise<string | null> {
   try {
-    const { http } = await import("@minecraft/server-net");
     const url = `https://mc-api.io/uuid/${encodeURIComponent(gamertag)}/bedrock`;
-    const response = await http.get(url);
-    if (response.status === 200 && response.body) {
+    const response = await httpGet(url);
+    if (response?.status === 200 && response.body) {
       const body = JSON.parse(response.body);
       const xuid = body?.xuid ?? body?.id ?? body?.uuid ?? null;
       if (xuid && String(xuid).trim() !== "") {
@@ -64,10 +61,9 @@ async function resolveFromMCApiIO(gamertag: string): Promise<string | null> {
  */
 async function resolveFromGeyserMC(gamertag: string): Promise<string | null> {
   try {
-    const { http } = await import("@minecraft/server-net");
     const url = `https://api.geysermc.org/v2/xbox/xuid/${encodeURIComponent(gamertag)}`;
-    const response = await http.get(url);
-    if (response.status === 200 && response.body) {
+    const response = await httpGet(url);
+    if (response?.status === 200 && response.body) {
       const body = JSON.parse(response.body);
       const xuid = body?.xuid;
       if (xuid !== undefined && xuid !== null && String(xuid).trim() !== "" && String(xuid) !== "0") {

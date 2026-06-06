@@ -24,6 +24,11 @@ export type IModules =
   | "randomTpRange"
   | "maxLandPerPlayer"
   | "maxLandBlocks"
+  | "landSnapshotMaxChunks"
+  | "landSnapshotAutoEnabled"
+  | "landSnapshotAutoIntervalMinutes"
+  | "landSnapshotAutoMaxPerLand"
+  | "landSnapshotAutoIncludeEntities"
   | "maxPrivatePointsPerPlayer"
   | "maxPublicPointsPerPlayer"
   | "playerNameColor"
@@ -34,16 +39,24 @@ export type IModules =
   | "backToDeath"
   | "enableTreeCutOneClick"
   | "enableDigOreOneClick"
+  /** 下蹲连锁收割作物（默认开） */
+  | "enableCropHarvestOneClick"
+  /** 下蹲一键连锁播种（默认开） */
+  | "enableCropPlantOneClick"
   /** 一键挖矿是否连锁破坏黑曜石/哭泣黑曜石（默认开；关闭则仅连锁矿石等，不连锁黑曜石类） */
   | "digOreChainObsidian"
   | "land1BlockPerPrice"
   | "daily_gold_limit"
   | "startingGold"
   | "monsterKillGoldReward"
+  | "deathGoldPenaltyEnabled"
+  | "deathGoldPenaltyAmount"
   | "allowPlayerDisplaySettings"
   | "pvp"
   | "pvpMode"
   | "pvpEnabled"
+  /** 关闭 PVP 功能开关前暂存的模式，重新开启时恢复（vanilla/plugin/off） */
+  | "pvpSuspendedMode"
   | "pvpSeizeAmount"
   | "pvpMinProtection"
   | "pvpToggleCooldown"
@@ -55,6 +68,7 @@ export type IModules =
   | "behaviorLogEnabled"
   | "behaviorLogMaxEntries"
   | "behaviorLogLocationIntervalSec"
+  | "behaviorLogInspectorRadius"
   | "logPlayerJoin"
   | "logPlayerLeave"
   | "logPlayerChat"
@@ -68,6 +82,7 @@ export type IModules =
   | "logSummonWither"
   | "logEnterLand"
   | "logLeaveLand"
+  | "logLandBreakAttempt"
   | "logAttackMobInLand"
   | "logOpenChest"
   | "logOpenBarrel"
@@ -137,6 +152,11 @@ export const defaultSetting = {
   randomTpRange: "50000",
   maxLandPerPlayer: "5",
   maxLandBlocks: "30000",
+  landSnapshotMaxChunks: "10",
+  landSnapshotAutoEnabled: false,
+  landSnapshotAutoIntervalMinutes: "360",
+  landSnapshotAutoMaxPerLand: "3",
+  landSnapshotAutoIncludeEntities: false,
   maxPrivatePointsPerPlayer: "10",
   maxPublicPointsPerPlayer: "10",
   playerNameColor: "§f",
@@ -147,15 +167,20 @@ export const defaultSetting = {
   backToDeath: true,
   enableTreeCutOneClick: true,
   enableDigOreOneClick: true,
+  enableCropHarvestOneClick: true,
+  enableCropPlantOneClick: true,
   digOreChainObsidian: true,
   land1BlockPerPrice: "2",
   daily_gold_limit: "100000",
   startingGold: "500",
   monsterKillGoldReward: true,
+  deathGoldPenaltyEnabled: true,
+  deathGoldPenaltyAmount: "100",
   allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
   pvp: true, // PVP系统菜单显示开关
   pvpMode: "vanilla", // PVP模式：vanilla=原版，plugin=插件，off=禁止
   pvpEnabled: false, // 旧版兼容开关：true=插件模式，false=原版模式
+  pvpSuspendedMode: "", // 功能开关关闭前暂存的 pvpMode
   pvpSeizeAmount: "100", // 固定夺取金额
   pvpMinProtection: "100", // 最低金币保护
   pvpToggleCooldown: "30", // 切换冷却时间（秒）
@@ -168,6 +193,7 @@ export const defaultSetting = {
   behaviorLogEnabled: true, // 玩家行为日志
   behaviorLogMaxEntries: "20000", // 行为日志最大保留条数
   behaviorLogLocationIntervalSec: "60", // 玩家坐标采样间隔（秒）
+  behaviorLogInspectorRadius: "3", // 行为日志查询器点击方块时的查询半径
   logPlayerJoin: true,
   logPlayerLeave: true,
   logPlayerChat: true,
@@ -181,6 +207,7 @@ export const defaultSetting = {
   logSummonWither: true,
   logEnterLand: true,
   logLeaveLand: true,
+  logLandBreakAttempt: true,
   logAttackMobInLand: true,
   logOpenChest: true,
   logOpenBarrel: true,

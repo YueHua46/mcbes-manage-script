@@ -22,6 +22,10 @@ import { useNotify } from "../../shared/hooks";
 import { MinecraftBlockTypes } from "@minecraft/vanilla-data";
 import type { ILand, Vector3 } from "../../core/types";
 import { guildFacade } from "../../features/guild/services/guild-facade";
+import behaviorLog from "../../features/behavior-log/services/behavior-log";
+import { subscribePreviewEvent } from "../../features/platform/sapi-capabilities";
+import { taskScheduler } from "../../features/platform/scheduler";
+import setting from "../../features/system/services/setting";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
@@ -59,6 +63,166 @@ const LandLog = new Map<string, ILand>();
 // 用于拦截 fireTick（damagingEntity 为空）造成的持续燃烧伤害
 const landEntityFireSourceMap = new Map<string, number>();
 const LAND_FIRE_SOURCE_TIMEOUT_MS = 15_000;
+const landBreakWarningState = new Map<string, string>();
+const recentLandBreakAttemptLog = new Map<string, number>();
+const LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS = 1500;
+const WITHER_BOSS_TYPE_ID = "minecraft:wither";
+const WITHER_BOSS_EJECT_MARGIN = 4;
+const WITHER_BOSS_CHECK_INTERVAL_TICKS = 10;
+const LAND_DIMENSION_IDS = ["overworld", "nether", "the_end"] as const;
+
+function isLandBreakAllowed(player: Player, land: ILand): boolean {
+  if (land.owner === player.name) return true;
+  if (isAdmin(player)) return true;
+  if (land.public_auth.break) return true;
+  if (landManager.isPlayerTrustedOnLand(land, player.name)) return true;
+  return false;
+}
+
+function landBreakAttemptKey(player: Player, block: { location: Vector3; dimension: { id: string } }): string {
+  const { location } = block;
+  return `${player.id}:${block.dimension.id}:${Math.floor(location.x)},${Math.floor(location.y)},${Math.floor(location.z)}`;
+}
+
+function logLandBreakAttemptOnce(player: Player, block: any, land: ILand): void {
+  const key = landBreakAttemptKey(player, block);
+  const now = Date.now();
+  const prev = recentLandBreakAttemptLog.get(key) ?? 0;
+  if (now - prev < LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS) return;
+
+  recentLandBreakAttemptLog.set(key, now);
+  behaviorLog.logLandBreakAttempt(player, block.typeId, block.location, block.dimension.id, {
+    name: land.name,
+    owner: land.owner,
+  });
+}
+
+function warnDeniedLandBreaking(player: Player, block: any, land: ILand): void {
+  const key = landBreakAttemptKey(player, block);
+  landBreakWarningState.set(player.id, key);
+  logLandBreakAttemptOnce(player, block, land);
+
+  system.run(() => {
+    const p = world.getPlayers().find((pl) => pl.id === player.id);
+    if (!p) return;
+    useNotify("actionbar", p, color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地方块`));
+  });
+}
+
+function ensureLandAuthDefaults(landData: ILand): void {
+  // 修复旧存档burn权限初始化问题
+  if (landData.public_auth.burn === undefined) {
+    landData.public_auth.burn = false;
+  }
+
+  // 修复旧存档attackNeutralMobs权限初始化问题
+  if (landData.public_auth.attackNeutralMobs === undefined) {
+    landData.public_auth.attackNeutralMobs = false;
+  }
+
+  // 修复旧存档allowEnter权限初始化问题
+  if (landData.public_auth.allowEnter === undefined) {
+    landData.public_auth.allowEnter = true;
+  }
+
+  // 修复旧存档allowWater权限初始化问题
+  if (landData.public_auth.allowWater === undefined) {
+    landData.public_auth.allowWater = true;
+  }
+
+  // 修复旧存档allowWitherBoss权限初始化问题：默认不允许凋零BOSS进入领地
+  if (landData.public_auth.allowWitherBoss === undefined) {
+    landData.public_auth.allowWitherBoss = false;
+  }
+
+  if (landData.config_public_auth && landData.config_public_auth.allowWitherBoss === undefined) {
+    landData.config_public_auth.allowWitherBoss = false;
+  }
+}
+
+function getNearestOutsideLandPosition(location: Vector3, land: ILand): Vector3 {
+  const minX = Math.min(land.vectors.start.x, land.vectors.end.x);
+  const maxX = Math.max(land.vectors.start.x, land.vectors.end.x);
+  const minZ = Math.min(land.vectors.start.z, land.vectors.end.z);
+  const maxZ = Math.max(land.vectors.start.z, land.vectors.end.z);
+
+  const candidates = [
+    { distance: Math.abs(location.x - minX), position: { ...location, x: minX - WITHER_BOSS_EJECT_MARGIN } },
+    { distance: Math.abs(location.x - maxX), position: { ...location, x: maxX + WITHER_BOSS_EJECT_MARGIN } },
+    { distance: Math.abs(location.z - minZ), position: { ...location, z: minZ - WITHER_BOSS_EJECT_MARGIN } },
+    { distance: Math.abs(location.z - maxZ), position: { ...location, z: maxZ + WITHER_BOSS_EJECT_MARGIN } },
+  ];
+
+  candidates.sort((a, b) => a.distance - b.distance);
+  return candidates[0].position;
+}
+
+function ejectWitherBossFromLand(wither: Entity, land: ILand): void {
+  try {
+    const target = getNearestOutsideLandPosition(wither.location, land);
+    wither.teleport(target, { dimension: wither.dimension });
+    wither.clearVelocity();
+  } catch (error) {
+    SystemLog.warn(`[Land] failed to eject wither boss from protected land: ${error}`);
+  }
+}
+
+function enforceWitherBossLandAccess(): void {
+  for (const dimensionId of LAND_DIMENSION_IDS) {
+    let withers: Entity[] = [];
+    try {
+      withers = world.getDimension(dimensionId).getEntities({ type: WITHER_BOSS_TYPE_ID });
+    } catch (error) {
+      continue;
+    }
+
+    for (const wither of withers) {
+      try {
+        const { isInside, insideLand } = landManager.testLand(wither.location, wither.dimension.id);
+        if (!isInside || !insideLand) continue;
+        if (insideLand.public_auth.allowWitherBoss === true) continue;
+        ejectWitherBossFromLand(wither, insideLand);
+      } catch (error) {
+        // 忽略实体失效、维度卸载等瞬时错误
+      }
+    }
+  }
+}
+
+function registerLandBreakingPreviewEvents(): void {
+  subscribePreviewEvent(
+    "playerStartBreakingBlock",
+    (event: any) => {
+      const { player, block } = event;
+      if (!player || !block) return;
+
+      const { isInside, insideLand } = landManager.testLand(block.location, block.dimension.id);
+      if (!isInside || !insideLand || isLandBreakAllowed(player, insideLand)) return;
+
+      warnDeniedLandBreaking(player, block, insideLand);
+    },
+    "playerStartBreakingBlock"
+  );
+
+  subscribePreviewEvent(
+    "playerCancelBreakingBlock",
+    (event: any) => {
+      const { player, block } = event;
+      if (!player) return;
+
+      const activeKey = landBreakWarningState.get(player.id);
+      if (!activeKey) return;
+      if (block && activeKey !== landBreakAttemptKey(player, block)) return;
+
+      landBreakWarningState.delete(player.id);
+      system.run(() => {
+        const p = world.getPlayers().find((pl) => pl.id === player.id);
+        p?.onScreenDisplay.setActionBar("");
+      });
+    },
+    "playerCancelBreakingBlock"
+  );
+}
 
 /**
  * 判断实体是否为敌对生物（会主动攻击玩家的生物）
@@ -125,250 +289,261 @@ function clearLandWaterByGetBlocks(landData: ILand): void {
  * 注册领地事件处理器
  */
 export function registerLandEvents(): void {
+  registerLandBreakingPreviewEvents();
+
   // ==================== 定时任务 ====================
 
   /**
    * 领地标记点管理和燃烧方块清理
    */
-  system.runInterval(() => {
-    // 1. 清除过期的领地标记坐标点
-    landAreas.forEach((landArea, playerId) => {
-      if (landArea.lastChangeTime < Date.now() - 1000 * 60 * 10) {
-        const player = world.getPlayers().find((p) => p.name === playerId);
-        player?.sendMessage(color.red("领地标记坐标点已过期，请重新设置"));
-        landAreas.delete(playerId);
-      }
+  taskScheduler.register({
+    id: "land.markerCleanup",
+    label: "领地标记与方块清理",
+    category: "land",
+    intervalTicks: 20,
+    when: () => setting.getState("land") === true,
+    run: () => {
+      // 1. 清除过期的领地标记坐标点
+      landAreas.forEach((landArea, playerId) => {
+        if (landArea.lastChangeTime < Date.now() - 1000 * 60 * 10) {
+          const player = world.getPlayers().find((p) => p.name === playerId);
+          player?.sendMessage(color.red("领地标记坐标点已过期，请重新设置"));
+          landAreas.delete(playerId);
+        }
 
-      // 显示起始点粒子
-      if (landArea.start) {
-        const player = world.getPlayers().find((p) => p.name === playerId);
-        if (player) {
-          landParticle.createLandParticle(player, landArea.start);
+        // 显示起始点粒子
+        if (landArea.start) {
+          const player = world.getPlayers().find((p) => p.name === playerId);
+          if (player) {
+            landParticle.createLandParticle(player, landArea.start);
+          }
+        }
+
+        // 显示结束点粒子
+        if (landArea.end) {
+          const player = world.getPlayers().find((p) => p.name === playerId);
+          if (player) {
+            landParticle.createLandParticle(player, landArea.end);
+          }
+        }
+
+        // 显示区域边框
+        if (landArea.start && landArea.end) {
+          const player = world.getPlayers().find((p) => p.name === playerId);
+          if (player) {
+            landParticle.createLandParticleArea(player, [landArea.start, landArea.end]);
+          }
+        }
+      });
+
+      // 2. 清除所有领地内的燃烧方块
+      const lands = landManager.getLandList();
+      for (const landName in lands) {
+        const landData = lands[landName];
+        ensureLandAuthDefaults(landData);
+
+        // 清除燃烧方块
+        if (!landData.public_auth.burn) {
+          try {
+            clearLandFireByGetBlocks(landData);
+          } catch (error) {
+            // 忽略区块未加载等错误
+          }
+        }
+
+        // 清除水方块
+        if (!landData.public_auth.allowWater) {
+          try {
+            clearLandWaterByGetBlocks(landData);
+          } catch (error) {
+            // 忽略区块未加载等错误
+          }
         }
       }
+    },
+  });
 
-      // 显示结束点粒子
-      if (landArea.end) {
-        const player = world.getPlayers().find((p) => p.name === playerId);
-        if (player) {
-          landParticle.createLandParticle(player, landArea.end);
-        }
-      }
-
-      // 显示区域边框
-      if (landArea.start && landArea.end) {
-        const player = world.getPlayers().find((p) => p.name === playerId);
-        if (player) {
-          landParticle.createLandParticleArea(player, [landArea.start, landArea.end]);
-        }
-      }
-    });
-
-    // 2. 清除所有领地内的燃烧方块
-    const lands = landManager.getLandList();
-    for (const landName in lands) {
-      const landData = lands[landName];
-
-      // 修复旧存档burn权限初始化问题
-      if (landData.public_auth.burn === undefined) {
-        landData.public_auth.burn = false;
-      }
-
-      // 修复旧存档attackNeutralMobs权限初始化问题
-      if (landData.public_auth.attackNeutralMobs === undefined) {
-        landData.public_auth.attackNeutralMobs = false;
-      }
-
-      // 修复旧存档allowEnter权限初始化问题
-      if (landData.public_auth.allowEnter === undefined) {
-        landData.public_auth.allowEnter = true;
-      }
-
-      // 修复旧存档allowWater权限初始化问题
-      if (landData.public_auth.allowWater === undefined) {
-        landData.public_auth.allowWater = true;
-      }
-
-      // 清除燃烧方块
-      if (!landData.public_auth.burn) {
-        try {
-          clearLandFireByGetBlocks(landData);
-        } catch (error) {
-          // 忽略区块未加载等错误
-        }
-      }
-
-      // 清除水方块
-      if (!landData.public_auth.allowWater) {
-        try {
-          clearLandWaterByGetBlocks(landData);
-        } catch (error) {
-          // 忽略区块未加载等错误
-        }
-      }
-    }
-  }, 20);
+  /**
+   * 凋零BOSS进入权限检查
+   */
+  taskScheduler.register({
+    id: "land.witherBossCheck",
+    label: "凋零 BOSS 权限检查",
+    category: "land",
+    intervalTicks: WITHER_BOSS_CHECK_INTERVAL_TICKS,
+    when: () => setting.getState("land") === true,
+    run: () => {
+      enforceWitherBossLandAccess();
+    },
+  });
 
   /**
    * 玩家进入/离开领地提示和权限检查
    */
-  system.runInterval(() => {
-    world.getAllPlayers().forEach((p) => {
-      if (!isMoving(p)) return;
-      if (p.location.y <= -63) return;
+  taskScheduler.register({
+    id: "land.enterLeaveDetect",
+    label: "领地进入离开检测",
+    category: "land",
+    intervalTicks: 5,
+    when: () => setting.getState("land") === true,
+    run: () => {
+      world.getAllPlayers().forEach((p) => {
+        if (!isMoving(p)) return;
+        if (p.location.y <= -63) return;
 
-      const location = p.dimension.getBlock(p.location)?.location;
-      const { isInside, insideLand } = landManager.testLand(location ?? p.location, p.dimension.id);
+        const location = p.dimension.getBlock(p.location)?.location;
+        const { isInside, insideLand } = landManager.testLand(location ?? p.location, p.dimension.id);
 
-      // 进入领地
-      if (isInside && insideLand && !LandLog.get(p.name)) {
-        // 检查是否允许进入
-        if (!insideLand.public_auth.allowEnter) {
-          // 非管理员且非领地信任对象（含公会领地同公会成员）则传送出去
-          if (!isAdmin(p) && !landManager.isPlayerTrustedOnLand(insideLand, p.name)) {
-            // 计算领地外最近的安全位置
-            const landMin = {
-              x: Math.min(insideLand.vectors.start.x, insideLand.vectors.end.x),
-              y: Math.min(insideLand.vectors.start.y, insideLand.vectors.end.y),
-              z: Math.min(insideLand.vectors.start.z, insideLand.vectors.end.z),
-            };
-            const landMax = {
-              x: Math.max(insideLand.vectors.start.x, insideLand.vectors.end.x),
-              y: Math.max(insideLand.vectors.start.y, insideLand.vectors.end.y),
-              z: Math.max(insideLand.vectors.start.z, insideLand.vectors.end.z),
-            };
+        // 进入领地
+        if (isInside && insideLand && !LandLog.get(p.name)) {
+          // 检查是否允许进入
+          if (!insideLand.public_auth.allowEnter) {
+            // 非管理员且非领地信任对象（含公会领地同公会成员）则传送出去
+            if (!isAdmin(p) && !landManager.isPlayerTrustedOnLand(insideLand, p.name)) {
+              // 计算领地外最近的安全位置
+              const landMin = {
+                x: Math.min(insideLand.vectors.start.x, insideLand.vectors.end.x),
+                y: Math.min(insideLand.vectors.start.y, insideLand.vectors.end.y),
+                z: Math.min(insideLand.vectors.start.z, insideLand.vectors.end.z),
+              };
+              const landMax = {
+                x: Math.max(insideLand.vectors.start.x, insideLand.vectors.end.x),
+                y: Math.max(insideLand.vectors.start.y, insideLand.vectors.end.y),
+                z: Math.max(insideLand.vectors.start.z, insideLand.vectors.end.z),
+              };
 
-            // 找到最近的边界点
-            const playerPos = p.location;
-            let teleportPos = { ...playerPos };
+              // 找到最近的边界点
+              const playerPos = p.location;
+              let teleportPos = { ...playerPos };
 
-            // 计算到各边界的距离，选择最近的边界
-            const distToMinX = Math.abs(playerPos.x - landMin.x);
-            const distToMaxX = Math.abs(playerPos.x - landMax.x);
-            const distToMinZ = Math.abs(playerPos.z - landMin.z);
-            const distToMaxZ = Math.abs(playerPos.z - landMax.z);
+              // 计算到各边界的距离，选择最近的边界
+              const distToMinX = Math.abs(playerPos.x - landMin.x);
+              const distToMaxX = Math.abs(playerPos.x - landMax.x);
+              const distToMinZ = Math.abs(playerPos.z - landMin.z);
+              const distToMaxZ = Math.abs(playerPos.z - landMax.z);
 
-            if (distToMinX <= distToMaxX && distToMinX <= distToMinZ && distToMinX <= distToMaxZ) {
-              teleportPos.x = landMin.x - 1;
-            } else if (distToMaxX <= distToMinZ && distToMaxX <= distToMaxZ) {
-              teleportPos.x = landMax.x + 1;
-            } else if (distToMinZ <= distToMaxZ) {
-              teleportPos.z = landMin.z - 1;
-            } else {
-              teleportPos.z = landMax.z + 1;
-            }
+              if (distToMinX <= distToMaxX && distToMinX <= distToMinZ && distToMinX <= distToMaxZ) {
+                teleportPos.x = landMin.x - 1;
+              } else if (distToMaxX <= distToMinZ && distToMaxX <= distToMaxZ) {
+                teleportPos.x = landMax.x + 1;
+              } else if (distToMinZ <= distToMaxZ) {
+                teleportPos.z = landMin.z - 1;
+              } else {
+                teleportPos.z = landMax.z + 1;
+              }
 
-            // 确保Y坐标在合理范围内
-            teleportPos.y = Math.max(landMin.y, Math.min(landMax.y + 1, playerPos.y));
+              // 确保Y坐标在合理范围内
+              teleportPos.y = Math.max(landMin.y, Math.min(landMax.y + 1, playerPos.y));
 
-            // 先显示领地轮廓，让玩家知道领地范围（传送前显示一次）
-            try {
-              landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
-            } catch (error) {
-              // 忽略粒子生成错误
-            }
+              // 先显示领地轮廓，让玩家知道领地范围（传送前显示一次）
+              try {
+                landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
+              } catch (error) {
+                // 忽略粒子生成错误
+              }
 
-            // 传送玩家
-            try {
-              p.teleport(teleportPos, { dimension: p.dimension });
-              useNotify(
-                "chat",
-                p,
-                color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，您没有权限进入！")}`)
-              );
+              // 传送玩家
+              try {
+                p.teleport(teleportPos, { dimension: p.dimension });
+                useNotify(
+                  "chat",
+                  p,
+                  color.red(`这里是 ${color.yellow(insideLand.owner)} ${color.red("的领地，您没有权限进入！")}`)
+                );
 
-              // 传送后再次显示轮廓，确保玩家在领地外也能看到
-              system.runTimeout(() => {
-                try {
-                  const playerAfterTeleport = world.getPlayers().find((pl) => pl.name === p.name);
-                  if (playerAfterTeleport) {
-                    landParticle.createLandParticleArea(playerAfterTeleport, [
-                      insideLand.vectors.start,
-                      insideLand.vectors.end,
-                    ]);
+                // 传送后再次显示轮廓，确保玩家在领地外也能看到
+                system.runTimeout(() => {
+                  try {
+                    const playerAfterTeleport = world.getPlayers().find((pl) => pl.name === p.name);
+                    if (playerAfterTeleport) {
+                      landParticle.createLandParticleArea(playerAfterTeleport, [
+                        insideLand.vectors.start,
+                        insideLand.vectors.end,
+                      ]);
+                    }
+                  } catch (error) {
+                    // 忽略粒子生成错误
                   }
-                } catch (error) {
-                  // 忽略粒子生成错误
-                }
-              }, 5); // 延迟5 tick，确保传送完成
-            } catch (error) {
-              // 传送失败，忽略
+                }, 5); // 延迟5 tick，确保传送完成
+              } catch (error) {
+                // 传送失败，忽略
+              }
+              return;
             }
-            return;
           }
-        }
 
-        if (insideLand.guildId) {
-          const guildInfo = guildFacade.getGuildTagAndNameById(insideLand.guildId);
-          // 仅 actionbar，不弹全屏 titleraw（音效与个人领地进入相同）
-          try {
-            p.playSound("random.pop", { volume: 0.45, pitch: 1.0 });
-          } catch {
-            /* ignore */
-          }
-          const ab = guildInfo
-            ? `${color.gray("▸")} ${color.gold("公会领地")} ${color.aqua("[")}${color.yellow(stripLandDisplaySection(guildInfo.tag))}${color.aqua("]")} ${color.white(
-                stripLandDisplaySection(guildInfo.name)
-              )} ${color.darkGray("·")} ${color.lightPurple("『")}${stripLandDisplaySection(insideLand.name)}${color.lightPurple("』")} ${color.gray("◂")}`
-            : `${color.gray("▸")} ${color.gold("公会领地")} ${color.lightPurple("『")}${stripLandDisplaySection(insideLand.name)}${color.lightPurple("』")} ${color.gray("(数据异常)")}`;
-          useNotify("actionbar", p, ab);
-        } else {
-          try {
-            p.playSound("random.pop", { volume: 0.45, pitch: 1.0 });
-          } catch {
-            /* ignore */
-          }
-          const ownerDisp = stripLandDisplaySection(insideLand.owner);
-          const landDisp = stripLandDisplaySection(insideLand.name);
-          const ab = `${color.gray("▸")} ${color.gold("个人领地")} ${color.aqua("[")}${color.yellow(ownerDisp)}${color.aqua("]")} ${color.darkGray("·")} ${color.lightPurple("『")}${landDisp}${color.lightPurple("』")} ${color.gray("◂")}`;
-          useNotify("actionbar", p, ab);
-        }
-
-        try {
-          landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
-        } catch (error) {}
-
-        LandLog.set(p.name, insideLand);
-      }
-      // 离开领地
-      else if (!isInside && LandLog.get(p.name)) {
-        const landData = LandLog.get(p.name);
-        if (landData) {
-          if (landData.guildId) {
-            const guildInfo = guildFacade.getGuildTagAndNameById(landData.guildId);
-            // 仅 actionbar，不弹全屏 titleraw（音效与个人领地离开相同）
+          if (insideLand.guildId) {
+            const guildInfo = guildFacade.getGuildTagAndNameById(insideLand.guildId);
+            // 仅 actionbar，不弹全屏 titleraw（音效与个人领地进入相同）
             try {
-              p.playSound("random.click", { volume: 0.4, pitch: 1.0 });
+              p.playSound("random.pop", { volume: 0.45, pitch: 1.0 });
             } catch {
               /* ignore */
             }
             const ab = guildInfo
-              ? `${color.gray("▹")} ${color.darkGray("已离开")} ${color.aqua("[")}${color.yellow(stripLandDisplaySection(guildInfo.tag))}${color.aqua("]")} ${color.white(
+              ? `${color.gray("▸")} ${color.gold("公会领地")} ${color.aqua("[")}${color.yellow(stripLandDisplaySection(guildInfo.tag))}${color.aqua("]")} ${color.white(
                   stripLandDisplaySection(guildInfo.name)
-                )} ${color.darkGray("·")} ${color.lightPurple("『")}${stripLandDisplaySection(landData.name)}${color.lightPurple("』")} ${color.gray("▸")}`
-              : `${color.gray("▹")} ${color.darkGray("已离开")} ${color.lightPurple("『")}${stripLandDisplaySection(landData.name)}${color.lightPurple("』")} ${color.gray("(数据异常)")}`;
+                )} ${color.darkGray("·")} ${color.lightPurple("『")}${stripLandDisplaySection(insideLand.name)}${color.lightPurple("』")} ${color.gray("◂")}`
+              : `${color.gray("▸")} ${color.gold("公会领地")} ${color.lightPurple("『")}${stripLandDisplaySection(insideLand.name)}${color.lightPurple("』")} ${color.gray("(数据异常)")}`;
             useNotify("actionbar", p, ab);
           } else {
             try {
-              p.playSound("random.click", { volume: 0.4, pitch: 1.0 });
+              p.playSound("random.pop", { volume: 0.45, pitch: 1.0 });
             } catch {
               /* ignore */
             }
-            const ownerDisp = stripLandDisplaySection(landData.owner);
-            const landDisp = stripLandDisplaySection(landData.name);
-            const ab = `${color.gray("▹")} ${color.darkGray("已离开")} ${color.aqua("[")}${color.yellow(ownerDisp)}${color.aqua("]")} ${color.darkGray("·")} ${color.lightPurple("『")}${landDisp}${color.lightPurple("』")} ${color.gray("▸")}`;
+            const ownerDisp = stripLandDisplaySection(insideLand.owner);
+            const landDisp = stripLandDisplaySection(insideLand.name);
+            const ab = `${color.gray("▸")} ${color.gold("个人领地")} ${color.aqua("[")}${color.yellow(ownerDisp)}${color.aqua("]")} ${color.darkGray("·")} ${color.lightPurple("『")}${landDisp}${color.lightPurple("』")} ${color.gray("◂")}`;
             useNotify("actionbar", p, ab);
           }
 
           try {
-            landParticle.createLandParticleArea(p, [landData.vectors.start, landData.vectors.end]);
+            landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
           } catch (error) {}
 
-          LandLog.delete(p.name);
+          LandLog.set(p.name, insideLand);
         }
-      }
-    });
-  }, 5);
+        // 离开领地
+        else if (!isInside && LandLog.get(p.name)) {
+          const landData = LandLog.get(p.name);
+          if (landData) {
+            if (landData.guildId) {
+              const guildInfo = guildFacade.getGuildTagAndNameById(landData.guildId);
+              // 仅 actionbar，不弹全屏 titleraw（音效与个人领地离开相同）
+              try {
+                p.playSound("random.click", { volume: 0.4, pitch: 1.0 });
+              } catch {
+                /* ignore */
+              }
+              const ab = guildInfo
+                ? `${color.gray("▹")} ${color.darkGray("已离开")} ${color.aqua("[")}${color.yellow(stripLandDisplaySection(guildInfo.tag))}${color.aqua("]")} ${color.white(
+                    stripLandDisplaySection(guildInfo.name)
+                  )} ${color.darkGray("·")} ${color.lightPurple("『")}${stripLandDisplaySection(landData.name)}${color.lightPurple("』")} ${color.gray("▸")}`
+                : `${color.gray("▹")} ${color.darkGray("已离开")} ${color.lightPurple("『")}${stripLandDisplaySection(landData.name)}${color.lightPurple("』")} ${color.gray("(数据异常)")}`;
+              useNotify("actionbar", p, ab);
+            } else {
+              try {
+                p.playSound("random.click", { volume: 0.4, pitch: 1.0 });
+              } catch {
+                /* ignore */
+              }
+              const ownerDisp = stripLandDisplaySection(landData.owner);
+              const landDisp = stripLandDisplaySection(landData.name);
+              const ab = `${color.gray("▹")} ${color.darkGray("已离开")} ${color.aqua("[")}${color.yellow(ownerDisp)}${color.aqua("]")} ${color.darkGray("·")} ${color.lightPurple("『")}${landDisp}${color.lightPurple("』")} ${color.gray("▸")}`;
+              useNotify("actionbar", p, ab);
+            }
+
+            try {
+              landParticle.createLandParticleArea(p, [landData.vectors.start, landData.vectors.end]);
+            } catch (error) {}
+
+            LandLog.delete(p.name);
+          }
+        }
+      });
+    },
+  });
 
   // ==================== 领地标记事件 ====================
 
@@ -472,12 +647,10 @@ export function registerLandEvents(): void {
     const { isInside, insideLand } = landManager.testLand(block.location, block.dimension.id);
 
     if (!isInside || !insideLand) return;
-    if (insideLand.owner === player.name) return;
-    if (isAdmin(player)) return;
-    if (insideLand.public_auth.break) return;
-    if (landManager.isPlayerTrustedOnLand(insideLand, player.name)) return;
+    if (isLandBreakAllowed(player, insideLand)) return;
 
     event.cancel = true;
+    warnDeniedLandBreaking(player, block, insideLand);
     // 必须延迟发送消息，beforeEvents 中直接调用 sendMessage 可能导致事件处理异常
     const playerName = player.name;
     const ownerName = insideLand.owner;
@@ -774,10 +947,7 @@ export function registerLandEvents(): void {
     }
 
     // 0.5. fire/fireTick 且无 damagingEntity：检查是否为受保护实体的持续燃烧
-    if (
-      (cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick) &&
-      !damageSource.damagingEntity
-    ) {
+    if ((cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick) && !damageSource.damagingEntity) {
       const fireTs = landEntityFireSourceMap.get(hurtEntity.id);
       if (fireTs && Date.now() - fireTs < LAND_FIRE_SOURCE_TIMEOUT_MS) {
         event.cancel = true;

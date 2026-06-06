@@ -12,7 +12,7 @@ import { openDialogForm } from "../../components/dialog";
 import economic from "../../../features/economic/services/economic";
 import { colorCodes } from "../../../shared/utils/color";
 
-import { ChestUIUtility, getChestItemDurabilityBarValue } from "../../components/chest-ui";
+import { ChestUIUtility, getChestItemDurabilityBarValue, getChestItemTextureKey } from "../../components/chest-ui";
 import { SystemLog } from "../../../shared";
 const { getItemDisplayName, hasAnyEnchantment } = ChestUIUtility;
 
@@ -125,7 +125,7 @@ class OfficeShopForm {
     currentPageProducts.forEach((itemData, index) => {
       const displayName = getItemDisplayName(itemData.item);
       const lores = itemData.item.getLore();
-      const itemIconPath = itemData.item.typeId;
+      const itemIconPath = getChestItemTextureKey(itemData.item);
       const amount = itemData.data.amount; // 使用商品库存数量，而不是物品本身的数量
       const durability = getChestItemDurabilityBarValue(itemData.item);
       const isEnchanted = hasAnyEnchantment(itemData.item);

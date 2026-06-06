@@ -1,6 +1,6 @@
 /**
  * 构建时由 just.config 注入（define）。
- * 标准兼容版为 false，BDS 增强版为 true；用于条件加载 @minecraft/server-net 相关代码。
+ * 业务/UI 层应通过 features/platform/sapi-capabilities/build-flags 读取，避免直接引用。
  */
 declare const __BDS_BUILD__: boolean | undefined;
 declare const __SERVER_ADMIN_BUILD__: boolean | undefined;

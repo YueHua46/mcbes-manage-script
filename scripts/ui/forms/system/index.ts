@@ -21,6 +21,14 @@ import { openOfflineDurationQueryMenu } from "./offline-duration-query";
 import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
 import { openFeedbackForm } from "../feedback";
+import { openLiveServerPanel } from "./live-server-panel";
+import {
+  BDS_ONLY_FEATURE_HINT,
+  isServerAdminBuild,
+  STANDARD_BUILD_LIMITATION_HINT,
+} from "../../../features/platform/sapi-capabilities";
+import pvpManager from "../../../features/pvp/services/pvp-manager";
+import landSnapshotService from "../../../features/land/services/land-snapshot";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
@@ -112,6 +120,11 @@ export function openSystemSettingForm(player: Player): void {
 
   const buttons = [
     {
+      text: "§w服务器实时面板",
+      icon: "textures/icons/info",
+      action: () => void openLiveServerPanel(player, () => openSystemSettingForm(player)),
+    },
+    {
       text: "§w通用系统设置",
       icon: "textures/icons/gear",
       action: () => openGeneralSettingsForm(player),
@@ -177,7 +190,7 @@ export function openSystemSettingForm(player: Player): void {
       text: "§w黑名单管理",
       icon: "textures/icons/mod_shield",
       action: async () => {
-        if (typeof __SERVER_ADMIN_BUILD__ !== "undefined" && __SERVER_ADMIN_BUILD__) {
+        if (isServerAdminBuild()) {
           const { openBlacklistManageForm } = await import("../blacklist");
           openBlacklistManageForm(player);
           return;
@@ -188,10 +201,10 @@ export function openSystemSettingForm(player: Player): void {
           {
             title: "黑名单管理不可用",
             desc:
-              color.yellow("当前附加包为普通兼容版（不含 @minecraft/server-admin 与 @minecraft/server-net）。\n\n") +
+              color.yellow(`${STANDARD_BUILD_LIMITATION_HINT}\n\n`) +
               color.gray("因此本版本无法提供黑名单管理、进服前黑名单校验等相关功能。\n") +
               color.white("但也正因为移除了这些模块，本版本才可用于本地存档、BDS 与 Realms 领域服。\n\n") +
-              color.white("如需使用黑名单这类能力，请改用仅适用于 BDS 服务器的增强版附加包。"),
+              color.white(BDS_ONLY_FEATURE_HINT),
           },
           () => openSystemSettingForm(player)
         );
@@ -605,10 +618,12 @@ export function openModuleToggleForm(player: Player): void {
     { key: "backToDeath", name: "回到死亡地点功能" },
     { key: "enableTreeCutOneClick", name: "一键砍树" },
     { key: "enableDigOreOneClick", name: "一键挖矿" },
+    { key: "enableCropHarvestOneClick", name: "下蹲连锁收割作物" },
+    { key: "enableCropPlantOneClick", name: "下蹲一键连锁播种" },
     { key: "digOreChainObsidian", name: "一键挖矿：连锁黑曜石（含哭泣黑曜石）" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
     { key: "feedbackAllowPublicView", name: "允许非管理员查看/处理举报工单" },
-    ...(typeof __SERVER_ADMIN_BUILD__ !== "undefined" && __SERVER_ADMIN_BUILD__
+    ...(isServerAdminBuild()
       ? ([{ key: "blacklistEnabled", name: "黑名单系统（仅 BDS 增强版可用）" }] as const)
       : []),
     { key: "behaviorLogEnabled", name: "玩家行为日志" },
@@ -633,9 +648,22 @@ export function openModuleToggleForm(player: Player): void {
     if (!formValues) return;
 
     const applySettings = () => {
+      const prevPvpEnabled = setting.getState("pvp") === true;
+      const pvpModuleIndex = modules.findIndex((m) => m.key === "pvp");
+      const nextPvpEnabled =
+        pvpModuleIndex >= 0 ? (formValues[pvpModuleIndex] as boolean) : prevPvpEnabled;
+
       modules.forEach((module, index) => {
-        setting.setState(module.key as any, formValues[index] as boolean);
+        const nextValue = formValues[index] as boolean;
+        if (module.key === "pvp" && prevPvpEnabled && !nextValue) {
+          pvpManager.snapshotModeBeforeModuleOff();
+        }
+        setting.setState(module.key as any, nextValue);
       });
+
+      if (!prevPvpEnabled && nextPvpEnabled) {
+        pvpManager.restoreModeAfterModuleOn();
+      }
       openDialogForm(
         player,
         {
@@ -1169,6 +1197,89 @@ function openAdminGuildWaypointManageForm(player: Player, page: number = 1, retu
 
 // ==================== 领地系统管理菜单 ====================
 
+function openLandSnapshotSettingsForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("§w领地快照设置");
+  form.label(
+    [
+      "管理员可开启自动保存快照。开启后系统会按间隔为所有领地排队保存自动快照。",
+      "达到每块领地的自动快照数量上限后，会自动删除最旧的自动快照；管理员手动保存的快照不会被自动覆盖。",
+      "恢复快照仍只允许管理员操作。",
+      "",
+      "切块上限越高，允许的领地越大，但保存/恢复时越容易造成卡顿。",
+    ].join("\n")
+  );
+  form.toggle("启用自动保存快照", {
+    defaultValue: landSnapshotService.isAutoEnabled(),
+  });
+  form.textField("自动保存间隔（分钟）", "最小 5，例如 360 表示 6 小时", {
+    defaultValue: String(landSnapshotService.getAutoIntervalMinutes()),
+  });
+  form.textField("每块领地自动快照上限", "1～50；达到上限后覆盖最旧自动快照", {
+    defaultValue: String(landSnapshotService.getAutoMaxPerLand()),
+  });
+  form.toggle("自动快照包含实体", {
+    defaultValue: landSnapshotService.getAutoIncludeEntities(),
+    tooltip: "开启后会保存画、展示框、生物、掉落物等非玩家实体；恢复时会先清理区域内非玩家实体。",
+  });
+  form.textField("结构自动切块上限", "默认 10，建议 1～30", {
+    defaultValue: String(landSnapshotService.getChunkLimit()),
+  });
+  form.submitButton("保存");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.cancelationReason) {
+      void openLandManageForm(player);
+      return;
+    }
+    const values = data.formValues ?? [];
+    const boolValues = values.filter((value): value is boolean => typeof value === "boolean");
+    const numericStrings = values
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .filter((value) => value !== "" && Number.isFinite(Number(value)));
+    const enabled = boolValues[0] ?? false;
+    const includeEntities = boolValues[1] ?? false;
+    const intervalMinutes = Number(numericStrings[0]);
+    const maxPerLand = Number(numericStrings[1]);
+    const chunkLimit = Number(numericStrings[2]);
+
+    const autoResult = landSnapshotService.setAutoConfig({
+      enabled,
+      intervalMinutes,
+      maxPerLand,
+      includeEntities,
+    });
+    if (typeof autoResult === "string") {
+      openDialogForm(player, { title: "设置失败", desc: color.red(autoResult) }, () =>
+        openLandSnapshotSettingsForm(player)
+      );
+      return;
+    }
+
+    const chunkResult = landSnapshotService.setChunkLimit(chunkLimit);
+    if (typeof chunkResult === "string") {
+      openDialogForm(player, { title: "设置失败", desc: color.red(chunkResult) }, () =>
+        openLandSnapshotSettingsForm(player)
+      );
+      return;
+    }
+
+    openDialogForm(
+      player,
+      {
+        title: "设置成功",
+        desc:
+          color.green("领地快照设置已更新。\n\n") +
+          landSnapshotService.describeAutoConfig() +
+          "\n" +
+          color.gray(`结构切块上限：${landSnapshotService.getChunkLimit()}`),
+      },
+      () => void openLandManageForm(player)
+    );
+  });
+}
+
 export const openLandManageForm = async (player: Player): Promise<void> => {
   const form = new ActionFormData();
   form.title("§w领地系统管理");
@@ -1176,6 +1287,7 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
   form.button("§w所有玩家领地管理", "textures/icons/topraklar");
   form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
   form.button("§w领地飞行设置", "textures/icons/durbun");
+  form.button("§w快照功能设置", "textures/icons/fotograf");
   form.button("§w公会领地（管理员）", "textures/icons/island");
   form.button("§w公会坐标（管理员）", "textures/icons/fast_travel");
   form.button("§w返回", "textures/icons/back");
@@ -1194,15 +1306,18 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
       case 2:
         openLandFlightSettingsForm(player);
         break;
-      case 3: {
+      case 3:
+        openLandSnapshotSettingsForm(player);
+        break;
+      case 4: {
         const { openAdminGuildLandListForm } = await import("../land");
         openAdminGuildLandListForm(player, 1, () => openLandManageForm(player));
         break;
       }
-      case 4:
+      case 5:
         openAdminGuildWaypointManageForm(player, 1, () => openLandManageForm(player));
         break;
-      case 5:
+      case 6:
         openSystemSettingForm(player);
         break;
     }
@@ -1219,7 +1334,7 @@ export function openEconomyManageForm(player: Player): void {
   form.button("§w官方商店管理", "textures/icons/shop");
   form.button("§w物品出售价格管理", "textures/icons/clock");
   form.button("§w玩家金币管理", "textures/icons/rewards");
-  form.button("§w功能开关", "textures/icons/gadgets");
+  form.button("§w功能设置", "textures/icons/gadgets");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -1249,15 +1364,21 @@ export function openEconomyManageForm(player: Player): void {
 // 经济系统功能开关表单
 function openEconomyFeatureToggleForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w经济系统功能开关");
+  form.title("§w经济系统功能设置");
 
-  const features = [{ key: "monsterKillGoldReward", name: "杀怪掉金币" }];
+  const features: { key: "monsterKillGoldReward" | "deathGoldPenaltyEnabled"; name: string }[] = [
+    { key: "monsterKillGoldReward", name: "杀怪掉金币" },
+    { key: "deathGoldPenaltyEnabled", name: "死亡损失金币" },
+  ];
 
   features.forEach((feature) => {
-    const currentValue = setting.getState(feature.key as any);
+    const currentValue = setting.getState(feature.key);
     form.toggle(`${feature.name}`, {
       defaultValue: currentValue as boolean,
     });
+  });
+  form.textField("死亡损失金币数量", "非负整数，例如 100；余额不足时扣到 0", {
+    defaultValue: String(setting.getState("deathGoldPenaltyAmount")),
   });
 
   form.submitButton("确认");
@@ -1266,15 +1387,29 @@ function openEconomyFeatureToggleForm(player: Player): void {
     if (data.cancelationReason) return;
     const { formValues } = data;
     if (formValues) {
+      const deathPenaltyAmount = Math.floor(Number(formValues[features.length]));
+      if (!Number.isFinite(deathPenaltyAmount) || deathPenaltyAmount < 0) {
+        openDialogForm(
+          player,
+          {
+            title: "设置失败",
+            desc: color.red("死亡损失金币数量须为 0 或正整数"),
+          },
+          () => openEconomyFeatureToggleForm(player)
+        );
+        return;
+      }
+
       features.forEach((feature, index) => {
-        setting.setState(feature.key as any, formValues[index] as boolean);
+        setting.setState(feature.key, formValues[index] as boolean);
       });
+      setting.setState("deathGoldPenaltyAmount", String(deathPenaltyAmount));
 
       openDialogForm(
         player,
         {
           title: "设置成功",
-          desc: color.green("功能开关已更新！"),
+          desc: color.green("经济系统功能设置已更新！"),
         },
         () => openEconomyManageForm(player)
       );
@@ -2078,7 +2213,7 @@ function openModifyItemPriceForm(player: Player): void {
 
   for (let i = 0; i < container.size; i++) {
     const item = container.getItem(i);
-    if (item && item.typeId !== "yuehua:sm") {
+    if (item && item.typeId !== "yuehua:sm" && item.typeId !== "yuehua:log_inspector") {
       hasItems = true;
       const currentPrice = itemPriceDb.getPrice(item.typeId);
 

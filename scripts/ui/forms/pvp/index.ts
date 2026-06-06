@@ -15,14 +15,19 @@ import { openServerMenuForm } from "../server";
 export async function openPvpSystemForm(player: Player): Promise<void> {
   const data = pvpManager.getPlayerData(player.name);
   const config = pvpManager.getConfig();
+  const storedMode = pvpManager.getStoredMode();
 
   if (config.mode === "vanilla") {
     const form = new ActionFormData();
     form.title("§wPVP系统");
     form.body(
-      "当前服务器处于§e原版模式§f。\n\n" +
-        "玩家之间是否可以互相伤害，完全由原版世界/存档的“玩家互相伤害”设置决定。\n" +
-        "本插件不会接管个人PVP开关、战斗状态、PVP统计或金币夺取。"
+      storedMode === "plugin"
+        ? "当前服务器 PVP 功能开关已关闭或处于§e原版模式§f。\n\n" +
+            "插件暂不会接管个人 PVP 开关、战斗状态、统计与夺金。\n" +
+            "若服主已重新开启 PVP，请稍后再试或联系管理员确认「功能开关」与「PVP 管理 → 插件模式」。"
+        : "当前服务器处于§e原版模式§f。\n\n" +
+            "玩家之间是否可以互相伤害，完全由原版世界/存档的“玩家互相伤害”设置决定。\n" +
+            "本插件不会接管个人PVP开关、战斗状态、PVP统计或金币夺取。"
     );
     form.button("§w返回", "textures/icons/back");
     form.show(player).then(() => openServerMenuForm(player));

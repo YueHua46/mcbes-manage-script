@@ -4,6 +4,7 @@
  */
 
 import { Player, system, Vector3, world } from "@minecraft/server";
+import { taskScheduler } from "../../platform/scheduler";
 import { Database } from "../../../shared/database/database";
 import { usePlayerByName } from "../../../shared/hooks/use-player";
 import setting from "../../system/services/setting";
@@ -40,9 +41,14 @@ export class Economic {
   }
 
   private setupDailyReset(): void {
-    system.runInterval(() => {
-      this.checkAndResetDailyLimits();
-    }, 1200);
+    taskScheduler.register({
+      id: "economy.dailyReset",
+      label: "经济每日限额重置",
+      category: "economy",
+      intervalTicks: 1200,
+      when: () => setting.getState("economy") === true,
+      run: () => this.checkAndResetDailyLimits(),
+    });
   }
 
   private checkAndResetDailyLimits(): void {

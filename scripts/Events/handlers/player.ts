@@ -8,6 +8,7 @@ import { welcomeFoxGlyphs, welcomeGlyphs } from "../../assets/glyph-map";
 import playerSettings from "../../features/player/services/player-settings";
 import setting from "../../features/system/services/setting";
 import { showJoinPopupAnnouncements } from "../../features/system/services/join-popup-announcement";
+import economic from "../../features/economic/services/economic";
 
 /**
  * 注册玩家事件处理器
@@ -39,7 +40,7 @@ export function registerPlayerEvents(): void {
       // 获取自定义的欢迎消息并处理换行符
       const welcomeMessageRaw = (setting.getState("welcomeMessage") as string) || "";
       const welcomeMessage = welcomeMessageRaw.replace(/\\n/g, "\n");
-      
+
       if (welcomeMessage) {
         player.sendMessage(welcomeMessage);
       }
@@ -89,13 +90,26 @@ export function registerPlayerEvents(): void {
   world.afterEvents.entityDie.subscribe((event) => {
     const { deadEntity } = event;
     if (deadEntity.typeId === "minecraft:player") {
+      const player = deadEntity as Player;
       const backToDeath = setting.getState("backToDeath") as boolean;
 
       // 只有在功能开启时才显示提示消息
       if (backToDeath) {
-        (deadEntity as Player).sendMessage(
+        player.sendMessage(
           "§e你死了，但你可以通过 §b服务器菜单 -> 其他功能 -> 回到上次死亡地点 §e来传送回上次死亡点。"
         );
+      }
+
+      if (setting.getState("economy") === true && setting.getState("deathGoldPenaltyEnabled") === true) {
+        const configuredAmount = Math.floor(Number(setting.getState("deathGoldPenaltyAmount")));
+        if (Number.isFinite(configuredAmount) && configuredAmount > 0) {
+          const wallet = economic.getWallet(player.name);
+          const penaltyAmount = Math.min(configuredAmount, wallet.gold);
+          if (penaltyAmount > 0 && economic.removeGold(player.name, penaltyAmount, "死亡金币惩罚")) {
+            const currentGold = economic.getWallet(player.name).gold;
+            player.sendMessage(`§c死亡惩罚：扣除 §e${penaltyAmount} §c金币，当前余额 §e${currentGold}§c。`);
+          }
+        }
       }
 
       // 保存死亡地点（即使功能关闭也保存，以防以后开启时使用）

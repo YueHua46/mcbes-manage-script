@@ -6,7 +6,8 @@ import { Player, world } from "@minecraft/server";
 import { eventRegistry } from "../registry";
 import playerStats from "../../features/statistics/services/player-stats";
 import { ONLINE_TIME_TICK_INTERVAL } from "../../features/player/services/online-time";
-import { system } from "@minecraft/server";
+import { taskScheduler } from "../../features/platform/scheduler";
+import setting from "../../features/system/services/setting";
 
 const IGNORE_MOB_KILL_TYPES = new Set(["minecraft:item", "minecraft:xp_orb"]);
 
@@ -39,9 +40,14 @@ export function registerPlayerStatsEvents(): void {
     }
   });
 
-  system.runInterval(() => {
-    playerStats.refreshAllOnlineLevels();
-  }, ONLINE_TIME_TICK_INTERVAL);
+  taskScheduler.register({
+    id: "player.statsLevel",
+    label: "玩家等级快照",
+    category: "player",
+    intervalTicks: ONLINE_TIME_TICK_INTERVAL,
+    when: () => setting.getState("stats") === true,
+    run: () => playerStats.refreshAllOnlineLevels(),
+  });
 }
 
 eventRegistry.register("playerStats", registerPlayerStatsEvents);

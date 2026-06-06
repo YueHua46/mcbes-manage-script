@@ -1,5 +1,6 @@
 import { Entity, Player, Vector3, system, world } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
+import { taskScheduler } from "../../platform/scheduler";
 import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import setting from "../../system/services/setting";
@@ -28,11 +29,16 @@ export type BehaviorEventType =
   | "summonWither"
   | "enterLand"
   | "leaveLand"
+  | "landBreakAttempt"
   | "attackMobInLand"
   | "openChest"
   | "openBarrel"
   | "openShulker"
   | "openOtherContainer"
+  | "closeChest"
+  | "closeBarrel"
+  | "closeShulker"
+  | "closeOtherContainer"
   | "locationSnapshot"
   | "guildCreate"
   | "guildJoin"
@@ -91,6 +97,15 @@ export interface BehaviorLogQueryResult {
   items: BehaviorLogEntry[];
 }
 
+export interface BehaviorLogLocationQuery {
+  dimensionId: string;
+  location: Vector3;
+  radius?: number;
+  limit?: number;
+  offset?: number;
+  startTime?: number;
+}
+
 export interface LandLogInfo {
   name: string;
   owner?: string;
@@ -130,6 +145,7 @@ export const behaviorEventDefinitions: Array<{
   { type: "summonWither", label: "召唤凋零", settingKey: "logSummonWither", group: "dangerous", isDangerous: true },
   { type: "enterLand", label: "进入领地", settingKey: "logEnterLand", group: "land" },
   { type: "leaveLand", label: "离开领地", settingKey: "logLeaveLand", group: "land" },
+  { type: "landBreakAttempt", label: "领地破坏尝试", settingKey: "logLandBreakAttempt", group: "land" },
   { type: "attackMobInLand", label: "领地内攻击生物", settingKey: "logAttackMobInLand", group: "land" },
   { type: "openChest", label: "打开箱子", settingKey: "logOpenChest", group: "container" },
   { type: "openBarrel", label: "打开木桶", settingKey: "logOpenBarrel", group: "container" },
@@ -137,6 +153,15 @@ export const behaviorEventDefinitions: Array<{
   {
     type: "openOtherContainer",
     label: "打开其他容器",
+    settingKey: "logOpenOtherContainers",
+    group: "container",
+  },
+  { type: "closeChest", label: "关闭箱子", settingKey: "logOpenChest", group: "container" },
+  { type: "closeBarrel", label: "关闭木桶", settingKey: "logOpenBarrel", group: "container" },
+  { type: "closeShulker", label: "关闭潜影盒", settingKey: "logOpenShulker", group: "container" },
+  {
+    type: "closeOtherContainer",
+    label: "关闭其他容器",
     settingKey: "logOpenOtherContainers",
     group: "container",
   },
@@ -321,11 +346,7 @@ export function summarizeBehaviorEntry(entry: BehaviorLogEntry): string {
       : "";
   const land = entry.l ? ` | 领地:${entry.l}` : "";
   const target =
-    entry.e === "itemWatchSnapshot" && entry.v
-      ? ` | 物品:${entry.v}`
-      : entry.v
-        ? ` | 对象:${entry.v}`
-        : "";
+    entry.e === "itemWatchSnapshot" && entry.v ? ` | 物品:${entry.v}` : entry.v ? ` | 对象:${entry.v}` : "";
   const meta = entry.m ? ` | ${entry.m}` : "";
   return `[${formatBehaviorTimestamp(entry.t)}] ${eventLabel}${coord}${land}${target}${meta}`;
 }
@@ -364,13 +385,7 @@ function buildBehaviorExtraParts(entry: BehaviorLogEntry): string[] {
 }
 
 function buildBehaviorSearchText(entry: BehaviorLogEntry): string {
-  const parts = [
-    entry.p,
-    getBehaviorEventLabel(entry.e),
-    entry.m ?? "",
-    entry.l ?? "",
-    entry.v ?? "",
-  ];
+  const parts = [entry.p, getBehaviorEventLabel(entry.e), entry.m ?? "", entry.l ?? "", entry.v ?? ""];
 
   if (typeof entry.d === "number") {
     parts.push(getBehaviorDimensionLabel(entry.d));
@@ -399,8 +414,7 @@ function buildBehaviorSearchText(entry: BehaviorLogEntry): string {
 }
 
 export function formatBehaviorListEntry(entry: BehaviorLogEntry, index?: number): string {
-  const numberPrefix =
-    typeof index === "number" ? `${color.darkGray(`${index + 1}.`.padStart(2, " "))} ` : "";
+  const numberPrefix = typeof index === "number" ? `${color.darkGray(`${index + 1}.`.padStart(2, " "))} ` : "";
   const line1 =
     `${numberPrefix}${color.gray(formatBehaviorShortTimestamp(entry.t))} ` +
     `${color.aqua(getBehaviorEventLabel(entry.e))} ${color.darkGray("·")} ${color.yellow(entry.p)}`;
@@ -538,9 +552,15 @@ class BehaviorLogService {
       this.flush();
     });
 
-    system.runInterval(() => {
-      this.flush();
-    }, FLUSH_INTERVAL_TICKS);
+    taskScheduler.register({
+      id: "behaviorLog.flush",
+      label: "行为日志落库",
+      category: "log",
+      intervalTicks: FLUSH_INTERVAL_TICKS,
+      when: () => setting.getState("behaviorLogEnabled") === true,
+      skipIfRunning: true,
+      run: () => this.flush(),
+    });
   }
 
   getEventTypes(): BehaviorEventType[] {
@@ -600,9 +620,7 @@ class BehaviorLogService {
     const state = this.getState();
     const keywordValue = keyword ? normalizeText(keyword).toLowerCase() : "";
     const eventTypeSet = eventTypes?.length ? new Set(eventTypes) : undefined;
-    const effectiveEventSet = guildIdFilter
-      ? eventTypeSet ?? new Set(GUILD_HISTORY_EVENT_TYPES)
-      : eventTypeSet;
+    const effectiveEventSet = guildIdFilter ? (eventTypeSet ?? new Set(GUILD_HISTORY_EVENT_TYPES)) : eventTypeSet;
 
     const mergedEntries = [...state.es, ...state.ls]
       .sort((a, b) => b.t - a.t)
@@ -627,6 +645,43 @@ class BehaviorLogService {
     };
   }
 
+  queryNearLocation(query: BehaviorLogLocationQuery): BehaviorLogQueryResult {
+    this.flush();
+    const radius = Math.max(0, Math.floor(query.radius ?? 3));
+    const limit = Math.max(1, Math.floor(query.limit ?? 10));
+    const offset = Math.max(0, Math.floor(query.offset ?? 0));
+    const dimensionCode = toDimensionCode(query.dimensionId);
+    const target = toLocation(query.location);
+    const state = this.getState();
+
+    const matchedEntries = [...state.es, ...state.ls]
+      .sort((a, b) => b.t - a.t)
+      .filter((entry) => {
+        if (typeof dimensionCode === "number" && entry.d !== dimensionCode) return false;
+        if (typeof query.startTime === "number" && entry.t < query.startTime) return false;
+        if (
+          typeof entry.x !== "number" ||
+          typeof entry.y !== "number" ||
+          typeof entry.z !== "number" ||
+          typeof target.x !== "number" ||
+          typeof target.y !== "number" ||
+          typeof target.z !== "number"
+        ) {
+          return false;
+        }
+        return (
+          Math.abs(entry.x - target.x) <= radius &&
+          Math.abs(entry.y - target.y) <= radius &&
+          Math.abs(entry.z - target.z) <= radius
+        );
+      });
+
+    return {
+      total: matchedEntries.length,
+      items: matchedEntries.slice(offset, offset + limit),
+    };
+  }
+
   shouldTrack(eventType: BehaviorEventType): boolean {
     if (!this.isEnabled()) return false;
     const settingKey = behaviorEventSettingMap[eventType];
@@ -647,7 +702,7 @@ class BehaviorLogService {
     return Math.min(Math.floor(rawValue), 3600);
   }
 
-  getContainerEventType(typeId: string | undefined): BehaviorEventType | undefined {
+  getContainerEventType(typeId: string | undefined, access: "open" | "close" = "open"): BehaviorEventType | undefined {
     if (!typeId || typeId === "minecraft:ender_chest") return undefined;
 
     if (
@@ -656,15 +711,15 @@ class BehaviorLogService {
       typeId === "minecraft:chest_boat" ||
       typeId === "minecraft:chest_minecart"
     ) {
-      return "openChest";
+      return access === "open" ? "openChest" : "closeChest";
     }
 
     if (typeId === "minecraft:barrel") {
-      return "openBarrel";
+      return access === "open" ? "openBarrel" : "closeBarrel";
     }
 
     if (typeId.includes("shulker_box")) {
-      return "openShulker";
+      return access === "open" ? "openShulker" : "closeShulker";
     }
 
     if (
@@ -676,7 +731,7 @@ class BehaviorLogService {
       typeId === "minecraft:dropper" ||
       typeId === "minecraft:dispenser"
     ) {
-      return "openOtherContainer";
+      return access === "open" ? "openOtherContainer" : "closeOtherContainer";
     }
 
     return undefined;
@@ -821,6 +876,24 @@ class BehaviorLogService {
       ...toLocation(location),
       l: formatLandLabel(land),
       v: shortTypeId(targetTypeId),
+    });
+  }
+
+  logLandBreakAttempt(
+    player: Player,
+    targetTypeId: string,
+    location: Vector3,
+    dimensionId: string,
+    land: LandLogInfo
+  ): void {
+    this.append({
+      p: player.name,
+      e: "landBreakAttempt",
+      d: toDimensionCode(dimensionId),
+      ...toLocation(location),
+      l: formatLandLabel(land),
+      v: shortTypeId(targetTypeId),
+      m: "startBreaking",
     });
   }
 

@@ -466,8 +466,17 @@ export class Database<V = any> {
   }
 }
 
+import { taskScheduler } from "../../features/platform/scheduler";
+
 // 每秒自动保存所有数据库
-system.runInterval(() => {
-  //@ts-ignore
-  Database.save();
-}, 20);
+taskScheduler.register({
+  id: "database.autoSave",
+  label: "数据库自动保存",
+  category: "core",
+  intervalTicks: 20,
+  skipIfRunning: true,
+  run: () => {
+    //@ts-ignore
+    Database.save();
+  },
+});

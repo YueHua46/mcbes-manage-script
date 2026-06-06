@@ -10,7 +10,7 @@ import officeShop, { OfficeShopItemData } from "../../../features/economic/servi
 import { openDialogForm } from "../../components/dialog";
 import { glyphKeys } from "../../../assets/glyph-map";
 import ChestFormData from "../../components/chest-ui/chest-forms";
-import { buildChestItemListLores, getChestItemDurabilityBarValue } from "../../components/chest-ui";
+import { buildChestItemListLores, getChestItemDurabilityBarValue, getChestItemTextureKey } from "../../components/chest-ui";
 import { getItemDisplayName, hasAnyEnchantment } from "../../../shared/utils/item-utils";
 
 /**
@@ -254,7 +254,7 @@ class OfficeShopSettingForm {
     currentPageItems.forEach((itemData, index) => {
       const displayName = getItemDisplayName(itemData.item);
       const lores = [`§e单价: §f${itemData.data.price}`, `§e库存: §f${itemData.data.amount}`, `§e点击编辑或删除`];
-      const itemIconPath = itemData.item.typeId;
+      const itemIconPath = getChestItemTextureKey(itemData.item);
       const amount = itemData.data.amount; // 使用商品库存数量，而不是物品本身的数量
       const isEnchanted = hasAnyEnchantment(itemData.item);
 

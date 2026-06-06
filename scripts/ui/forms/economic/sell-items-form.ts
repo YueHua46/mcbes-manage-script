@@ -64,7 +64,7 @@ class SellItemsForm {
 
     for (let i = 0; i < container.size; i++) {
       const item = container.getItem(i);
-      if (item && item.typeId !== "yuehua:sm") {
+      if (item && item.typeId !== "yuehua:sm" && item.typeId !== "yuehua:log_inspector") {
         hasItems = true;
         const itemPrice = this.getItemPrice(item);
         const totalPrice = itemPrice * item.amount;
@@ -331,7 +331,7 @@ class SellItemsForm {
 
     for (let i = 0; i < container.size; i++) {
       const item = container.getItem(i);
-      if (item && item.typeId !== "yuehua:sm") {
+      if (item && item.typeId !== "yuehua:sm" && item.typeId !== "yuehua:log_inspector") {
         const itemPrice = this.getItemPrice(item);
         const sellPrice = itemPrice * item.amount;
 

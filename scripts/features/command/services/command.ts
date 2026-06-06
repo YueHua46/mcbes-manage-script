@@ -167,7 +167,7 @@ system.beforeEvents.startup.subscribe((init) => {
   // 7. 注册 oneclick 指令
   const oneclickCommand: CustomCommand = {
     name: "yuehua:oneclick",
-    description: "一键功能开关(仅管理员) - 用法: /yuehua:oneclick <ore|tree>",
+    description: "一键功能开关(仅管理员) - 用法: /yuehua:oneclick <ore|tree|harvest|plant>",
     permissionLevel: CommandPermissionLevel.Admin,
     mandatoryParameters: [{ type: CustomCommandParamType.String, name: "功能类型(ore=挖矿/tree=砍树)" }],
   };
@@ -235,7 +235,7 @@ system.beforeEvents.startup.subscribe((init) => {
   const cameraCommand: CustomCommand = {
     name: "yuehua:camera",
     description: "实体视角观察系统 - 用法: /yuehua:camera <操作> [参数]",
-    permissionLevel: CommandPermissionLevel.Admin,
+    permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
       { type: CustomCommandParamType.Enum, name: "操作", enumName: "yuehua:CameraOperationType" },
       { type: CustomCommandParamType.EntitySelector, name: "目标实体选择器或视角类型" },
@@ -649,11 +649,15 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           backToDeath: "回到死亡地点功能 (true/false)",
           enableTreeCutOneClick: "一键砍树 (true/false)",
           enableDigOreOneClick: "一键挖矿 (true/false)",
+          enableCropHarvestOneClick: "下蹲连锁收割作物 (true/false)",
+          enableCropPlantOneClick: "下蹲一键连锁播种 (true/false)",
           digOreChainObsidian: "一键挖矿是否连锁黑曜石/哭泣黑曜石 (true/false)，默认 true",
           land1BlockPerPrice: "领地每方块价格 (数字)",
           daily_gold_limit: "每日金币获取上限 (数字)",
           startingGold: "新玩家初始金币 (数字)",
           monsterKillGoldReward: "杀怪掉金币功能 (true/false)",
+          deathGoldPenaltyEnabled: "死亡损失金币功能 (true/false)，默认开启",
+          deathGoldPenaltyAmount: "玩家死亡时扣除金币数量 (数字，非负整数；余额不足时扣到 0)",
           guild: "公会系统总开关 (true/false)，细项请在服务器菜单或下列键配置",
           guildCreateCost: "创建公会费用，从个人钱包扣除 (数字)",
           guildMaxMembers: "每公会最大人数 (数字)",
@@ -759,8 +763,16 @@ function handleOneClickCommand(origin: CustomCommandOrigin, feature: string): Cu
         const current = setting.getState("enableTreeCutOneClick");
         setting.setState("enableTreeCutOneClick", !current);
         player.sendMessage(color.green(`一键砍树已${!current ? "开启" : "关闭"}`));
+      } else if (featureLower === "crop" || featureLower === "harvest") {
+        const current = setting.getState("enableCropHarvestOneClick");
+        setting.setState("enableCropHarvestOneClick", !current);
+        player.sendMessage(color.green(`下蹲连锁收割作物已${!current ? "开启" : "关闭"}`));
+      } else if (featureLower === "plant" || featureLower === "sow") {
+        const current = setting.getState("enableCropPlantOneClick");
+        setting.setState("enableCropPlantOneClick", !current);
+        player.sendMessage(color.green(`下蹲一键连锁播种已${!current ? "开启" : "关闭"}`));
       } else {
-        player.sendMessage(color.yellow("用法: /oneclick <ore|tree>"));
+        player.sendMessage(color.yellow("用法: /oneclick <ore|tree|harvest|plant>"));
       }
     } catch (error) {
       player.sendMessage(color.red(`设置失败: ${(error as Error).message}`));
@@ -1037,6 +1049,12 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
       );
       player.sendMessage(
         `${color.gray("一键挖矿:")} ${setting.getState("enableDigOreOneClick") ? color.green("开启") : color.red("关闭")}`
+      );
+      player.sendMessage(
+        `${color.gray("连锁收割作物:")} ${setting.getState("enableCropHarvestOneClick") ? color.green("开启") : color.red("关闭")}`
+      );
+      player.sendMessage(
+        `${color.gray("连锁播种作物:")} ${setting.getState("enableCropPlantOneClick") ? color.green("开启") : color.red("关闭")}`
       );
       {
         const v = setting.getState("digOreChainObsidian");
@@ -1717,6 +1735,10 @@ function handleCameraCommand(
 ): CustomCommandResult {
   const player = origin.sourceEntity as Player;
   if (!player) return { status: CustomCommandStatus.Failure };
+  if (!isAdmin(player)) {
+    player.sendMessage(color.red("只有管理员可以使用实体视角观察指令"));
+    return { status: CustomCommandStatus.Failure, message: "权限不足" };
+  }
 
   system.run(async () => {
     try {
