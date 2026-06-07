@@ -10,6 +10,8 @@ import { isAdmin } from "../../../shared/utils/common";
 import landManager from "../../land/services/land-manager";
 import setting from "../../system/services/setting";
 
+const PLUGIN_CONTROLLED_MODES: PvpMode[] = ["plugin", "forced"];
+
 class PvpManager {
   private playerDataDb!: Database<IPvpPlayerData>;
   private combatPlayers = new Map<string, number>();
@@ -27,11 +29,12 @@ class PvpManager {
     const mode = this.getMode();
     return {
       mode,
-      enabled: mode === "plugin",
+      enabled: PLUGIN_CONTROLLED_MODES.includes(mode),
       seizeAmount: Number(setting.getState("pvpSeizeAmount")) || 100,
       minGoldProtection: Number(setting.getState("pvpMinProtection")) || 100,
       toggleCooldown: Number(setting.getState("pvpToggleCooldown")) || 30,
       combatTagDuration: Number(setting.getState("pvpCombatTagDuration")) || 10,
+      forcedIgnoreLandProtection: setting.getState("pvpForcedIgnoreLandProtection") === true,
     };
   }
 
@@ -42,7 +45,7 @@ class PvpManager {
   /** 读取持久化的 PVP 模式，不受功能开关关闭时的「对外表现为原版」影响 */
   getStoredMode(): PvpMode {
     const rawMode = setting.getState("pvpMode");
-    if (rawMode === "vanilla" || rawMode === "plugin" || rawMode === "off") {
+    if (rawMode === "vanilla" || rawMode === "plugin" || rawMode === "forced" || rawMode === "off") {
       return rawMode;
     }
     return setting.getState("pvpEnabled") === true ? "plugin" : "vanilla";
@@ -64,9 +67,9 @@ class PvpManager {
   /** 重新开启 PVP 功能开关后调用，恢复关闭前的模式 */
   restoreModeAfterModuleOn(): void {
     const suspended = setting.getState("pvpSuspendedMode");
-    if (suspended === "vanilla" || suspended === "plugin" || suspended === "off") {
+    if (suspended === "vanilla" || suspended === "plugin" || suspended === "forced" || suspended === "off") {
       setting.setState("pvpMode", suspended);
-      setting.setState("pvpEnabled", suspended === "plugin");
+      setting.setState("pvpEnabled", PLUGIN_CONTROLLED_MODES.includes(suspended));
     }
     setting.setState("pvpSuspendedMode", "");
   }
@@ -77,6 +80,8 @@ class PvpManager {
         return "原版模式";
       case "plugin":
         return "插件模式";
+      case "forced":
+        return "强制模式";
       case "off":
       default:
         return "禁止模式";
@@ -89,6 +94,8 @@ class PvpManager {
         return "是否可互相伤害完全由原版世界/存档的玩家互相伤害设置决定，插件不接管PVP规则。";
       case "plugin":
         return "由插件接管PVP，按全局开关、双方个人PVP状态、领地限制、战斗状态和夺金规则执行。";
+      case "forced":
+        return "大乱斗模式：所有玩家（包括管理员）都视为已开启PVP，个人不能开关；可配置是否无视领地保护，仍执行战斗状态、统计和夺金规则。";
       case "off":
       default:
         return "插件会强制禁止玩家之间互相伤害，不受原版世界PVP设置影响。";
@@ -101,8 +108,8 @@ class PvpManager {
   updateConfig(config: Partial<IPvpConfig>): void {
     if (config.mode !== undefined) {
       setting.setState("pvpMode", config.mode);
-      // 兼容旧逻辑：仅插件模式视为旧版的“启用PVP功能”
-      setting.setState("pvpEnabled", config.mode === "plugin");
+      // 兼容旧逻辑：插件接管的模式视为旧版的“启用PVP功能”
+      setting.setState("pvpEnabled", PLUGIN_CONTROLLED_MODES.includes(config.mode));
     }
     if (config.enabled !== undefined) {
       const nextMode = config.enabled ? "plugin" : "vanilla";
@@ -120,6 +127,9 @@ class PvpManager {
     }
     if (config.combatTagDuration !== undefined) {
       setting.setState("pvpCombatTagDuration", config.combatTagDuration.toString());
+    }
+    if (config.forcedIgnoreLandProtection !== undefined) {
+      setting.setState("pvpForcedIgnoreLandProtection", config.forcedIgnoreLandProtection);
     }
   }
 
@@ -173,23 +183,32 @@ class PvpManager {
   canPvp(attacker: Player, victim: Player): boolean {
     // 1. 检查全局开关
     const config = this.getConfig();
-    if (config.mode !== "plugin") {
+    if (!PLUGIN_CONTROLLED_MODES.includes(config.mode)) {
       return false;
     }
 
-    // 2. 管理员可以攻击任何人
+    // 2. 强制模式下所有玩家都视为已开启PVP，包括管理员。
+    if (config.mode === "forced") {
+      if (config.forcedIgnoreLandProtection) {
+        return true;
+      }
+      const { isInside } = landManager.testLand(victim.location, victim.dimension.id);
+      return !isInside;
+    }
+
+    // 3. 插件模式下管理员可以攻击任何人
     if (isAdmin(attacker)) {
       return true;
     }
 
-    // 3. 检查双方PVP状态
+    // 4. 检查双方PVP状态
     const attackerData = this.getPlayerData(attacker.name);
     const victimData = this.getPlayerData(victim.name);
     if (!attackerData.pvpEnabled || !victimData.pvpEnabled) {
       return false;
     }
 
-    // 4. 检查领地保护
+    // 5. 检查领地保护
     const { isInside } = landManager.testLand(victim.location, victim.dimension.id);
     if (isInside) {
       return false;
@@ -211,6 +230,13 @@ class PvpManager {
     }
 
     const storedMode = this.getStoredMode();
+    if (storedMode === "forced") {
+      return {
+        success: false,
+        message: "当前为强制模式，所有玩家已被强制开启PVP，无法个人开关",
+      };
+    }
+
     if (storedMode !== "plugin") {
       return {
         success: false,
@@ -289,4 +315,3 @@ class PvpManager {
 }
 
 export default new PvpManager();
-

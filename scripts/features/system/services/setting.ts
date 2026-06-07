@@ -55,12 +55,13 @@ export type IModules =
   | "pvp"
   | "pvpMode"
   | "pvpEnabled"
-  /** 关闭 PVP 功能开关前暂存的模式，重新开启时恢复（vanilla/plugin/off） */
+  /** 关闭 PVP 功能开关前暂存的模式，重新开启时恢复（vanilla/plugin/forced/off） */
   | "pvpSuspendedMode"
   | "pvpSeizeAmount"
   | "pvpMinProtection"
   | "pvpToggleCooldown"
   | "pvpCombatTagDuration"
+  | "pvpForcedIgnoreLandProtection"
   | "serverName"
   | "welcomeMessage"
   | "joinPopupAnnouncements"
@@ -178,13 +179,14 @@ export const defaultSetting = {
   deathGoldPenaltyAmount: "100",
   allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
   pvp: true, // PVP系统菜单显示开关
-  pvpMode: "vanilla", // PVP模式：vanilla=原版，plugin=插件，off=禁止
-  pvpEnabled: false, // 旧版兼容开关：true=插件模式，false=原版模式
+  pvpMode: "vanilla", // PVP模式：vanilla=原版，plugin=插件，forced=强制大乱斗，off=禁止
+  pvpEnabled: false, // 旧版兼容开关：true=插件接管模式，false=原版模式
   pvpSuspendedMode: "", // 功能开关关闭前暂存的 pvpMode
   pvpSeizeAmount: "100", // 固定夺取金额
   pvpMinProtection: "100", // 最低金币保护
   pvpToggleCooldown: "30", // 切换冷却时间（秒）
   pvpCombatTagDuration: "30", // 战斗标签持续时间（秒）
+  pvpForcedIgnoreLandProtection: false, // 强制大乱斗模式是否无视领地保护，默认关闭
   serverName: "服务器", // 服务器名称
   welcomeMessage:
     "§a欢迎使用杜绝熊孩服务器插件~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限", // 进服欢迎消息

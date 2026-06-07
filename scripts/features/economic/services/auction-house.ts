@@ -9,6 +9,8 @@ import { openDialogForm } from "../../../ui/components/dialog";
 import { color } from "../../../shared/utils/color";
 import ItemDatabase, { Item as DbItem } from "./item-database";
 import { colorCodes } from "../../../shared/utils/color";
+import { isAdmin } from "../../../shared/utils/common";
+import { usePlayerByName } from "../../../shared/hooks/use-player";
 
 // 商店物品数据结构
 export interface ShopItemData {
@@ -153,16 +155,37 @@ class AuctionHouse {
     }
   }
 
+  private calculateContainerCapacity(container: Container, itemToAdd: ItemStack, requestedAmount: number): number {
+    const maxStackSize = itemToAdd.maxAmount;
+    let canHold = 0;
+
+    for (let i = 0; i < container.size; i++) {
+      const slotItem = container.getItem(i);
+      if (slotItem?.isStackableWith(itemToAdd)) {
+        canHold += maxStackSize - slotItem.amount;
+      }
+    }
+
+    canHold += container.emptySlotsCount * maxStackSize;
+    return Math.min(canHold, requestedAmount);
+  }
+
+  private syncEntryStoredAmount(entry: ShopItem): ItemStack {
+    const amount = Math.max(1, Math.min(entry.data.amount, entry.item.maxAmount));
+    const storedItem = entry.item.clone();
+    storedItem.amount = amount;
+    entry.item = storedItem;
+    entry.data.amount = amount;
+    entry.itemDB.editData({ amount, item: storedItem });
+    return storedItem;
+  }
+
   /**
    * 购买物品
    */
   async buyItem(player: Player, entry: ShopItem, amount: number = 0, callback?: () => void): Promise<void> {
     if (!this.isValid(entry)) {
-      openDialogForm(
-        player,
-        { title: "购买失败", desc: color.red("物品不存在或已被购买") },
-        callback
-      );
+      openDialogForm(player, { title: "购买失败", desc: color.red("物品不存在或已被购买") }, callback);
       return;
     }
 
@@ -216,13 +239,16 @@ class AuctionHouse {
         const item = await this.takeItem(entry);
         this.addItemStacksToContainer(container, item, item.amount);
       } else {
-        const originalItem = entry.item.clone();
-        originalItem.amount = amount;
+        const purchasedItem = entry.item.clone();
+        purchasedItem.amount = amount;
 
         entry.data.amount -= amount;
-        entry.itemDB.editData({ amount: entry.data.amount });
+        const remainingItem = entry.item.clone();
+        remainingItem.amount = entry.data.amount;
+        entry.item = remainingItem;
+        entry.itemDB.editData({ amount: entry.data.amount, item: remainingItem });
 
-        this.addItemStacksToContainer(container, originalItem, amount);
+        this.addItemStacksToContainer(container, purchasedItem, amount);
       }
 
       openDialogForm(
@@ -235,11 +261,7 @@ class AuctionHouse {
       );
     } catch (error) {
       economic.transfer(entry.data.playerName, player.name, totalPrice, "购买失败退款");
-      openDialogForm(
-        player,
-        { title: "购买失败", desc: color.red(`购买失败: ${error}`) },
-        callback
-      );
+      openDialogForm(player, { title: "购买失败", desc: color.red(`购买失败: ${error}`) }, callback);
     }
   }
 
@@ -254,7 +276,99 @@ class AuctionHouse {
    * 取回物品
    */
   async takeItem(entry: ShopItem): Promise<ItemStack> {
+    this.syncEntryStoredAmount(entry);
     return await entry.itemDB.unStore(false);
+  }
+
+  /**
+   * 管理员修改拍卖商品单价
+   */
+  adminSetItemPrice(admin: Player, entry: ShopItem, price: number): string | void {
+    if (!isAdmin(admin)) return "只有管理员可以管理拍卖行商品";
+    if (!this.isValid(entry)) return "物品不存在或已被下架";
+    if (!Number.isInteger(price) || price <= 0 || !Number.isSafeInteger(price)) return "请输入有效的正整数价格";
+
+    entry.data.price = price;
+    entry.itemDB.editData({ price });
+
+    const seller = usePlayerByName(entry.data.playerName);
+    seller?.sendMessage(
+      `${colorCodes.yellow}管理员 ${admin.name} 已将您在拍卖行的 ${colorCodes.aqua}${entry.data.name}${colorCodes.yellow} 单价调整为 ${colorCodes.gold}${price}${colorCodes.yellow} 金币。`
+    );
+  }
+
+  /**
+   * 管理员强制下架商品并返还给在线卖家
+   */
+  async adminReturnItemToSeller(admin: Player, entry: ShopItem, callback?: () => void): Promise<string | void> {
+    if (!isAdmin(admin)) return "只有管理员可以管理拍卖行商品";
+    if (!this.isValid(entry)) return "物品不存在或已被下架";
+
+    const seller = usePlayerByName(entry.data.playerName);
+    if (!seller) return "卖家不在线，无法直接返还到背包";
+
+    const inventory = seller.getComponent("inventory");
+    if (!inventory) return "无法获取卖家背包";
+
+    const itemToReturn = this.syncEntryStoredAmount(entry);
+    const canHoldAmount = this.calculateContainerCapacity(inventory.container, itemToReturn, entry.data.amount);
+    if (canHoldAmount < entry.data.amount) return "卖家背包空间不足，无法完整返还";
+
+    try {
+      const item = await this.takeItem(entry);
+      this.addItemStacksToContainer(inventory.container, item, item.amount);
+
+      seller.sendMessage(
+        `${colorCodes.yellow}管理员 ${admin.name} 已将您在拍卖行的 ${colorCodes.aqua}${entry.data.name}${colorCodes.yellow} 强制下架并返还到背包。`
+      );
+
+      openDialogForm(
+        admin,
+        {
+          title: "强制下架成功",
+          desc: `${colorCodes.green}已下架 ${colorCodes.yellow}${item.amount} ${colorCodes.green}个 ${colorCodes.aqua}${entry.data.name}${colorCodes.green}，并返还给 ${colorCodes.white}${entry.data.playerName}`,
+        },
+        callback
+      );
+    } catch (error) {
+      return `强制下架失败: ${error}`;
+    }
+  }
+
+  /**
+   * 管理员没收商品到自己的背包
+   */
+  async adminConfiscateItem(admin: Player, entry: ShopItem, callback?: () => void): Promise<string | void> {
+    if (!isAdmin(admin)) return "只有管理员可以管理拍卖行商品";
+    if (!this.isValid(entry)) return "物品不存在或已被下架";
+
+    const inventory = admin.getComponent("inventory");
+    if (!inventory) return "无法获取管理员背包";
+
+    const itemToConfiscate = this.syncEntryStoredAmount(entry);
+    const canHoldAmount = this.calculateContainerCapacity(inventory.container, itemToConfiscate, entry.data.amount);
+    if (canHoldAmount < entry.data.amount) return "管理员背包空间不足，无法完整没收";
+
+    try {
+      const item = await this.takeItem(entry);
+      this.addItemStacksToContainer(inventory.container, item, item.amount);
+
+      const seller = usePlayerByName(entry.data.playerName);
+      seller?.sendMessage(
+        `${colorCodes.red}管理员 ${admin.name} 已没收您在拍卖行上架的 ${colorCodes.aqua}${entry.data.name}${colorCodes.red}。`
+      );
+
+      openDialogForm(
+        admin,
+        {
+          title: "没收成功",
+          desc: `${colorCodes.green}已没收 ${colorCodes.yellow}${item.amount} ${colorCodes.green}个 ${colorCodes.aqua}${entry.data.name}${colorCodes.green} 到你的背包。`,
+        },
+        callback
+      );
+    } catch (error) {
+      return `没收失败: ${error}`;
+    }
   }
 
   /**

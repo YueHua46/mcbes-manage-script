@@ -8,9 +8,10 @@ import { ItemStack, Player, RawMessage } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import auctionHouse, { ShopItem } from "../../../features/economic/services/auction-house";
 import ChestFormData from "../../../ui/components/chest-ui/chest-forms";
-import { openDialogForm } from "../../components/dialog";
+import { openConfirmDialogForm, openDialogForm } from "../../components/dialog";
 import { colorCodes } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
+import { isAdmin } from "../../../shared/utils/common";
 
 import {
   buildChestItemListLores,
@@ -234,9 +235,13 @@ class AuctionHouseForm {
           `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price} 金币\n` +
           `${colorCodes.gold}数量: ${colorCodes.yellow}${item.data.amount}\n` +
           `${colorCodes.gold}整单总价: ${colorCodes.yellow}${item.data.price * item.data.amount} 金币`
-      )
-      .button("购买", "textures/ui/confirm")
-      .button("返回", "textures/icons/back");
+      );
+
+    form.button("购买", "textures/ui/confirm");
+    if (isAdmin(player)) {
+      form.button("管理商品", "textures/icons/mod_shield");
+    }
+    form.button("返回", "textures/icons/back");
 
     form.show(player).then((response) => {
       if (response.canceled) return;
@@ -247,10 +252,141 @@ class AuctionHouseForm {
         } else {
           this.confirmPurchaseAuction(player, item, 1, page);
         }
+      } else if (isAdmin(player) && response.selection === 1) {
+        this.showAdminItemDetails(player, item, page);
       } else {
         this.browseItems(player, page);
       }
     });
+  }
+
+  /**
+   * 管理员商品管理
+   */
+  private showAdminItemDetails(player: Player, item: ShopItem, page: number): void {
+    if (!isAdmin(player)) {
+      this.showItemDetails(player, item, page);
+      return;
+    }
+
+    const form = new ActionFormData()
+      .title("拍卖行管理")
+      .body(
+        `${colorCodes.gold}商品名称: ${colorCodes.white}${item.data.name}\n` +
+          `${colorCodes.aqua}物品ID: ${colorCodes.white}${item.item.typeId}\n` +
+          `${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}\n` +
+          `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price} 金币\n` +
+          `${colorCodes.gold}数量: ${colorCodes.yellow}${item.data.amount}\n` +
+          `${colorCodes.green}上架时间: ${colorCodes.white}${formatDateTimeBeijing(item.data.createdAt)}`
+      )
+      .button("修改价格", "textures/icons/edit2")
+      .button("强制下架并返还卖家", "textures/icons/requeue")
+      .button("没收到我的背包", "textures/icons/deny")
+      .button("返回", "textures/icons/back");
+
+    form.show(player).then((response) => {
+      if (response.canceled) return;
+
+      switch (response.selection) {
+        case 0:
+          this.showAdminSetPriceForm(player, item, page);
+          break;
+        case 1:
+          this.confirmAdminReturnItem(player, item, page);
+          break;
+        case 2:
+          this.confirmAdminConfiscateItem(player, item, page);
+          break;
+        default:
+          this.showItemDetails(player, item, page);
+          break;
+      }
+    });
+  }
+
+  private showAdminSetPriceForm(player: Player, item: ShopItem, page: number): void {
+    const modal = new ModalFormData()
+      .title("修改拍卖价格")
+      .textField(
+        `${colorCodes.gold}商品: ${colorCodes.white}${item.data.name}\n${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}\n${colorCodes.yellow}请输入新的单价:`,
+        "输入新的单价",
+        { defaultValue: item.data.price.toString() }
+      );
+
+    modal.show(player).then((res) => {
+      if (res.canceled || !res.formValues) {
+        this.showAdminItemDetails(player, item, page);
+        return;
+      }
+
+      const priceStr = res.formValues[0] as string;
+      const newPrice = parseInt(priceStr);
+      if (!priceStr || !Number.isInteger(newPrice) || newPrice <= 0 || !Number.isSafeInteger(newPrice)) {
+        openDialogForm(player, { title: "错误", desc: `${colorCodes.red}请输入有效的正整数价格` }, () =>
+          this.showAdminSetPriceForm(player, item, page)
+        );
+        return;
+      }
+
+      const result = auctionHouse.adminSetItemPrice(player, item, newPrice);
+      if (typeof result === "string") {
+        openDialogForm(player, { title: "修改失败", desc: colorCodes.red + result }, () =>
+          this.browseItems(player, page)
+        );
+        return;
+      }
+
+      openDialogForm(
+        player,
+        {
+          title: "修改成功",
+          desc: `${colorCodes.green}已将 ${colorCodes.aqua}${item.data.name}${colorCodes.green} 的单价修改为 ${colorCodes.gold}${newPrice}${colorCodes.green} 金币。`,
+        },
+        () => this.browseItems(player, page)
+      );
+    });
+  }
+
+  private confirmAdminReturnItem(player: Player, item: ShopItem, page: number): void {
+    openConfirmDialogForm(
+      player,
+      "强制下架",
+      `${colorCodes.yellow}确定要强制下架 ${colorCodes.aqua}${item.data.name}${colorCodes.yellow} 吗？\n${colorCodes.white}物品会返还给在线卖家 ${item.data.playerName} 的背包。`,
+      () => {
+        void auctionHouse
+          .adminReturnItemToSeller(player, item, () => this.browseItems(player, page))
+          .then((result) => {
+            if (typeof result === "string") {
+              openDialogForm(player, { title: "强制下架失败", desc: colorCodes.red + result }, () =>
+                this.browseItems(player, page)
+              );
+            }
+          });
+      },
+      () => this.showAdminItemDetails(player, item, page),
+      { dangerConfirm: true }
+    );
+  }
+
+  private confirmAdminConfiscateItem(player: Player, item: ShopItem, page: number): void {
+    openConfirmDialogForm(
+      player,
+      "没收商品",
+      `${colorCodes.red}确定要没收 ${colorCodes.aqua}${item.data.name}${colorCodes.red} 吗？\n${colorCodes.white}物品会从拍卖行移除，并进入你的背包。`,
+      () => {
+        void auctionHouse
+          .adminConfiscateItem(player, item, () => this.browseItems(player, page))
+          .then((result) => {
+            if (typeof result === "string") {
+              openDialogForm(player, { title: "没收失败", desc: colorCodes.red + result }, () =>
+                this.browseItems(player, page)
+              );
+            }
+          });
+      },
+      () => this.showAdminItemDetails(player, item, page),
+      { dangerConfirm: true }
+    );
   }
 
   /**

@@ -52,7 +52,8 @@ function registerEnumIgnoreReloadLock(registry: CustomCommandRegistry, name: str
   } catch (e) {
     if (
       e instanceof CustomCommandError &&
-      (e.reason === CustomCommandErrorReason.RegistryReadOnly || e.reason === CustomCommandErrorReason.AlreadyRegistered)
+      (e.reason === CustomCommandErrorReason.RegistryReadOnly ||
+        e.reason === CustomCommandErrorReason.AlreadyRegistered)
     ) {
       return;
     }
@@ -658,6 +659,13 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
           monsterKillGoldReward: "杀怪掉金币功能 (true/false)",
           deathGoldPenaltyEnabled: "死亡损失金币功能 (true/false)，默认开启",
           deathGoldPenaltyAmount: "玩家死亡时扣除金币数量 (数字，非负整数；余额不足时扣到 0)",
+          pvp: "PVP系统菜单与插件接管总开关 (true/false)",
+          pvpMode: "PVP模式：vanilla=原版，plugin=个人开关，forced=强制大乱斗，off=禁止",
+          pvpSeizeAmount: "PVP击杀固定夺取金币数量 (数字)",
+          pvpMinProtection: "PVP最低金币保护，低于该值不再被夺取 (数字)",
+          pvpToggleCooldown: "个人PVP开关冷却秒数；强制模式下不生效 (数字)",
+          pvpCombatTagDuration: "PVP战斗标签持续秒数 (数字)",
+          pvpForcedIgnoreLandProtection: "强制大乱斗是否无视领地保护 (true/false)，默认 false",
           guild: "公会系统总开关 (true/false)，细项请在服务器菜单或下列键配置",
           guildCreateCost: "创建公会费用，从个人钱包扣除 (数字)",
           guildMaxMembers: "每公会最大人数 (数字)",

@@ -21,10 +21,11 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
     const form = new ActionFormData();
     form.title("§wPVP系统");
     form.body(
-      storedMode === "plugin"
+      storedMode === "plugin" || storedMode === "forced"
         ? "当前服务器 PVP 功能开关已关闭或处于§e原版模式§f。\n\n" +
             "插件暂不会接管个人 PVP 开关、战斗状态、统计与夺金。\n" +
-            "若服主已重新开启 PVP，请稍后再试或联系管理员确认「功能开关」与「PVP 管理 → 插件模式」。"
+            `已保存模式：§a${pvpManager.getModeDisplay(storedMode)}§f。\n` +
+            "若服主已重新开启 PVP，请稍后再试或联系管理员确认「功能开关」与「PVP 管理」。"
         : "当前服务器处于§e原版模式§f。\n\n" +
             "玩家之间是否可以互相伤害，完全由原版世界/存档的“玩家互相伤害”设置决定。\n" +
             "本插件不会接管个人PVP开关、战斗状态、PVP统计或金币夺取。"
@@ -37,10 +38,7 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
   if (config.mode === "off") {
     const form = new ActionFormData();
     form.title("§wPVP系统");
-    form.body(
-      "当前服务器处于§c禁止模式§f。\n\n" +
-        "插件已强制禁止玩家之间互相伤害，且不受原版世界PVP设置影响。"
-    );
+    form.body("当前服务器处于§c禁止模式§f。\n\n" + "插件已强制禁止玩家之间互相伤害，且不受原版世界PVP设置影响。");
     form.button("§w返回", "textures/icons/back");
     form.show(player).then(() => openServerMenuForm(player));
     return;
@@ -49,20 +47,41 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
   const form = new ActionFormData();
   form.title("§wPVP系统");
 
-  const status = data.pvpEnabled ? "§a已开启" : "§c已关闭";
+  const forcedMode = config.mode === "forced";
+  const status = forcedMode ? "§c强制开启" : data.pvpEnabled ? "§a已开启" : "§c已关闭";
   const combatStatus = data.inCombat ? "§c战斗中" : "§a安全";
+  const forcedModeHint = forcedMode
+    ? `\n§e大乱斗模式下个人不能关闭PVP，管理员也会参与战斗。\n§e领地保护：${config.forcedIgnoreLandProtection ? "§c已被无视" : "§a仍然生效"}\n`
+    : "";
 
   form.body(
-    `当前模式：§a${pvpManager.getModeDisplay(config.mode)}\n当前PVP状态：${status}\n战斗状态：${combatStatus}\n\n§e击杀数：§f${data.kills}\n§e死亡数：§f${data.deaths}\n§e当前连杀：§f${data.killStreak}\n§e最佳连杀：§f${data.bestKillStreak}\n§e总夺取金币：§f${data.totalSeized}\n§e总被夺取金币：§f${data.totalLost}`
+    `当前模式：§a${pvpManager.getModeDisplay(config.mode)}\n当前PVP状态：${status}\n战斗状态：${combatStatus}\n${forcedModeHint}\n§e击杀数：§f${data.kills}\n§e死亡数：§f${data.deaths}\n§e当前连杀：§f${data.killStreak}\n§e最佳连杀：§f${data.bestKillStreak}\n§e总夺取金币：§f${data.totalSeized}\n§e总被夺取金币：§f${data.totalLost}`
   );
 
-  form.button(data.pvpEnabled ? "§c关闭PVP" : "§a开启PVP", "textures/icons/sword");
+  if (!forcedMode) {
+    form.button(data.pvpEnabled ? "§c关闭PVP" : "§a开启PVP", "textures/icons/sword");
+  }
   form.button("§w查看详细统计", "textures/icons/quest_daily_common");
   form.button("§w排行榜", "textures/icons/winner");
   form.button("§w返回", "textures/icons/back");
 
   form.show(player).then((response) => {
     if (response.canceled) return;
+
+    if (forcedMode) {
+      switch (response.selection) {
+        case 0:
+          openPvpStatsForm(player);
+          break;
+        case 1:
+          openPvpLeaderboardMenu(player);
+          break;
+        case 2:
+          openServerMenuForm(player);
+          break;
+      }
+      return;
+    }
 
     switch (response.selection) {
       case 0: // 切换PVP
@@ -267,4 +286,3 @@ export function openPvpLeaderboardForm(
     back();
   });
 }
-

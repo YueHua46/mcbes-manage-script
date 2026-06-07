@@ -22,6 +22,10 @@ const playerCombatStatus = new Map<string, boolean>();
 const pvpFireSourceMap = new Map<string, number>();
 const PVP_FIRE_SOURCE_TIMEOUT_MS = 15_000;
 
+function isPluginControlledMode(mode: string): boolean {
+  return mode === "plugin" || mode === "forced";
+}
+
 /**
  * 检查是否可以PVP并返回详细原因
  */
@@ -34,6 +38,20 @@ function checkPvpWithReason(attacker: Player, victim: Player): { canPvp: boolean
     };
   }
   if (config.mode === "vanilla") {
+    return { canPvp: true, reason: "" };
+  }
+
+  if (config.mode === "forced") {
+    if (config.forcedIgnoreLandProtection) {
+      return { canPvp: true, reason: "" };
+    }
+    const { isInside, insideLand } = landManager.testLand(victim.location, victim.dimension.id);
+    if (isInside) {
+      return {
+        canPvp: false,
+        reason: `${color.red("⚠ 领地内禁止PVP！")}\n${color.yellow("领地主人：")}${color.green(insideLand?.owner || "未知")}`,
+      };
+    }
     return { canPvp: true, reason: "" };
   }
 
@@ -98,7 +116,7 @@ export function registerPvpEvents(): void {
 
     // ===== 情形二：fire/fireTick 且无 damagingEntity（fireTick 兜底）=====
     if (isFireDamage && !damageSource.damagingEntity) {
-      if (config.mode !== "plugin") return;
+      if (!isPluginControlledMode(config.mode)) return;
 
       const fireTs = pvpFireSourceMap.get(victim.id);
       if (fireTs && Date.now() - fireTs < PVP_FIRE_SOURCE_TIMEOUT_MS) {
@@ -202,7 +220,7 @@ export function registerPvpEvents(): void {
 
     // 检查PVP是否启用（额外验证）
     const config = pvpManager.getConfig();
-    if (config.mode !== "plugin") return;
+    if (!isPluginControlledMode(config.mode)) return;
 
     // 获取击杀者的数据（用于获取连杀数）
     const killerData = pvpManager.getPlayerData(killer.name);
@@ -229,7 +247,7 @@ export function registerPvpEvents(): void {
     intervalTicks: 20,
     when: () => {
       if (setting.getState("pvp") !== true) return false;
-      return pvpManager.getConfig().mode === "plugin";
+      return isPluginControlledMode(pvpManager.getConfig().mode);
     },
     run: () => {
       const config = pvpManager.getConfig();

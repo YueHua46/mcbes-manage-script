@@ -65,7 +65,9 @@ function waitTicks(tickCount: number): Promise<void> {
 /**
  * 注册常驻加载区并在几 tick 后再继续，避免 (DB_ANCHOR) 尚未加载/tick 就 spawn。
  */
-async function prepareDatabaseAnchorRegion(dimension: Dimension = world.getDimension("minecraft:overworld")): Promise<void> {
+async function prepareDatabaseAnchorRegion(
+  dimension: Dimension = world.getDimension("minecraft:overworld")
+): Promise<void> {
   await new Promise<void>((resolve) => {
     system.run(() => {
       dimension.runCommand(TICKING_AREA_CMD);
@@ -140,7 +142,7 @@ export class Item {
   }
 
   editData(newData: Partial<SlotData> = {}): void {
-    this.#db.edit(this.#data, newData);
+    this.#data = this.#db.edit(this.#data, newData);
   }
 }
 
@@ -383,14 +385,23 @@ export default class ItemDatabase {
   /**
    * 编辑已有槽位的数据
    */
-  edit(oldData: Partial<SlotData>, newData: Partial<SlotData>): void {
+  edit(oldData: Partial<SlotData>, newData: Partial<SlotData>): SlotData {
     if (!this.#loaded) throw new ReferenceError("Database is not loaded");
     const key = findIndexByValue(this.#itemData, oldData);
     if (key === undefined) throw new Error("Item not found!");
     const slot = Number(key);
     const merged = { ...this.#itemData[slot], ...newData };
+
+    if (newData.item) {
+      const entityIndex = Math.floor(slot / ITEM_MAX_PER_ENTITY);
+      const entitySlot = slot % ITEM_MAX_PER_ENTITY;
+      const ent = this.#entities[entityIndex];
+      ent.getComponent("inventory")?.container.setItem(entitySlot, newData.item);
+    }
+
     this.#database.set(`slot_${slot}`, merged);
     this.#itemData[slot] = merged;
+    return merged;
   }
 
   /**

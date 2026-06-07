@@ -23,9 +23,10 @@ export function openPvpManagementForm(player: Player): void {
   const modeOptions = [
     "原版模式：按世界/存档原版的玩家互相伤害设置决定",
     "插件模式：按插件规则控制，支持个人开关、统计、夺金",
+    "强制模式：大乱斗，全员强制开启PVP（包括管理员）",
     "禁止模式：强制禁止玩家互相伤害",
   ];
-  const modeValues = ["vanilla", "plugin", "off"] as const;
+  const modeValues = ["vanilla", "plugin", "forced", "off"] as const;
   const currentModeIndex = modeValues.indexOf(storedMode);
 
   const form = new ModalFormData();
@@ -43,17 +44,15 @@ export function openPvpManagementForm(player: Player): void {
   form.slider("最低金币保护", 0, 500, { valueStep: 10, defaultValue: config.minGoldProtection });
   form.slider("切换冷却时间(秒)", 0, 120, { valueStep: 5, defaultValue: config.toggleCooldown });
   form.slider("战斗标签时间(秒)", 5, 60, { valueStep: 5, defaultValue: config.combatTagDuration });
+  form.toggle("强制模式：无视领地保护（默认关闭，仅大乱斗生效）", {
+    defaultValue: config.forcedIgnoreLandProtection,
+  });
 
   form.show(player).then((response) => {
     if (response.canceled) return;
 
-    const [modeIndex, seizeAmount, minProtection, cooldown, combatTag] = response.formValues as [
-      number,
-      number,
-      number,
-      number,
-      number
-    ];
+    const [modeIndex, seizeAmount, minProtection, cooldown, combatTag, forcedIgnoreLandProtection] =
+      response.formValues as [number, number, number, number, number, boolean];
     const mode = modeValues[modeIndex] ?? "off";
 
     // 更新配置
@@ -63,6 +62,7 @@ export function openPvpManagementForm(player: Player): void {
       minGoldProtection: minProtection,
       toggleCooldown: cooldown,
       combatTagDuration: combatTag,
+      forcedIgnoreLandProtection,
     });
 
     player.sendMessage(color.green("PVP配置已更新！"));
@@ -72,6 +72,6 @@ export function openPvpManagementForm(player: Player): void {
     player.sendMessage(color.yellow(`最低金币保护：${minProtection}`));
     player.sendMessage(color.yellow(`切换冷却时间：${cooldown}秒`));
     player.sendMessage(color.yellow(`战斗标签时间：${combatTag}秒`));
+    player.sendMessage(color.yellow(`强制模式无视领地保护：${forcedIgnoreLandProtection ? "开启" : "关闭"}`));
   });
 }
-
