@@ -4,7 +4,7 @@
  * 注意：依赖ChestUI系统显示商品列表
  */
 
-import { ItemStack, Player, RawMessage } from "@minecraft/server";
+import { Container, ItemStack, Player, RawMessage } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import officeShop, { ICategory, OfficeShopItemData } from "../../../features/economic/services/office-shop";
 import ChestFormData from "../../../ui/components/chest-ui/chest-forms";
@@ -259,6 +259,36 @@ class OfficeShopForm {
     return Math.min(canHold, requestedAmount);
   }
 
+  private snapshotContainer(container: Container): Array<ItemStack | undefined> {
+    const snapshot: Array<ItemStack | undefined> = [];
+    for (let i = 0; i < container.size; i++) {
+      snapshot.push(container.getItem(i)?.clone());
+    }
+    return snapshot;
+  }
+
+  private restoreContainer(container: Container, snapshot: Array<ItemStack | undefined>): void {
+    for (let i = 0; i < snapshot.length; i++) {
+      container.setItem(i, snapshot[i]?.clone());
+    }
+  }
+
+  private addItemStacksToContainer(container: Container, template: ItemStack, amount: number): void {
+    let remainingAmount = amount;
+    const maxStackSize = template.maxAmount;
+
+    while (remainingAmount > 0) {
+      const currentAmount = Math.min(remainingAmount, maxStackSize);
+      const stackToAdd = template.clone();
+      stackToAdd.amount = currentAmount;
+      const leftover = container.addItem(stackToAdd);
+      if (leftover && leftover.amount > 0) {
+        throw new Error("背包空间不足，无法完整接收物品");
+      }
+      remainingAmount -= currentAmount;
+    }
+  }
+
   /**
    * 确认购买
    */
@@ -344,30 +374,20 @@ class OfficeShopForm {
       return;
     }
 
-    // 给予物品
+    const inventorySnapshot = this.snapshotContainer(container);
+
     try {
       const itemToGive = itemData.item.clone();
-      const maxStackSize = itemToGive.maxAmount;
-      let remainingAmount = qty;
+      this.addItemStacksToContainer(container, itemToGive, qty);
 
-      // 按照物品的最大堆叠数分批添加
-      while (remainingAmount > 0) {
-        const currentAmount = Math.min(remainingAmount, maxStackSize);
-        const stackToAdd = itemToGive.clone();
-        stackToAdd.amount = currentAmount;
-        container.addItem(stackToAdd);
-        remainingAmount -= currentAmount;
-      }
-
-      // 更新商品库存
-      officeShop.updateItemMeta(itemData.data, {
-        ...itemData.data,
-        amount: itemData.data.amount - qty,
-      });
-
-      // 如果库存为0，删除商品
-      if (itemData.data.amount - qty === 0) {
+      const nextAmount = itemData.data.amount - qty;
+      if (nextAmount <= 0) {
         officeShop.deleteItem(itemData.data);
+      } else {
+        officeShop.updateItemMeta(itemData.data, {
+          ...itemData.data,
+          amount: nextAmount,
+        });
       }
 
       openDialogForm(
@@ -379,7 +399,7 @@ class OfficeShopForm {
         () => this.openCategoryProducts(player, categoryName, page)
       );
     } catch (error) {
-      // 退款
+      this.restoreContainer(container, inventorySnapshot);
       SystemLog.error(`购买失败退款: ${error}`);
       economic.addGold(player.name, totalPrice, "购买失败退款", true);
       openDialogForm(
