@@ -374,10 +374,19 @@ class LandManager {
 
     // 扣除费用并创建领地
     if (cost > 0) {
-      economic.removeGold(player.name, cost, "领地创建费用");
+      const paid = economic.removeGold(player.name, cost, "领地创建费用");
+      if (!paid) return "扣除领地创建费用失败，请稍后重试";
     }
 
-    this.db.set(landData.name, landData);
+    try {
+      this.db.set(landData.name, landData);
+    } catch (e) {
+      if (cost > 0) {
+        economic.addGold(player.name, cost, "领地创建失败退款", true);
+      }
+      SystemLog.error("[Land] createLand personal land persist failed", e);
+      return "领地写入失败，已退回创建费用";
+    }
     return true;
   }
 
