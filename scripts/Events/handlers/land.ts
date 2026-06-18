@@ -30,11 +30,14 @@ import { subscribePreviewEvent } from "../../features/platform/sapi-capabilities
 import { taskScheduler } from "../../features/platform/scheduler";
 import setting from "../../features/system/services/setting";
 import economic from "../../features/economic/services/economic";
+import PlayerSetting from "../../features/player/services/player-settings";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
   return s.replace(/§./g, "");
 }
+
+const LAND_BOUNDARY_PARTICLE_REFRESH_TICKS = 80;
 
 interface LandArea {
   start?: Vector3;
@@ -696,6 +699,37 @@ export function registerLandEvents(): void {
     when: () => setting.getState("land") === true,
     run: () => {
       enforceWitherBossLandAccess();
+    },
+  });
+
+  /**
+   * 玩家个人开关：在当前所在领地内持续显示领地边界效果。
+   */
+  taskScheduler.register({
+    id: "land.boundaryParticleDisplay",
+    label: "领地范围常显",
+    category: "land",
+    intervalTicks: LAND_BOUNDARY_PARTICLE_REFRESH_TICKS,
+    when: () => setting.getState("land") === true,
+    run: () => {
+      world.getAllPlayers().forEach((p) => {
+        if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
+          return;
+        }
+        if (p.location.y <= -63) return;
+
+        const location = p.dimension.getBlock(p.location)?.location;
+        const { isInside, insideLand } = landManager.testLand(location ?? p.location, p.dimension.id);
+        if (!isInside || !insideLand) {
+          return;
+        }
+
+        try {
+          landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
+        } catch (error) {
+          // 忽略粒子生成错误
+        }
+      });
     },
   });
 

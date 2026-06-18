@@ -7,6 +7,7 @@ import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
 import { Player, Vector3, world } from "@minecraft/server";
 import landManager from "../../../features/land/services/land-manager";
+import landParticle from "../../../features/land/services/land-particle";
 import { openServerMenuForm } from "../server";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
 import { landAreas } from "../../../events/handlers/land";
@@ -26,6 +27,7 @@ import { openSystemSettingForm } from "../system";
 import { formatDateTime } from "../../../shared/utils/format";
 import { isAdmin } from "../../../shared/utils/common";
 import { openLandSnapshotForm } from "./snapshot";
+import PlayerSetting from "../../../features/player/services/player-settings";
 
 /** 从公会菜单「纯公会圈地」创建时传入，写入 ILand.guildId */
 export type GuildLandApplyContext = {
@@ -1014,6 +1016,12 @@ export const openLandDetailForm = (
       });
     }
 
+    buttons.push({
+      text: buildLandBoundaryParticleButtonLabel(player),
+      icon: "textures/icons/region",
+      action: () => toggleLandBoundaryParticleSetting(player, reopenDetail, landData),
+    });
+
     // 管理员从「领地系统管理 → 公会领地（管理员）」进入时不展示：已有飞行权限，无需限时领地飞行入口
     if (
       !isAdmin &&
@@ -1163,6 +1171,12 @@ export const openLandDetailForm = (
       },
     });
   }
+
+  buttons.push({
+    text: buildLandBoundaryParticleButtonLabel(player),
+    icon: "textures/icons/region",
+    action: () => toggleLandBoundaryParticleSetting(player, reopenDetail, landData),
+  });
 
   if (
     canAccess &&
@@ -1419,6 +1433,34 @@ function buildLandFlightButtonLabel(player: Player): string {
   return `§w领地飞行\n${sub}`;
 }
 
+function buildLandBoundaryParticleButtonLabel(player: Player): string {
+  const enabled = PlayerSetting.getLandBoundaryParticlesEnabled(player);
+  return enabled
+    ? "§w领地范围常显\n§a已开启 §7| 在领地内定时显示边界效果"
+    : "§w领地范围常显\n§7已关闭 §8| 点击开启边界效果";
+}
+
+function toggleLandBoundaryParticleSetting(player: Player, reopen: () => void, previewLand?: ILand): void {
+  const enabled = PlayerSetting.toggleLandBoundaryParticles(player);
+  if (enabled && previewLand && player.dimension.id === previewLand.dimension) {
+    try {
+      landParticle.createLandParticleArea(player, [previewLand.vectors.start, previewLand.vectors.end]);
+    } catch {
+      // 忽略粒子生成错误
+    }
+  }
+  openDialogForm(
+    player,
+    {
+      title: "领地范围常显",
+      desc: enabled
+        ? color.green("已开启。之后你在领地内会定时看到领地边界效果。")
+        : color.gray("已关闭。之后只会在进入、离开或手动预览时显示边界效果。"),
+    },
+    reopen
+  );
+}
+
 export function openLandManageForms(player: Player): void {
   const form = new ActionFormData();
   form.title("§w领地系统管理");
@@ -1447,6 +1489,12 @@ export function openLandManageForms(player: Player): void {
       },
     });
   }
+
+  buttons.push({
+    text: buildLandBoundaryParticleButtonLabel(player),
+    icon: "textures/icons/region",
+    action: () => toggleLandBoundaryParticleSetting(player, () => openLandManageForms(player)),
+  });
 
   buttons.push(
     {
