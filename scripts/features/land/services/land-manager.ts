@@ -127,7 +127,7 @@ class LandManager {
   /**
    * 检查领地是否重叠（包括完全包含的情况）
    */
-  checkOverlap(land: ILand): ILand[] {
+  checkOverlap(land: ILand, maxResults: number = Number.MAX_SAFE_INTEGER): ILand[] {
     const lands = this.db.getAll();
     const landArea = new BlockVolume(land.vectors.start, land.vectors.end);
     const overlaps: ILand[] = [];
@@ -138,6 +138,7 @@ class LandManager {
       // 使用新的重叠检查方法，检查是否重叠或包含
       if (this.volumesOverlap(landArea, area)) {
         overlaps.push(lands[key]);
+        if (overlaps.length >= maxResults) break;
       }
     }
     return overlaps;
@@ -251,8 +252,15 @@ class LandManager {
    * 计算两个坐标点之间的方块数量
    */
   calculateBlockCount(start: Vector3, end: Vector3): number {
-    const bv = new BlockVolume(start, end);
-    return bv.getCapacity();
+    const xSize = Math.abs(end.x - start.x) + 1;
+    const ySize = Math.abs(end.y - start.y) + 1;
+    const zSize = Math.abs(end.z - start.z) + 1;
+    return xSize * ySize * zSize;
+  }
+
+  getMaxLandBlocksSetting(): number {
+    const raw = Number(setting.getState("maxLandBlocks") || "30000");
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 30000;
   }
 
   /**
@@ -266,22 +274,17 @@ class LandManager {
       return "领地名冲突，已存在，请尝试其他领地名称";
     }
 
-    // 检查领地重叠
-    const overlaps = this.checkOverlap(landData);
+    // 先检查体积上限，再进行重叠检测，避免超大范围申请被用作领地扫描器。
+    const maxLandBlocks = this.getMaxLandBlocksSetting();
+    const blockCount = this.calculateBlockCount(landData.vectors.start, landData.vectors.end);
+    if (!Number.isFinite(blockCount) || blockCount > maxLandBlocks) {
+      return `领地方块数量(${Number.isFinite(blockCount) ? blockCount : "过大"})超过上限(${maxLandBlocks})，请重新设置领地。管理员可通过【服务器设置】调整上限`;
+    }
+
+    // 检查领地重叠。错误信息不回显他人领地名、主人和坐标，避免被恶意枚举领地位置。
+    const overlaps = this.checkOverlap(landData, 1);
     if (overlaps.length > 0) {
-      const info = overlaps
-        .map(
-          (o) =>
-            `与玩家 ${color.yellow(o.owner)} ${color.red("的领地")} ${color.yellow(o.name)} ${color.red(
-              "重叠"
-            )}\n${color.red("位置")}： ${color.yellow(`${o.vectors.start.x}`)},${color.yellow(
-              `${o.vectors.start.y}`
-            )},${color.yellow(`${o.vectors.start.z}`)} -> ${color.yellow(
-              `${o.vectors.end.x}`
-            )},${color.yellow(`${o.vectors.end.y}`)},${color.yellow(`${o.vectors.end.z}`)}`
-        )
-        .join("\n");
-      return `领地重叠，请重新设置领地范围。\n${info}`;
+      return "领地范围与已有领地重叠，请缩小或移动选择范围后重试。";
     }
 
     // 公会领地：只受每公会上限约束，不占个人领地名额
@@ -296,13 +299,6 @@ class LandManager {
       if (!isAdmin(player) && this.getPlayerLandCount(landData.owner) >= maxLandPerPlayer) {
         return `您已达到最大领地数量限制(${maxLandPerPlayer})，无法创建更多领地，请联系管理员调整上限。`;
       }
-    }
-
-    // 检查领地方块数量限制
-    const maxLandBlocks = Number(setting.getState("maxLandBlocks") || "30000");
-    const blockCount = this.calculateBlockCount(landData.vectors.start, landData.vectors.end);
-    if (blockCount > maxLandBlocks) {
-      return `领地方块数量(${blockCount})超过上限(${maxLandBlocks})，请重新设置领地。管理员可通过【服务器设置】调整上限`;
     }
 
     // 检查传送点是否在领地范围内

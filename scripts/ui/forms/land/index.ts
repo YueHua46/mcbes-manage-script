@@ -169,6 +169,24 @@ function validateForm(
       return false;
     }
 
+    const blockCount = landManager.calculateBlockCount(landStartPosVector3, landEndPosVector3);
+    const maxLandBlocks = landManager.getMaxLandBlocksSetting();
+    if (!Number.isFinite(blockCount) || blockCount > maxLandBlocks) {
+      openDialogForm(
+        player,
+        {
+          title: "领地创建错误",
+          desc: color.red(
+            `领地方块数量(${Number.isFinite(blockCount) ? blockCount : "过大"})超过上限(${maxLandBlocks})，请缩小范围后重试。`
+          ),
+        },
+        () => {
+          openLandApplyModalOnly(player, guildApply);
+        }
+      );
+      return false;
+    }
+
     return true;
   }
   openDialogForm(
