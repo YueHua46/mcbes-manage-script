@@ -244,6 +244,7 @@ export class Database<V = any> {
       console.error(`[Database] 数据长度: ${stringified.length}, 期望块数: ${index || 1}`);
       console.error(`[Database] 损坏的数据预览: ${stringified.substring(0, 500)}...`);
       console.error(`[Database] 数据末尾预览: ...${stringified.substring(Math.max(0, stringified.length - 200))}`);
+      this.backupCorruptedData(name, index || 1, stringified);
 
       // 尝试修复不完整的 JSON（特别是数组数据）
       const repaired = this.tryRepairJson(stringified);
@@ -348,6 +349,26 @@ export class Database<V = any> {
    * @param corruptedJson 损坏的 JSON 字符串
    * @returns 修复后的对象，如果无法修复则返回 null
    */
+  private static backupCorruptedData(name: string, originalIndex: number, corruptedJson: string): void {
+    const MAX_PROPERTY_SIZE = 32767;
+    const maxChunkSize = Math.floor(MAX_PROPERTY_SIZE * 0.75);
+    const timestamp = Date.now();
+    const backupPrefix = `${name}:corruptBackup:${timestamp}`;
+    const backupIndex = Math.max(1, Math.ceil(corruptedJson.length / maxChunkSize));
+
+    try {
+      for (let i = 0; i < backupIndex; i++) {
+        const start = i * maxChunkSize;
+        const end = Math.min((i + 1) * maxChunkSize, corruptedJson.length);
+        world.setDynamicProperty(`${backupPrefix}:${i}`, corruptedJson.slice(start, end));
+      }
+      world.setDynamicProperty(`${backupPrefix}:meta`, JSON.stringify({ name, originalIndex, backupIndex, timestamp }));
+      console.warn(`[Database] 已备份数据库 "${name}" 的损坏原始数据到 ${backupPrefix}`);
+    } catch (backupError) {
+      console.error(`[Database] 备份数据库 "${name}" 的损坏数据失败:`, backupError);
+    }
+  }
+
   private static tryRepairJson(corruptedJson: string): Record<string, any> | null {
     try {
       // 尝试找到最后一个完整的 JSON 对象
