@@ -158,7 +158,7 @@ export class Economic {
     return allWallets.sort((a, b) => b.gold - a.gold).slice(0, limit);
   }
 
-  private isEconomyEnabled(): boolean {
+  isEconomyEnabled(): boolean {
     return setting.getState("economy") === true;
   }
 

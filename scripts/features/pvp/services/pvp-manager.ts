@@ -11,6 +11,20 @@ import landManager from "../../land/services/land-manager";
 import setting from "../../system/services/setting";
 
 const PLUGIN_CONTROLLED_MODES: PvpMode[] = ["plugin", "forced"];
+const MAX_PVP_MONEY_VALUE = Number.MAX_SAFE_INTEGER;
+const MAX_PVP_TIMER_SECONDS = 86400;
+
+function normalizeNonNegativeInt(value: unknown, fallback: number, max = MAX_PVP_MONEY_VALUE): number {
+  const raw = Number(value);
+  if (!Number.isFinite(raw) || raw < 0) return fallback;
+  return Math.min(max, Math.floor(raw));
+}
+
+function normalizePositiveInt(value: unknown, fallback: number, min: number, max = MAX_PVP_TIMER_SECONDS): number {
+  const raw = Number(value);
+  if (!Number.isFinite(raw) || raw < min) return fallback;
+  return Math.min(max, Math.floor(raw));
+}
 
 class PvpManager {
   private playerDataDb!: Database<IPvpPlayerData>;
@@ -30,10 +44,10 @@ class PvpManager {
     return {
       mode,
       enabled: PLUGIN_CONTROLLED_MODES.includes(mode),
-      seizeAmount: Number(setting.getState("pvpSeizeAmount")) || 100,
-      minGoldProtection: Number(setting.getState("pvpMinProtection")) || 100,
-      toggleCooldown: Number(setting.getState("pvpToggleCooldown")) || 30,
-      combatTagDuration: Number(setting.getState("pvpCombatTagDuration")) || 10,
+      seizeAmount: normalizeNonNegativeInt(setting.getState("pvpSeizeAmount"), 100),
+      minGoldProtection: normalizeNonNegativeInt(setting.getState("pvpMinProtection"), 100),
+      toggleCooldown: normalizeNonNegativeInt(setting.getState("pvpToggleCooldown"), 30, MAX_PVP_TIMER_SECONDS),
+      combatTagDuration: normalizePositiveInt(setting.getState("pvpCombatTagDuration"), 30, 5),
       forcedIgnoreLandProtection: setting.getState("pvpForcedIgnoreLandProtection") === true,
     };
   }
@@ -117,16 +131,16 @@ class PvpManager {
       setting.setState("pvpEnabled", config.enabled);
     }
     if (config.seizeAmount !== undefined) {
-      setting.setState("pvpSeizeAmount", config.seizeAmount.toString());
+      setting.setState("pvpSeizeAmount", normalizeNonNegativeInt(config.seizeAmount, 100).toString());
     }
     if (config.minGoldProtection !== undefined) {
-      setting.setState("pvpMinProtection", config.minGoldProtection.toString());
+      setting.setState("pvpMinProtection", normalizeNonNegativeInt(config.minGoldProtection, 100).toString());
     }
     if (config.toggleCooldown !== undefined) {
-      setting.setState("pvpToggleCooldown", config.toggleCooldown.toString());
+      setting.setState("pvpToggleCooldown", normalizeNonNegativeInt(config.toggleCooldown, 30, MAX_PVP_TIMER_SECONDS).toString());
     }
     if (config.combatTagDuration !== undefined) {
-      setting.setState("pvpCombatTagDuration", config.combatTagDuration.toString());
+      setting.setState("pvpCombatTagDuration", normalizePositiveInt(config.combatTagDuration, 30, 5).toString());
     }
     if (config.forcedIgnoreLandProtection !== undefined) {
       setting.setState("pvpForcedIgnoreLandProtection", config.forcedIgnoreLandProtection);

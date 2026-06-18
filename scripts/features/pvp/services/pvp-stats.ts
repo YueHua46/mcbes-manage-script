@@ -48,12 +48,13 @@ class PvpStatsManager {
     const availableGold = Math.max(0, victimWallet.gold - config.minGoldProtection);
     const seizeAmount = Math.min(config.seizeAmount, availableGold);
 
-    if (seizeAmount > 0) {
-      economic.removeGold(victim.name, seizeAmount, "PVP被击杀夺取");
-      economic.addGold(killer.name, seizeAmount, `PVP击杀 ${victim.name}`, true);
+    let actualSeized = 0;
+    if (seizeAmount > 0 && economic.isEconomyEnabled()) {
+      const transferred = economic.transfer(victim.name, killer.name, seizeAmount, "PVP击杀夺取");
+      actualSeized = transferred === true ? seizeAmount : 0;
 
-      killerData.totalSeized += seizeAmount;
-      victimData.totalLost += seizeAmount;
+      killerData.totalSeized += actualSeized;
+      victimData.totalLost += actualSeized;
     }
 
     // 保存数据
@@ -61,10 +62,10 @@ class PvpStatsManager {
     pvpManager.savePlayerData(victim.name, victimData);
 
     // 记录日志
-    this.logKill(killer, victim, seizeAmount, killerData.killStreak);
+    this.logKill(killer, victim, actualSeized, killerData.killStreak);
 
     // 发送通知
-    this.sendKillNotification(killer, victim, seizeAmount, killerData.killStreak);
+    this.sendKillNotification(killer, victim, actualSeized, killerData.killStreak);
   }
 
   /**
