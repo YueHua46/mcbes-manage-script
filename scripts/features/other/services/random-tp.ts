@@ -8,6 +8,7 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
 import setting from "../../system/services/setting";
 import landManager from "../../land/services/land-manager";
+import { isSafeTeleportLocation } from "../../../shared/utils/safe-teleport";
 
 /**
  * 生成指定范围的随机数
@@ -17,11 +18,6 @@ export const RandomNumber = (min: number, max: number): number => {
 };
 
 const MAX_RANDOM_TP_ATTEMPTS = 48;
-const UNSAFE_SURFACE_BLOCK_KEYWORDS = ["water", "lava", "fire", "cactus", "magma", "powder_snow"];
-
-function isUnsafeSurface(typeId: string): boolean {
-  return UNSAFE_SURFACE_BLOCK_KEYWORDS.some((keyword) => typeId.includes(keyword));
-}
 
 function findSafeRandomLocation(player: Player, range: number): Vector3 | undefined {
   const dimension = player.dimension as Dimension;
@@ -33,14 +29,9 @@ function findSafeRandomLocation(player: Player, range: number): Vector3 | undefi
     const z = RandomNumber(-range, range);
 
     for (let y = maxY - 1; y > minY + 1; y--) {
-      const ground = dimension.getBlock({ x, y, z });
-      if (!ground || ground.isAir || isUnsafeSurface(ground.typeId)) continue;
-
-      const feet = dimension.getBlock({ x, y: y + 1, z });
-      const head = dimension.getBlock({ x, y: y + 2, z });
-      if (!feet?.isAir || !head?.isAir) continue;
-
       const target = { x: x + 0.5, y: y + 1, z: z + 0.5 };
+      if (!isSafeTeleportLocation(dimension, target)) continue;
+
       const { isInside } = landManager.testLand(target, dimension.id);
       if (isInside) break;
 
