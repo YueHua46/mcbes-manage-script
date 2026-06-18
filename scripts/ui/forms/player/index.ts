@@ -84,6 +84,9 @@ export function openPlayerTpaForm(player: Player): void {
     const { formValues } = data;
     if (formValues) {
       const targetPlayer = allPlayer[Number(formValues[0])];
+      if (!targetPlayer) {
+        return player.sendMessage(color.red("目标玩家不存在或已离线，请重新打开传送菜单"));
+      }
       if (player.name === targetPlayer.name) {
         return player.sendMessage("§c不能传送到自己");
       }
