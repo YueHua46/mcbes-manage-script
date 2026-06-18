@@ -1328,6 +1328,11 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
 
 // 经济系统管理主菜单
 export function openEconomyManageForm(player: Player): void {
+  if (!isAdmin(player)) {
+    player.sendMessage(color.red("只有管理员可以访问经济系统管理。"));
+    return;
+  }
+
   const form = new ActionFormData();
   form.title("§w经济系统管理");
 

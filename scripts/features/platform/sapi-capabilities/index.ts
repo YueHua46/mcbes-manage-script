@@ -7,10 +7,12 @@ export {
   type BuildVariant,
   isBdsBuild,
   isServerAdminBuild,
+  isDebugUtilitiesBuild,
   getBuildVariant,
   getBuildVariantLabel,
   STANDARD_BUILD_LIMITATION_HINT,
   BDS_ONLY_FEATURE_HINT,
+  DEBUG_UTILITIES_ONLY_FEATURE_HINT,
 } from "./build-flags";
 
 export { isServerNetAvailable, httpGet, type HttpGetResponse } from "./server-net";
@@ -28,3 +30,11 @@ export {
 export { isRunCommandAvailable, runPlayerCommand, runDimensionCommand, type RunCommandResult } from "./run-command";
 
 export { subscribePreviewEvent, isPreviewEventAvailable } from "./preview-events";
+
+export {
+  getDebugUtilities,
+  isDebugUtilitiesAvailable,
+  collectDebugRuntimeStats,
+  collectDebugPluginStats,
+  type DebugUtilitiesModule,
+} from "./debug-utilities";

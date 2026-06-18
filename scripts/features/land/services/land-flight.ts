@@ -503,6 +503,11 @@ export function initLandFlight(): void {
             clearLandFlightHud(player);
           }
 
+          if (adm) {
+            sess.nextBillingAtMs = undefined;
+            continue;
+          }
+
           const shouldBill = useEconomy && economyOn && !adm && goldPerInterval > 0;
           if (shouldBill && sess.nextBillingAtMs !== undefined && now >= sess.nextBillingAtMs) {
             const ok = economic.removeGold(player.name, goldPerInterval, "landFlight:billing");
@@ -568,14 +573,29 @@ export function initLandFlight(): void {
    */
   world.afterEvents.playerGameModeChange.subscribe((event) => {
     const { player, toGameMode } = event;
-    if (toGameMode !== GameMode.Creative && toGameMode !== GameMode.Spectator) {
+
+    if (toGameMode === GameMode.Creative || toGameMode === GameMode.Spectator) {
+      system.runTimeout(() => {
+        try {
+          if (!player.isValid) return;
+          if (!isCreativeOrSpectator(player)) return;
+          setMayfly(player, true);
+        } catch {
+          /* ignore */
+        }
+      }, 1);
       return;
     }
+
     system.runTimeout(() => {
       try {
         if (!player.isValid) return;
-        if (!isCreativeOrSpectator(player)) return;
-        setMayfly(player, true);
+        if (sessions.has(player.id)) {
+          setMayfly(player, true);
+          return;
+        }
+        setMayfly(player, false);
+        scheduleForceExitLandFlight(player);
       } catch {
         /* ignore */
       }

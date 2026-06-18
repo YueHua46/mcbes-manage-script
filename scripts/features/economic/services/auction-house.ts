@@ -150,7 +150,10 @@ class AuctionHouse {
       const n = Math.min(remaining, maxStack);
       const stack = template.clone();
       stack.amount = n;
-      container.addItem(stack);
+      const leftover = container.addItem(stack);
+      if (leftover) {
+        throw new Error("背包空间不足，无法完整接收物品");
+      }
       remaining -= n;
     }
   }
@@ -208,12 +211,15 @@ class AuctionHouse {
 
     const container = inventory.container;
 
-    if (container.emptySlotsCount === 0) {
+    const itemToBuy = entry.item.clone();
+    itemToBuy.amount = Math.min(amount, entry.item.maxAmount);
+    const canHoldAmount = this.calculateContainerCapacity(container, itemToBuy, amount);
+    if (canHoldAmount < amount) {
       openDialogForm(
         player,
         {
           title: "购买失败",
-          desc: color.red(`背包已满，无法接收物品`),
+          desc: color.red(`背包空间不足，无法完整接收 ${amount} 个物品`),
         },
         callback
       );

@@ -18,6 +18,8 @@ import {
 } from "@minecraft/server";
 import { splitGroups, getRandomRangeValue, getRadiusRange } from "@mcbe-mods/utils";
 import setting from "../system/services/setting";
+import landManager from "../land/services/land-manager";
+import { isAdmin } from "../../shared/utils/common";
 
 // ==================== 镐子等级配置 ====================
 const wooden = [
@@ -229,6 +231,15 @@ const ore_map = {
 const isSurvivalPlayer = (dimension: Dimension, player: Player) =>
   dimension.getPlayers({ gameMode: GameMode.Survival }).some((p) => p.name === player.name);
 
+function canBreakAt(player: Player, location: Vector3, dimensionId: string): boolean {
+  const { isInside, insideLand } = landManager.testLand(location, dimensionId);
+  if (!isInside || !insideLand) return true;
+  if (insideLand.owner === player.name) return true;
+  if (isAdmin(player)) return true;
+  if (landManager.isPlayerTrustedOnLand(insideLand, player.name)) return true;
+  return insideLand.public_auth.break === true;
+}
+
 /**
  * 一键挖矿主函数
  */
@@ -288,6 +299,8 @@ async function digOre(player: Player, dimension: Dimension, location: Vector3, b
       // 处理lit_redstone_ore
       const isEqual = typeId.replace("lit_", "") === blockTypeIdRemoveLit;
       if (isEqual && pickaxeForChain.includes(typeId)) {
+        if (!canBreakAt(player, _block.location, dimension.id)) continue;
+
         const pos = JSON.stringify(_block.location);
 
         if (set.has(pos)) continue;

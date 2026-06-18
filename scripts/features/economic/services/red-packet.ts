@@ -519,11 +519,6 @@ class RedPacketService {
       const amt = shares[claimed.length];
       if (amt < 1) return "该份金额为 0";
 
-      const added = economic.addGold(player.name, amt, "玩家红包领取", true);
-      if (added < amt) {
-        return "领取失败，请稍后重试";
-      }
-
       claimed = [...claimed, player.name];
       packet.claimedBy = claimed;
       packet.claimAtMs = [...(packet.claimAtMs ?? []), Date.now()];
@@ -532,7 +527,25 @@ class RedPacketService {
         packet.finished = true;
       }
 
-      db.set(packetId, packet);
+      try {
+        db.set(packetId, packet);
+      } catch (e) {
+        SystemLog.error("红包领取记录保存失败", e);
+        return "领取失败，请稍后重试";
+      }
+
+      const added = economic.addGold(player.name, amt, "玩家红包领取", true);
+      if (added < amt) {
+        packet.claimedBy = packet.claimedBy.filter((name) => name !== player.name);
+        packet.claimAtMs = packet.claimAtMs?.slice(0, packet.claimedBy.length);
+        packet.finished = false;
+        try {
+          db.set(packetId, packet);
+        } catch (e) {
+          SystemLog.error("红包领取失败回滚记录失败", e);
+        }
+        return "领取失败，请稍后重试";
+      }
 
       player.sendMessage(
         `${color.gold("§l【红包到账】§r")} ${color.gray("来自")} ${color.aqua(packet.senderName)} ${color.gray("·")} ${color.green("+")}${color.gold(String(amt))} ${color.gray("金币")}`
@@ -556,11 +569,6 @@ class RedPacketService {
     const amt = rec.amount;
     if (amt < 1) return "可领取金额为 0";
 
-    const added = economic.addGold(player.name, amt, "玩家红包领取", true);
-    if (added < amt) {
-      return "领取失败，请稍后重试";
-    }
-
     rec.claimed = true;
 
     const allDone = Object.values(packet.recipients!).every((x) => x.claimed);
@@ -568,7 +576,26 @@ class RedPacketService {
       packet.finished = true;
     }
 
-    db.set(packetId, packet);
+    try {
+      db.set(packetId, packet);
+    } catch (e) {
+      SystemLog.error("旧版红包领取记录保存失败", e);
+      rec.claimed = false;
+      packet.finished = false;
+      return "领取失败，请稍后重试";
+    }
+
+    const added = economic.addGold(player.name, amt, "玩家红包领取", true);
+    if (added < amt) {
+      rec.claimed = false;
+      packet.finished = false;
+      try {
+        db.set(packetId, packet);
+      } catch (e) {
+        SystemLog.error("旧版红包领取失败回滚记录失败", e);
+      }
+      return "领取失败，请稍后重试";
+    }
 
     player.sendMessage(
       `${color.gold("§l【红包到账】§r")} ${color.gray("来自")} ${color.aqua(packet.senderName)} ${color.gray("·")} ${color.green("+")}${color.gold(String(amt))} ${color.gray("金币")}`

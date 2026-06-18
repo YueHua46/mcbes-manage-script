@@ -26,6 +26,7 @@ export class Economic {
 
       this.DAILY_GOLD_LIMIT = Number(setting.getState("daily_gold_limit"));
       this.DEFAULT_GOLD = Number(setting.getState("startingGold"));
+      this.syncDailyGoldLimitFromSetting();
 
       this.fixInvalidGoldData();
     });
@@ -161,8 +162,16 @@ export class Economic {
     return setting.getState("economy") === true;
   }
 
+  private syncDailyGoldLimitFromSetting(): number {
+    const configured = Number(setting.getState("daily_gold_limit"));
+    const nextLimit = Number.isFinite(configured) && configured >= 0 ? Math.floor(configured) : 100000;
+    this.DAILY_GOLD_LIMIT = nextLimit;
+    return nextLimit;
+  }
+
   addGold(playerName: string, amount: number, reason: string, ignoreDailyLimit: boolean = false): number {
     if (!this.isEconomyEnabled()) return 0;
+    const dailyGoldLimit = this.syncDailyGoldLimitFromSetting();
 
     if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
       console.warn(`尝试添加无效的金币数量: ${amount} 给玩家: ${playerName}`);
@@ -189,7 +198,7 @@ export class Economic {
             player.sendMessage({
               rawtext: [
                 {
-                  text: `${colorCodes.red}您已达到今日金币获取上限 ${colorCodes.gold}${this.DAILY_GOLD_LIMIT} ${colorCodes.red}金币，无法获得更多金币！`,
+                  text: `${colorCodes.red}您已达到今日金币获取上限 ${colorCodes.gold}${dailyGoldLimit} ${colorCodes.red}金币，无法获得更多金币！`,
                 },
               ],
             });
@@ -209,7 +218,7 @@ export class Economic {
             player.sendMessage({
               rawtext: [
                 {
-                  text: `${colorCodes.yellow}您已达到今日金币获取上限 ${colorCodes.gold}${this.DAILY_GOLD_LIMIT} ${colorCodes.yellow}金币！`,
+                  text: `${colorCodes.yellow}您已达到今日金币获取上限 ${colorCodes.gold}${dailyGoldLimit} ${colorCodes.yellow}金币！`,
                 },
               ],
             });
@@ -365,12 +374,12 @@ export class Economic {
   }
 
   getDailyGoldLimit(): number {
-    return this.DAILY_GOLD_LIMIT;
+    return this.syncDailyGoldLimitFromSetting();
   }
 
   getRemainingDailyLimit(name: string): number {
     const wallet = this.getWallet(name);
-    return Math.max(0, this.DAILY_GOLD_LIMIT - wallet.dailyEarned);
+    return Math.max(0, this.syncDailyGoldLimitFromSetting() - wallet.dailyEarned);
   }
 
   setGlobalDailyLimit(limit: number): void {

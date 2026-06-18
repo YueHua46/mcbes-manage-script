@@ -377,8 +377,16 @@ class GuildService {
       createdAt: now,
       joinRequests: {},
     };
-    this.saveGuild(g);
-    this.indexDb.set(player.name, id);
+    try {
+      this.saveGuild(g);
+      this.indexDb.set(player.name, id);
+    } catch (e) {
+      if (cost > 0) {
+        economic.addGold(player.name, cost, "guild:create:rollback", true);
+      }
+      SystemLog.error("公会创建持久化失败，已回滚创建费用", e);
+      return "创建失败，已退回创建费用";
+    }
     this.invalidateDisplayCache(player.name);
     nameDisplay.forceUpdatePlayerNameDisplay(player);
     this.logGuild(player.name, "guildCreate", this.guildMeta(g, `name=${nameClean} tag=${tagClean}`));
@@ -1549,21 +1557,23 @@ class GuildService {
     }
 
     g.treasuryGold -= perMember;
+    mem.lastDailyRedPacketDay = today;
     try {
+      this.saveGuild(g);
       const added = economic.addGold(player.name, perMember, "guild:daily:redpacket", true);
       if (added <= 0) {
         g.treasuryGold += perMember;
+        delete mem.lastDailyRedPacketDay;
         this.saveGuild(g);
         return "发放金币失败，请稍后重试";
       }
-      mem.lastDailyRedPacketDay = today;
-      this.saveGuild(g);
       this.logGuild(player.name, "guildDailyRedPacketGrant", this.guildMeta(g, `+${perMember}`));
       player.sendMessage(
         `${color.green("公会每日红包")} ${color.gold(`+${perMember}`)} ${color.gray("金币已存入钱包")}`
       );
     } catch (e) {
       g.treasuryGold += perMember;
+      delete mem.lastDailyRedPacketDay;
       this.saveGuild(g);
       SystemLog.error("公会每日红包发放失败", e);
       return "公会每日红包发放失败";

@@ -270,8 +270,12 @@ export default class ItemDatabase {
     if (!inv) return;
     inv.setItem(entitySlot);
 
-    if (inv.emptySlotsCount >= ITEM_MAX_PER_ENTITY && this.#entities.length > 1) {
-      this.#entities.splice(entityIndex, 1);
+    if (
+      inv.emptySlotsCount >= ITEM_MAX_PER_ENTITY &&
+      this.#entities.length > 1 &&
+      entityIndex === this.#entities.length - 1
+    ) {
+      this.#entities.pop();
       ent.remove();
     }
 

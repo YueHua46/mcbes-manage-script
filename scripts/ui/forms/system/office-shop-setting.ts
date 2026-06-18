@@ -12,6 +12,7 @@ import { glyphKeys } from "../../../assets/glyph-map";
 import ChestFormData from "../../components/chest-ui/chest-forms";
 import { buildChestItemListLores, getChestItemDurabilityBarValue, getChestItemTextureKey } from "../../components/chest-ui";
 import { getItemDisplayName, hasAnyEnchantment } from "../../../shared/utils/item-utils";
+import { isAdmin } from "../../../shared/utils/common";
 
 /**
  * 通过 emoji key 获得 emojiPath
@@ -26,6 +27,11 @@ class OfficeShopSettingForm {
    * 打开官方商店管理主菜单
    */
   openMainMenu(player: Player): void {
+    if (!isAdmin(player)) {
+      player.sendMessage("§c只有管理员可以管理官方商店。");
+      return;
+    }
+
     const { openEconomyManageForm } = require("./index");
 
     const form = new ActionFormData()

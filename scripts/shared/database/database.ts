@@ -173,13 +173,6 @@ export class Database<V = any> {
           if (allChunksValid) {
             world.setDynamicProperty(`${this.name}Index`, index);
 
-            // 如果使用了更小的分块大小，记录警告
-            if (maxChunkSize < chunkSizeOptions[0]) {
-              console.warn(
-                `[Database] 数据库 "${this.name}" 数据量较大，已自动使用更小的分块大小 ${maxChunkSize} 以确保安全保存`
-              );
-            }
-
             // 保存成功后，清除修改标记
             this.isDirty = false;
             return; // 保存成功，退出
@@ -314,12 +307,6 @@ export class Database<V = any> {
               // 第三步：只有在所有块都成功保存后，才更新 Index
               if (allChunksValid) {
                 world.setDynamicProperty(`${name}Index`, newIndex);
-
-                if (maxChunkSize < chunkSizeOptions[0]) {
-                  console.warn(
-                    `[Database] 数据库 "${name}" 修复后数据量较大，已自动使用更小的分块大小 ${maxChunkSize} 以确保安全保存`
-                  );
-                }
                 break; // 保存成功，退出循环
               }
             }
