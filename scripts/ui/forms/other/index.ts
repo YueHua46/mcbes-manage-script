@@ -15,6 +15,7 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 import setting from "../../../features/system/services/setting";
 import { isAdmin } from "../../../shared/utils/common";
 import { openMyEnderChestForm } from "../system/player-inventory-admin";
+import { isSafeTeleportLocation } from "../../../shared/utils/safe-teleport";
 
 // ==================== 服务器信息 ====================
 
@@ -105,13 +106,30 @@ export function openBaseFunctionForm(player: Player): void {
       text: "§w回到上次死亡地点",
       icon: "textures/icons/game_battle_box",
       action: () => {
-        const deathData = player.getDynamicProperty("lastDeath") as string | undefined;
-        if (deathData?.length) {
+        try {
+          const deathData = player.getDynamicProperty("lastDeath") as string | undefined;
+          if (!deathData?.length) {
+            openDialogForm(player, { title: "失败", desc: color.red("未找到上次死亡地点！") });
+            return;
+          }
+
           const death = JSON.parse(deathData) as { location: Vector3; dimension: Dimension };
-          player.teleport(death.location, { dimension: world.getDimension(death.dimension.id) });
+          const dimensionId = death.dimension?.id;
+          if (!death.location || !dimensionId) {
+            openDialogForm(player, { title: "失败", desc: color.red("死亡地点数据无效！") });
+            return;
+          }
+
+          const targetDimension = world.getDimension(dimensionId);
+          if (!isSafeTeleportLocation(targetDimension, death.location)) {
+            openDialogForm(player, { title: "失败", desc: color.red("上次死亡地点不安全，无法传送。") });
+            return;
+          }
+
+          player.teleport(death.location, { dimension: targetDimension });
           useNotify("actionbar", player, "§a你已回到上次死亡地点！");
-        } else {
-          openDialogForm(player, { title: "失败", desc: color.red("未找到上次死亡地点！") });
+        } catch {
+          openDialogForm(player, { title: "失败", desc: color.red("死亡地点数据异常，无法传送。") });
         }
       },
     });
