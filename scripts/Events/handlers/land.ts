@@ -77,6 +77,9 @@ const LAND_DIMENSION_IDS = ["overworld", "nether", "the_end"] as const;
 const LAND_SENSITIVE_ENTITY_PLACE_ITEMS = new Map<string, string[]>([
   ["minecraft:end_crystal", ["minecraft:ender_crystal", "minecraft:end_crystal"]],
   ["minecraft:armor_stand", ["minecraft:armor_stand"]],
+  ["minecraft:item_frame", ["minecraft:item_frame"]],
+  ["minecraft:glow_item_frame", ["minecraft:glow_item_frame"]],
+  ["minecraft:painting", ["minecraft:painting"]],
   ["minecraft:oak_boat", ["minecraft:boat"]],
   ["minecraft:spruce_boat", ["minecraft:boat"]],
   ["minecraft:birch_boat", ["minecraft:boat"]],
@@ -92,6 +95,7 @@ const LAND_SENSITIVE_ENTITY_PLACE_ITEMS = new Map<string, string[]>([
   ["minecraft:tnt_minecart", ["minecraft:tnt_minecart", "minecraft:minecart"]],
   ["minecraft:command_block_minecart", ["minecraft:command_block_minecart", "minecraft:minecart"]],
 ]);
+const LAND_SENSITIVE_ENTITY_SPAWN_TRACK_TICKS = 10;
 const LAND_SENSITIVE_FLUID_ITEMS = new Map<string, string[]>([
   ["minecraft:water_bucket", ["minecraft:water", "minecraft:flowing_water"]],
   ["minecraft:lava_bucket", ["minecraft:lava", "minecraft:flowing_lava"]],
@@ -107,6 +111,27 @@ const CONTAINER_BLOCK_KEYWORDS = [
   "crafter",
 ];
 const DOOR_BLOCK_KEYWORDS = ["door", "trapdoor", "fence_gate"];
+
+interface SensitiveEntitySpawnRecord {
+  id: string;
+  typeId: string;
+  dimensionId: string;
+  location: Vector3;
+  tick: number;
+  entity: Entity;
+}
+
+interface DeniedSensitivePlacementRecord {
+  playerName: string;
+  ownerName: string;
+  itemTypeId: string;
+  dimensionId: string;
+  targetLocation: Vector3;
+  tick: number;
+}
+
+const recentSensitiveEntitySpawns: SensitiveEntitySpawnRecord[] = [];
+const pendingDeniedSensitivePlacements: DeniedSensitivePlacementRecord[] = [];
 
 function getCurrentPreviewPoint(player: Player): Vector3 {
   return {
@@ -419,6 +444,88 @@ function warnDeniedLandUse(player: Player, ownerName: string): void {
   useNotify("chat", player, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
 }
 
+function locationDistanceSq(a: Vector3, b: Vector3): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  const dz = a.z - b.z;
+  return dx * dx + dy * dy + dz * dz;
+}
+
+function normalizeDimensionId(dimensionId: string): string {
+  return dimensionId.replace(/^minecraft:/, "");
+}
+
+function isSensitivePlacedEntityType(typeId: string): boolean {
+  for (const types of LAND_SENSITIVE_ENTITY_PLACE_ITEMS.values()) {
+    if (types.includes(typeId)) return true;
+  }
+  return false;
+}
+
+function cleanupSensitivePlacementRecords(): void {
+  const minTick = system.currentTick - LAND_SENSITIVE_ENTITY_SPAWN_TRACK_TICKS;
+  for (let i = recentSensitiveEntitySpawns.length - 1; i >= 0; i--) {
+    if (recentSensitiveEntitySpawns[i].tick < minTick) {
+      recentSensitiveEntitySpawns.splice(i, 1);
+    }
+  }
+  for (let i = pendingDeniedSensitivePlacements.length - 1; i >= 0; i--) {
+    if (pendingDeniedSensitivePlacements[i].tick < minTick) {
+      pendingDeniedSensitivePlacements.splice(i, 1);
+    }
+  }
+}
+
+function removeDeniedSpawnedEntities(record: DeniedSensitivePlacementRecord): void {
+  const entityTypes = LAND_SENSITIVE_ENTITY_PLACE_ITEMS.get(record.itemTypeId);
+  if (!entityTypes) return;
+
+  const dimId = normalizeDimensionId(record.dimensionId);
+  for (const spawn of recentSensitiveEntitySpawns) {
+    if (spawn.dimensionId !== dimId) continue;
+    if (!entityTypes.includes(spawn.typeId)) continue;
+    if (locationDistanceSq(spawn.location, record.targetLocation) > 4) continue;
+    try {
+      if (spawn.entity.isValid) spawn.entity.remove();
+    } catch (_) {}
+  }
+}
+
+function registerDeniedSensitivePlacement(record: DeniedSensitivePlacementRecord): void {
+  pendingDeniedSensitivePlacements.push(record);
+  system.run(() => {
+    removeDeniedSpawnedEntities(record);
+    const index = pendingDeniedSensitivePlacements.indexOf(record);
+    if (index >= 0) pendingDeniedSensitivePlacements.splice(index, 1);
+  });
+}
+
+function handleSensitiveEntitySpawn(entity: Entity): void {
+  if (!isSensitivePlacedEntityType(entity.typeId)) return;
+
+  cleanupSensitivePlacementRecords();
+  const spawn: SensitiveEntitySpawnRecord = {
+    id: entity.id,
+    typeId: entity.typeId,
+    dimensionId: normalizeDimensionId(entity.dimension.id),
+    location: { ...entity.location },
+    tick: system.currentTick,
+    entity,
+  };
+  recentSensitiveEntitySpawns.push(spawn);
+
+  for (const record of pendingDeniedSensitivePlacements) {
+    if (record.dimensionId !== spawn.dimensionId) continue;
+    const entityTypes = LAND_SENSITIVE_ENTITY_PLACE_ITEMS.get(record.itemTypeId);
+    if (!entityTypes?.includes(spawn.typeId)) continue;
+    if (locationDistanceSq(record.targetLocation, spawn.location) > 4) continue;
+    try {
+      entity.remove();
+    } catch (_) {}
+    break;
+  }
+}
+
 function cleanupDeniedSensitivePlacement(
   playerName: string,
   ownerName: string,
@@ -427,18 +534,7 @@ function cleanupDeniedSensitivePlacement(
   itemTypeId: string
 ): void {
   system.run(() => {
-    const dimension = world.getDimension(dimensionId.replace(/^minecraft:/, "") as any);
-    const entityTypes = LAND_SENSITIVE_ENTITY_PLACE_ITEMS.get(itemTypeId);
-    if (entityTypes) {
-      for (const type of entityTypes) {
-        const entities = dimension.getEntities({ type, location: targetLocation, maxDistance: 1.75 });
-        for (const entity of entities) {
-          try {
-            entity.remove();
-          } catch (_) {}
-        }
-      }
-    }
+    const dimension = world.getDimension(normalizeDimensionId(dimensionId) as any);
 
     const fluidTypes = LAND_SENSITIVE_FLUID_ITEMS.get(itemTypeId);
     if (fluidTypes) {
@@ -448,6 +544,17 @@ function cleanupDeniedSensitivePlacement(
           block.setType("minecraft:air");
         } catch (_) {}
       }
+    }
+
+    if (LAND_SENSITIVE_ENTITY_PLACE_ITEMS.has(itemTypeId)) {
+      registerDeniedSensitivePlacement({
+        playerName,
+        ownerName,
+        itemTypeId,
+        dimensionId: normalizeDimensionId(dimensionId),
+        targetLocation,
+        tick: system.currentTick,
+      });
     }
 
     const player = world.getPlayers().find((p) => p.name === playerName);
@@ -845,6 +952,10 @@ export function registerLandEvents(): void {
       cleanupDeniedSensitivePlacement(player.name, insideLand.owner, block.dimension.id, targetLocation, itemTypeId);
     });
   }
+
+  world.afterEvents.entitySpawn.subscribe((event) => {
+    handleSensitiveEntitySpawn(event.entity);
+  });
 
   // ==================== 领地保护事件 ====================
 
