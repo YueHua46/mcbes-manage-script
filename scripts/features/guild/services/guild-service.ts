@@ -723,7 +723,10 @@ class GuildService {
     this.saveGuild(g);
 
     const added = economic.addGold(player.name, amount, "guild:treasury:withdraw", true);
-    if (added <= 0) {
+    if (added !== amount) {
+      if (added > 0) {
+        economic.removeGold(player.name, added, "guild:treasury:withdraw:rollback");
+      }
       g.treasuryGold += amount;
       this.saveGuild(g);
       return "发放金币失败，已恢复金库余额";
@@ -1561,7 +1564,10 @@ class GuildService {
     try {
       this.saveGuild(g);
       const added = economic.addGold(player.name, perMember, "guild:daily:redpacket", true);
-      if (added <= 0) {
+      if (added !== perMember) {
+        if (added > 0) {
+          economic.removeGold(player.name, added, "guild:daily:redpacket:rollback");
+        }
         g.treasuryGold += perMember;
         delete mem.lastDailyRedPacketDay;
         this.saveGuild(g);
