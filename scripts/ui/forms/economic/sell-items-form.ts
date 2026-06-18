@@ -234,6 +234,21 @@ class SellItemsForm {
     }
 
     const itemPrice = this.getItemPrice(item);
+    if (itemPrice <= 0) {
+      openDialogForm(player, { title: "出售失败", desc: `${colorCodes.red}该物品当前没有有效出售价格。` }, () =>
+        this.showSellItemSelection(player)
+      );
+      return;
+    }
+
+    if (item.amount < amount) {
+      openDialogForm(player, { title: "出售失败", desc: `${colorCodes.red}当前槽位物品数量不足，请重新选择。` }, () =>
+        this.showSellItemSelection(player)
+      );
+      return;
+    }
+
+    totalPrice = itemPrice * amount;
     const remainingLimit = economic.getRemainingDailyLimit(player.name);
 
     let actualAmount = amount;
@@ -255,6 +270,7 @@ class SellItemsForm {
       }
     }
 
+    const originalItem = item.clone();
     if (item.amount === actualAmount) {
       container.setItem(slotIndex);
     } else {
@@ -262,7 +278,17 @@ class SellItemsForm {
       container.setItem(slotIndex, item);
     }
 
-    economic.addGold(player.name, actualPrice, `出售物品 ${item.typeId}`);
+    const actualEarned = economic.addGold(player.name, actualPrice, `出售物品 ${originalItem.typeId}`);
+    if (actualEarned !== actualPrice) {
+      if (actualEarned > 0) {
+        economic.removeGold(player.name, actualEarned, "出售物品到账不完整回滚");
+      }
+      container.setItem(slotIndex, originalItem);
+      openDialogForm(player, { title: "出售失败", desc: `${colorCodes.red}金币发放失败，物品已退回。` }, () =>
+        this.showSellItemSelection(player)
+      );
+      return;
+    }
 
     const { ChestUIUtility } = require("../../components/chest-ui");
     const { getItemDisplayName } = ChestUIUtility;
@@ -271,9 +297,9 @@ class SellItemsForm {
       desc = {
         rawtext: [
           { text: `${colorCodes.green}成功出售 ${colorCodes.yellow}` },
-          getItemDisplayName(item),
+          getItemDisplayName(originalItem),
           {
-            text: ` x${actualAmount} ${colorCodes.green}个，获得: ${colorCodes.gold}${actualPrice} ${colorCodes.green}金币\n${colorCodes.red}您已达到今日金币获取上限，只出售了部分物品！`,
+            text: ` x${actualAmount} ${colorCodes.green}个，获得: ${colorCodes.gold}${actualEarned} ${colorCodes.green}金币\n${colorCodes.red}您已达到今日金币获取上限，只出售了部分物品！`,
           },
         ],
       };
@@ -281,9 +307,9 @@ class SellItemsForm {
       desc = {
         rawtext: [
           { text: `${colorCodes.green}成功出售 ${colorCodes.yellow}` },
-          getItemDisplayName(item),
+          getItemDisplayName(originalItem),
           {
-            text: ` x${actualAmount} ${colorCodes.green}个，获得: ${colorCodes.gold}${actualPrice} ${colorCodes.green}金币`,
+            text: ` x${actualAmount} ${colorCodes.green}个，获得: ${colorCodes.gold}${actualEarned} ${colorCodes.green}金币`,
           },
         ],
       };
@@ -320,6 +346,11 @@ class SellItemsForm {
     if (!inventory) return;
 
     const container = inventory.container;
+    const inventorySnapshot: Array<ItemStack | undefined> = [];
+    for (let i = 0; i < container.size; i++) {
+      inventorySnapshot.push(container.getItem(i)?.clone());
+    }
+
     let totalEarnings = 0;
     let itemsSold = 0;
     const remainingLimit = economic.getRemainingDailyLimit(player.name);
@@ -403,10 +434,22 @@ class SellItemsForm {
     }
 
     if (totalEarnings > 0) {
-      economic.addGold(player.name, totalEarnings, `一键出售物品`);
+      const actualEarned = economic.addGold(player.name, totalEarnings, `一键出售物品`);
+      if (actualEarned !== totalEarnings) {
+        if (actualEarned > 0) {
+          economic.removeGold(player.name, actualEarned, "一键出售到账不完整回滚");
+        }
+        for (let i = 0; i < inventorySnapshot.length; i++) {
+          container.setItem(i, inventorySnapshot[i]?.clone());
+        }
+        openDialogForm(player, { title: "出售失败", desc: "金币发放失败，物品已退回。" }, () =>
+          this.openSellItemsMenu(player)
+        );
+        return;
+      }
       
       // 显示详细的出售结果
-      this.showSellAllResultForm(player, soldItems, itemsWithoutPrice, totalEarnings, reachedLimit);
+      this.showSellAllResultForm(player, soldItems, itemsWithoutPrice, actualEarned, reachedLimit);
     } else {
       openDialogForm(player, { title: "出售失败", desc: "背包中没有可出售的物品或您已达到今日金币获取上限" }, () =>
         this.openSellItemsMenu(player)
