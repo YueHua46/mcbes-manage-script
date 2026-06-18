@@ -291,10 +291,20 @@ export class Economic {
     const toWallet = this.getWallet(toPlayer);
 
     fromWallet.gold -= amount;
-    this.db.set(fromPlayer, fromWallet);
-
-    toWallet.gold += amount;
-    this.db.set(toPlayer, toWallet);
+    try {
+      this.db.set(fromPlayer, fromWallet);
+      toWallet.gold += amount;
+      this.db.set(toPlayer, toWallet);
+    } catch (error) {
+      fromWallet.gold += amount;
+      try {
+        this.db.set(fromPlayer, fromWallet);
+      } catch (rollbackError) {
+        console.warn(`转账失败且回滚付款方失败: ${fromPlayer} -> ${toPlayer}`, rollbackError);
+      }
+      console.warn(`转账写入失败，已尝试回滚: ${fromPlayer} -> ${toPlayer}`, error);
+      return "转账失败，请稍后重试";
+    }
 
     this.logTransaction(fromPlayer, toPlayer, amount, reason);
 
