@@ -100,7 +100,15 @@ export function registerPlayerEvents(): void {
         );
       }
 
-      if (setting.getState("economy") === true && setting.getState("deathGoldPenaltyEnabled") === true) {
+      const killedByOtherPlayer =
+        event.damageSource.damagingEntity?.typeId === "minecraft:player" &&
+        event.damageSource.damagingEntity.id !== player.id;
+
+      if (
+        !killedByOtherPlayer &&
+        setting.getState("economy") === true &&
+        setting.getState("deathGoldPenaltyEnabled") === true
+      ) {
         const configuredAmount = Math.floor(Number(setting.getState("deathGoldPenaltyAmount")));
         if (Number.isFinite(configuredAmount) && configuredAmount > 0) {
           const wallet = economic.getWallet(player.name);
