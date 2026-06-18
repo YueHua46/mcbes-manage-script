@@ -108,7 +108,14 @@ class FeedbackService {
       updatedAt: now,
     };
 
-    this.db.set(entry.id, entry);
+    try {
+      this.db.set(entry.id, entry);
+    } catch (e) {
+      if (cost > 0) {
+        economic.addGold(input.submitter.name, cost, `提交${typeLabel(input.type)}失败退款`, true);
+      }
+      return { ok: false, message: "保存失败，已退回提交费用，请稍后重试。" };
+    }
     this.pruneOldEntries();
     this.notifyManagers(entry);
     return { ok: true, entry };
