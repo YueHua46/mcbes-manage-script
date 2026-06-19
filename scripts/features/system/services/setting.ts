@@ -109,6 +109,14 @@ export type IModules =
   | "guildTreasuryCostWaypointCreate"
   /** 创建公会所需累计在线小时数，0 为不限制 */
   | "guildCreateMinOnlineHours"
+  /** 悬浮文字系统入口与管理员管理开关 */
+  | "floatingText"
+  /** 是否允许普通玩家创建和管理自己的悬浮文字 */
+  | "floatingTextAllowMembers"
+  /** 普通玩家最多可创建的悬浮文字数量 */
+  | "floatingTextMaxPerPlayer"
+  /** 所有玩家每次创建悬浮文字消耗金币；0 表示免费 */
+  | "floatingTextCreateCost"
   /** 保留键（兼容旧库）；在线时长不由本键控制，仅「stats」控制数据统计入口 */
   | "onlineTime"
   /** 服务器主菜单「数据统计」入口；子榜单不再单独设开关 */
@@ -234,6 +242,10 @@ export const defaultSetting = {
   /** 新增公会坐标时从金库扣除（0 为不扣） */
   guildTreasuryCostWaypointCreate: "0",
   guildCreateMinOnlineHours: "0",
+  floatingText: true,
+  floatingTextAllowMembers: false,
+  floatingTextMaxPerPlayer: "3",
+  floatingTextCreateCost: "0",
   onlineTime: true,
   stats: true,
   /** 红包从发放到过期的小时数（默认 24 小时即 1 天） */

@@ -16,6 +16,7 @@ import "./features/command/services/command";
 import "./features/blacklist/services/blacklist";
 import "./features/behavior-log/services/log-inspector-tool";
 import "./features/guild";
+import "./features/floating-text";
 import { eventRegistry } from "./events/registry";
 import { scheduleItemIconKeyCacheWarmup } from "./features/system/services/item-icon-key-cache";
 import "./events/handlers/index.bds";
@@ -40,6 +41,7 @@ function initializeApp(): void {
     SystemLog.info("  ✓ 玩家名称显示");
     SystemLog.info("  ✓ 自定义命令系统");
     SystemLog.info("  ✓ 试玩模式系统");
+    SystemLog.info("  ✓ 悬浮文字系统");
     SystemLog.info("  ✓ 黑名单进服前校验");
 
     SystemLog.info("[3/3] 初始化事件系统...");

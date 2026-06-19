@@ -21,6 +21,7 @@ import { openOfflineDurationQueryMenu } from "./offline-duration-query";
 import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
 import { openLiveServerPanel } from "./live-server-panel";
+import { openFloatingTextMenu } from "../floating-text";
 import {
   BDS_ONLY_FEATURE_HINT,
   isServerAdminBuild,
@@ -31,6 +32,7 @@ import landSnapshotService from "../../../features/land/services/land-snapshot";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
+import floatingTextService from "../../../features/floating-text/services/floating-text";
 
 // ==================== 领地飞行（管理） ====================
 
@@ -149,6 +151,11 @@ export function openSystemSettingForm(player: Player): void {
       text: "§w公会系统管理",
       icon: "textures/icons/bina",
       action: () => openGuildSystemSettingsMenu(player),
+    },
+    {
+      text: "§w悬浮文字管理",
+      icon: "textures/icons/chat_bubble_white",
+      action: () => openFloatingTextMenu(player),
     },
     {
       text: "§w通知管理",
@@ -579,6 +586,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "pvp", name: "PVP系统（关闭后插件不接管PVP，按原版世界设置处理）" },
     { key: "stats", name: "数据统计（仅此项控制入口，子榜无单独开关）" },
     { key: "guild", name: "公会系统" },
+    { key: "floatingText", name: "悬浮文字系统" },
     { key: "other", name: "其他功能模块" },
     { key: "help", name: "帮助功能" },
     { key: "sm", name: "服务器菜单" },
@@ -628,6 +636,9 @@ export function openModuleToggleForm(player: Player): void {
           pvpManager.snapshotModeBeforeModuleOff();
         }
         setting.setState(module.key as any, nextValue);
+        if (module.key === "floatingText") {
+          floatingTextService.refreshFromSettings();
+        }
       });
 
       if (!prevPvpEnabled && nextPvpEnabled) {

@@ -15,6 +15,7 @@ import { openBaseFunctionForm } from "../other";
 import { openHelpMenuForm } from "../help";
 import { openSystemSettingForm } from "../system";
 import { openGuildMenuForm } from "../guild";
+import { openFloatingTextMenu } from "../floating-text";
 
 interface MenuItem {
   text: string;
@@ -92,6 +93,15 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       action: async (player: Player) => {
         await openGuildMenuForm(player);
       },
+    },
+    {
+      id: "floatingText",
+      text: "§w悬浮文字",
+      icon: "textures/icons/chat_bubble_white",
+      action: async (player: Player) => {
+        openFloatingTextMenu(player);
+      },
+      adminOnly: setting.getState("floatingTextAllowMembers") !== true,
     },
     {
       id: "pvp",
