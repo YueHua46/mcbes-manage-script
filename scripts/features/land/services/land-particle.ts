@@ -7,9 +7,9 @@ import { MolangVariableMap, Player, system, Vector3 } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { getDebugUtilities, isDebugUtilitiesAvailable } from "../../platform/sapi-capabilities";
 
-/** 与原先一致的粒子间距（方块距离 / 步数） */
-const PARTICLE_SPACING = 1.15;
-const ACCENT_PARTICLE_SPACING = 3;
+/** 预览粒子间距（方块距离 / 步数）。保持轮廓可读，同时避免移动预览时糊屏。 */
+const PARTICLE_SPACING = 2.8;
+const ACCENT_PARTICLE_SPACING = 8;
 /** 单次 runJob 时间片内最多生成的粒子数，避免单 tick 过重触发 Watchdog */
 const PARTICLES_PER_JOB_SLICE = 72;
 /** 单条边上采样步数上限（含端点共 steps+1 个粒子）；过大领地防止刷爆脚本 */
@@ -19,7 +19,7 @@ const MAX_STEPS_PER_LINE = 512;
 const MAX_PARTICLES_PER_AREA_CALL = 6200;
 const DEBUG_RENDER_TTL_TICKS = 120;
 const DEBUG_RENDER_TTL_SECONDS = DEBUG_RENDER_TTL_TICKS / 20;
-const PULSE_PARTICLES_PER_EDGE = 4;
+const PULSE_PARTICLES_PER_EDGE = 1;
 const MAX_GRID_LINES_PER_AXIS = 4;
 const AMBIENT_EDGE_SPACING = 1.55;
 const AMBIENT_GROUND_SPACING = 0.9;
@@ -27,11 +27,13 @@ const AMBIENT_WALL_SPACING = 2.8;
 const AMBIENT_SCAN_STREAKS_PER_EDGE = 3;
 const AMBIENT_SCAN_TRAIL_PARTICLES = 4;
 const AMBIENT_MAX_STEPS_PER_LINE = 320;
-const AMBIENT_MAX_PARTICLES_PER_AREA_CALL = 2800;
+const AMBIENT_MAX_PARTICLES_PER_AREA_CALL = 3600;
 const AMBIENT_PARTICLES_PER_JOB_SLICE = 64;
 const AMBIENT_BOTTOM_LAYER_OFFSET = 0.16;
 const AMBIENT_TOP_LAYER_OFFSET = 0.58;
-const AMBIENT_CORNER_MARKER_PARTICLES = 4;
+const AMBIENT_CORNER_MARKER_SPACING = 5.5;
+const AMBIENT_CORNER_MARKER_MIN_PARTICLES = 5;
+const AMBIENT_CORNER_MARKER_MAX_PARTICLES = 18;
 const AMBIENT_WALL_HEIGHT = 2.05;
 const AMBIENT_WALL_LAYERS = 2;
 const AMBIENT_FOUNDATION_MARKER_INTERVAL = 4;
@@ -459,7 +461,7 @@ class LandParticle {
       }
     }
 
-    for (const edge of [...bottomEdges, ...topEdges]) {
+    for (const edge of [...bottomEdges, ...topEdges, ...verticalEdges]) {
       let edgeStep = 0;
       for (const particle of this.iterLineParticles(
         player,
@@ -507,7 +509,6 @@ class LandParticle {
       }
     }
 
-    void verticalEdges;
   }
 
   private *iterLineParticles(
@@ -556,69 +557,48 @@ class LandParticle {
   }
 
   private spawnBoundaryParticle(player: Player, pos: Vector3, stepIndex: number): void {
-    this.spawnParticleSafe(player, "minecraft:endrod", {
+    this.spawnLandEdgeParticleSafe(player, {
       x: pos.x + 0.5,
-      y: pos.y + 0.34,
+      y: pos.y + 0.18,
       z: pos.z + 0.5,
-    });
+    }, { red: 0.14, green: 0.95, blue: 1, alpha: 0.52 });
 
-    if (stepIndex % 5 === 0) {
-      this.spawnParticleSafe(player, "minecraft:villager_happy", {
+    if (stepIndex % 6 === 0) {
+      this.spawnLandEdgeParticleSafe(player, {
         x: pos.x + 0.5,
-        y: pos.y + 0.62,
+        y: pos.y + 0.32,
         z: pos.z + 0.5,
-      });
+      }, { red: 0.78, green: 1, blue: 0.7, alpha: 0.44 });
     }
   }
 
   private spawnAccentParticle(player: Player, pos: Vector3, stepIndex: number): void {
-    if (stepIndex % 2 !== 0) return;
-    this.spawnParticleSafe(player, "minecraft:endrod", {
+    if (stepIndex % 3 !== 0) return;
+    this.spawnLandEdgeParticleSafe(player, {
       x: pos.x + 0.5,
-      y: pos.y + 0.2,
+      y: pos.y + 0.14,
       z: pos.z + 0.5,
-    });
+    }, { red: 0.46, green: 1, blue: 0.88, alpha: 0.22 });
   }
 
   private spawnCornerAnchorParticles(player: Player, pos: Vector3): void {
     const center = { x: pos.x, y: pos.y, z: pos.z };
-    this.spawnParticleSafe(player, "minecraft:villager_happy", center);
-    for (let i = 0; i < 4; i++) {
-      const angle = (Math.PI / 2) * i + system.currentTick / 18;
-      this.spawnParticleSafe(player, "minecraft:endrod", {
-        x: center.x + Math.cos(angle) * 0.42,
-        y: center.y + 0.04,
-        z: center.z + Math.sin(angle) * 0.42,
-      });
-    }
+    this.spawnLandAnchorRingParticleSafe(player, center, { red: 0.84, green: 1, blue: 0.42, alpha: 0.68 });
+    this.spawnLandCornerParticleSafe(player, { ...center, y: center.y + 0.34 }, { red: 0.26, green: 1, blue: 0.86, alpha: 0.58 });
   }
 
   private spawnOverlapBoundaryParticle(player: Player, pos: Vector3, stepIndex: number): void {
-    if (stepIndex % 2 !== 0) return;
-    this.spawnParticleSafe(player, "minecraft:villager_happy", {
+    if (stepIndex % 3 !== 0) return;
+    this.spawnLandEdgeParticleSafe(player, {
       x: pos.x + 0.5,
-      y: pos.y + 0.42,
+      y: pos.y + 0.24,
       z: pos.z + 0.5,
-    });
-    if (stepIndex % 6 === 0) {
-      this.spawnParticleSafe(player, "minecraft:endrod", {
-        x: pos.x + 0.5,
-        y: pos.y + 0.72,
-        z: pos.z + 0.5,
-      });
-    }
+    }, { red: 1, green: 0.34, blue: 0.18, alpha: 0.54 });
   }
 
   private spawnOverlapCornerParticles(player: Player, pos: Vector3): void {
     const center = { x: pos.x, y: pos.y, z: pos.z };
-    for (let i = 0; i < 4; i++) {
-      const angle = system.currentTick / 10 + (Math.PI * 2 * i) / 4;
-      this.spawnParticleSafe(player, "minecraft:villager_happy", {
-        x: center.x + Math.cos(angle) * 0.5,
-        y: center.y + 0.1,
-        z: center.z + Math.sin(angle) * 0.5,
-      });
-    }
+    this.spawnLandCornerParticleSafe(player, center, { red: 1, green: 0.32, blue: 0.16, alpha: 0.66 });
   }
 
   private spawnAmbientBoundaryParticle(player: Player, pos: Vector3, stepIndex: number, palette: AmbientPalette): void {
@@ -696,6 +676,7 @@ class LandParticle {
 
   private spawnAmbientCornerMarkers(player: Player, bounds: Bounds, bottomY: number, topY: number, palette: AmbientPalette): void {
     const corners = this.getFootprintCorners(bounds);
+    const markerCount = this.getAmbientCornerMarkerCount(topY - bottomY);
 
     for (const corner of corners) {
       const bottom = { x: corner.x + 0.5, y: bottomY + 0.08, z: corner.z + 0.5 };
@@ -704,19 +685,39 @@ class LandParticle {
       this.spawnLandAnchorRingParticleSafe(player, bottom, palette.corner);
       this.spawnLandAnchorRingParticleSafe(player, top, palette.height);
 
-      for (let i = 0; i < AMBIENT_CORNER_MARKER_PARTICLES; i++) {
-        const t = i / (AMBIENT_CORNER_MARKER_PARTICLES - 1);
+      for (let i = 0; i < markerCount; i++) {
+        const t = markerCount === 1 ? 0 : i / (markerCount - 1);
+        const color = this.mixColor(palette.corner, palette.height, t);
+        const pulse = this.getAmbientPulse(i * 5);
         this.spawnLandCornerParticleSafe(player, {
           x: bottom.x,
           y: bottom.y + (top.y - bottom.y) * t,
           z: bottom.z,
-        }, this.withAlpha(palette.corner, palette.corner.alpha * 0.62));
+        }, this.withAlpha(color, color.alpha * (0.68 + pulse * 0.2)));
       }
     }
   }
 
+  private getAmbientCornerMarkerCount(height: number): number {
+    const adaptiveCount = Math.ceil(Math.max(0, height) / AMBIENT_CORNER_MARKER_SPACING) + 1;
+    return Math.max(
+      AMBIENT_CORNER_MARKER_MIN_PARTICLES,
+      Math.min(AMBIENT_CORNER_MARKER_MAX_PARTICLES, adaptiveCount)
+    );
+  }
+
   private getAmbientPulse(offset: number): number {
     return 0.78 + Math.sin((system.currentTick + offset) / 7) * 0.22;
+  }
+
+  private mixColor(from: RgbaColor, to: RgbaColor, t: number): RgbaColor {
+    const clamped = Math.max(0, Math.min(1, t));
+    return {
+      red: from.red + (to.red - from.red) * clamped,
+      green: from.green + (to.green - from.green) * clamped,
+      blue: from.blue + (to.blue - from.blue) * clamped,
+      alpha: from.alpha + (to.alpha - from.alpha) * clamped,
+    };
   }
 
   private withAlpha(color: RgbaColor, alpha: number): RgbaColor {
@@ -730,25 +731,25 @@ class LandParticle {
 
   private spawnAreaPulse(player: Player, bounds: Bounds, edges: Edge[]): void {
     if (!player.isValid) return;
-    const tickOffset = (system.currentTick % 80) / 80;
+    const tickOffset = (system.currentTick % 120) / 120;
 
     for (const [edgeIndex, [start, end]] of edges.entries()) {
       for (let i = 0; i < PULSE_PARTICLES_PER_EDGE; i++) {
         const t = (tickOffset + i / PULSE_PARTICLES_PER_EDGE + edgeIndex * 0.037) % 1;
         const pos = this.lerp(start, end, t);
-        this.spawnParticleSafe(player, "minecraft:villager_happy", {
-          x: pos.x,
-          y: pos.y + 0.12,
-          z: pos.z,
-        });
+        this.spawnLandEdgeParticleSafe(player, {
+          x: pos.x + 0.5,
+          y: pos.y + 0.28,
+          z: pos.z + 0.5,
+        }, { red: 0.7, green: 1, blue: 0.82, alpha: 0.5 });
       }
     }
 
-    this.spawnParticleSafe(player, "minecraft:endrod", {
+    this.spawnLandCornerParticleSafe(player, {
       x: bounds.center.x,
-      y: bounds.min.y + 0.75,
+      y: bounds.min.y + 0.38,
       z: bounds.center.z,
-    });
+    }, { red: 0.22, green: 0.9, blue: 1, alpha: 0.34 });
   }
 
   private spawnOverlapLandPulses(player: Player, overlaps: LandSelectionOverlapInfo[] | undefined): void {
@@ -759,28 +760,19 @@ class LandParticle {
       for (const [edgeIndex, [start, end]] of plan.edges.entries()) {
         const t = ((system.currentTick % 60) / 60 + edgeIndex * 0.071) % 1;
         const pos = this.lerp(start, end, t);
-        this.spawnParticleSafe(player, "minecraft:villager_happy", {
-          x: pos.x,
-          y: pos.y + 0.18,
-          z: pos.z,
-        });
+        this.spawnLandEdgeParticleSafe(player, {
+          x: pos.x + 0.5,
+          y: pos.y + 0.26,
+          z: pos.z + 0.5,
+        }, { red: 1, green: 0.28, blue: 0.16, alpha: 0.48 });
       }
     }
   }
 
   private spawnMarkerParticles(player: Player, pos: Vector3): void {
     const center = { x: pos.x + 0.5, y: pos.y + 0.35, z: pos.z + 0.5 };
-    this.spawnParticleSafe(player, "minecraft:endrod", center);
-    this.spawnParticleSafe(player, "minecraft:villager_happy", { ...center, y: center.y + 0.35 });
-
-    for (let i = 0; i < 4; i++) {
-      const angle = (Math.PI / 2) * i;
-      this.spawnParticleSafe(player, "minecraft:endrod", {
-        x: center.x + Math.cos(angle) * 0.35,
-        y: center.y + 0.15,
-        z: center.z + Math.sin(angle) * 0.35,
-      });
-    }
+    this.spawnLandAnchorRingParticleSafe(player, center, { red: 0.82, green: 1, blue: 0.36, alpha: 0.72 });
+    this.spawnLandCornerParticleSafe(player, { ...center, y: center.y + 0.34 }, { red: 0.18, green: 0.95, blue: 1, alpha: 0.52 });
   }
 
   private spawnParticleSafe(player: Player, particleType: string, pos: Vector3): void {
@@ -1073,18 +1065,19 @@ class LandParticle {
   }
 
   private spawnGuideBeacon(player: Player, center: Vector3, kind: "start" | "preview" | "end"): void {
-    const radius = kind === "start" ? 0.42 : kind === "end" ? 0.52 : 0.36;
-    const phase = system.currentTick / (kind === "preview" ? 12 : 16);
-    const particle = kind === "end" ? "minecraft:villager_happy" : "minecraft:endrod";
-    this.spawnParticleSafe(player, particle, center);
-    for (let i = 0; i < 5; i++) {
-      const angle = phase + (Math.PI * 2 * i) / 5;
-      this.spawnParticleSafe(player, "minecraft:endrod", {
-        x: center.x + Math.cos(angle) * radius,
-        y: center.y + 0.08 + Math.sin(phase + i) * 0.08,
-        z: center.z + Math.sin(angle) * radius,
-      });
-    }
+    const anchorColor =
+      kind === "start"
+        ? { red: 0.3, green: 1, blue: 0.72, alpha: 0.7 }
+        : kind === "end"
+          ? { red: 0.95, green: 1, blue: 0.42, alpha: 0.76 }
+          : { red: 0.28, green: 0.82, blue: 1, alpha: 0.52 };
+    const dotColor =
+      kind === "end"
+        ? { red: 1, green: 0.92, blue: 0.32, alpha: 0.64 }
+        : { red: 0.3, green: 1, blue: 0.9, alpha: 0.52 };
+
+    this.spawnLandAnchorRingParticleSafe(player, center, anchorColor);
+    this.spawnLandCornerParticleSafe(player, { ...center, y: center.y + 0.34 }, dotColor);
   }
 
   private addDebugShapeGroup(key: string, shapes: DebugShapeHandle[], player: Player): void {
