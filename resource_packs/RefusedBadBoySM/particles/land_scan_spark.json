@@ -1,0 +1,53 @@
+{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "rbb:land_scan_spark",
+      "basic_render_parameters": {
+        "material": "particles_add",
+        "texture": "textures/particle/rbb_land_scan_spark"
+      }
+    },
+    "components": {
+      "minecraft:emitter_rate_instant": {
+        "num_particles": 1
+      },
+      "minecraft:emitter_lifetime_once": {
+        "active_time": 0.04
+      },
+      "minecraft:emitter_shape_point": {},
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": 1.05
+      },
+      "minecraft:particle_initial_speed": 0,
+      "minecraft:particle_motion_parametric": {
+        "relative_position": [
+          0,
+          "variable.particle_age * 0.08",
+          0
+        ]
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          "0.78 + math.sin(variable.particle_age * 13) * 0.09",
+          "0.78 + math.sin(variable.particle_age * 13) * 0.09"
+        ],
+        "facing_camera_mode": "rotate_xyz",
+        "uv": {
+          "texture_width": 32,
+          "texture_height": 32,
+          "uv": [0, 0],
+          "uv_size": [32, 32]
+        }
+      },
+      "minecraft:particle_appearance_tinting": {
+        "color": [
+          "variable.color.r",
+          "variable.color.g",
+          "variable.color.b",
+          "variable.color.a * 1.08 * math.min(variable.particle_age * 9, 1) * math.min((1.05 - variable.particle_age) * 4.6, 1)"
+        ]
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@
 - 入口：`scripts/main.ts` 默认导入 `main.standard.ts`，BDS 增强版为 `main.bds.ts`。
 - 启动加载：数据库、系统设置、试玩模式、一键功能、玩家名显示、自定义命令、黑名单、行为日志工具、公会模块。
 - 事件注册：`eventRegistry.initializeAll()` 从 `scripts/events/handlers/index.standard.ts` / `index.bds.ts` 注册聊天、玩家、领地、PVP、行为日志、在线时间、领地飞行、统计、物品监控、反复制等事件。
-- 用户入口：服务器菜单 `scripts/ui/forms/server/index.ts` 分发到经济、领地、公会、PVP、系统、举报、行为日志等 UI。
+- 用户入口：服务器菜单 `scripts/ui/forms/server/index.ts` 分发到经济、领地、公会、PVP、数据统计、系统、行为日志等 UI。
 
 ## 优先级定义
 
@@ -35,7 +35,6 @@
 | 已修复 | P1 | 公会 | 创建费扣除后公会/索引保存失败会少钱 | 检查 `createGuild` 扣费与持久化顺序 | 保存失败回滚创建费 |
 | 已修复 | P1 | 公会 | 每日红包先到账后记录领取日，保存失败可能重复领 | 检查 `claimDailyRedPacket` 顺序 | 先扣金库并保存领取日，再发钱；失败回滚 |
 | 已修复 | P1 | 公会 | 金库取出/每日红包部分到账时公共金库仍按全额扣除 | 检查 `treasuryWithdraw` 与 `claimDailyRedPacket` 的到账判断 | 要求全额到账，部分到账撤回金币并恢复金库 |
-| 已修复 | P1 | 经济/举报 | 举报/工单提交扣费后记录保存失败会少钱 | 检查提交费用与工单保存顺序 | 保存失败时退回提交费用 |
 | 已修复 | P1 | 管理入口 | 黑名单/官方商店/经济管理子入口依赖调用方校验 | 直接审查导出管理表单入口 | 导出管理入口增加自校验 |
 | 已修复 | P1 | 经济 | 每日金币上限设置运行时不生效 | 修改 `daily_gold_limit` 后立即卖物/杀怪 | 每次读取限额时同步设置 |
 | 已修复 | P1 | 经济/PVP | PVP 负数/异常配置导致保护、冷却、战斗标签失真 | 通过 `/yuehua:setting` 写入负数/NaN 后检查 PVP 规则 | PVP service 层统一归一化非负整数和最小时长 |

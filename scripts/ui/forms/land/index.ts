@@ -29,6 +29,8 @@ import { isAdmin } from "../../../shared/utils/common";
 import { openLandSnapshotForm } from "./snapshot";
 import PlayerSetting from "../../../features/player/services/player-settings";
 
+const LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE = 192;
+
 /** 从公会菜单「纯公会圈地」创建时传入，写入 ILand.guildId */
 export type GuildLandApplyContext = {
   guildId: string;
@@ -1037,7 +1039,7 @@ export const openLandDetailForm = (
     buttons.push({
       text: buildLandBoundaryParticleButtonLabel(player),
       icon: "textures/icons/region",
-      action: () => toggleLandBoundaryParticleSetting(player, reopenDetail, landData),
+      action: () => toggleLandBoundaryParticleSetting(player, reopenDetail),
     });
 
     // 管理员从「领地系统管理 → 公会领地（管理员）」进入时不展示：已有飞行权限，无需限时领地飞行入口
@@ -1193,7 +1195,7 @@ export const openLandDetailForm = (
   buttons.push({
     text: buildLandBoundaryParticleButtonLabel(player),
     icon: "textures/icons/region",
-    action: () => toggleLandBoundaryParticleSetting(player, reopenDetail, landData),
+    action: () => toggleLandBoundaryParticleSetting(player, reopenDetail),
   });
 
   if (
@@ -1454,25 +1456,64 @@ function buildLandFlightButtonLabel(player: Player): string {
 function buildLandBoundaryParticleButtonLabel(player: Player): string {
   const enabled = PlayerSetting.getLandBoundaryParticlesEnabled(player);
   return enabled
-    ? "§w领地范围常显\n§a已开启 §7| 在领地内定时显示边界效果"
-    : "§w领地范围常显\n§7已关闭 §8| 点击开启边界效果";
+    ? "§w领地范围常显\n§a已开启 §7| 定时显示附近领地边界"
+    : "§w领地范围常显\n§7已关闭 §8| 点击显示附近领地边界";
 }
 
-function toggleLandBoundaryParticleSetting(player: Player, reopen: () => void, previewLand?: ILand): void {
-  const enabled = PlayerSetting.toggleLandBoundaryParticles(player);
-  if (enabled && previewLand && player.dimension.id === previewLand.dimension) {
+function previewAllDimensionLandBoundaries(player: Player): void {
+  const lands = Object.values(landManager.getLandList()).filter(
+    (land) => land.dimension === player.dimension.id && isLandNearPlayerForBoundaryPreview(land, player.location)
+  );
+  for (const land of lands) {
     try {
-      landParticle.createLandParticleArea(player, [previewLand.vectors.start, previewLand.vectors.end]);
+      landParticle.createLandAmbientBoundary(player, [land.vectors.start, land.vectors.end], {
+        seed: `${land.name}:${land.owner}`,
+        variant: getLandBoundaryVariantForPlayer(land, player),
+      });
+      landParticle.createLandAmbientBoundaryScan(player, [land.vectors.start, land.vectors.end], {
+        seed: `${land.name}:${land.owner}`,
+        variant: getLandBoundaryVariantForPlayer(land, player),
+      });
     } catch {
       // 忽略粒子生成错误
     }
+  }
+}
+
+function isLandNearPlayerForBoundaryPreview(land: ILand, playerPos: Vector3): boolean {
+  const minX = Math.min(land.vectors.start.x, land.vectors.end.x);
+  const maxX = Math.max(land.vectors.start.x, land.vectors.end.x);
+  const minZ = Math.min(land.vectors.start.z, land.vectors.end.z);
+  const maxZ = Math.max(land.vectors.start.z, land.vectors.end.z);
+  const centerX = (minX + maxX) / 2;
+  const centerZ = (minZ + maxZ) / 2;
+  const dx = playerPos.x - centerX;
+  const dz = playerPos.z - centerZ;
+  return dx * dx + dz * dz <= LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE * LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE;
+}
+
+function getLandBoundaryVariantForPlayer(land: ILand, player: Player): "owner" | "trusted" | "guild" | "public" | "foreign" {
+  if (land.owner === player.name) return "owner";
+  if (land.guildId) {
+    if (landManager.isPlayerTrustedOnLand(land, player.name)) return "guild";
+    return "foreign";
+  }
+  if (landManager.isPlayerTrustedOnLand(land, player.name)) return "trusted";
+  if (land.public_auth.allowEnter === true) return "public";
+  return "foreign";
+}
+
+function toggleLandBoundaryParticleSetting(player: Player, reopen: () => void): void {
+  const enabled = PlayerSetting.toggleLandBoundaryParticles(player);
+  if (enabled) {
+    previewAllDimensionLandBoundaries(player);
   }
   openDialogForm(
     player,
     {
       title: "领地范围常显",
       desc: enabled
-        ? color.green("已开启。之后你在领地内会定时看到领地边界效果。")
+        ? color.green("已开启。之后会定时显示你当前维度附近的领地边界。")
         : color.gray("已关闭。之后只会在进入、离开或手动预览时显示边界效果。"),
     },
     reopen

@@ -38,6 +38,8 @@ function stripLandDisplaySection(s: string): string {
 }
 
 const LAND_BOUNDARY_PARTICLE_REFRESH_TICKS = 80;
+const LAND_BOUNDARY_SCAN_REFRESH_TICKS = 4;
+const LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE = 192;
 
 interface LandArea {
   start?: Vector3;
@@ -62,6 +64,36 @@ const isMoving = (entity: Entity): boolean => {
 
 // 领地标记区域存储
 export const landAreas = new Map<string, LandArea>();
+
+function isLandNearPlayerForBoundaryDisplay(land: ILand, playerPos: Vector3): boolean {
+  const minX = Math.min(land.vectors.start.x, land.vectors.end.x);
+  const maxX = Math.max(land.vectors.start.x, land.vectors.end.x);
+  const minZ = Math.min(land.vectors.start.z, land.vectors.end.z);
+  const maxZ = Math.max(land.vectors.start.z, land.vectors.end.z);
+  const centerX = (minX + maxX) / 2;
+  const centerZ = (minZ + maxZ) / 2;
+  const dx = playerPos.x - centerX;
+  const dz = playerPos.z - centerZ;
+  return dx * dx + dz * dz <= LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE * LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE;
+}
+
+function getLandBoundaryVariantForPlayer(land: ILand, player: Player): "owner" | "trusted" | "guild" | "public" | "foreign" {
+  if (land.owner === player.name) return "owner";
+  if (land.guildId) {
+    if (landManager.isPlayerTrustedOnLand(land, player.name)) return "guild";
+    return "foreign";
+  }
+  if (landManager.isPlayerTrustedOnLand(land, player.name)) return "trusted";
+  if (land.public_auth.allowEnter === true) return "public";
+  return "foreign";
+}
+
+function showUnifiedLandBoundary(player: Player, land: ILand): void {
+  landParticle.createLandAmbientBoundaryBurst(player, [land.vectors.start, land.vectors.end], {
+    seed: `${land.name}:${land.owner}`,
+    variant: getLandBoundaryVariantForPlayer(land, player),
+  });
+}
 
 // 玩家当前所在领地记录
 const LandLog = new Map<string, ILand>();
@@ -703,7 +735,7 @@ export function registerLandEvents(): void {
   });
 
   /**
-   * 玩家个人开关：在当前所在领地内持续显示领地边界效果。
+   * 玩家个人开关：持续显示玩家当前维度内所有领地边界效果。
    */
   taskScheduler.register({
     id: "land.boundaryParticleDisplay",
@@ -716,18 +748,48 @@ export function registerLandEvents(): void {
         if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
           return;
         }
-        if (p.location.y <= -63) return;
 
-        const location = p.dimension.getBlock(p.location)?.location;
-        const { isInside, insideLand } = landManager.testLand(location ?? p.location, p.dimension.id);
-        if (!isInside || !insideLand) {
+        const lands = Object.values(landManager.getLandList()).filter(
+          (land) => land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location)
+        );
+        for (const land of lands) {
+          try {
+            landParticle.createLandAmbientBoundary(p, [land.vectors.start, land.vectors.end], {
+              seed: `${land.name}:${land.owner}`,
+              variant: getLandBoundaryVariantForPlayer(land, p),
+            });
+          } catch (error) {
+            // 忽略粒子生成错误
+          }
+        }
+      });
+    },
+  });
+
+  taskScheduler.register({
+    id: "land.boundaryScanDisplay",
+    label: "领地边界扫描光",
+    category: "land",
+    intervalTicks: LAND_BOUNDARY_SCAN_REFRESH_TICKS,
+    when: () => setting.getState("land") === true,
+    run: () => {
+      world.getAllPlayers().forEach((p) => {
+        if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
           return;
         }
 
-        try {
-          landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
-        } catch (error) {
-          // 忽略粒子生成错误
+        const lands = Object.values(landManager.getLandList()).filter(
+          (land) => land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location)
+        );
+        for (const land of lands) {
+          try {
+            landParticle.createLandAmbientBoundaryScan(p, [land.vectors.start, land.vectors.end], {
+              seed: `${land.name}:${land.owner}`,
+              variant: getLandBoundaryVariantForPlayer(land, p),
+            });
+          } catch (error) {
+            // 忽略粒子生成错误
+          }
         }
       });
     },
@@ -791,9 +853,9 @@ export function registerLandEvents(): void {
               // 确保Y坐标在合理范围内
               teleportPos.y = Math.max(landMin.y, Math.min(landMax.y + 1, playerPos.y));
 
-              // 先显示领地轮廓，让玩家知道领地范围（传送前显示一次）
+              // 先显示统一的领地边界，让玩家知道领地范围（传送前显示一次）
               try {
-                landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
+                showUnifiedLandBoundary(p, insideLand);
               } catch (error) {
                 // 忽略粒子生成错误
               }
@@ -812,10 +874,7 @@ export function registerLandEvents(): void {
                   try {
                     const playerAfterTeleport = world.getPlayers().find((pl) => pl.name === p.name);
                     if (playerAfterTeleport) {
-                      landParticle.createLandParticleArea(playerAfterTeleport, [
-                        insideLand.vectors.start,
-                        insideLand.vectors.end,
-                      ]);
+                      showUnifiedLandBoundary(playerAfterTeleport, insideLand);
                     }
                   } catch (error) {
                     // 忽略粒子生成错误
@@ -855,7 +914,7 @@ export function registerLandEvents(): void {
           }
 
           try {
-            landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
+            showUnifiedLandBoundary(p, insideLand);
           } catch (error) {}
 
           LandLog.set(p.name, insideLand);
@@ -891,7 +950,7 @@ export function registerLandEvents(): void {
             }
 
             try {
-              landParticle.createLandParticleArea(p, [landData.vectors.start, landData.vectors.end]);
+              showUnifiedLandBoundary(p, landData);
             } catch (error) {}
 
             LandLog.delete(p.name);
