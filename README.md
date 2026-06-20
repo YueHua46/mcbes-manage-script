@@ -1,6 +1,6 @@
-# 杜绝熊孩服务器插件
+# 苦力怕菜单
 
-Minecraft 基岩版（Bedrock）服务器管理插件，基于 Script API（SAPI）构建。支持 **1.26.x** 引擎（manifest `min_engine_version: [1, 26, 0]`）。
+Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI）构建。支持 **1.26.x** 引擎（manifest `min_engine_version: [1, 26, 0]`）。
 
 ## 构建变体
 

@@ -16,6 +16,7 @@ import { openHelpMenuForm } from "../help";
 import { openSystemSettingForm } from "../system";
 import { openGuildMenuForm } from "../guild";
 import { openFloatingTextMenu } from "../floating-text";
+import { BRANDING } from "../../../core/constants";
 
 interface MenuItem {
   text: string;
@@ -26,13 +27,13 @@ interface MenuItem {
 }
 
 /**
- * 创建服务器菜单表单
+ * 创建苦力怕菜单表单
  */
 function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: any): ActionFormData {
   const _isAdmin = isAdmin(player);
 
   const form = new ActionFormData();
-  form.title("§w服务器菜单");
+  form.title(BRANDING.MENU_TITLE);
   form.body("");
 
   menuItems
@@ -47,7 +48,7 @@ function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: an
 }
 
 /**
- * 打开服务器菜单表单
+ * 打开苦力怕菜单表单
  */
 export async function openServerMenuForm(player: Player): Promise<void> {
   // 动态导入以避免循环依赖
@@ -139,7 +140,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "sm",
-      text: "§w给予我服务器菜单道具",
+      text: `§w给予我${BRANDING.MENU_ITEM_LABEL}道具`,
       icon: "textures/icons/uye",
       action: (player: Player) => {
         player.runCommand("give @s yuehua:sm");
@@ -160,7 +161,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
 
   form.show(player).then(async (data) => {
     if (data.cancelationReason === FormCancelationReason.UserBusy) {
-      player.sendMessage("§e请关闭你当前的聊天窗口，以便显示服务器菜单。");
+      player.sendMessage(`§e请关闭你当前的聊天窗口，以便显示${BRANDING.MENU_ITEM_LABEL}。`);
       const forceForm = await useForceOpen(player, form);
       if (forceForm?.canceled) return;
       if (forceForm?.selection !== undefined) {

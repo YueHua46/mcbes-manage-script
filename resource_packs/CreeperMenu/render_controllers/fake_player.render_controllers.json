@@ -1,0 +1,38 @@
+{
+  "format_version": "1.8.0",
+  "render_controllers": {
+    "controller.render.yuehua_fake_player": {
+      "arrays": {
+        "textures": {
+          "Array.skins": [
+            "Texture.skin_0",
+            "Texture.skin_1",
+            "Texture.skin_2",
+            "Texture.skin_3",
+            "Texture.skin_4",
+            "Texture.skin_5",
+            "Texture.skin_6",
+            "Texture.skin_7",
+            "Texture.skin_8",
+            "Texture.skin_9",
+            "Texture.skin_10",
+            "Texture.skin_11",
+            "Texture.skin_12",
+            "Texture.skin_13",
+            "Texture.skin_14",
+            "Texture.skin_15"
+          ]
+        }
+      },
+      "geometry": "Geometry.default",
+      "materials": [
+        {
+          "*": "Material.default"
+        }
+      ],
+      "textures": [
+        "Array.skins[query.variant]"
+      ]
+    }
+  }
+}

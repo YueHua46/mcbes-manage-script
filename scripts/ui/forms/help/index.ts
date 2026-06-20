@@ -8,6 +8,7 @@ import { ActionFormData, MessageFormData } from "@minecraft/server-ui";
 import { useFormatInfo } from "../../../shared/hooks/use-form";
 import { color } from "../../../shared/utils/color";
 import { openServerMenuForm } from "../server";
+import { BRANDING } from "../../../core/constants";
 
 // ==================== 如何圈地 ====================
 
@@ -28,7 +29,7 @@ export const openHowToLandForm = (player: Player): void => {
         color.yellow("2. ") +
         color.green("设置完起始坐标点后，蹲着对着指定地面长按即可设置领地结束坐标点\n") +
         color.yellow("3. ") +
-        color.green("设置完领地起始坐标点和结束坐标点后，使用服务器管理道具中的领地管理，点击申请领地\n") +
+        color.green(`设置完领地起始坐标点和结束坐标点后，使用${BRANDING.MENU_ITEM_LABEL}中的领地管理，点击申请领地\n`) +
         color.yellow("4. ") +
         color.green("申请领地后，这个时候起始坐标和结束坐标是已经自动填写完刚才我们设置的坐标点了\n") +
         color.yellow("5. ") +
@@ -46,11 +47,11 @@ export const openHowToLandForm = (player: Player): void => {
   });
 };
 
-// ==================== 服务器菜单丢失 ====================
+// ==================== 苦力怕菜单丢失 ====================
 
 const createServerMenuLostForm = (): MessageFormData => {
   const form = new MessageFormData();
-  form.title("服务器菜单丢失了怎么办？");
+  form.title(`${BRANDING.MENU_ITEM_LABEL}丢失了怎么办？`);
   return form;
 };
 
@@ -61,9 +62,9 @@ export const openServerMenuLostForm = (player: Player): void => {
       title: "",
       desc:
         color.yellow("1. ") +
-        color.green("如果你丢失了服务器菜单，请在聊天栏里输入：服务器菜单，即可打开服务器菜单\n") +
+        color.green(`如果你丢失了${BRANDING.MENU_ITEM_LABEL}，请在聊天栏里输入：${BRANDING.MENU_ITEM_LABEL}，即可打开${BRANDING.MENU_ITEM_LABEL}\n`) +
         color.yellow("2. ") +
-        color.green("打开服务器菜单后，点击功能：给予我服务器菜单 即可\n"),
+        color.green(`打开${BRANDING.MENU_ITEM_LABEL}后，点击功能：给予我${BRANDING.MENU_ITEM_LABEL} 即可\n`),
     })
   );
   form.button1("了解");
@@ -93,7 +94,7 @@ export const openHelpMenuForm = (player: Player): void => {
       icon: "textures/icons/home",
     },
     {
-      text: "服务器菜单丢失了怎么办？",
+      text: `${BRANDING.MENU_ITEM_LABEL}丢失了怎么办？`,
       icon: "textures/icons/uye",
     },
   ];

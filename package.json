@@ -1,8 +1,8 @@
 {
-  "name": "refusedbadboysm",
+  "name": "creeper-menu",
   "version": "1.0.0",
-  "productName": "杜绝熊孩服务器插件",
-  "description": "杜绝熊孩服务器插件",
+  "productName": "苦力怕菜单",
+  "description": "Minecraft 基岩版服务器菜单插件",
   "private": true,
   "devDependencies": {
     "@minecraft/core-build-tasks": "^5.7.0",

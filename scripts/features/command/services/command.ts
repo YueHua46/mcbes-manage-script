@@ -26,6 +26,7 @@ import { usePlayerByName } from "../../../shared/hooks/use-player";
 import wayPoint from "../../waypoint/services/waypoint";
 import landManager from "../../land/services/land-manager";
 import { tryStartLandFlightSession } from "../../land/services/land-flight";
+import fakePlayerService from "../../fake-player/services/fake-player";
 import setting, { defaultSetting, type IModules } from "../../system/services/setting";
 import serverInfo from "../../system/services/server-info";
 import { economic } from "../../economic";
@@ -53,6 +54,7 @@ const CAMERA_OPERATION_VALUES = ["start", "stop", "next", "n"];
 const CAMERA_PERSPECTIVE_VALUES = ["first", "third", "first_person", "third_person", "front", "third_front"];
 const GET_ITEM_TYPE_ID_MODE_VALUES = ["hand", "all", "inventory"];
 const SUBSCRIBE_ITEM_HOLD_OPERATION_VALUES = ["add", "remove", "list", "clear"];
+const FAKE_PLAYER_OPERATION_VALUES = ["list", "add", "remove"];
 const SETTING_KEY_VALUES = ["list", ...Object.keys(defaultSetting)];
 
 const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
@@ -62,7 +64,7 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   economy: "经济系统总开关。true 启用金币钱包、商店和转账，false 经济扣费通常会被跳过。",
   other: "其他功能模块总开关。用于控制随机传送等杂项入口。",
   help: "帮助功能入口开关。true 显示帮助菜单，false 隐藏。",
-  sm: "服务器菜单入口开关。true 允许使用服务器菜单物品，false 隐藏或禁用入口。",
+  sm: "苦力怕菜单入口开关。true 允许使用苦力怕菜单物品，false 隐藏或禁用入口。",
   setting: "系统设置入口开关。true 显示设置入口，false 隐藏。",
   killItem: "击杀掉落物品清理/限制相关开关。true 启用，false 关闭。",
   killItemAmount: "掉落物数量阈值。达到该数量后按清理逻辑处理，填写非负整数。",
@@ -153,6 +155,9 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   floatingTextAllowMembers: "是否对普通成员开放悬浮文字。false 时只有管理员可创建和管理。",
   floatingTextMaxPerPlayer: "普通玩家最多可创建的悬浮文字数量。填写 0 或正整数。",
   floatingTextCreateCost: "所有玩家每次创建悬浮文字消耗金币。0 表示免费，不扣金币。",
+  fakePlayer: "假人加载锚点系统总开关。true 允许玩家创建假人维持附近区块活跃，false 关闭入口和自愈。",
+  fakePlayerMaxPerPlayer: "普通玩家最多可创建的假人数量。管理员不受此上限限制。",
+  fakePlayerCreateCost: "每次创建假人消耗金币。0 表示免费；经济系统关闭时需设为 0 才能创建。",
   onlineTime: "旧版在线时长入口兼容键。在线时长数据入口优先使用 stats。",
   stats: "服务器主菜单数据统计入口。true 显示数据统计，false 隐藏。",
   redPacketExpiryHours: "红包有效时长，单位小时。过期未领会按红包逻辑退回。",
@@ -223,6 +228,7 @@ system.beforeEvents.startup.subscribe((init) => {
   registerEnumIgnoreReloadLock(registry, "yuehua:CameraPerspectiveType", CAMERA_PERSPECTIVE_VALUES);
   registerEnumIgnoreReloadLock(registry, "yuehua:GetItemTypeIdModeType", GET_ITEM_TYPE_ID_MODE_VALUES);
   registerEnumIgnoreReloadLock(registry, "yuehua:SubscribeItemHoldOperationType", SUBSCRIBE_ITEM_HOLD_OPERATION_VALUES);
+  registerEnumIgnoreReloadLock(registry, "yuehua:FakePlayerOperationType", FAKE_PLAYER_OPERATION_VALUES);
 
   // 1. 注册 waypoint 指令
   const waypointCommand: CustomCommand = {
@@ -317,6 +323,22 @@ system.beforeEvents.startup.subscribe((init) => {
   };
   registerCommandIgnoreReloadLock(registry, landFlightCommand, handleLandFlightCommand);
 
+  const fakePlayerCommand: CustomCommand = {
+    name: "yuehua:fakeplayer",
+    description:
+      "假人加载锚点。list=列出自己的假人；add=在当前位置创建假人；remove=按名称删除自己的假人。假人用于维持附近区块活跃。",
+    permissionLevel: CommandPermissionLevel.Any,
+    optionalParameters: [
+      {
+        type: CustomCommandParamType.Enum,
+        name: "操作(list列表/add创建/remove删除)",
+        enumName: "yuehua:FakePlayerOperationType",
+      },
+      { type: CustomCommandParamType.String, name: "假人名称(add/remove时填写)" },
+    ],
+  };
+  registerCommandIgnoreReloadLock(registry, fakePlayerCommand, handleFakePlayerCommand);
+
   // 7. 注册 oneclick 指令
   const oneclickCommand: CustomCommand = {
     name: "yuehua:oneclick",
@@ -400,7 +422,7 @@ system.beforeEvents.startup.subscribe((init) => {
   // 11. 注册 give_me_menu 指令
   const giveMenuCommand: CustomCommand = {
     name: "yuehua:give_me_menu",
-    description: "获取服务器菜单物品。给自己发放 yuehua:sm，用于打开服务器功能菜单。",
+    description: "获取苦力怕菜单物品。给自己发放 yuehua:sm，用于打开服务器功能菜单。",
     permissionLevel: CommandPermissionLevel.Any,
   };
   registerCommandIgnoreReloadLock(registry, giveMenuCommand, handleGiveMenuCommand);
@@ -878,6 +900,62 @@ function handleLandFlightCommand(origin: CustomCommandOrigin): CustomCommandResu
   return { status: CustomCommandStatus.Success };
 }
 
+function handleFakePlayerCommand(origin: CustomCommandOrigin, operation?: string, name?: string): CustomCommandResult {
+  const player = origin.sourceEntity as Player;
+  if (!player) return { status: CustomCommandStatus.Failure };
+
+  system.run(() => {
+    const op = (operation ?? "list").toLowerCase();
+
+    if (op === "list") {
+      const list = fakePlayerService.listForPlayer(player.name);
+      if (list.length === 0) {
+        player.sendMessage(color.yellow("你还没有创建任何假人。"));
+        player.sendMessage(color.gray("用法: /yuehua:fakeplayer add <名称>"));
+        return;
+      }
+      player.sendMessage(color.green(`=== 我的假人 (${list.length}) ===`));
+      for (const item of list) {
+        player.sendMessage(
+          `${color.aqua(item.name)} ${color.gray(`${item.dimension} ${item.location.x}, ${item.location.y}, ${item.location.z}`)}`
+        );
+      }
+      return;
+    }
+
+    if (op === "add") {
+      const result = fakePlayerService.create({ player, name: name ?? `${player.name}的假人` });
+      if (typeof result === "string") {
+        player.sendMessage(color.red(result));
+        return;
+      }
+      player.sendMessage(color.green(`已创建假人 ${color.yellow(result.name)}，它会维持附近区块活跃。`));
+      return;
+    }
+
+    if (op === "remove") {
+      if (!name?.trim()) {
+        player.sendMessage(color.yellow("用法: /yuehua:fakeplayer remove <假人名称>"));
+        return;
+      }
+
+      const item = fakePlayerService.listForPlayer(player.name).find((fakePlayer) => fakePlayer.name === name.trim());
+      if (!item) {
+        player.sendMessage(color.red("没有找到这个名称的假人。"));
+        return;
+      }
+
+      const result = fakePlayerService.delete(player, item.id);
+      player.sendMessage(result === true ? color.green("假人已删除。") : color.red(String(result)));
+      return;
+    }
+
+    player.sendMessage(color.yellow("用法: /yuehua:fakeplayer <list|add|remove> [名称]"));
+  });
+
+  return { status: CustomCommandStatus.Success };
+}
+
 function handleOneClickCommand(origin: CustomCommandOrigin, feature: string): CustomCommandResult {
   const player = origin.sourceEntity as Player;
   if (!player) return { status: CustomCommandStatus.Failure };
@@ -1253,8 +1331,10 @@ function handleMoneySettingCommand(
                 failCount++;
                 break;
               }
+              const oldBalance = wallet.gold;
               const addedAmount = economic.addGold(targetPlayer.name, amount, "管理员添加", true);
               if (addedAmount > 0) {
+                const currentBalance = economic.getWallet(targetPlayer.name).gold;
                 player.sendMessage(
                   color.green(
                     `成功为玩家 ${color.yellow(targetPlayer.name)} 添加 ${color.gold(amount.toString())} 金币。`
@@ -1262,11 +1342,11 @@ function handleMoneySettingCommand(
                 );
                 player.sendMessage(
                   color.gray(
-                    `当前余额: ${color.gold(wallet.gold.toString())} → ${color.gold((wallet.gold + amount).toString())}`
+                    `余额变化: ${color.gold(oldBalance.toString())} 到 ${color.gold(currentBalance.toString())}`
                   )
                 );
                 targetPlayer.sendMessage(
-                  color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${wallet.gold + amount}`)
+                  color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`)
                 );
                 successCount++;
               } else {
@@ -1294,6 +1374,7 @@ function handleMoneySettingCommand(
 
               const removeSuccess = economic.removeGold(targetPlayer.name, amount, "管理员扣除");
               if (removeSuccess) {
+                const currentBalanceAfterRemove = economic.getWallet(targetPlayer.name).gold;
                 player.sendMessage(
                   color.green(
                     `成功为玩家 ${color.yellow(targetPlayer.name)} 扣除 ${color.gold(amount.toString())} 金币。`
@@ -1302,7 +1383,7 @@ function handleMoneySettingCommand(
 
                 targetPlayer.sendMessage(
                   color.red(
-                    `管理员扣除了您 ${color.gold(amount.toString())} 金币，当前余额: ${color.gold((currentBalance - amount).toString())}`
+                    `管理员扣除了您 ${color.gold(amount.toString())} 金币，当前余额: ${color.gold(currentBalanceAfterRemove.toString())}`
                   )
                 );
                 successCount++;
@@ -1375,15 +1456,17 @@ function handleMoneySettingCommand(
             if (amount <= 0) {
               return { status: CustomCommandStatus.Failure, message: "添加金币数量必须大于0" };
             }
+            const oldBalance = wallet.gold;
             const addedAmount = economic.addGold(targetPlayer.name, amount, "管理员添加", true);
             if (addedAmount > 0) {
+              const currentBalance = economic.getWallet(targetPlayer.name).gold;
               // SystemLog.info(
               //   `成功为玩家 ${color.yellow(targetPlayer.name)} 添加 ${color.gold(amount.toString())} 金币。`
               // );
-              // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
+              // SystemLog.info(`余额变化: ${oldBalance} 到 ${currentBalance}`);
 
               targetPlayer.sendMessage(
-                color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${wallet.gold + amount}`)
+                color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`)
               );
               successCount++;
             } else {
@@ -1405,12 +1488,13 @@ function handleMoneySettingCommand(
 
             const removeSuccess = economic.removeGold(targetPlayer.name, amount, "管理员扣除");
             if (removeSuccess) {
+              const currentBalanceAfterRemove = economic.getWallet(targetPlayer.name).gold;
               // SystemLog.info(
               //   `成功为玩家 ${color.yellow(targetPlayer.name)} 扣除 ${color.gold(amount.toString())} 金币。`
               // );
-              // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
+              // SystemLog.info(`余额变化: ${wallet.gold} 到 ${currentBalanceAfterRemove}`);
 
-              targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${wallet.gold - amount}`));
+              targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${currentBalanceAfterRemove}`));
               successCount++;
             } else {
               // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 扣除金币失败。`);
@@ -1503,19 +1587,21 @@ function handleMoneySettingOfflineCommand(
               player.sendMessage(color.red("添加金币数量必须大于0。"));
               return;
             }
+            const oldBalance = wallet.gold;
             const addedAmount = economic.addGold(targetPlayerName, amount, "管理员添加", true);
             if (addedAmount > 0) {
+              const currentBalance = economic.getWallet(targetPlayerName).gold;
               player.sendMessage(
                 color.green(`成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`)
               );
               player.sendMessage(
                 color.gray(
-                  `当前余额: ${color.gold(wallet.gold.toString())} → ${color.gold((wallet.gold + amount).toString())}`
+                  `余额变化: ${color.gold(oldBalance.toString())} 到 ${color.gold(currentBalance.toString())}`
                 )
               );
               if (targetPlayer) {
                 targetPlayer.sendMessage(
-                  color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${wallet.gold + amount}`)
+                  color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`)
                 );
               }
             } else {
@@ -1540,6 +1626,7 @@ function handleMoneySettingOfflineCommand(
 
             const removeSuccess = economic.removeGold(targetPlayerName, amount, "管理员扣除");
             if (removeSuccess) {
+              const currentBalanceAfterRemove = economic.getWallet(targetPlayerName).gold;
               player.sendMessage(
                 color.green(`成功为玩家 ${color.yellow(targetPlayerName)} 扣除 ${color.gold(amount.toString())} 金币。`)
               );
@@ -1547,7 +1634,7 @@ function handleMoneySettingOfflineCommand(
               if (targetPlayer) {
                 targetPlayer.sendMessage(
                   color.red(
-                    `管理员扣除了您 ${color.gold(amount.toString())} 金币，当前余额: ${color.gold((currentBalance - amount).toString())}`
+                    `管理员扣除了您 ${color.gold(amount.toString())} 金币，当前余额: ${color.gold(currentBalanceAfterRemove.toString())}`
                   )
                 );
               }
@@ -1621,16 +1708,18 @@ function handleMoneySettingOfflineCommand(
             // SystemLog.error("添加金币数量必须大于0。");
             return { status: CustomCommandStatus.Failure, message: "添加金币数量必须大于0" };
           }
+          const oldBalance = wallet.gold;
           const addedAmount = economic.addGold(targetPlayerName, amount, "管理员添加", true);
           if (addedAmount > 0) {
+            const currentBalance = economic.getWallet(targetPlayerName).gold;
             // SystemLog.info(
-            //   `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
+              //   `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
             // );
-            // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold + amount}`);
+            // SystemLog.info(`余额变化: ${oldBalance} 到 ${currentBalance}`);
 
             if (targetPlayer) {
               targetPlayer.sendMessage(
-                color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${wallet.gold + amount}`)
+                color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`)
               );
             }
           } else {
@@ -1652,13 +1741,14 @@ function handleMoneySettingOfflineCommand(
 
           const removeSuccess = economic.removeGold(targetPlayerName, amount, "管理员扣除");
           if (removeSuccess) {
+            const currentBalanceAfterRemove = economic.getWallet(targetPlayerName).gold;
             // SystemLog.info(
             //   `成功为玩家 ${color.yellow(targetPlayerName)} 扣除 ${color.gold(amount.toString())} 金币。`
             // );
-            // SystemLog.info(`当前余额: ${wallet.gold} → ${wallet.gold - amount}`);
+            // SystemLog.info(`余额变化: ${wallet.gold} 到 ${currentBalanceAfterRemove}`);
 
             if (targetPlayer) {
-              targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${wallet.gold - amount}`));
+              targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${currentBalanceAfterRemove}`));
             }
           } else {
             // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 扣除金币失败。`);
@@ -1704,7 +1794,7 @@ function handleGiveMenuCommand(origin: CustomCommandOrigin): CustomCommandResult
   system.run(() => {
     try {
       player.runCommand("give @s yuehua:sm");
-      player.sendMessage(color.green("已为您发放服务器菜单！"));
+      player.sendMessage(color.green("已为您发放苦力怕菜单！"));
     } catch (error) {
       player.sendMessage(color.red(`获取菜单失败: ${(error as Error).message}`));
     }

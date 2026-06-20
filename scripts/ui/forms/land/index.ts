@@ -15,6 +15,7 @@ import { useFormatInfo, useFormatListInfo } from "../../../shared/hooks/use-form
 import { useAllPlayers } from "../../../shared/hooks/use-player";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import type { ILand } from "../../../core/types";
+import { BRANDING } from "../../../core/constants";
 import guildService from "../../../features/guild/services/guild-service";
 import setting from "../../../features/system/services/setting";
 import {
@@ -1311,7 +1312,7 @@ export const openLandDetailForm = (
       infoList.push(
         "公会领地: " +
           (g ? color.green(`[${g.tag}] ${g.name}`) : color.gray("已登记（公会数据异常）")) +
-          color.gray("（在「服务器菜单 → 公会 → 公会领地」管理）")
+          color.gray(`（在「${BRANDING.MENU_ITEM_LABEL} → 公会 → 公会领地」管理）`)
       );
     } else {
       infoList.push("公会领地: " + color.gray("仅可在公会菜单内创建公会领地"));
@@ -1430,7 +1431,7 @@ export function openLandListForm(player: Player, isAdmin: boolean = false, page:
   }
 }
 
-// ==================== 领地系统管理主菜单（服务器菜单 → 领地） ====================
+// ==================== 领地系统管理主菜单（苦力怕菜单 → 领地） ====================
 
 function buildLandFlightButtonLabel(player: Player): string {
   const intervalSec = Number(setting.getState("landFlightBillingIntervalSec")) || 60;

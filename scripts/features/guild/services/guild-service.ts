@@ -19,6 +19,7 @@ import nameDisplay from "../../player/services/name-display";
 import onlineTimeService, { formatOnlineDuration } from "../../player/services/online-time";
 import wayPoint from "../../waypoint/services/waypoint";
 import type { ILand } from "../../../core/types";
+import { BRANDING } from "../../../core/constants";
 import type { IGuild, GuildRole, IPendingGuildInvite } from "../models/guild.model";
 import { CURRENT_GUILD_SCHEMA_VERSION } from "../models/guild.model";
 import { getGuildPlayerIndexDb } from "./guild-player-index-db";
@@ -454,7 +455,7 @@ class GuildService {
     return "";
   }
 
-  /** 管理员从服务器菜单强制解散公会（不检查公会模块总开关） */
+  /** 管理员从苦力怕菜单强制解散公会（不检查公会模块总开关） */
   adminForceDisbandGuild(admin: Player, guildId: string): string {
     if (!isAdmin(admin)) return "只有管理员可操作";
     if (!this.ensureDbs()) return "公会系统未就绪";
@@ -514,7 +515,7 @@ class GuildService {
     const online = usePlayerByName(tname);
     if (online) {
       online.sendMessage(
-        `${color.green(`你收到来自 ${player.name} 的公会邀请`)} ${color.yellow(`[${g.tag}] ${g.name}`)} ${color.gray("请打开「服务器菜单」→「公会」处理邀请")}`
+        `${color.green(`你收到来自 ${player.name} 的公会邀请`)} ${color.yellow(`[${g.tag}] ${g.name}`)} ${color.gray(`请打开「${BRANDING.MENU_ITEM_LABEL}」→「公会」处理邀请`)}`
       );
     }
     return "";

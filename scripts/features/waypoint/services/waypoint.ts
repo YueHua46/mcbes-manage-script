@@ -9,7 +9,6 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 import { isAdmin } from "../../../shared/utils/common";
 import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
-import { isSafeTeleportLocation } from "../../../shared/utils/safe-teleport";
 import setting, { IValueType } from "../../system/services/setting";
 
 export interface IWayPoint {
@@ -366,9 +365,6 @@ class WayPoint {
     const startDimension = player.dimension;
     const targetLocation = wayPoint.location;
     const targetDimension = world.getDimension(wayPoint.dimension);
-    if (!isSafeTeleportLocation(targetDimension, targetLocation)) {
-      return "该坐标点目标位置不安全，请更新坐标点后再传送";
-    }
 
     // 粒子效果渐进系统（独立于倒计时）
     let particleIntensity = 0.0;
@@ -476,12 +472,6 @@ class WayPoint {
         // 执行传送
         system.run(() => {
           try {
-            if (!isSafeTeleportLocation(targetDimension, targetLocation)) {
-              player.onScreenDisplay.setTitle("");
-              player.onScreenDisplay.setActionBar(color.red("传送失败：目标位置不安全"));
-              return;
-            }
-
             player.teleport(targetLocation, {
               dimension: targetDimension,
             });

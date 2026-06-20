@@ -10,6 +10,7 @@ import { openDialogForm } from "../../components/dialog";
 import economic from "../../../features/economic/services/economic";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
 import { colorCodes } from "../../../shared/utils/color";
+import { BRANDING } from "../../../core/constants";
 
 class SellItemsForm {
   /**
@@ -324,7 +325,7 @@ class SellItemsForm {
   private confirmSellAllItems(player: Player): void {
     const form = new ActionFormData()
       .title("一键出售")
-      .body(`${colorCodes.yellow}您确定要出售背包中的所有物品吗？\n${colorCodes.red}注意：服务器菜单道具不会被出售。`)
+      .body(`${colorCodes.yellow}您确定要出售背包中的所有物品吗？\n${colorCodes.red}注意：${BRANDING.MENU_ITEM_LABEL}道具不会被出售。`)
       .button("确认出售", "textures/icons/accept")
       .button("取消", "textures/icons/deny");
 

@@ -13,6 +13,7 @@ import setting from "../../features/system/services/setting";
 import { isAdmin } from "../../shared/utils/common";
 import { color } from "../../shared/utils/color";
 import { useNotify } from "../../shared/hooks";
+import { BRANDING } from "../../core/constants";
 
 // 用于跟踪玩家的战斗状态（用于触发进入战斗特效）
 const playerCombatStatus = new Map<string, boolean>();
@@ -64,7 +65,7 @@ function checkPvpWithReason(attacker: Player, victim: Player): { canPvp: boolean
   if (!attackerData.pvpEnabled) {
     return {
       canPvp: false,
-      reason: `${color.red("⚠ 你自己")}${color.yellow("还没有开启PVP！")}\n${color.aqua("→ 打开服务器菜单 → PVP系统 → 开启PVP")}`,
+      reason: `${color.red("⚠ 你自己")}${color.yellow("还没有开启PVP！")}\n${color.aqua(`→ 打开${BRANDING.MENU_ITEM_LABEL} → PVP系统 → 开启PVP`)}`,
     };
   }
 

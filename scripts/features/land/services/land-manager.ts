@@ -13,7 +13,6 @@ import { openConfirmDialogForm } from "../../../ui/components/dialog";
 import economic from "../../economic/services/economic";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import { getGuildPlayerIndexDb } from "../../guild/services/guild-player-index-db";
-import { isSafeTeleportLocation } from "../../../shared/utils/safe-teleport";
 
 class LandManager {
   db!: Database<ILand>;
@@ -473,9 +472,6 @@ class LandManager {
     const startDimension = player.dimension;
     const targetLocation = land.teleportPoint;
     const targetDimension = world.getDimension(land.dimension);
-    if (!isSafeTeleportLocation(targetDimension, targetLocation)) {
-      return "该领地传送点不安全，请领主或管理员重新设置传送点";
-    }
 
     // 粒子类型（末影人传送的紫色粒子）
     const PARTICLE_TYPES = ["minecraft:mob_portal"];
@@ -614,12 +610,6 @@ class LandManager {
 
         system.run(() => {
           try {
-            if (!isSafeTeleportLocation(targetDimension, targetLocation)) {
-              player.onScreenDisplay.setTitle("");
-              player.onScreenDisplay.setActionBar(color.red("传送失败：目标位置不安全"));
-              return;
-            }
-
             player.teleport(targetLocation, {
               dimension: targetDimension,
             });

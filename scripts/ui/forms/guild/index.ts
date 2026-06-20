@@ -1,5 +1,5 @@
 /**
- * 公会系统：全部通过服务器菜单与表单交互（不依赖聊天命令）
+ * 公会系统：全部通过苦力怕菜单与表单交互（不依赖聊天命令）
  */
 
 import { Player, world } from "@minecraft/server";
@@ -1022,7 +1022,7 @@ async function openGuildLandsMenu(player: Player): Promise<void> {
 }
 
 /**
- * 公会一级入口：「公会列表」「我的公会」「返回服务器菜单」
+ * 公会一级入口：「公会列表」「我的公会」「返回苦力怕菜单」
  */
 export async function openGuildMenuForm(player: Player): Promise<void> {
   if (guildService.isModuleEnabled() !== true) {

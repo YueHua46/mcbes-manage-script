@@ -16,6 +16,7 @@ import setting from "../../../features/system/services/setting";
 import { isAdmin } from "../../../shared/utils/common";
 import { teleportPlayer as doTpaTeleport, notifyReject } from "../../../features/player/services/tpa-logic";
 import * as tpaRequest from "../../../features/player/services/tpa-request";
+import { openFakePlayerMenu } from "./fake-player";
 
 // ==================== TPA传送系统 ====================
 
@@ -118,6 +119,7 @@ function createPlayerActionForm(): ActionFormData {
   form.title("§w玩家操作");
   form.button("§wTPA玩家传送", "textures/icons/social");
   form.button("§wTPA设置", "textures/icons/chatCooldown");
+  form.button("§w假人管理", "textures/icons/spectator");
   form.button("§w聊天栏配置", "textures/icons/chat_bubble_white");
   form.button("§w名字显示设置", "textures/icons/profile");
   form.button("§w返回", "textures/icons/back");
@@ -137,12 +139,15 @@ export function openPlayerActionForm(player: Player): void {
         openTpaSettingsForm(player);
         break;
       case 2:
-        openChatForm(player);
+        openFakePlayerMenu(player, () => openPlayerActionForm(player));
         break;
       case 3:
-        openPlayerDisplaySettingsForm(player);
+        openChatForm(player);
         break;
       case 4:
+        openPlayerDisplaySettingsForm(player);
+        break;
+      case 5:
         openServerMenuForm(player);
         break;
     }

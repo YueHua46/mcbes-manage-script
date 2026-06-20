@@ -1,5 +1,5 @@
 /**
- * 杜绝熊孩服务器插件 - 本地/BDS 调试版入口
+ * 苦力怕菜单 - 本地/BDS 调试版入口
  * 包含 @minecraft/debug-utilities，不适用于 Realms 领域服。
  */
 
@@ -23,7 +23,7 @@ import "./events/handlers/index.standard";
 
 function initializeApp(): void {
   SystemLog.info("========================================");
-  SystemLog.info("杜绝熊孩服务器插件 v2.0 启动中...");
+  SystemLog.info("苦力怕菜单 v2.0 启动中...");
   SystemLog.info("当前构建：本地/BDS 调试版（含 DebugUtilities，不适用 Realms）");
   SystemLog.info("========================================");
 

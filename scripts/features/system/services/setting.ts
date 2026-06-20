@@ -117,6 +117,12 @@ export type IModules =
   | "floatingTextMaxPerPlayer"
   /** 所有玩家每次创建悬浮文字消耗金币；0 表示免费 */
   | "floatingTextCreateCost"
+  /** 假人加载锚点系统入口与实体维护开关 */
+  | "fakePlayer"
+  /** 普通玩家最多可创建的假人数量 */
+  | "fakePlayerMaxPerPlayer"
+  /** 每次创建假人消耗金币；0 表示免费 */
+  | "fakePlayerCreateCost"
   /** 保留键（兼容旧库）；在线时长不由本键控制，仅「stats」控制数据统计入口 */
   | "onlineTime"
   /** 服务器主菜单「数据统计」入口；子榜单不再单独设开关 */
@@ -192,7 +198,7 @@ export const defaultSetting = {
   pvpForcedIgnoreLandProtection: false, // 强制大乱斗模式是否无视领地保护，默认关闭
   serverName: "服务器", // 服务器名称
   welcomeMessage:
-    "§a欢迎使用杜绝熊孩服务器插件~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限", // 进服欢迎消息
+    "§a欢迎使用苦力怕菜单~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取苦力怕菜单管理员权限", // 进服欢迎消息
   joinPopupAnnouncements: "[]", // 进服弹窗公告，JSON 字符串数组，最多 5 条
   blacklistEnabled: false, // 黑名单进服前拦截开关（仅 BDS 增强版有效）
   behaviorLogEnabled: true, // 玩家行为日志
@@ -246,6 +252,9 @@ export const defaultSetting = {
   floatingTextAllowMembers: false,
   floatingTextMaxPerPlayer: "3",
   floatingTextCreateCost: "0",
+  fakePlayer: true,
+  fakePlayerMaxPerPlayer: "3",
+  fakePlayerCreateCost: "0",
   onlineTime: true,
   stats: true,
   /** 红包从发放到过期的小时数（默认 24 小时即 1 天） */

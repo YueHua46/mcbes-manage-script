@@ -4,14 +4,15 @@ import * as tpaRequest from "../features/player/services/tpa-request";
 import { teleportPlayer as tpaTeleport, notifyReject as tpaNotifyReject } from "../features/player/services/tpa-logic";
 import { usePlayerByName } from "../shared/hooks/use-player";
 import { color } from "../shared/utils/color";
+import { isMenuChatTrigger } from "../core/constants";
 
 world.beforeEvents.chatSend.subscribe((event) => {
   const { sender, message } = event;
   const trimmed = message.trim().toLowerCase();
 
-  if (message === "服务器菜单") {
+  if (isMenuChatTrigger(message)) {
+    event.cancel = true;
     system.run(() => {
-      event.cancel = true;
       openServerMenuForm(sender);
     });
     return;

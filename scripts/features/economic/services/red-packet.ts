@@ -11,6 +11,7 @@ import { SystemLog } from "../../../shared/utils/common";
 import setting from "../../system/services/setting";
 import economic from "./economic";
 import { taskScheduler } from "../../platform/scheduler";
+import { BRANDING } from "../../../core/constants";
 import type { IRedPacket, RedPacketMode } from "../models/red-packet.model";
 
 /** 未配置时的默认有效时长：24 小时（毫秒） */
@@ -305,7 +306,7 @@ class RedPacketService {
       lines.push(`${color.lightPurple("寄语:")} ${color.white(packet.message)}`);
     }
     lines.push(`${color.gray("────────────────────────────────")}`);
-    lines.push(`${color.gray("领取方式:")} ${color.green("服务器菜单:")} ${color.white("经济系统 → 红包 → 待领红包")}`);
+    lines.push(`${color.gray("领取方式:")} ${color.green(`${BRANDING.MENU_ITEM_LABEL}:`)} ${color.white("经济系统 → 红包 → 待领红包")}`);
     lines.push(`${color.gold("§l═══════════════════════════════════§r")}`);
 
     const text = lines.join("\n");

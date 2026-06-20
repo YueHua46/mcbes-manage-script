@@ -7,7 +7,7 @@
 - 入口：`scripts/main.ts` 默认导入 `main.standard.ts`，BDS 增强版为 `main.bds.ts`。
 - 启动加载：数据库、系统设置、试玩模式、一键功能、玩家名显示、自定义命令、黑名单、行为日志工具、公会模块。
 - 事件注册：`eventRegistry.initializeAll()` 从 `scripts/events/handlers/index.standard.ts` / `index.bds.ts` 注册聊天、玩家、领地、PVP、行为日志、在线时间、领地飞行、统计、物品监控、反复制等事件。
-- 用户入口：服务器菜单 `scripts/ui/forms/server/index.ts` 分发到经济、领地、公会、PVP、数据统计、系统、行为日志等 UI。
+- 用户入口：苦力怕菜单 `scripts/ui/forms/server/index.ts` 分发到经济、领地、公会、PVP、数据统计、系统、行为日志等 UI。
 
 ## 优先级定义
 

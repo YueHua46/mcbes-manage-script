@@ -66,7 +66,7 @@ class PvpManager {
   }
 
   getMode(): PvpMode {
-    // 服务器菜单里的 PVP 系统总开关关闭时，插件完全放手，交回原版世界设置处理。
+    // 苦力怕菜单里的 PVP 系统总开关关闭时，插件完全放手，交回原版世界设置处理。
     if (!this.isModuleEnabled()) {
       return "vanilla";
     }
