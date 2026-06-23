@@ -469,7 +469,7 @@ class SellItemsForm {
     reachedLimit: boolean
   ): void {
     const form = new ActionFormData();
-    form.title("§w一键出售结果");
+    form.title("一键出售结果");
 
     // 构建 RawMessage 格式的详细信息
     const bodyRawText: any[] = [];

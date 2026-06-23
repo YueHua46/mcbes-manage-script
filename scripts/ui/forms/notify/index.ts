@@ -142,7 +142,7 @@ export const openUpdateNotifyForm = (player: Player): void => {
   notifys.forEach((n) => {
     form.button(n.title, "textures/ui/icon_bell");
   });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
@@ -187,7 +187,7 @@ export const openNotifyForms = (player: Player): void => {
   ];
 
   buttons.forEach(({ text, icon }) => form.button(text, icon));
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;

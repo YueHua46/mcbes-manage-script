@@ -38,7 +38,7 @@ import floatingTextService from "../../../features/floating-text/services/floati
 
 function openLandFlightSettingsForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w领地飞行设置");
+  form.title("领地飞行设置");
   form.toggle("启用领地内飞行", {
     defaultValue: setting.getState("landFlightEnabled") === true,
   });
@@ -117,70 +117,70 @@ export function openSystemSettingForm(player: Player): void {
   }
 
   const form = new ActionFormData();
-  form.title("§w服务器设置");
+  form.title("服务器设置");
 
   const buttons = [
     {
-      text: "§w服务器实时面板",
+      text: "服务器实时面板",
       icon: "textures/icons/info",
       action: () => void openLiveServerPanel(player, () => openSystemSettingForm(player)),
     },
     {
-      text: "§w通用系统设置",
+      text: "通用系统设置",
       icon: "textures/icons/gear",
       action: () => openGeneralSettingsForm(player),
     },
     {
-      text: "§w功能开关管理",
+      text: "功能开关管理",
       icon: "textures/icons/gadgets",
       action: () => openModuleToggleForm(player),
     },
     {
-      text: "§w领地系统管理",
+      text: "领地系统管理",
       icon: "textures/icons/home",
       action: async () => {
         openLandManageForm(player);
       },
     },
     {
-      text: "§w坐标点管理",
+      text: "坐标点管理",
       icon: "textures/icons/checkpoint",
       action: () => openWayPointManageMenu(player),
     },
     {
-      text: "§w公会系统管理",
+      text: "公会系统管理",
       icon: "textures/icons/bina",
       action: () => openGuildSystemSettingsMenu(player),
     },
     {
-      text: "§w悬浮文字管理",
+      text: "悬浮文字管理",
       icon: "textures/icons/chat_bubble_white",
       action: () => openFloatingTextMenu(player),
     },
     {
-      text: "§w通知管理",
+      text: "通知管理",
       icon: "textures/icons/duyuru",
       action: async () => {
         openNotifyForms(player);
       },
     },
     {
-      text: "§w进服弹窗公告",
+      text: "进服弹窗公告",
       icon: "textures/icons/info",
       action: () => openJoinPopupAnnouncementManageForm(player),
     },
     {
-      text: "§w试玩模式管理",
+      text: "试玩模式管理",
       icon: "textures/icons/game_battle_box",
       action: () => openTrialModeManageForm(player),
     },
     {
-      text: "§w经济系统管理",
+      text: "经济系统管理",
       icon: "textures/icons/shop_bank",
       action: () => openEconomyManageForm(player),
     },
     {
-      text: "§wPVP管理",
+      text: "PVP管理",
       icon: "textures/icons/sword",
       action: async () => {
         const { openPvpManagementForm } = await import("../pvp/admin");
@@ -188,7 +188,7 @@ export function openSystemSettingForm(player: Player): void {
       },
     },
     {
-      text: "§w黑名单管理",
+      text: "黑名单管理",
       icon: "textures/icons/mod_shield",
       action: async () => {
         if (isServerAdminBuild()) {
@@ -212,22 +212,22 @@ export function openSystemSettingForm(player: Player): void {
       },
     },
     {
-      text: "§w玩家行为日志",
+      text: "玩家行为日志",
       icon: "textures/icons/eyes",
       action: () => openBehaviorLogForm(player),
     },
     {
-      text: "§w防刷物品设置",
+      text: "防刷物品设置",
       icon: "textures/icons/infinibag",
       action: () => openAntiDupeSettingsForm(player),
     },
     {
-      text: "§w离线玩家时长查询",
+      text: "离线玩家时长查询",
       icon: "textures/icons/party_unavailable",
       action: () => openOfflineDurationQueryMenu(player, () => openSystemSettingForm(player)),
     },
     {
-      text: "§w玩家背包管理",
+      text: "玩家背包管理",
       icon: "textures/icons/quest_chest",
       action: () => openPlayerInventoryAdminForm(player),
     },
@@ -237,7 +237,7 @@ export function openSystemSettingForm(player: Player): void {
     form.button(button.text, button.icon);
   });
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -255,7 +255,7 @@ export function openSystemSettingForm(player: Player): void {
 
 export function openGeneralSettingsForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w通用系统设置");
+  form.title("通用系统设置");
 
   const settingItems = [
     { key: "serverName", name: "服务器名称(将会影响进服玩家看到的欢迎信息中的服务器名称)", type: "string" },
@@ -281,11 +281,11 @@ export function openGeneralSettingsForm(player: Player): void {
 
   settingItems.forEach((item) => {
     const currentValue = setting.getState(item.key as any);
-    // 使用白色主标题 + 青色标签 + 金色数值，在淡灰色背景下清晰可读
-    form.button(`${item.name}\n当前: ${colorCodes.darkAqua}${currentValue}`, "textures/icons/gadgets");
+    // 第二行用高对比辅助色，避免表单按钮背景上发灰发蓝看不清。
+    form.button(`${item.name}\n§0当前: ${currentValue}`, "textures/icons/gadgets");
   });
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -368,12 +368,12 @@ function openEditSettingForm(
 
 function openGuildSystemSettingsMenu(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w公会系统管理");
-  form.body("§7公会总开关请在「功能开关管理」中设置。\n§7以下为数值、金库费用与附属选项。");
-  form.button("§w数值与限额", "textures/icons/gadgets");
-  form.button("§w显示与行为开关", "textures/icons/gadgets");
-  form.button("§w强制解散公会", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+  form.title("公会系统管理");
+  form.body("§7公会总开关请在「功能开关管理」中设置。\n§0以下为数值、金库费用与附属选项。");
+  form.button("数值与限额", "textures/icons/gadgets");
+  form.button("显示与行为开关", "textures/icons/gadgets");
+  form.button("强制解散公会", "textures/icons/deny");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -398,7 +398,7 @@ function openGuildSystemSettingsMenu(player: Player): void {
 
 function openGuildNumericSettingsForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w公会数值与限额");
+  form.title("公会数值与限额");
 
   const settingItems = [
     { key: "guildMaxMembers", name: "每公会最大人数", type: "number" as const },
@@ -416,10 +416,10 @@ function openGuildNumericSettingsForm(player: Player): void {
 
   settingItems.forEach((item) => {
     const currentValue = setting.getState(item.key as any);
-    form.button(`${item.name}\n当前: ${colorCodes.darkAqua}${currentValue}`, "textures/icons/gadgets");
+    form.button(`${item.name}\n§0当前: ${currentValue}`, "textures/icons/gadgets");
   });
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -440,7 +440,7 @@ function openGuildNumericSettingsForm(player: Player): void {
 
 function openGuildToggleSettingsForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w公会显示与行为");
+  form.title("公会显示与行为");
 
   const features: {
     key:
@@ -501,7 +501,7 @@ function openGuildAdminForceDisbandListForm(player: Player, page: number = 1): v
   const currentPageGuilds = allGuilds.slice(start, start + pageSize);
 
   const form = new ActionFormData();
-  form.title("§w强制解散公会");
+  form.title("强制解散公会");
   form.body(
     [
       `第 ${safePage} / ${totalPages} 页 · 共 ${allGuilds.length} 个公会`,
@@ -523,17 +523,17 @@ function openGuildAdminForceDisbandListForm(player: Player, page: number = 1): v
   let nextButtonIndex = currentPageGuilds.length;
 
   if (safePage > 1) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
 
   if (safePage < totalPages) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -545,7 +545,7 @@ function openGuildAdminForceDisbandListForm(player: Player, page: number = 1): v
       const g = currentPageGuilds[selectionIndex];
       openConfirmDialogForm(
         player,
-        "§w强制解散公会",
+        "强制解散公会",
         `[${g.tag}] ${g.name}\n会长: ${g.ownerName}\n\n§c§l解散后：所有成员移出；本会金库、公会坐标、公会领地（含领地数据）及待处理邀请等将全部清除，不可恢复。确定吗？`,
         () => {
           const err = guildService.adminForceDisbandGuild(player, g.id);
@@ -578,7 +578,7 @@ function openGuildAdminForceDisbandListForm(player: Player, page: number = 1): v
 
 export function openModuleToggleForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w功能开关管理");
+  form.title("功能开关管理");
 
   const modules = [
     { key: "player", name: "玩家功能模块" },
@@ -665,12 +665,12 @@ export function openModuleToggleForm(player: Player): void {
 
 export function openTrialModeManageForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w试玩模式管理");
+  form.title("试玩模式管理");
 
-  form.button("§w会员列表", "textures/icons/social");
-  form.button("§w添加会员", "textures/icons/add");
-  form.button("§w移除会员", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+  form.button("会员列表", "textures/icons/social");
+  form.button("添加会员", "textures/icons/add");
+  form.button("移除会员", "textures/icons/deny");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -696,7 +696,7 @@ function openMemberListForm(player: Player): void {
   const members = memberManager.getAllMembers();
 
   const form = new ActionFormData();
-  form.title("§w正式会员列表");
+  form.title("正式会员列表");
 
   if (members.length === 0) {
     form.body(color.yellow("当前没有正式会员"));
@@ -708,7 +708,7 @@ function openMemberListForm(player: Player): void {
     form.body(bodyText);
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled) return;
@@ -723,7 +723,7 @@ function openAddMemberForm(player: Player): void {
   if (playerNames.length === 0) {
     // 理论上不会发生，因为至少当前玩家应该在线
     const form = new ModalFormData();
-    form.title("§w添加会员");
+    form.title("添加会员");
     form.textField("玩家名称", "请输入玩家名称（支持批量，用逗号分隔）");
     form.submitButton("确认");
 
@@ -758,7 +758,7 @@ function openAddMemberForm(player: Player): void {
   } else {
     // 有在线玩家，显示下拉框和文本输入框
     const form = new ModalFormData();
-    form.title("§w添加会员");
+    form.title("添加会员");
     form.dropdown("选择在线玩家", ["-- 不选择 --", ...playerNames], {
       defaultValueIndex: 0,
     });
@@ -825,7 +825,7 @@ function openRemoveMemberForm(player: Player): void {
   if (playerNames.length === 0) {
     // 理论上不会发生，因为至少当前玩家应该在线
     const form = new ModalFormData();
-    form.title("§w移除会员");
+    form.title("移除会员");
     form.textField("玩家名称", "请输入玩家名称（支持批量，用逗号分隔）");
     form.submitButton("确认");
 
@@ -870,7 +870,7 @@ function openRemoveMemberForm(player: Player): void {
   } else {
     // 有在线玩家，显示下拉框和文本输入框
     const form = new ModalFormData();
-    form.title("§w移除会员");
+    form.title("移除会员");
     form.dropdown("选择在线玩家", ["-- 不选择 --", ...playerNames], {
       defaultValueIndex: 0,
     });
@@ -944,11 +944,11 @@ function openRemoveMemberForm(player: Player): void {
 
 export const openWayPointManageMenu = (player: Player): void => {
   const form = new ActionFormData();
-  form.title("§w坐标点管理");
+  form.title("坐标点管理");
 
-  form.button("§w所有玩家坐标点管理", "textures/icons/game_parkour_tag");
-  form.button("§w搜索玩家坐标点", "textures/ui/magnifyingGlass");
-  form.button("§w返回", "textures/icons/back");
+  form.button("所有玩家坐标点管理", "textures/icons/game_parkour_tag");
+  form.button("搜索玩家坐标点", "textures/ui/magnifyingGlass");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -969,7 +969,7 @@ export const openWayPointManageMenu = (player: Player): void => {
 
 function openPlayerWayPointManageForm(player: Player, page: number = 1, returnForm?: () => void): void {
   const form = new ActionFormData();
-  form.title("§w玩家坐标点管理");
+  form.title("玩家坐标点管理");
 
   const wayPoint = require("../../../features/waypoint/services/waypoint").default;
   const players = wayPoint.getWayPointPlayers();
@@ -995,17 +995,17 @@ function openPlayerWayPointManageForm(player: Player, page: number = 1, returnFo
   let nextButtonIndex = currentPagePlayers.length;
 
   if (page > 1) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
 
   if (page < totalPages) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
 
   form.show(player).then((data) => {
@@ -1076,8 +1076,8 @@ function openAdminGuildWaypointForGuildForm(
   }
 
   const form = new ActionFormData();
-  form.title("§w公会坐标（管理员）");
-  form.body(`[${g.tag}] ${g.name}\n§7点击下方条目可删除该坐标`);
+  form.title("公会坐标（管理员）");
+  form.body(`[${g.tag}] ${g.name}\n§0点击下方条目可删除该坐标`);
 
   const actions: Array<() => void> = [];
 
@@ -1085,12 +1085,12 @@ function openAdminGuildWaypointForGuildForm(
     const wp = wayPoint.getPointByDbKey(dbKey);
     const label = wp ? wp.name : dbKey;
     const sub = wp ? wp.dimension : "?";
-    form.button(`§l§e${label}§r\n§8${sub}`, "textures/icons/fast_travel");
+    form.button(`${label}\n§0${sub}`, "textures/icons/fast_travel");
     actions.push(() => {
       openConfirmDialogForm(
         player,
         "删除公会坐标",
-        `§e确定删除「${label}」吗？\n§7此操作不可恢复。`,
+        `§e确定删除「${label}」吗？\n§0此操作不可恢复。`,
         () => {
           const err = guildService.adminRemoveGuildWaypointByDbKey(player, guildId, dbKey);
           openDialogForm(
@@ -1108,7 +1108,7 @@ function openAdminGuildWaypointForGuildForm(
     });
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => openAdminGuildWaypointManageForm(player, listPage, returnForm));
 
   form.show(player).then((data) => {
@@ -1144,27 +1144,27 @@ function openAdminGuildWaypointManageForm(player: Player, page: number = 1, retu
   const currentPageGuilds = allGuilds.slice(start, start + pageSize);
 
   const form = new ActionFormData();
-  form.title("§w选择公会（公会坐标）");
-  form.body(`第 ${safePage} / ${totalPages} 页 · 共 ${allGuilds.length} 个公会\n§7选择公会后管理其公会坐标`);
+  form.title("选择公会（公会坐标）");
+  form.body(`第 ${safePage} / ${totalPages} 页 · 共 ${allGuilds.length} 个公会\n§0选择公会后管理其公会坐标`);
 
   const actions: Array<() => void> = [];
 
   for (const g of currentPageGuilds) {
     const n = Object.keys(g.members).length;
-    form.button(`[${g.tag}] ${g.name}\n§8会长:${g.ownerName} · ${n}人`, "textures/icons/bina");
+    form.button(`[${g.tag}] ${g.name}\n§0会长:${g.ownerName} · ${n}人`, "textures/icons/bina");
     actions.push(() => openAdminGuildWaypointForGuildForm(player, g.id, safePage, returnForm));
   }
 
   if (safePage > 1) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     actions.push(() => openAdminGuildWaypointManageForm(player, safePage - 1, returnForm));
   }
   if (safePage < totalPages) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     actions.push(() => openAdminGuildWaypointManageForm(player, safePage + 1, returnForm));
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => {
     if (returnForm) returnForm();
     else openSystemSettingForm(player);
@@ -1182,7 +1182,7 @@ function openAdminGuildWaypointManageForm(player: Player, page: number = 1, retu
 
 function openLandSnapshotSettingsForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w领地快照设置");
+  form.title("领地快照设置");
   form.label(
     [
       "管理员可开启自动保存快照。开启后系统会按间隔为所有领地排队保存自动快照。",
@@ -1265,15 +1265,15 @@ function openLandSnapshotSettingsForm(player: Player): void {
 
 export const openLandManageForm = async (player: Player): Promise<void> => {
   const form = new ActionFormData();
-  form.title("§w领地系统管理");
+  form.title("领地系统管理");
 
-  form.button("§w所有玩家领地管理", "textures/icons/topraklar");
-  form.button("§w搜索玩家领地", "textures/ui/magnifyingGlass");
-  form.button("§w领地飞行设置", "textures/icons/durbun");
-  form.button("§w快照功能设置", "textures/icons/fotograf");
-  form.button("§w公会领地（管理员）", "textures/icons/island");
-  form.button("§w公会坐标（管理员）", "textures/icons/fast_travel");
-  form.button("§w返回", "textures/icons/back");
+  form.button("所有玩家领地管理", "textures/icons/topraklar");
+  form.button("搜索玩家领地", "textures/ui/magnifyingGlass");
+  form.button("领地飞行设置", "textures/icons/durbun");
+  form.button("快照功能设置", "textures/icons/fotograf");
+  form.button("公会领地（管理员）", "textures/icons/island");
+  form.button("公会坐标（管理员）", "textures/icons/fast_travel");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then(async (data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -1317,13 +1317,13 @@ export function openEconomyManageForm(player: Player): void {
   }
 
   const form = new ActionFormData();
-  form.title("§w经济系统管理");
+  form.title("经济系统管理");
 
-  form.button("§w官方商店管理", "textures/icons/shop");
-  form.button("§w物品出售价格管理", "textures/icons/clock");
-  form.button("§w玩家金币管理", "textures/icons/rewards");
-  form.button("§w功能设置", "textures/icons/gadgets");
-  form.button("§w返回", "textures/icons/back");
+  form.button("官方商店管理", "textures/icons/shop");
+  form.button("物品出售价格管理", "textures/icons/clock");
+  form.button("玩家金币管理", "textures/icons/rewards");
+  form.button("功能设置", "textures/icons/gadgets");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -1352,7 +1352,7 @@ export function openEconomyManageForm(player: Player): void {
 // 经济系统功能开关表单
 function openEconomyFeatureToggleForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w经济系统功能设置");
+  form.title("经济系统功能设置");
 
   const features: { key: "monsterKillGoldReward" | "deathGoldPenaltyEnabled"; name: string }[] = [
     { key: "monsterKillGoldReward", name: "杀怪掉金币" },
@@ -1410,11 +1410,11 @@ function openEconomyFeatureToggleForm(player: Player): void {
 // 玩家金币管理主菜单
 function openPlayerMoneyManageForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w玩家金币管理");
+  form.title("玩家金币管理");
 
-  form.button("§w设置指定玩家金币", "textures/icons/profile");
-  form.button("§w重置所有玩家金币", "textures/icons/requeue");
-  form.button("§w返回", "textures/icons/back");
+  form.button("设置指定玩家金币", "textures/icons/profile");
+  form.button("重置所有玩家金币", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -1435,7 +1435,7 @@ function openPlayerMoneyManageForm(player: Player): void {
 // 设置指定玩家金币表单
 function openSetPlayerMoneyForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w设置指定玩家金币");
+  form.title("设置指定玩家金币");
 
   // 获取所有在线玩家
   const onlinePlayers = world.getAllPlayers();
@@ -1553,7 +1553,7 @@ function openResetAllPlayerMoneyForm(player: Player): void {
   const defaultGold = Number(setting.getState("startingGold"));
 
   const form = new ModalFormData();
-  form.title("§w重置所有玩家金币");
+  form.title("重置所有玩家金币");
 
   form.textField("重置金额（默认起始金币）", `金额（整数，留空使用默认值 ${defaultGold}）`, {
     defaultValue: defaultGold.toString(),
@@ -1664,16 +1664,16 @@ function openItemPriceManageForm(player: Player): void {
   const totalItemsCount = itemPriceDb.getAllDefaultItemIds().length;
 
   const form = new ActionFormData()
-    .title("§w物品出售价格管理")
+    .title("物品出售价格管理")
     .body(
       `§a当前状态:\n§e已设置物品出售价格: ${customPricesCount} 个\n§e配置文件默认价格: ${totalItemsCount} 个\n§c注意：未设置价格的物品无法出售！\n§a请选择要进行的操作:`
     )
-    .button("§w初始化所有物品出售价格", "textures/icons/requeue")
-    .button("§w浏览已设置的物品出售价格", "textures/icons/quest_chest")
-    .button("§w手动修改物品出售价格", "textures/icons/edit2")
-    .button("§w搜索物品出售价格", "textures/ui/magnifyingGlass")
-    .button("§w清空所有物品出售价格", "textures/icons/deny")
-    .button("§w返回", "textures/icons/back");
+    .button("初始化所有物品出售价格", "textures/icons/requeue")
+    .button("浏览已设置的物品出售价格", "textures/icons/quest_chest")
+    .button("手动修改物品出售价格", "textures/icons/edit2")
+    .button("搜索物品出售价格", "textures/ui/magnifyingGlass")
+    .button("清空所有物品出售价格", "textures/icons/deny")
+    .button("返回", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled) return;
@@ -1703,7 +1703,7 @@ function openItemPriceManageForm(player: Player): void {
 // 分页显示自定义物品出售价格列表
 function showItemPricesWithPagination(player: Player, page: number = 1): void {
   const form = new ActionFormData();
-  form.title("§w自定义物品出售价格列表");
+  form.title("自定义物品出售价格列表");
 
   const customPrices = itemPriceDb.getAllCustomPrices();
   const entries = Object.entries(customPrices);
@@ -1747,14 +1747,14 @@ function showItemPricesWithPagination(player: Player, page: number = 1): void {
 
   // 添加导航按钮
   if (page > 1) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
   }
 
   if (page < totalPages) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled) return;
@@ -1791,7 +1791,7 @@ function openEditItemPriceForm(player: Player, itemId: string, currentPrice: num
   const formTitleRawMessage: RawMessage = {
     rawtext: [
       {
-        text: "§w",
+        text: "",
       },
       {
         text: "编辑物品出售价格 - ",
@@ -1805,9 +1805,9 @@ function openEditItemPriceForm(player: Player, itemId: string, currentPrice: num
   form.title(formTitleRawMessage);
 
   form.body(`§a当前出售价格: §e${currentPrice} §a金币\n§a请选择操作:`);
-  form.button("§w修改出售价格", "textures/icons/edit2");
-  form.button("§w删除价格设置", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+  form.button("修改出售价格", "textures/icons/edit2");
+  form.button("删除价格设置", "textures/icons/deny");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled) {
@@ -1858,7 +1858,7 @@ function openModifyCustomPriceForm(player: Player, itemId: string, currentPrice:
   const formTitleRawMessage: RawMessage = {
     rawtext: [
       {
-        text: "§w",
+        text: "",
       },
       {
         text: "修改物品出售价格 - ",
@@ -1931,7 +1931,7 @@ function openModifyCustomPriceForm(player: Player, itemId: string, currentPrice:
 // 搜索物品出售价格
 function openSearchItemPriceForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w搜索物品出售价格");
+  form.title("搜索物品出售价格");
   form.textField("§a物品名称或ID", "输入物品名称或ID的一部分");
 
   form.show(player).then((res) => {
@@ -1960,7 +1960,7 @@ function openSearchItemPriceForm(player: Player): void {
 // 显示搜索结果
 function showSearchResults(player: Player, searchTerm: string): void {
   const form = new ActionFormData();
-  form.title(`§w搜索结果 - "${searchTerm}"`);
+  form.title(`搜索结果 - "${searchTerm}"`);
 
   // 搜索所有物品（包括默认价格的物品）
   const allItemIds = itemPriceDb.getAllDefaultItemIds();
@@ -1974,7 +1974,7 @@ function showSearchResults(player: Player, searchTerm: string): void {
 
   if (matchedItems.length === 0) {
     form.body("§c未找到匹配的物品");
-    form.button("§w返回搜索", "textures/icons/back");
+    form.button("返回搜索", "textures/icons/back");
 
     form.show(player).then((res) => {
       if (!res.canceled) {
@@ -2007,7 +2007,7 @@ function showSearchResults(player: Player, searchTerm: string): void {
     form.button(itemNameRawMessage, dynamicMatchIconPath(displayName));
   });
 
-  form.button("§w返回搜索", "textures/icons/back");
+  form.button("返回搜索", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled) return;
@@ -2036,7 +2036,7 @@ function openInitializePricesConfirmForm(player: Player): void {
   const uninitializedCount = totalItemsCount - currentPricesCount;
 
   const form = new ActionFormData();
-  form.title("§w初始化所有物品出售价格确认");
+  form.title("初始化所有物品出售价格确认");
 
   let bodyText = `§a说明：此操作将使用配置文件中的价格初始化未设置价格的物品。\n`;
 
@@ -2095,11 +2095,11 @@ function openClearAllPricesConfirmForm(player: Player): void {
   const customPricesCount = Object.keys(itemPriceDb.getAllCustomPrices()).length;
 
   const form = new ActionFormData();
-  form.title("§w清空所有物品出售价格确认");
+  form.title("清空所有物品出售价格确认");
 
   if (customPricesCount === 0) {
     form.body(`§e当前没有任何物品设置了价格。\n§a所有物品的价格都是默认值0（不可出售）。`);
-    form.button("§a返回", "textures/icons/back");
+    form.button("返回", "textures/icons/back");
 
     form.show(player).then(() => {
       openItemPriceManageForm(player);
@@ -2146,7 +2146,7 @@ function openResetPricesConfirmForm(player: Player): void {
   const customPricesCount = Object.keys(itemPriceDb.getAllCustomPrices()).length;
 
   const form = new ActionFormData();
-  form.title("§w删除所有自定义物品出售价格确认");
+  form.title("删除所有自定义物品出售价格确认");
   form.body(
     `§c警告：此操作将删除所有自定义物品出售价格！\n§c当前有 ${customPricesCount} 个自定义物品出售价格将被删除！\n§c删除后所有物品将恢复使用默认物品出售价格！\n§e是否确认继续？`
   );
@@ -2273,7 +2273,7 @@ function openSetItemPriceForm(player: Player, item: ItemStack): void {
 
   // 使用物品本地化名称作为标题
   const titleRawMessage: RawMessage = {
-    rawtext: [{ text: "§w设置物品出售价格 - " }, { translate: item.localizationKey }],
+    rawtext: [{ text: "设置物品出售价格 - " }, { translate: item.localizationKey }],
   };
   form.title(titleRawMessage);
 

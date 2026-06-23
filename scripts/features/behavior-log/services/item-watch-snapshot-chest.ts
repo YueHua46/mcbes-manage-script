@@ -40,20 +40,20 @@ function snapshotChestTitle(payload: ItemWatchSnapshotPayload): string | RawMess
   if (locKey) {
     return {
       rawtext: [
-        { text: "§w获得物品时的背包存档\n§3" },
+        { text: "获得物品时的背包存档\n§0" },
         { text: payload.playerName },
         { text: " §3· §f" },
         { translate: locKey },
-        { text: `\n§3${timeLine}` },
+        { text: `\n§0${timeLine}` },
       ],
     };
   }
-  return `§w获得物品时的背包存档\n§3${payload.playerName} §3· §f${payload.acquiredTypeId}\n§3${timeLine}`;
+  return `获得物品时的背包存档\n§0${payload.playerName} §3· §f${payload.acquiredTypeId}\n§0${timeLine}`;
 }
 
 function nestedSnapshotTitle(payload: ItemWatchSnapshotPayload, chain: DrillFrame[]): RawMessage | string {
   const path = chain.map((f) => f.titleHint).join(" §8>§r ");
-  const pathLine = `\n§7容器: ${path}`;
+  const pathLine = `\n§0容器: ${path}`;
   const base = snapshotChestTitle(payload);
   if (typeof base === "string") {
     return `${base}${pathLine}`;
@@ -81,7 +81,7 @@ function buildRootChestForm(payload: ItemWatchSnapshotPayload): ChestFormData {
       form.button(
         i,
         `${row?.label ?? "?"} §3空`,
-        ["§3该槽位当时无物品"],
+        ["§0该槽位当时无物品"],
         GLASS,
         1,
         0,
@@ -104,7 +104,7 @@ function buildRootChestForm(payload: ItemWatchSnapshotPayload): ChestFormData {
   }
 
   for (let g = 6; g <= 8; g++) {
-    form.button(g, " ", ["§3─"], SEPARATOR, 1, 0, false);
+    form.button(g, " ", ["§0─"], SEPARATOR, 1, 0, false);
   }
 
   const byInv = new Map<number, ItemWatchSlotLine & { slotIndex: number }>();
@@ -131,8 +131,8 @@ function buildRootChestForm(payload: ItemWatchSnapshotPayload): ChestFormData {
     } else {
       form.button(
         chestSlot,
-        `§3#${invIdx} 空`,
-        ["§3背包格当时为空"],
+        `§0#${invIdx} 空`,
+        ["§0背包格当时为空"],
         GLASS,
         1,
         0,
@@ -142,10 +142,10 @@ function buildRootChestForm(payload: ItemWatchSnapshotPayload): ChestFormData {
   }
 
   for (let u = 45; u <= 51; u++) {
-    form.button(u, " ", ["§3─"], SEPARATOR, 1, 0, false);
+    form.button(u, " ", ["§0─"], SEPARATOR, 1, 0, false);
   }
-  form.button(SLOT_NEST_BACK, " ", ["§3─"], SEPARATOR, 1, 0, false);
-  form.button(SLOT_CLOSE, "§e关闭", ["§b关闭并返回存档列表"], "minecraft:barrier", 1, 0, false);
+  form.button(SLOT_NEST_BACK, " ", ["§0─"], SEPARATOR, 1, 0, false);
+  form.button(SLOT_CLOSE, "关闭", ["§0关闭并返回存档列表"], "minecraft:barrier", 1, 0, false);
 
   return form;
 }
@@ -172,12 +172,12 @@ function buildNestedChestForm(payload: ItemWatchSnapshotPayload, chain: DrillFra
         false
       );
     } else {
-      form.button(i, `§3#${i} 空`, ["§3此格当时为空"], GLASS, 1, 0, false);
+      form.button(i, `§0#${i} 空`, ["§0此格当时为空"], GLASS, 1, 0, false);
     }
   }
 
   for (let u = 27; u <= 51; u++) {
-    form.button(u, " ", ["§3─"], SEPARATOR, 1, 0, false);
+    form.button(u, " ", ["§0─"], SEPARATOR, 1, 0, false);
   }
 
   form.button(
@@ -189,7 +189,7 @@ function buildNestedChestForm(payload: ItemWatchSnapshotPayload, chain: DrillFra
     0,
     false
   );
-  form.button(SLOT_CLOSE, "§e关闭", ["§b关闭并返回存档列表"], "minecraft:barrier", 1, 0, false);
+  form.button(SLOT_CLOSE, "关闭", ["§0关闭并返回存档列表"], "minecraft:barrier", 1, 0, false);
 
   return form;
 }

@@ -248,13 +248,13 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
     .button("监控设置")
     .button(
       {
-        text: "§w玩家获得物品监控\n§3自动记下当时背包里有什么",
+        text: "玩家获得物品监控\n§0自动记下当时背包里有什么",
       },
       "textures/blocks/chest_front"
     )
     .button(
       {
-        text: "§w获取日志查询器\n§3拿在手上点击方块查看附近记录",
+        text: "获取日志查询器\n§0拿在手上点击方块查看附近记录",
       },
       "textures/icons/quest_log"
     );

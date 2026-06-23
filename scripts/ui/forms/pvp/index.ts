@@ -19,7 +19,7 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
 
   if (config.mode === "vanilla") {
     const form = new ActionFormData();
-    form.title("§wPVP系统");
+    form.title("PVP系统");
     form.body(
       storedMode === "plugin" || storedMode === "forced"
         ? "当前服务器 PVP 功能开关已关闭或处于§e原版模式§f。\n\n" +
@@ -30,22 +30,22 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
             "玩家之间是否可以互相伤害，完全由原版世界/存档的“玩家互相伤害”设置决定。\n" +
             "本插件不会接管个人PVP开关、战斗状态、PVP统计或金币夺取。"
     );
-    form.button("§w返回", "textures/icons/back");
+    form.button("返回", "textures/icons/back");
     form.show(player).then(() => openServerMenuForm(player));
     return;
   }
 
   if (config.mode === "off") {
     const form = new ActionFormData();
-    form.title("§wPVP系统");
+    form.title("PVP系统");
     form.body("当前服务器处于§c禁止模式§f。\n\n" + "插件已强制禁止玩家之间互相伤害，且不受原版世界PVP设置影响。");
-    form.button("§w返回", "textures/icons/back");
+    form.button("返回", "textures/icons/back");
     form.show(player).then(() => openServerMenuForm(player));
     return;
   }
 
   const form = new ActionFormData();
-  form.title("§wPVP系统");
+  form.title("PVP系统");
 
   const forcedMode = config.mode === "forced";
   const status = forcedMode ? "§c强制开启" : data.pvpEnabled ? "§a已开启" : "§c已关闭";
@@ -61,9 +61,9 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
   if (!forcedMode) {
     form.button(data.pvpEnabled ? "§c关闭PVP" : "§a开启PVP", "textures/icons/sword");
   }
-  form.button("§w查看详细统计", "textures/icons/quest_daily_common");
-  form.button("§w排行榜", "textures/icons/winner");
-  form.button("§w返回", "textures/icons/back");
+  form.button("查看详细统计", "textures/icons/quest_daily_common");
+  form.button("排行榜", "textures/icons/winner");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((response) => {
     if (response.canceled) return;
@@ -121,7 +121,7 @@ function openPvpStatsForm(player: Player): void {
   const seizeRank = statsManager.getPlayerRank(player.name, "seize");
 
   const form = new ActionFormData();
-  form.title("§wPVP统计");
+  form.title("PVP统计");
 
   form.body(
     `§e=== 战斗统计 ===\n` +
@@ -137,7 +137,7 @@ function openPvpStatsForm(player: Player): void {
       `§e净收益：§f${data.totalSeized - data.totalLost}`
   );
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((response) => {
     if (response.canceled) return;
@@ -158,12 +158,12 @@ export type OpenPvpLeaderboardOptions = {
  */
 function openPvpLeaderboardMenu(player: Player): void {
   const form = new ActionFormData();
-  form.title("§wPVP排行榜");
+  form.title("PVP排行榜");
 
-  form.button("§w击杀排行榜", "textures/icons/game_survival_games");
-  form.button("§w最佳连杀排行榜", "textures/icons/kilic");
-  form.button("§w夺取金币排行榜", "textures/icons/clock");
-  form.button("§w返回", "textures/icons/back");
+  form.button("击杀排行榜", "textures/icons/game_survival_games");
+  form.button("最佳连杀排行榜", "textures/icons/kilic");
+  form.button("夺取金币排行榜", "textures/icons/clock");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((response) => {
     if (response.canceled) return;
@@ -238,16 +238,16 @@ export function openPvpLeaderboardForm(
 
   const form = new ActionFormData();
   if (options?.statsHubStyle && type === "kills") {
-    form.title("§w击杀排行榜（玩家）");
+    form.title("击杀排行榜（玩家）");
   } else {
-    form.title(`§w${title}`);
+    form.title(`${title}`);
   }
 
   let bodyText: string;
   if (options?.statsHubStyle) {
     const { otherGlyphMap } = require("../../../assets/glyph-map");
     const namePrefix = otherGlyphMap.cat;
-    bodyText = `§e========= §6${statsShortTitle} §e=========\n\n§3${statsSubtitle}\n\n`;
+    bodyText = `§e========= §6${statsShortTitle} §e=========\n\n§0${statsSubtitle}\n\n`;
     if (leaderboard.length === 0) {
       bodyText += "§7暂无数据";
     } else {
@@ -278,7 +278,7 @@ export function openPvpLeaderboardForm(
   }
 
   form.body({ rawtext: [{ text: bodyText }] });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((response) => {
     if (response.canceled) return;

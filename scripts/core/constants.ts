@@ -5,7 +5,7 @@
 // 品牌与入口常量
 export const BRANDING = {
   PRODUCT_NAME: "苦力怕菜单",
-  MENU_TITLE: "§w苦力怕菜单",
+  MENU_TITLE: "苦力怕菜单",
   MENU_ITEM_LABEL: "苦力怕菜单",
   LEGACY_MENU_ITEM_LABEL: "服务器菜单",
   MENU_CHAT_TRIGGERS: ["苦力怕菜单", "服务器菜单"] as readonly string[],

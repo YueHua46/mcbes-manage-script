@@ -8,7 +8,6 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
 import setting from "../../system/services/setting";
 import landManager from "../../land/services/land-manager";
-import { isSafeTeleportLocation } from "../../../shared/utils/safe-teleport";
 
 /**
  * 生成指定范围的随机数
@@ -19,7 +18,7 @@ export const RandomNumber = (min: number, max: number): number => {
 
 const MAX_RANDOM_TP_ATTEMPTS = 48;
 
-function findSafeRandomLocation(player: Player, range: number): Vector3 | undefined {
+function findRandomLocationOutsideLand(player: Player, range: number): Vector3 | undefined {
   const dimension = player.dimension as Dimension;
   const minY = dimension.heightRange.min;
   const maxY = dimension.heightRange.max;
@@ -29,9 +28,10 @@ function findSafeRandomLocation(player: Player, range: number): Vector3 | undefi
     const z = RandomNumber(-range, range);
 
     for (let y = maxY - 1; y > minY + 1; y--) {
-      const target = { x: x + 0.5, y: y + 1, z: z + 0.5 };
-      if (!isSafeTeleportLocation(dimension, target)) continue;
+      const block = dimension.getBlock({ x, y, z });
+      if (!block || block.isAir) continue;
 
+      const target = { x: x + 0.5, y: y + 1, z: z + 0.5 };
       const { isInside } = landManager.testLand(target, dimension.id);
       if (isInside) break;
 
@@ -51,9 +51,9 @@ export const RandomTp = (player: Player): void => {
 
   const range = setting.getState("randomTpRange");
   const normalizedRange = Math.max(1, Math.floor(Math.abs(Number(range))));
-  const target = findSafeRandomLocation(player, normalizedRange);
+  const target = findRandomLocationOutsideLand(player, normalizedRange);
   if (!target) {
-    useNotify("actionbar", player, "§c随机传送失败：未找到安全且不在领地内的落点，请稍后重试。");
+    useNotify("actionbar", player, "§c随机传送失败：未找到不在领地内的落点，请稍后重试。");
     return;
   }
 

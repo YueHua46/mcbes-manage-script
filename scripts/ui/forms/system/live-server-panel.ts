@@ -72,14 +72,14 @@ function buildSnapshot(): string {
 
 function openFallbackServerPanel(player: Player, returnForm?: () => void): void {
   const form = new ActionFormData();
-  form.title("§w服务器实时面板");
+  form.title("服务器实时面板");
   form.body({ rawtext: [{ text: buildSnapshot() }] });
-  form.button("§w调度详情", "textures/icons/gear");
+  form.button("调度详情", "textures/icons/gear");
   if (isDebugUtilitiesAvailable()) {
-    form.button("§wDebug 诊断", "textures/icons/info");
+    form.button("Debug 诊断", "textures/icons/info");
   }
-  form.button("§w刷新", "textures/icons/requeue");
-  form.button("§w返回", "textures/icons/back");
+  form.button("刷新", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((response) => {
     if (response.canceled || response.cancelationReason) return;
     if (response.selection === 0) {
@@ -156,10 +156,10 @@ async function buildDebugDiagnosticsSnapshot(): Promise<string> {
 
 async function openDebugDiagnosticsPanel(player: Player, returnForm?: () => void): Promise<void> {
   const form = new ActionFormData();
-  form.title("§wDebug 诊断");
+  form.title("Debug 诊断");
   form.body({ rawtext: [{ text: await buildDebugDiagnosticsSnapshot() }] });
-  form.button("§w刷新", "textures/icons/requeue");
-  form.button("§w返回", "textures/icons/back");
+  form.button("刷新", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((response) => {
     if (response.canceled || response.cancelationReason) return;
     if (response.selection === 0) {

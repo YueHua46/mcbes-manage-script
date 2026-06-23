@@ -81,7 +81,7 @@ function buildGuildLandApplyInfoBody(guildId: string): string {
 
 function createLandApplyForm(player: Player, guildApply?: GuildLandApplyContext): ModalFormData {
   const form = new ModalFormData();
-  form.title(guildApply?.guildId ? "§w创建公会领地" : "领地申请");
+  form.title(guildApply?.guildId ? "创建公会领地" : "领地申请");
 
   const defaultLandStartPos = landAreas.get(player.name)?.start || {
     x: player.location.x.toFixed(0),
@@ -356,10 +356,10 @@ function openLandApplyModalOnly(player: Player, guildApply?: GuildLandApplyConte
 export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyContext): void {
   if (guildApply?.guildId) {
     const info = new ActionFormData();
-    info.title("§w创建公会领地");
+    info.title("创建公会领地");
     info.body(buildGuildLandApplyInfoBody(guildApply.guildId));
-    info.button("§w继续填写", "textures/icons/ada");
-    info.button("§w返回", "textures/icons/back");
+    info.button("继续填写", "textures/icons/ada");
+    info.button("返回", "textures/icons/back");
     info.show(player).then((data) => {
       if (data.canceled || data.cancelationReason) {
         return;
@@ -1441,24 +1441,24 @@ function buildLandFlightButtonLabel(player: Player): string {
   const nextBill = getSecondsUntilNextLandFlightBilling(player);
   let sub = "";
   if (useEco && economyOn && gold > 0) {
-    sub = `§b每 §e${intervalSec} §b秒扣 §e${gold} §b金币`;
+    sub = `§0每 ${intervalSec} 秒扣 ${gold} 金币`;
   } else if (useEco && economyOn && gold === 0) {
-    sub = `§3已开扣费但金额为 0（不扣钱）`;
+    sub = `§0已开扣费但金额为 0（不扣钱）`;
   } else {
-    sub = `§a免费飞行`;
+    sub = `§0免费飞行`;
   }
   if (nextBill !== null && nextBill > 0) {
-    sub += ` §b| 约 §e${nextBill}s §b后下次扣费`;
+    sub += ` | 约 ${nextBill}s 后下次扣费`;
   }
-  sub += `\n§3仅在当前领地内有效，离开即收回`;
-  return `§w领地飞行\n${sub}`;
+  sub += `\n§0仅在当前领地内有效，离开即收回`;
+  return `领地飞行\n${sub}`;
 }
 
 function buildLandBoundaryParticleButtonLabel(player: Player): string {
   const enabled = PlayerSetting.getLandBoundaryParticlesEnabled(player);
   return enabled
-    ? "§w领地范围常显\n§a已开启 §7| 定时显示附近领地边界"
-    : "§w领地范围常显\n§7已关闭 §8| 点击显示附近领地边界";
+    ? "领地范围常显\n§0已开启 | 定时显示附近领地边界"
+    : "领地范围常显\n§0已关闭 | 点击显示附近领地边界";
 }
 
 function previewAllDimensionLandBoundaries(player: Player): void {
@@ -1523,7 +1523,7 @@ function toggleLandBoundaryParticleSetting(player: Player, reopen: () => void): 
 
 export function openLandManageForms(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w领地系统管理");
+  form.title("领地系统管理");
 
   const buttons: { text: string; icon: string; action: () => void }[] = [];
 
@@ -1558,17 +1558,17 @@ export function openLandManageForms(player: Player): void {
 
   buttons.push(
     {
-      text: "§w领地列表",
+      text: "领地列表",
       icon: "textures/icons/home",
       action: () => openLandListForm(player),
     },
     {
-      text: "§w领地申请",
+      text: "领地申请",
       icon: "textures/icons/ada",
       action: () => openLandApplyForm(player),
     },
     {
-      text: "§w返回",
+      text: "返回",
       icon: "textures/icons/back",
       action: () => openServerMenuForm(player),
     }
@@ -1618,13 +1618,13 @@ export const openPlayerLandListForm = (
   let nextButtonIndex = currentPageLands.length;
 
   if (page > 1) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
 
   if (page < totalPages) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 
@@ -1635,8 +1635,8 @@ export const openPlayerLandListForm = (
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/icons/back");
-  form.body(`第 ${page} 页 / 共 ${totalPages} 页\n§7总计: ${playerLands.length} 个领地`);
+  form.button("返回", "textures/icons/back");
+  form.body(`第 ${page} 页 / 共 ${totalPages} 页\n§0总计: ${playerLands.length} 个领地`);
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -1815,7 +1815,7 @@ export function openAdminGuildLandListForm(player: Player, page: number = 1, ret
   const currentPageLands = guildLands.slice(start, start + pageSize);
 
   const form = new ActionFormData();
-  form.title("§w公会领地（管理员）");
+  form.title("公会领地（管理员）");
   form.body(`第 ${safePage} / ${totalPages} 页 · 共 ${guildLands.length} 块`);
 
   currentPageLands.forEach((landData) => {
@@ -1831,16 +1831,16 @@ export function openAdminGuildLandListForm(player: Player, page: number = 1, ret
   let nextButtonIndex = currentPageLands.length;
 
   if (safePage > 1) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
   if (safePage < totalPages) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -1867,7 +1867,7 @@ export function openAdminGuildLandListForm(player: Player, page: number = 1, ret
 
 export const openAllPlayerLandManageForm = (player: Player, page: number = 1, returnForm?: () => void): void => {
   const form = new ActionFormData();
-  form.title("§w玩家领地管理");
+  form.title("玩家领地管理");
 
   const players = landManager.getLandPlayers();
 
@@ -1891,17 +1891,17 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1, re
   let nextButtonIndex = currentPagePlayers.length;
 
   if (page > 1) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
 
   if (page < totalPages) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
 
   form.show(player).then(async (data) => {

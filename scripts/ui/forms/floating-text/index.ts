@@ -56,20 +56,20 @@ export function openFloatingTextMenu(player: Player): void {
   const costText = cost > 0 ? `创建每次消耗 ${cost} 金币` : "创建免费（当前费用为 0，不扣金币）";
 
   const form = new ActionFormData();
-  form.title("§w悬浮文字");
+  form.title("悬浮文字");
   form.body(
     [
       `我的悬浮文字: ${myTexts.length}${admin ? "（管理员不受数量限制）" : ` / ${floatingTextService.getMaxPerPlayer()}`}`,
       admin ? `管理员可管理所有人的悬浮文字；${costText}。` : costText,
     ].join("\n")
   );
-  form.button("§w我的悬浮文字", "textures/icons/catalogue");
-  form.button(cost > 0 ? `§w创建悬浮文字\n§7${costText}` : "§w创建悬浮文字\n§7免费", "textures/icons/add");
+  form.button("我的悬浮文字", "textures/icons/catalogue");
+  form.button(cost > 0 ? `创建悬浮文字\n§0${costText}` : "创建悬浮文字\n§0免费", "textures/icons/add");
   if (admin) {
-    form.button("§w管理全部悬浮文字", "textures/icons/gear");
-    form.button("§w系统设置", "textures/icons/settings");
+    form.button("管理全部悬浮文字", "textures/icons/gear");
+    form.button("系统设置", "textures/icons/settings");
   }
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -95,12 +95,12 @@ function openFloatingTextListForm(player: Player, mode: "mine" | "all" | "player
   const currentItems = items.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const form = new ActionFormData();
-  form.title(mode === "all" ? "§w全部悬浮文字" : mode === "player" ? `§w${targetName} 的悬浮文字` : "§w我的悬浮文字");
+  form.title(mode === "all" ? "全部悬浮文字" : mode === "player" ? `${targetName} 的悬浮文字` : "我的悬浮文字");
   form.body(`第 ${safePage} / ${totalPages} 页 · 共 ${items.length} 个`);
 
   currentItems.forEach((item) => {
     const owner = admin && item.ownerName !== player.name ? ` · ${item.ownerName}` : "";
-    form.button(`${item.name}${owner}\n§7${oneLine(item.text)}`, "textures/icons/chat_bubble_white");
+    form.button(`${item.name}${owner}\n§0${oneLine(item.text)}`, "textures/icons/chat_bubble_white");
   });
 
   let previousIndex = -1;
@@ -109,18 +109,18 @@ function openFloatingTextListForm(player: Player, mode: "mine" | "all" | "player
 
   if (safePage > 1) {
     previousIndex = currentItems.length;
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
   }
   if (safePage < totalPages) {
     nextIndex = currentItems.length + (previousIndex >= 0 ? 1 : 0);
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
   }
   if (mode === "all" && admin) {
     searchIndex = currentItems.length + (previousIndex >= 0 ? 1 : 0) + (nextIndex >= 0 ? 1 : 0);
-    form.button("§w按玩家搜索", "textures/icons/wisdom");
+    form.button("按玩家搜索", "textures/icons/wisdom");
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -141,7 +141,7 @@ function openFloatingTextListForm(player: Player, mode: "mine" | "all" | "player
 
 function openFloatingTextSearchPlayerForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w搜索玩家悬浮文字");
+  form.title("搜索玩家悬浮文字");
   form.textField("玩家名称", "输入完整玩家名", { defaultValue: "" });
   form.submitButton("搜索");
 
@@ -160,7 +160,7 @@ function openFloatingTextSearchPlayerForm(player: Player): void {
 function openFloatingTextCreateForm(player: Player): void {
   const cost = floatingTextService.getCreateCost(player);
   const form = new ModalFormData();
-  form.title("§w创建悬浮文字");
+  form.title("创建悬浮文字");
   form.textField("名称", "最多 24 个字符", { defaultValue: "" });
   form.textField("显示文本", "支持输入 \\n 换行，最多 240 字符", {
     defaultValue: "",
@@ -206,7 +206,7 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
   }
 
   const form = new ActionFormData();
-  form.title(`§w${latest.name}`);
+  form.title(`${latest.name}`);
   form.body(
     [
       `所有者: ${latest.ownerName}`,
@@ -218,10 +218,10 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
       `${colorCodes.white}${latest.text}`,
     ].join("\n")
   );
-  form.button("§w编辑文字和样式", "textures/icons/edit2");
-  form.button("§w移动到当前位置", "textures/icons/marker_quest");
+  form.button("编辑文字和样式", "textures/icons/edit2");
+  form.button("移动到当前位置", "textures/icons/marker_quest");
   form.button("§c删除", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -274,7 +274,7 @@ function openFloatingTextEditForm(player: Player, item: IFloatingText, back: () 
   if (!latest) return openDialogForm(player, { title: "提示", desc: "该悬浮文字已不存在。" }, back);
 
   const form = new ModalFormData();
-  form.title("§w编辑悬浮文字");
+  form.title("编辑悬浮文字");
   form.textField("名称", "最多 24 个字符", { defaultValue: latest.name });
   form.textField("显示文本", "支持输入 \\n 换行，最多 240 字符", { defaultValue: latest.text.replace(/\n/g, "\\n") });
   form.textField("显示缩放", "0.3～4", { defaultValue: String(latest.scale) });
@@ -313,7 +313,7 @@ export function openFloatingTextSettingsForm(player: Player): void {
   }
 
   const form = new ModalFormData();
-  form.title("§w悬浮文字设置");
+  form.title("悬浮文字设置");
   form.toggle("对普通成员开放悬浮文字", {
     defaultValue: setting.getState("floatingTextAllowMembers") === true,
     tooltip: "关闭后只有管理员可以使用和管理悬浮文字；管理员始终可管理所有人的悬浮文字。",

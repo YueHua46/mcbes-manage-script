@@ -146,7 +146,7 @@ function truncateForInfoBody(text: string, maxLen: number): string {
  */
 function createGuildInfoMessageForm(g: IGuild): MessageFormData {
   const form = new MessageFormData();
-  form.title("§w公会信息与公告");
+  form.title("公会信息与公告");
   const memberCount = Object.keys(g.members).length;
   const annRaw = g.announcement?.trim();
   const annDisplay = annRaw ? truncateForInfoBody(annRaw, MAX_ANNOUNCE_IN_FORM) : "§7（暂无公告）";
@@ -165,8 +165,8 @@ function createGuildInfoMessageForm(g: IGuild): MessageFormData {
       { text: `§a---------------------------------\n` },
     ],
   });
-  form.button1("§w刷新");
-  form.button2("§w返回");
+  form.button1("刷新");
+  form.button2("返回");
   return form;
 }
 
@@ -184,13 +184,13 @@ function buildMemberNamesPreview(g: IGuild): string {
     return names.map((n) => stripSectionForUi(n)).join("§7, §f");
   }
   const slice = names.slice(0, MAX_PUBLIC_MEMBER_NAMES);
-  return `${slice.map((n) => stripSectionForUi(n)).join("§7, §f")}\n§7... 等共 §f${names.length} §7人`;
+  return `${slice.map((n) => stripSectionForUi(n)).join("§7, §f")}\n§0... 等共 §f${names.length} §7人`;
 }
 
 /** 浏览用：不含金库 */
 function createPublicGuildInfoMessageForm(g: IGuild): MessageFormData {
   const form = new MessageFormData();
-  form.title(`§w§l[${stripSectionForUi(g.tag)}]§r §w公开信息`);
+  form.title(`§l[${stripSectionForUi(g.tag)}]§r 公开信息`);
   const annRaw = g.announcement?.trim();
   const annDisplay = annRaw ? truncateForInfoBody(annRaw, MAX_ANNOUNCE_IN_FORM) : "§7（暂无公告）";
   const officers = buildOfficerNamesLine(g);
@@ -211,8 +211,8 @@ function createPublicGuildInfoMessageForm(g: IGuild): MessageFormData {
       { text: `§a---------------------------------\n` },
     ],
   });
-  form.button1("§w刷新");
-  form.button2("§w返回");
+  form.button1("刷新");
+  form.button2("返回");
   return form;
 }
 
@@ -222,7 +222,7 @@ function createPublicGuildInfoMessageForm(g: IGuild): MessageFormData {
 async function openGuildBrowseListForm(player: Player, page: number = 1): Promise<void> {
   const snap = guildService.getGuildsListSnapshot(page, GUILDS_LIST_PER_PAGE);
   const form = new ActionFormData();
-  form.title("§w公会列表");
+  form.title("公会列表");
   form.body(
     [
       `§7共 §b§l${snap.total}§r §7个公会`,
@@ -241,8 +241,8 @@ async function openGuildBrowseListForm(player: Player, page: number = 1): Promis
     const tagPlain = stripSectionForUi(row.tag);
     const namePlain = stripSectionForUi(row.name);
     // 第二行用 §0 深字 + §b 人数，避免 §8 整行包一层在表单按钮上发灰发白看不清
-    const line2 = `§0[${tagPlain}] ${namePlain} §8· §0贡献 §b${formatNumber(row.totalContribution)} §8· §0人数 §b${row.memberCount}§0/§b${memberCap}`;
-    form.button(`§l§e${namePlain}§r\n${line2}`, "textures/icons/island");
+    const line2 = `§0[${tagPlain}] ${namePlain} §0· §0贡献 §b${formatNumber(row.totalContribution)} §0· §0人数 §b${row.memberCount}§0/§b${memberCap}`;
+    form.button(`${namePlain}\n${line2}`, "textures/icons/island");
     rowActions.push(() => openGuildPublicDetailMenu(player, row.id, snap.page));
   }
 
@@ -251,16 +251,16 @@ async function openGuildBrowseListForm(player: Player, page: number = 1): Promis
   let nextIdx = -1;
   if (snap.page > 1) {
     prevIdx = btnIdx;
-    form.button("§0上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     btnIdx++;
   }
   if (snap.page < snap.totalPages) {
     nextIdx = btnIdx;
-    form.button("§0下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     btnIdx++;
   }
   const backIdx = btnIdx;
-  form.button("§0返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -321,11 +321,11 @@ async function openGuildPublicDetailMenu(player: Player, guildId: string, listPa
   }
 
   const form = new ActionFormData();
-  form.title(`§w§l[${stripSectionForUi(g.tag)}]§r`);
-  form.body(`§7${stripSectionForUi(g.name)} §7· §7${Object.keys(g.members).length} 人\n§8公开浏览：可申请加入`);
-  form.button("§w公会信息", "textures/icons/duyuru");
-  form.button("§w加入公会", "textures/icons/party_invites");
-  form.button("§w返回", "textures/icons/back");
+  form.title(`§l[${stripSectionForUi(g.tag)}]§r`);
+  form.body(`§7${stripSectionForUi(g.name)} §7· §7${Object.keys(g.members).length} 人\n§0公开浏览：可申请加入`);
+  form.button("公会信息", "textures/icons/duyuru");
+  form.button("加入公会", "textures/icons/party_invites");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -374,7 +374,7 @@ async function handleJoinGuildFromList(player: Player, guildId: string, listPage
     }
     openConfirmDialogForm(
       player,
-      "§w接受邀请",
+      "接受邀请",
       `§7接受加入 §e[${target.tag}] ${stripSectionForUi(target.name)} §7？`,
       () => {
         const err = guildService.acceptInvite(player);
@@ -415,7 +415,7 @@ async function handleJoinGuildFromList(player: Player, guildId: string, listPage
     }
     openConfirmDialogForm(
       player,
-      "§w退出当前公会",
+      "退出当前公会",
       `§7加入其他公会前需先退出 §e[${myG.tag}] ${stripSectionForUi(myG.name)} §7。\n是否退出？`,
       () => {
         const err = guildService.leaveGuild(player);
@@ -449,11 +449,11 @@ async function handleJoinGuildFromList(player: Player, guildId: string, listPage
 
 async function openGuildJoinRequestDecisionForm(player: Player, applicantName: string): Promise<void> {
   const form = new ActionFormData();
-  form.title("§w处理申请");
-  form.body(`§7申请人: §f${stripSectionForUi(applicantName)}\n\n§7是否同意该玩家加入本会？`);
-  form.button("§w同意", "textures/icons/accept");
+  form.title("处理申请");
+  form.body(`§7申请人: §f${stripSectionForUi(applicantName)}\n\n§0是否同意该玩家加入本会？`);
+  form.button("同意", "textures/icons/accept");
   form.button("§c拒绝", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -507,7 +507,7 @@ async function openGuildJoinRequestListForm(player: Player, page: number = 1): P
   const slice = rows.slice(start, start + MEMBERS_PER_PAGE);
 
   const form = new ActionFormData();
-  form.title("§w申请加入列表");
+  form.title("申请加入列表");
   form.body(
     [
       `§7${stripSectionForUi(g.name)} §7· §7待审 §b${rows.length} §7人`,
@@ -520,7 +520,7 @@ async function openGuildJoinRequestListForm(player: Player, page: number = 1): P
   const rowActions: Array<() => Promise<void>> = [];
   for (const row of slice) {
     form.button(
-      `§f${stripSectionForUi(row.playerName)}\n§7申请时间 ${formatDateTime(row.requestedAt)}`,
+      `§f${stripSectionForUi(row.playerName)}\n§0申请时间 ${formatDateTime(row.requestedAt)}`,
       "textures/icons/faces"
     );
     rowActions.push(() => openGuildJoinRequestDecisionForm(player, row.playerName));
@@ -531,16 +531,16 @@ async function openGuildJoinRequestListForm(player: Player, page: number = 1): P
   let nextIdx = -1;
   if (pageClamped > 1) {
     prevIdx = btnIdx;
-    form.button("§0上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     btnIdx++;
   }
   if (pageClamped < totalPages) {
     nextIdx = btnIdx;
-    form.button("§0下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     btnIdx++;
   }
   const backIdx = btnIdx;
-  form.button("§0返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -596,16 +596,16 @@ async function openGuildHistoryForm(
   const linesText = merged.map((e) => formatGuildHistoryLine(e)).join("\n");
   const displayText =
     linesText.length > GUILD_HISTORY_BODY_MAX_CHARS
-      ? `${linesText.slice(0, GUILD_HISTORY_BODY_MAX_CHARS)}\n§7...`
+      ? `${linesText.slice(0, GUILD_HISTORY_BODY_MAX_CHARS)}\n§0...`
       : linesText;
 
   const form = new ActionFormData();
-  form.title("§w公会历史");
+  form.title("公会历史");
   form.body([`§7已加载 §b${merged.length}§7 / §b${chunk.total} §7条 §7· §7新在上`, ``, displayText].join("\n"));
   if (hasMore) {
-    form.button("§w加载更多", "textures/icons/right_arrow");
+    form.button("加载更多", "textures/icons/right_arrow");
   }
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -632,7 +632,7 @@ async function openGuildMemberDetailForm(
   page: number
 ): Promise<void> {
   const form = new ActionFormData();
-  form.title("§w成员详情");
+  form.title("成员详情");
   form.body(
     useFormatListInfo([
       { title: "玩家名", desc: stripSectionForUi(row.playerName), list: [] },
@@ -641,7 +641,7 @@ async function openGuildMemberDetailForm(
       { title: "头衔", desc: roleLabel(row.role), list: [] },
     ])
   );
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
   await openGuildMemberListForm(player, page);
@@ -667,7 +667,7 @@ async function openGuildMemberListForm(player: Player, page: number = 1): Promis
   const slice = snap.rows.slice(start, start + MEMBERS_PER_PAGE);
 
   const form = new ActionFormData();
-  form.title("§w成员列表");
+  form.title("成员列表");
   form.body(
     [
       `§f§l[${stripSectionForUi(snap.tag)}]§r §7${stripSectionForUi(snap.name)}`,
@@ -682,7 +682,7 @@ async function openGuildMemberListForm(player: Player, page: number = 1): Promis
   for (const row of slice) {
     const nm = stripSectionForUi(row.playerName);
     const prefix = row.role === "owner" ? "§6§l[会长]§r " : row.role === "officer" ? "§b§l[副会]§r " : "";
-    form.button(`${prefix}§l§e${nm}§r\n§8贡献 §b${formatNumber(row.contribution)} §7金币`, "textures/icons/amongus");
+    form.button(`${prefix}${nm}\n§0贡献 ${formatNumber(row.contribution)} 金币`, "textures/icons/amongus");
     rowActions.push(() => openGuildMemberDetailForm(player, row, pageClamped));
   }
 
@@ -691,16 +691,16 @@ async function openGuildMemberListForm(player: Player, page: number = 1): Promis
   let nextIdx = -1;
   if (pageClamped > 1) {
     prevIdx = btnIdx;
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     btnIdx++;
   }
   if (pageClamped < totalPages) {
     nextIdx = btnIdx;
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     btnIdx++;
   }
   const backIdx = btnIdx;
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -756,9 +756,9 @@ export function openGuildInfoForm(player: Player): void {
 /** 添加公会坐标：与私人坐标相同，输入名称 + 当前位置 */
 async function openAddGuildWaypointForm(player: Player): Promise<void> {
   const form = new ModalFormData();
-  form.title("§w添加公会坐标");
+  form.title("添加公会坐标");
   form.label("§7添加公会坐标时，若管理员配置了费用，将从§6公会金库§7扣除（不按私人坐标规则扣个人）。");
-  form.textField("§w坐标点名称", "请输入坐标点名称");
+  form.textField("坐标点名称", "请输入坐标点名称");
   form.submitButton("确定");
 
   const res = await form.show(player);
@@ -795,12 +795,12 @@ async function openGuildCoordWaypointDetail(player: Player, dbKey: string, role:
   const label = wp ? stripSectionForUi(wp.name) : sp ? stripSectionForUi(sp.pointName) : "?";
 
   const form = new ActionFormData();
-  form.title("§w" + label);
-  form.body(`§7公会坐标 · 本会共有\n§8${wp ? getDimensionName(wp.dimension) : "?"}`);
+  form.title("" + label);
+  form.body(`§7公会坐标 · 本会共有\n§0${wp ? getDimensionName(wp.dimension) : "?"}`);
 
   const actions: Array<() => void | Promise<void>> = [];
 
-  form.button("§w传送至此", "textures/icons/fast_travel");
+  form.button("传送至此", "textures/icons/fast_travel");
   actions.push(() => {
     const err = guildService.teleportToGuildWaypointDbKey(player, dbKey);
     if (err) {
@@ -812,7 +812,7 @@ async function openGuildCoordWaypointDetail(player: Player, dbKey: string, role:
     }
   });
 
-  form.button("§w更新为当前位置", "textures/icons/ada");
+  form.button("更新为当前位置", "textures/icons/ada");
   actions.push(() => {
     const err = guildService.relocateGuildWaypointToHere(player, dbKey);
     openDialogForm(
@@ -847,7 +847,7 @@ async function openGuildCoordWaypointDetail(player: Player, dbKey: string, role:
     );
   });
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => void openGuildCoordMenu(player));
 
   const res = await form.show(player);
@@ -873,7 +873,7 @@ async function openGuildCoordMenu(player: Player): Promise<void> {
   const capN = Number.isFinite(capRaw) && capRaw >= 0 ? Math.floor(capRaw) : 20;
 
   const form = new ActionFormData();
-  form.title("§w公会坐标");
+  form.title("公会坐标");
   form.body(
     [
       `§f§l公会坐标§r §7· §7归属本会，与个人私人坐标独立`,
@@ -893,16 +893,16 @@ async function openGuildCoordMenu(player: Player): Promise<void> {
     const sp = splitWaypointDbKey(dbKey);
     const nm = wp ? stripSectionForUi(wp.name) : sp ? stripSectionForUi(sp.pointName) : "?";
     const sub = wp ? getDimensionName(wp.dimension) : "数据失效";
-    form.button(`§l§e${nm}§r\n§8${sub}`, "textures/icons/fast_travel");
+    form.button(`${nm}\n§0${sub}`, "textures/icons/fast_travel");
     actions.push(() => openGuildCoordWaypointDetail(player, dbKey, role));
   }
 
   if (role === "owner" || role === "officer") {
-    form.button("§w添加公会坐标（当前位置）", "textures/icons/add");
+    form.button("添加公会坐标（当前位置）", "textures/icons/add");
     actions.push(() => void openAddGuildWaypointForm(player));
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => void openGuildMyGuildMenu(player));
 
   const res = await form.show(player);
@@ -928,7 +928,7 @@ async function openGuildLandListSubmenu(player: Player): Promise<void> {
     Number.isFinite(maxGuildLandsRaw) && maxGuildLandsRaw >= 0 ? Math.floor(maxGuildLandsRaw) : 5;
 
   const form = new ActionFormData();
-  form.title("§w公会领地列表");
+  form.title("公会领地列表");
   if (bound.length === 0) {
     form.body(
       [`§f§l公会领地列表§r §7· §7本会暂无公会领地`, ``, `§7创建配额 §b§l0§r §7/ §b${maxGuildLandsCap} §7块`].join("\n")
@@ -949,13 +949,13 @@ async function openGuildLandListSubmenu(player: Player): Promise<void> {
 
   for (const land of bound) {
     const ln = stripSectionForUi(land.name);
-    form.button(`§l§e${ln}§r\n§8${getDimensionName(land.dimension)}`, "textures/icons/island");
+    form.button(`${ln}\n§0${getDimensionName(land.dimension)}`, "textures/icons/island");
     actions.push(() =>
       openLandDetailForm(player, land, false, () => void openGuildLandListSubmenu(player))
     );
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => void openGuildLandsMenu(player));
 
   const res = await form.show(player);
@@ -981,7 +981,7 @@ async function openGuildLandsMenu(player: Player): Promise<void> {
     Number.isFinite(maxGuildLandsRaw) && maxGuildLandsRaw >= 0 ? Math.floor(maxGuildLandsRaw) : 5;
 
   const form = new ActionFormData();
-  form.title("§w公会领地");
+  form.title("公会领地");
   const bodyLines = [
     `§f§l公会领地§r §7· §7与个人领地上限分开计算`,
     ``,
@@ -998,11 +998,11 @@ async function openGuildLandsMenu(player: Player): Promise<void> {
 
   const actions: Array<() => void | Promise<void>> = [];
 
-  form.button(`§e§l公会领地列表§r\n§8查看本会领地`, "textures/icons/island");
+  form.button(`公会领地列表\n§0查看本会领地`, "textures/icons/island");
   actions.push(() => void openGuildLandListSubmenu(player));
 
   if (role === "owner" || role === "officer") {
-    form.button("§w新建公会领地（木棍圈地）", "textures/icons/ada");
+    form.button("新建公会领地（木棍圈地）", "textures/icons/ada");
     actions.push(() => {
       openLandApplyForm(player, {
         guildId: g.id,
@@ -1012,7 +1012,7 @@ async function openGuildLandsMenu(player: Player): Promise<void> {
     });
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => void openGuildMyGuildMenu(player));
 
   const res = await form.show(player);
@@ -1036,15 +1036,15 @@ export async function openGuildMenuForm(player: Player): Promise<void> {
 
   const pending = guildService.getPendingInviteSummary(player.name);
   const form = new ActionFormData();
-  form.title("§w公会");
+  form.title("公会");
   let body = "§7请选择一项。\n";
   if (pending) {
     body += "§e你有待处理的公会邀请，请进入「我的公会」处理。\n";
   }
   form.body(body);
-  form.button("§w公会列表", "textures/icons/island");
-  form.button("§w我的公会", "textures/icons/bina");
-  form.button("§w返回", "textures/icons/back");
+  form.button("公会列表", "textures/icons/island");
+  form.button("我的公会", "textures/icons/bina");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -1066,7 +1066,7 @@ async function openGuildMyGuildMenu(player: Player): Promise<void> {
   const role = guildService.getMemberRole(player);
 
   const form = new ActionFormData();
-  form.title("§w我的公会");
+  form.title("我的公会");
   let body = "§7请选择下方操作。\n";
   if (pending) {
     body += "§e你有一条待处理的公会邀请。\n";
@@ -1083,44 +1083,44 @@ async function openGuildMyGuildMenu(player: Player): Promise<void> {
   const actions: Array<() => void | Promise<void>> = [];
 
   if (pending) {
-    form.button("§w处理待处理邀请", "textures/icons/marker_quest");
+    form.button("处理待处理邀请", "textures/icons/marker_quest");
     actions.push(() => openPendingInviteForm(player));
   }
 
   if (!guild) {
-    form.button("§w创建公会", "textures/icons/add");
+    form.button("创建公会", "textures/icons/add");
     actions.push(() => openCreateGuildForm(player));
   } else {
-    form.button("§w公会信息与公告", "textures/icons/duyuru");
+    form.button("公会信息与公告", "textures/icons/duyuru");
     actions.push(() => openGuildInfoForm(player));
-    form.button("§w成员列表", "textures/icons/faces");
+    form.button("成员列表", "textures/icons/faces");
     actions.push(() => {
       openGuildMemberListForm(player);
     });
-    form.button("§w公会坐标", "textures/icons/fast_travel");
+    form.button("公会坐标", "textures/icons/fast_travel");
     actions.push(() => void openGuildCoordMenu(player));
-    form.button("§w公会领地", "textures/icons/bina");
+    form.button("公会领地", "textures/icons/bina");
     actions.push(() => void openGuildLandsMenu(player));
-    form.button("§w公会历史", "textures/icons/saat");
+    form.button("公会历史", "textures/icons/saat");
     actions.push(() => void openGuildHistoryForm(player, guild.id, 0, []));
     if (role === "owner" || role === "officer") {
-      form.button("§w邀请玩家", "textures/icons/party_invites");
+      form.button("邀请玩家", "textures/icons/party_invites");
       actions.push(() => openInvitePlayerForm(player));
     }
     if (role === "owner" || role === "officer") {
-      form.button("§w申请加入列表", "textures/icons/social");
+      form.button("申请加入列表", "textures/icons/social");
       actions.push(() => openGuildJoinRequestListForm(player, 1));
     }
-    form.button("§w公会金库", "textures/icons/sandik");
+    form.button("公会金库", "textures/icons/sandik");
     actions.push(() => openGuildBankMenu(player));
-    form.button("§w每日红包", "textures/icons/gift");
+    form.button("每日红包", "textures/icons/gift");
     actions.push(() => void openGuildDailyRedPacketMenu(player));
     if (role === "owner" || role === "officer") {
-      form.button("§w编辑公告", "textures/icons/marker_quest");
+      form.button("编辑公告", "textures/icons/marker_quest");
       actions.push(() => openAnnounceForm(player));
     }
     if (role === "owner" || role === "officer") {
-      form.button("§w成员管理", "textures/icons/party_remove");
+      form.button("成员管理", "textures/icons/party_remove");
       actions.push(() => openMemberManageMenu(player));
     }
     if (role !== "owner") {
@@ -1133,7 +1133,7 @@ async function openGuildMyGuildMenu(player: Player): Promise<void> {
     }
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => void openGuildMenuForm(player));
 
   const res = await form.show(player);
@@ -1154,11 +1154,11 @@ async function openPendingInviteForm(player: Player): Promise<void> {
   }
 
   const form = new ActionFormData();
-  form.title("§w公会邀请");
-  form.body(`§e邀请者: §f${s.inviterName}\n§f[${s.guildTag}] ${s.guildName}\n\n§7请选择是否加入该公会。`);
-  form.button("§w接受", "textures/icons/accept");
+  form.title("公会邀请");
+  form.body(`§e邀请者: §f${s.inviterName}\n§0[${s.guildTag}] ${s.guildName}\n\n§0请选择是否加入该公会。`);
+  form.button("接受", "textures/icons/accept");
   form.button("§c拒绝", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   const r = await form.show(player);
   if (r.canceled || r.selection === undefined) return;
@@ -1217,10 +1217,10 @@ function buildCreateGuildBody(player: Player): string {
 
 async function openCreateGuildForm(player: Player): Promise<void> {
   const info = new ActionFormData();
-  info.title("§w创建公会");
+  info.title("创建公会");
   info.body(buildCreateGuildBody(player));
-  info.button("§w继续填写名称与标签", "textures/icons/island");
-  info.button("§w返回", "textures/icons/back");
+  info.button("继续填写名称与标签", "textures/icons/island");
+  info.button("返回", "textures/icons/back");
 
   const step1 = await info.show(player);
   if (step1.canceled || step1.selection === 1) {
@@ -1235,7 +1235,7 @@ async function openCreateGuildForm(player: Player): Promise<void> {
   const tagMax = numSetting("guildTagMaxLen");
 
   const form = new ModalFormData();
-  form.title("§w创建公会 · 名称与标签");
+  form.title("创建公会 · 名称与标签");
   form.textField(`公会展示名（最多 ${nameMax} 字）`, "输入名称", { defaultValue: "" });
   form.textField(`公会短标签（最多 ${tagMax} 字，用于聊天/头顶前缀）`, "例如 ABC", { defaultValue: "" });
   form.submitButton("确认创建");
@@ -1292,8 +1292,8 @@ async function openInvitePlayerForm(player: Player): Promise<void> {
   }
 
   const form = new ModalFormData();
-  form.title("§w邀请玩家");
-  form.dropdown("§w选择要邀请的玩家", ["-- 请选择 --", ...eligibleNames], {
+  form.title("邀请玩家");
+  form.dropdown("选择要邀请的玩家", ["-- 请选择 --", ...eligibleNames], {
     defaultValueIndex: 0,
   });
   form.submitButton("发送邀请");
@@ -1342,11 +1342,11 @@ async function openGuildBankMenu(player: Player): Promise<void> {
   const treasury = g?.treasuryGold ?? 0;
 
   const form = new ActionFormData();
-  form.title("§w公会金库");
-  form.body(`§7个人余额: §6${wallet}\n§7金库余额: §6${treasury}`);
-  form.button("§w存入金币", "textures/icons/shop_bank");
-  form.button("§w取出金币", "textures/icons/shop_bank");
-  form.button("§w返回", "textures/icons/back");
+  form.title("公会金库");
+  form.body(`§7个人余额: §6${wallet}\n§0金库余额: §6${treasury}`);
+  form.button("存入金币", "textures/icons/shop_bank");
+  form.button("取出金币", "textures/icons/shop_bank");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -1358,7 +1358,7 @@ async function openGuildBankMenu(player: Player): Promise<void> {
 
   const isDeposit = res.selection === 0;
   const amountForm = new ModalFormData();
-  amountForm.title(isDeposit ? "§w存入金库" : "§w从金库取出");
+  amountForm.title(isDeposit ? "存入金库" : "从金库取出");
   amountForm.textField("金额（正整数）", "输入金币数量", { defaultValue: "1" });
   amountForm.submitButton("确认");
 
@@ -1412,13 +1412,13 @@ async function openGuildDailyRedPacketMenu(player: Player): Promise<void> {
   body += `§8（领取时按当前金库实时判断，金库充足即可领）\n`;
 
   const form = new ActionFormData();
-  form.title("§w公会每日红包");
+  form.title("公会每日红包");
   form.body(body);
-  form.button("§w领取今日红包", "textures/icons/gift");
+  form.button("领取今日红包", "textures/icons/gift");
   if (role === "owner" || role === "officer") {
-    form.button("§w红包设置", "textures/icons/edit2");
+    form.button("红包设置", "textures/icons/edit2");
   }
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
   if (res.canceled || res.selection === undefined) return;
@@ -1456,7 +1456,7 @@ async function openGuildDailyRedPacketSettingsForm(player: Player): Promise<void
   }
 
   const form = new ModalFormData();
-  form.title("§w公会每日红包");
+  form.title("公会每日红包");
   form.toggle("开启每日红包", { defaultValue: g.dailyRedPacketEnabled === true });
   const defaultGold =
     g.dailyRedPacketGoldPerMember != null && g.dailyRedPacketGoldPerMember > 0
@@ -1498,7 +1498,7 @@ async function openGuildDailyRedPacketSettingsForm(player: Player): Promise<void
 
 async function openAnnounceForm(player: Player): Promise<void> {
   const form = new ModalFormData();
-  form.title("§w编辑公告");
+  form.title("编辑公告");
   form.textField("公告内容（最多约 200 字）", "输入公告", { defaultValue: "" });
   form.submitButton("保存");
 
@@ -1587,8 +1587,8 @@ async function openMemberTargetModal(
   }
 
   const form = new ModalFormData();
-  form.title(`§w${title}`);
-  form.dropdown("§w选择目标成员", ["-- 请选择 --", ...candidates], { defaultValueIndex: 0 });
+  form.title(`${title}`);
+  form.dropdown("选择目标成员", ["-- 请选择 --", ...candidates], { defaultValueIndex: 0 });
   form.submitButton("确认");
 
   const res = await form.show(player);
@@ -1632,7 +1632,7 @@ async function openMemberTargetModal(
 async function openMemberManageMenu(player: Player): Promise<void> {
   const role = guildService.getMemberRole(player);
   const form = new ActionFormData();
-  form.title("§w成员管理");
+  form.title("成员管理");
   form.body(
     "§7每项操作会列出本公会已登记成员（含离线），请在下拉框中选择。\n\n§c踢人：副会长不可踢副会长；副会长仅可踢普通成员。"
   );
@@ -1650,13 +1650,13 @@ async function openMemberManageMenu(player: Player): Promise<void> {
   );
 
   if (role === "owner") {
-    form.button("§w晋升为副会长", "textures/icons/accept");
+    form.button("晋升为副会长", "textures/icons/accept");
     actions.push(() =>
       openMemberTargetModal(player, "晋升为副会长", buildPromoteTargetNames, (name) =>
         guildService.promote(player, name)
       )
     );
-    form.button("§w降为成员", "textures/icons/requeue");
+    form.button("降为成员", "textures/icons/requeue");
     actions.push(() =>
       openMemberTargetModal(player, "降为成员", buildDemoteTargetNames, (name) => guildService.demote(player, name))
     );
@@ -1671,7 +1671,7 @@ async function openMemberManageMenu(player: Player): Promise<void> {
     );
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => void openGuildMyGuildMenu(player));
 
   const res = await form.show(player);
@@ -1683,7 +1683,7 @@ async function openMemberManageMenu(player: Player): Promise<void> {
 function confirmLeaveGuild(player: Player): void {
   openConfirmDialogForm(
     player,
-    "§w退出公会",
+    "退出公会",
     "§e确定退出当前公会吗？",
     () => {
       const err = guildService.leaveGuild(player);
@@ -1704,7 +1704,7 @@ function confirmLeaveGuild(player: Player): void {
 function confirmDisbandGuild(player: Player): void {
   openConfirmDialogForm(
     player,
-    "§w解散公会",
+    "解散公会",
     "§c§l解散后：所有成员移出；本会金库、公会坐标、公会领地（含领地数据）及待处理邀请等将全部清除，不可恢复。确定吗？",
     () => {
       const err = guildService.disbandGuild(player);

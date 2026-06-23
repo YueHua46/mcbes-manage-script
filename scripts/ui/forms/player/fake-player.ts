@@ -21,7 +21,7 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
   const cost = fakePlayerService.getCreateCost();
 
   const form = new ActionFormData();
-  form.title("§w假人管理");
+  form.title("假人管理");
   form.body(
     [
       `§a我的假人: §e${own.length}/${isAdmin(player) ? "不限" : max}`,
@@ -29,12 +29,12 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
       `§7假人会作为区块加载锚点维持附近区块活跃。`,
     ].join("\n")
   );
-  form.button("§w在当前位置创建假人", "textures/icons/add");
-  form.button("§w我的假人列表", "textures/icons/spectator");
+  form.button("在当前位置创建假人", "textures/icons/add");
+  form.button("我的假人列表", "textures/icons/spectator");
   if (isAdmin(player)) {
-    form.button("§w全服假人管理", "textures/icons/mod_shield");
+    form.button("全服假人管理", "textures/icons/mod_shield");
   }
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -59,16 +59,16 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
 
 function openCreateFakePlayerForm(player: Player, back: () => void): void {
   const form = new ModalFormData();
-  form.title("§w创建假人");
-  form.textField("§w假人名称", "例如: 地狱树场加载点", {
+  form.title("创建假人");
+  form.textField("假人名称", "例如: 地狱树场加载点", {
     defaultValue: `${player.name}的假人`,
   });
   form.dropdown(
-    "§w假人皮肤",
-    FAKE_PLAYER_SKINS.map((skin) => `§w${skin.name}`),
+    "假人皮肤",
+    FAKE_PLAYER_SKINS.map((skin) => `${skin.name}`),
     { defaultValueIndex: 0 }
   );
-  form.submitButton("§w确认创建");
+  form.submitButton("确认创建");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) {
@@ -88,7 +88,7 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
       player,
       {
         title: "创建成功",
-        desc: `§a已在当前位置创建假人 §e${result.name}§a。\n§a皮肤: §e${getFakePlayerSkinName(result.skinId)}\n§7${formatLocation(result)}`,
+        desc: `§a已在当前位置创建假人 §e${result.name}§a。\n§a皮肤: §e${getFakePlayerSkinName(result.skinId)}\n§0${formatLocation(result)}`,
       },
       () => openFakePlayerMenu(player, back)
     );
@@ -98,7 +98,7 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
 function openFakePlayerListForm(player: Player, adminView: boolean, back: () => void): void {
   const items = adminView ? fakePlayerService.listAllForAdmin() : fakePlayerService.listForPlayer(player.name);
   const form = new ActionFormData();
-  form.title(adminView ? "§w全服假人管理" : "§w我的假人");
+  form.title(adminView ? "全服假人管理" : "我的假人");
 
   if (items.length === 0) {
     form.body(adminView ? "§e当前全服没有假人。" : "§e你还没有创建任何假人。");
@@ -107,12 +107,9 @@ function openFakePlayerListForm(player: Player, adminView: boolean, back: () => 
   }
 
   items.forEach((item) => {
-    form.button(
-      `§w${item.name}\n${colorCodes.darkAqua}${item.ownerName} · ${formatLocation(item)}`,
-      "textures/icons/spectator"
-    );
+    form.button(`${item.name}\n§0${item.ownerName} · ${formatLocation(item)}`, "textures/icons/spectator");
   });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -129,7 +126,7 @@ function openFakePlayerListForm(player: Player, adminView: boolean, back: () => 
 
 function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {
   const form = new ActionFormData();
-  form.title(`§w${item.name}`);
+  form.title(`${item.name}`);
   form.body(
     [
       `§a拥有者: §e${item.ownerName}`,
@@ -138,10 +135,10 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
       `§a创建时间: §e${item.created}`,
     ].join("\n")
   );
-  form.button("§w重生成实体", "textures/icons/requeue");
-  form.button("§w更换皮肤", "textures/icons/edit2");
-  form.button("§w删除假人", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+  form.button("重生成实体", "textures/icons/requeue");
+  form.button("更换皮肤", "textures/icons/edit2");
+  form.button("删除假人", "textures/icons/deny");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -165,7 +162,7 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
         openConfirmDialogForm(
           player,
           "删除假人",
-          `§c确定删除假人 §e${item.name}§c 吗？\n§7创建费用不会退回。`,
+          `§c确定删除假人 §e${item.name}§c 吗？\n§0创建费用不会退回。`,
           () => {
             const result = fakePlayerService.delete(player, item.id);
             openDialogForm(
@@ -191,13 +188,13 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
 function openFakePlayerSkinForm(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {
   const form = new ModalFormData();
   const currentIndex = FAKE_PLAYER_SKINS.findIndex((skin) => skin.id === (item.skinId ?? 0));
-  form.title("§w更换假人皮肤");
+  form.title("更换假人皮肤");
   form.dropdown(
-    "§w假人皮肤",
-    FAKE_PLAYER_SKINS.map((skin) => `§w${skin.name}`),
+    "假人皮肤",
+    FAKE_PLAYER_SKINS.map((skin) => `${skin.name}`),
     { defaultValueIndex: Math.max(0, currentIndex) }
   );
-  form.submitButton("§w确认");
+  form.submitButton("确认");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) {

@@ -309,7 +309,7 @@ system.beforeEvents.startup.subscribe((init) => {
   // 6. 注册 rtp 指令
   const rtpCommand: CustomCommand = {
     name: "yuehua:rtp",
-    description: "随机传送。按服务器 randomTpRange 配置在当前世界寻找安全位置并传送。",
+    description: "随机传送。按服务器 randomTpRange 配置在当前世界寻找不在领地内的位置并传送。",
     permissionLevel: CommandPermissionLevel.Any,
   };
   registerCommandIgnoreReloadLock(registry, rtpCommand, handleRtpCommand);

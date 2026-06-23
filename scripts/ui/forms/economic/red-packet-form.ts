@@ -28,12 +28,12 @@ export function openRedPacketMenu(player: Player): void {
   }
 
   const form = new ActionFormData()
-    .title("§w红包")
+    .title("红包")
     .body(body)
-    .button("§w发红包", "textures/icons/gift")
-    .button("§w待领红包", "textures/icons/shop_bank")
-    .button("§w领取详细", "textures/icons/quest_daily_common")
-    .button("§w返回", "textures/icons/back");
+    .button("发红包", "textures/icons/gift")
+    .button("待领红包", "textures/icons/shop_bank")
+    .button("领取详细", "textures/icons/quest_daily_common")
+    .button("返回", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled || res.selection === undefined) return;
@@ -58,7 +58,7 @@ export function openRedPacketMenu(player: Player): void {
 export function openSendRedPacketMenu(player: Player): void {
   const expireHours = Math.round(getRedPacketExpiryMs() / (60 * 60 * 1000));
   const form = new ActionFormData()
-    .title("§w发红包 · 选择模式")
+    .title("发红包 · 选择模式")
     .body(
       `${colorCodes.green}请先选择一种发送方式，下一步会显示该方式的说明与输入项。\n\n` +
         `${colorCodes.yellow}① 每人每份固定金额\n` +
@@ -67,9 +67,9 @@ export function openSendRedPacketMenu(player: Player): void {
         `${colorCodes.gray}   填写一笔总金币和份数；系统拆成多份，每份金额随机，先到先得。\n\n` +
         `${colorCodes.gray}有效期约 ${colorCodes.yellow}${expireHours} ${colorCodes.gray}小时 · 钱包 ${colorCodes.gold}${economic.getWallet(player.name).gold} ${colorCodes.gray}金币`
     )
-    .button("§w① 每人每份固定金额", "textures/icons/coins")
-    .button("§w② 拼手气（总金随机分份）", "textures/icons/gift")
-    .button("§w返回", "textures/icons/back");
+    .button("① 每人每份固定金额", "textures/icons/coins")
+    .button("② 拼手气（总金随机分份）", "textures/icons/gift")
+    .button("返回", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled || res.selection === undefined) return;
@@ -86,14 +86,14 @@ export function openSendRedPacketMenu(player: Player): void {
 function showSendRedPacketModal(player: Player, mode: RedPacketMode): void {
   const form = new ModalFormData();
   if (mode === "per_head") {
-    form.title("§w发红包 · 每人每份固定金额\n" + `§7每份金额相同；总扣款=份数×每份。§8不指定领取人，先到先得`);
+    form.title("发红包 · 每人每份固定金额\n" + `§7每份金额相同；总扣款=份数×每份。§8不指定领取人，先到先得`);
     form.textField(`${colorCodes.yellow}红包份数`, `1～${MAX_SHARE_COUNT}，即发几个可领名额`, {
       defaultValue: "1",
     });
     form.textField(`${colorCodes.yellow}每份金币（正整数）`, "每份金额相同", { defaultValue: "100" });
     form.textField(`${colorCodes.gray}祝福语（可选）`, "恭喜发财", { defaultValue: "" });
   } else {
-    form.title("§w发红包 · 拼手气（总金随机分份）\n" + `§7填写总金币与份数；随机拆份。§8不指定领取人，先到先得`);
+    form.title("发红包 · 拼手气（总金随机分份）\n" + `§7填写总金币与份数；随机拆份。§8不指定领取人，先到先得`);
     form.textField(`${colorCodes.yellow}红包份数`, `1～${MAX_SHARE_COUNT}，拆成几份随机金额`, {
       defaultValue: "1",
     });
@@ -175,10 +175,10 @@ function showSendRedPacketModal(player: Player, mode: RedPacketMode): void {
     const confirmBody = `${modeHint}\n\n${preview}\n\n${colorCodes.gray}确认后扣款并全服广播。\n${colorCodes.darkGray}不预分配领取人；有效期内谁先领谁得。`;
 
     const confirm = new ActionFormData()
-      .title("§w确认发红包")
+      .title("确认发红包")
       .body(confirmBody)
-      .button("§w确认发送", "textures/icons/accept")
-      .button("§w返回修改", "textures/icons/deny");
+      .button("确认发送", "textures/icons/accept")
+      .button("返回修改", "textures/icons/deny");
 
     confirm.show(player).then((cres) => {
       if (cres.canceled || cres.selection === undefined) {
@@ -231,7 +231,7 @@ export function openRedPacketDetailListMenu(player: Player): void {
   if (list.length === 0) {
     openDialogForm(
       player,
-      { title: "§w领取详细", desc: `${colorCodes.gray}暂无红包记录` },
+      { title: "领取详细", desc: `${colorCodes.gray}暂无红包记录` },
       () => openRedPacketMenu(player)
     );
     return;
@@ -240,7 +240,7 @@ export function openRedPacketDetailListMenu(player: Player): void {
   let body =
     `${colorCodes.green}以下为最近红包（按发放时间倒序）。\n` +
     `${colorCodes.gray}点选一条可查看每人领取金额；未当时在线也可回看。\n`;
-  const form = new ActionFormData().title("§w红包 · 领取详细").body(body);
+  const form = new ActionFormData().title("红包 · 领取详细").body(body);
   list.forEach((it) => {
     const tag = redPacketStatusLine(it);
     const modeShort = it.mode === "total" ? "拼手气" : "固定";
@@ -250,7 +250,7 @@ export function openRedPacketDetailListMenu(player: Player): void {
       "textures/icons/gift"
     );
   });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled || res.selection === undefined) return;
@@ -272,7 +272,7 @@ const CLAIM_DETAIL_PAGE_SIZE = 10;
 function openRedPacketDetailPage(player: Player, packetId: string, page: number): void {
   const res = redPacketService.getRedPacketClaimDetail(packetId);
   if (!res.ok) {
-    openDialogForm(player, { title: "§w提示", desc: `${colorCodes.red}${res.error}` }, () => openRedPacketDetailListMenu(player));
+    openDialogForm(player, { title: "提示", desc: `${colorCodes.red}${res.error}` }, () => openRedPacketDetailListMenu(player));
     return;
   }
 
@@ -312,14 +312,14 @@ function openRedPacketDetailPage(player: Player, packetId: string, page: number)
     body += `\n${colorCodes.gray}剩余 ${colorCodes.white}${remainingCount} ${colorCodes.gray}份未领（未领完前不显示每份金额）`;
   }
 
-  const form = new ActionFormData().title("§w领取明细").body(body);
+  const form = new ActionFormData().title("领取明细").body(body);
   if (safePage < maxPage) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
   }
   if (safePage > 0) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
   }
-  form.button("§w返回列表", "textures/icons/back");
+  form.button("返回列表", "textures/icons/back");
 
   form.show(player).then((r) => {
     if (r.canceled || r.selection === undefined) return;
@@ -347,9 +347,9 @@ export function openClaimRedPacketMenu(player: Player): void {
   const pending = redPacketService.getPendingPacketsFor(player.name);
   if (pending.length === 0) {
     const emptyForm = new ActionFormData()
-      .title("§w待领红包")
+      .title("待领红包")
       .body(`${colorCodes.gray}当前没有可领取的红包。`)
-      .button("§w返回", "textures/icons/back");
+      .button("返回", "textures/icons/back");
     emptyForm.show(player).then(() => openRedPacketMenu(player));
     return;
   }
@@ -370,7 +370,7 @@ export function openClaimRedPacketMenu(player: Player): void {
     }
   });
 
-  const listForm = new ActionFormData().title("§w待领红包").body(bodyText);
+  const listForm = new ActionFormData().title("待领红包").body(bodyText);
   pending.forEach((p) => {
     const isLucky = p.mode === "total";
     const btnLabel = isLucky
@@ -378,7 +378,7 @@ export function openClaimRedPacketMenu(player: Player): void {
       : `§e§l${p.senderName}§r §6§l${p.amount}§r §6金/份`;
     listForm.button(btnLabel, "textures/icons/gift");
   });
-  listForm.button("§w返回", "textures/icons/back");
+  listForm.button("返回", "textures/icons/back");
 
   listForm.show(player).then((res) => {
     if (res.canceled || res.selection === undefined) return;
