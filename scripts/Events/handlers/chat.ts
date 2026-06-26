@@ -8,17 +8,18 @@ import { useAllPlayers } from "../../shared/hooks/use-player";
 import playerSettings from "../../features/player/services/player-settings";
 import setting from "../../features/system/services/setting";
 import { guildFacade } from "../../features/guild/services/guild-facade";
+import { isMenuChatTrigger } from "../../core/constants";
 
 /**
  * 注册聊天事件处理器
  */
 export function registerChatEvents(): void {
-  // 服务器菜单命令
+  // 苦力怕菜单命令
   world.beforeEvents.chatSend.subscribe((event) => {
     const { sender, message } = event;
-    if (message === "服务器菜单") {
+    if (isMenuChatTrigger(message)) {
+      event.cancel = true;
       system.run(async () => {
-        event.cancel = true;
         const { openServerMenuForm } = await import("../../ui/forms/server");
         openServerMenuForm(sender);
       });
@@ -28,6 +29,7 @@ export function registerChatEvents(): void {
   // 聊天消息处理（包含别名显示和屏蔽功能）
   world.beforeEvents.chatSend.subscribe((e) => {
     const { message, sender } = e;
+    if (isMenuChatTrigger(message)) return;
     e.cancel = true;
 
     // 获取玩家别名

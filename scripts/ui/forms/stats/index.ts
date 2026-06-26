@@ -53,7 +53,7 @@ function showStatsActionForm(player: Player, title: string, bodyText: string, na
   const form = new ActionFormData();
   form.title(title);
   form.body({ rawtext: [{ text: bodyText }] });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((response) => {
     if (response.canceled) return;
     navigateBack();
@@ -73,18 +73,18 @@ export function openStatsHubForm(player: Player, options?: OpenStatsHubOptions):
   }
 
   const form = new ActionFormData();
-  form.title("§w数据统计");
+  form.title("数据统计");
   form.body({
-    rawtext: [{ text: "§b查看全服排行榜（含离线玩家数据）\n§3请选择榜单类型" }],
+    rawtext: [{ text: "§b查看全服排行榜（含离线玩家数据）\n§0请选择榜单类型" }],
   });
 
-  form.button("§w财富排行榜", "textures/icons/trophy");
-  form.button("§w击杀排行榜（非玩家生物）", "textures/icons/game_survival_games");
-  form.button("§w死亡次数排行榜", "textures/icons/dead");
-  form.button("§w击杀排行榜（玩家）", "textures/icons/kilic");
-  form.button("§w等级排行榜", "textures/icons/gem");
-  form.button("§w在线时长排行榜", "textures/icons/saat");
-  form.button("§w返回", "textures/icons/back");
+  form.button("财富排行榜", "textures/icons/trophy");
+  form.button("击杀排行榜（非玩家生物）", "textures/icons/game_survival_games");
+  form.button("死亡次数排行榜", "textures/icons/dead");
+  form.button("击杀排行榜（玩家）", "textures/icons/kilic");
+  form.button("等级排行榜", "textures/icons/gem");
+  form.button("在线时长排行榜", "textures/icons/saat");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -165,7 +165,7 @@ function openWealthLeaderboardForm(player: Player, navigateBack: () => void): vo
     `§a您的余额: §e${playerWallet.gold} 金币`,
   ]);
 
-  showStatsActionForm(player, "§w财富排行榜", bodyText, navigateBack);
+  showStatsActionForm(player, "财富排行榜", bodyText, navigateBack);
 }
 
 function openMobKillsLeaderboardForm(player: Player, navigateBack: () => void): void {
@@ -184,7 +184,7 @@ function openMobKillsLeaderboardForm(player: Player, navigateBack: () => void): 
   }
   bodyText += buildStatsFooter(myRank === -1 ? "未上榜" : String(myRank), [`§a您的击杀: §e${myVal} 次`]);
 
-  showStatsActionForm(player, "§w击杀排行榜（非玩家生物）", bodyText, navigateBack);
+  showStatsActionForm(player, "击杀排行榜（非玩家生物）", bodyText, navigateBack);
 }
 
 function openTotalDeathsLeaderboardForm(player: Player, navigateBack: () => void): void {
@@ -206,7 +206,7 @@ function openTotalDeathsLeaderboardForm(player: Player, navigateBack: () => void
   }
   bodyText += buildStatsFooter(myRank === -1 ? "未上榜" : String(myRank), [`§a您的死亡次数: §e${myVal} 次`]);
 
-  showStatsActionForm(player, "§w死亡次数排行榜", bodyText, navigateBack);
+  showStatsActionForm(player, "死亡次数排行榜", bodyText, navigateBack);
 }
 
 function openLevelLeaderboardForm(player: Player, navigateBack: () => void): void {
@@ -229,7 +229,7 @@ function openLevelLeaderboardForm(player: Player, navigateBack: () => void): voi
     `§a您的本级经验: §e${mine.xpAtCurrentLevel}`,
   ]);
 
-  showStatsActionForm(player, "§w等级排行榜", bodyText, navigateBack);
+  showStatsActionForm(player, "等级排行榜", bodyText, navigateBack);
 }
 
 function openOnlineTimeLeaderboardInStats(player: Player, navigateBack: () => void): void {
@@ -250,5 +250,5 @@ function openOnlineTimeLeaderboardInStats(player: Player, navigateBack: () => vo
     `§a您的在线时长: §e${formatOnlineDuration(mySec)}`,
   ]);
 
-  showStatsActionForm(player, "§w在线时长排行榜", bodyText, navigateBack);
+  showStatsActionForm(player, "在线时长排行榜", bodyText, navigateBack);
 }

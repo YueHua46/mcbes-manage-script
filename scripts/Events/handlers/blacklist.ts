@@ -48,6 +48,7 @@ async function handleAsyncPlayerJoin(event: AsyncPlayerJoinBeforeEvent): Promise
     hitEntry = blacklistService.isBlacklistedByName(name);
     if (hitEntry) {
       hitBy = "名字";
+      blacklistService.syncEntry(hitEntry.xuid, name, persistentId ?? null);
     }
 
     if (!hitEntry && persistentId) {

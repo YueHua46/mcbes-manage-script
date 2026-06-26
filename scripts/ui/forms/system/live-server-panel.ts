@@ -2,7 +2,12 @@ import { Player, system, world } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 import serverInfo from "../../../features/system/services/server-info";
 import setting from "../../../features/system/services/setting";
-import { getLiveFormCapabilities } from "../../../features/platform/sapi-capabilities";
+import {
+  collectDebugPluginStats,
+  collectDebugRuntimeStats,
+  getLiveFormCapabilities,
+  isDebugUtilitiesAvailable,
+} from "../../../features/platform/sapi-capabilities";
 import { taskScheduler } from "../../../features/platform/scheduler";
 import { color } from "../../../shared/utils/color";
 import { openSchedulerDetailForm } from "./scheduler-panel";
@@ -17,6 +22,13 @@ function stat(label: string, value: string | number, labelColor: (text: string) 
 
 function switchStat(label: string, value: unknown): string {
   return `${color.yellow(label)} ${boolState(value)}`;
+}
+
+function formatBytes(value: number | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  if (value < 1024) return `${value}B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)}KB`;
+  return `${(value / 1024 / 1024).toFixed(1)}MB`;
 }
 
 function countDimensionEntities(type?: string): number {
@@ -60,19 +72,98 @@ function buildSnapshot(): string {
 
 function openFallbackServerPanel(player: Player, returnForm?: () => void): void {
   const form = new ActionFormData();
-  form.title("§w服务器实时面板");
+  form.title("服务器实时面板");
   form.body({ rawtext: [{ text: buildSnapshot() }] });
-  form.button("§w调度详情", "textures/icons/gear");
-  form.button("§w刷新", "textures/icons/requeue");
-  form.button("§w返回", "textures/icons/back");
+  form.button("调度详情", "textures/icons/gear");
+  if (isDebugUtilitiesAvailable()) {
+    form.button("Debug 诊断", "textures/icons/info");
+  }
+  form.button("刷新", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((response) => {
     if (response.canceled || response.cancelationReason) return;
     if (response.selection === 0) {
       openSchedulerDetailForm(player, () => openFallbackServerPanel(player, returnForm));
       return;
     }
-    if (response.selection === 1) {
+    let nextSelection = 1;
+    if (isDebugUtilitiesAvailable()) {
+      if (response.selection === nextSelection) {
+        void openDebugDiagnosticsPanel(player, () => openFallbackServerPanel(player, returnForm));
+        return;
+      }
+      nextSelection++;
+    }
+    if (response.selection === nextSelection) {
       openFallbackServerPanel(player, returnForm);
+      return;
+    }
+    returnForm?.();
+  });
+}
+
+async function buildDebugDiagnosticsSnapshot(): Promise<string> {
+  const [runtime, plugins] = await Promise.all([collectDebugRuntimeStats(), collectDebugPluginStats()]);
+
+  if (!runtime && !plugins) {
+    return color.red("DebugUtilities 当前不可用。请确认正在使用本地/BDS 调试版附加包。");
+  }
+
+  const lines: string[] = [];
+  lines.push(`${color.gold("── Runtime ──")}`);
+  if (runtime) {
+    lines.push(
+      `${stat("内存已用", formatBytes(runtime.memoryUsedSize))}  ${color.darkGray("|")}  ${stat(
+        "已分配",
+        formatBytes(runtime.memoryAllocatedSize)
+      )}`
+    );
+    lines.push(
+      `${stat("对象", runtime.objectCount)}  ${color.darkGray("|")}  ${stat("字符串", runtime.stringCount)}  ${color.darkGray(
+        "|"
+      )}  ${stat("函数", runtime.functionCount)}`
+    );
+    lines.push(
+      `${stat("属性", runtime.propertyCount)}  ${color.darkGray("|")}  ${stat(
+        "数组",
+        runtime.arrayCount + runtime.fastArrayCount
+      )}`
+    );
+  } else {
+    lines.push(color.gray("运行时统计读取失败。"));
+  }
+
+  lines.push("");
+  lines.push(`${color.gold("── Plugin Handles ──")}`);
+  if (plugins?.plugins?.length) {
+    for (const plugin of plugins.plugins.slice(0, 5)) {
+      const totalHandles = Object.values(plugin.handleCounts).reduce((sum, count) => sum + count, 0);
+      const topHandles = Object.entries(plugin.handleCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([name, count]) => `${name}:${count}`)
+        .join(" ");
+      lines.push(`${color.aqua(plugin.name)} ${color.white(String(totalHandles))} ${color.gray(topHandles)}`);
+    }
+  } else {
+    lines.push(color.gray("暂无插件句柄统计。"));
+  }
+
+  lines.push("");
+  lines.push(`${color.gray(`更新 tick ${system.currentTick}`)}`);
+  return lines.join("\n");
+}
+
+async function openDebugDiagnosticsPanel(player: Player, returnForm?: () => void): Promise<void> {
+  const form = new ActionFormData();
+  form.title("Debug 诊断");
+  form.body({ rawtext: [{ text: await buildDebugDiagnosticsSnapshot() }] });
+  form.button("刷新", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.cancelationReason) return;
+    if (response.selection === 0) {
+      void openDebugDiagnosticsPanel(player, returnForm);
       return;
     }
     returnForm?.();
@@ -104,7 +195,16 @@ export async function openLiveServerPanel(player: Player, returnForm?: () => voi
     .button("调度详情", () => {
       safeClose(form);
       system.run(() => openSchedulerDetailForm(player, () => openLiveServerPanel(player, returnForm)));
-    })
+    });
+
+  if (isDebugUtilitiesAvailable()) {
+    form.button("Debug 诊断", () => {
+      safeClose(form);
+      system.run(() => void openDebugDiagnosticsPanel(player, () => openLiveServerPanel(player, returnForm)));
+    });
+  }
+
+  form
     .button("刷新", () => {
       snapshot.setData(buildSnapshot());
     })

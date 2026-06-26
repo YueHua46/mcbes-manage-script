@@ -3,6 +3,7 @@ import behaviorLog, { LandLogInfo } from "../../features/behavior-log/services/b
 import { landManager } from "../../features/land/services";
 import { taskScheduler } from "../../features/platform/scheduler";
 import setting from "../../features/system/services/setting";
+import { isMenuChatTrigger } from "../../core/constants";
 import { eventRegistry } from "../registry";
 
 const JOIN_FLAG = "behaviorLogJoinState";
@@ -233,7 +234,7 @@ export function registerBehaviorLogEvents(): void {
   world.beforeEvents.chatSend.subscribe((event) => {
     const { sender, message } = event;
     if (!message.trim()) return;
-    if (message === "服务器菜单") return;
+    if (isMenuChatTrigger(message)) return;
     behaviorLog.logChat(sender, message);
   });
 

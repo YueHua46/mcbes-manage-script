@@ -1,0 +1,35 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "yuehua:fake_player",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "skin_0": "textures/entity/yuehua_fake_player_miku",
+        "skin_1": "textures/entity/yuehua_fake_player_yui_hirasawa",
+        "skin_2": "textures/entity/yuehua_fake_player_sylphiette",
+        "skin_3": "textures/entity/yuehua_fake_player_eris_greyrat",
+        "skin_4": "textures/entity/yuehua_fake_player_megumin",
+        "skin_5": "textures/entity/yuehua_fake_player_anya",
+        "skin_6": "textures/entity/yuehua_fake_player_roxy",
+        "skin_7": "textures/entity/yuehua_fake_player_haruhi",
+        "skin_8": "textures/entity/yuehua_fake_player_yuki_nagato",
+        "skin_9": "textures/entity/yuehua_fake_player_emilia",
+        "skin_10": "textures/entity/yuehua_fake_player_rem",
+        "skin_11": "textures/entity/yuehua_fake_player_saber_battle",
+        "skin_12": "textures/entity/yuehua_fake_player_rin_tohsaka",
+        "skin_13": "textures/entity/yuehua_fake_player_saber_casual",
+        "skin_14": "textures/entity/yuehua_fake_player_kurumi_battle",
+        "skin_15": "textures/entity/yuehua_fake_player_kurumi_school"
+      },
+      "geometry": {
+        "default": "geometry.yuehua.fake_player"
+      },
+      "render_controllers": [
+        "controller.render.yuehua_fake_player"
+      ]
+    }
+  }
+}

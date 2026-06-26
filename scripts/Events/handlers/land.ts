@@ -17,7 +17,10 @@ import { eventRegistry } from "../registry";
 import { color } from "../../shared/utils/color";
 import { debounce, isAdmin, SystemLog } from "../../shared/utils/common";
 import landManager from "../../features/land/services/land-manager";
-import landParticle from "../../features/land/services/land-particle";
+import landParticle, {
+  type LandSelectionGuideInfo,
+  type LandSelectionOverlapInfo,
+} from "../../features/land/services/land-particle";
 import { useNotify } from "../../shared/hooks";
 import { MinecraftBlockTypes } from "@minecraft/vanilla-data";
 import type { ILand, Vector3 } from "../../core/types";
@@ -26,11 +29,17 @@ import behaviorLog from "../../features/behavior-log/services/behavior-log";
 import { subscribePreviewEvent } from "../../features/platform/sapi-capabilities";
 import { taskScheduler } from "../../features/platform/scheduler";
 import setting from "../../features/system/services/setting";
+import economic from "../../features/economic/services/economic";
+import PlayerSetting from "../../features/player/services/player-settings";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
   return s.replace(/§./g, "");
 }
+
+const LAND_BOUNDARY_PARTICLE_REFRESH_TICKS = 80;
+const LAND_BOUNDARY_SCAN_REFRESH_TICKS = 4;
+const LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE = 192;
 
 interface LandArea {
   start?: Vector3;
@@ -56,6 +65,36 @@ const isMoving = (entity: Entity): boolean => {
 // 领地标记区域存储
 export const landAreas = new Map<string, LandArea>();
 
+function isLandNearPlayerForBoundaryDisplay(land: ILand, playerPos: Vector3): boolean {
+  const minX = Math.min(land.vectors.start.x, land.vectors.end.x);
+  const maxX = Math.max(land.vectors.start.x, land.vectors.end.x);
+  const minZ = Math.min(land.vectors.start.z, land.vectors.end.z);
+  const maxZ = Math.max(land.vectors.start.z, land.vectors.end.z);
+  const centerX = (minX + maxX) / 2;
+  const centerZ = (minZ + maxZ) / 2;
+  const dx = playerPos.x - centerX;
+  const dz = playerPos.z - centerZ;
+  return dx * dx + dz * dz <= LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE * LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE;
+}
+
+function getLandBoundaryVariantForPlayer(land: ILand, player: Player): "owner" | "trusted" | "guild" | "public" | "foreign" {
+  if (land.owner === player.name) return "owner";
+  if (land.guildId) {
+    if (landManager.isPlayerTrustedOnLand(land, player.name)) return "guild";
+    return "foreign";
+  }
+  if (landManager.isPlayerTrustedOnLand(land, player.name)) return "trusted";
+  if (land.public_auth.allowEnter === true) return "public";
+  return "foreign";
+}
+
+function showUnifiedLandBoundary(player: Player, land: ILand): void {
+  landParticle.createLandAmbientBoundaryBurst(player, [land.vectors.start, land.vectors.end], {
+    seed: `${land.name}:${land.owner}`,
+    variant: getLandBoundaryVariantForPlayer(land, player),
+  });
+}
+
 // 玩家当前所在领地记录
 const LandLog = new Map<string, ILand>();
 
@@ -70,6 +109,200 @@ const WITHER_BOSS_TYPE_ID = "minecraft:wither";
 const WITHER_BOSS_EJECT_MARGIN = 4;
 const WITHER_BOSS_CHECK_INTERVAL_TICKS = 10;
 const LAND_DIMENSION_IDS = ["overworld", "nether", "the_end"] as const;
+const LAND_SENSITIVE_ENTITY_PLACE_ITEMS = new Map<string, string[]>([
+  ["minecraft:end_crystal", ["minecraft:ender_crystal", "minecraft:end_crystal"]],
+  ["minecraft:armor_stand", ["minecraft:armor_stand"]],
+  ["minecraft:item_frame", ["minecraft:item_frame"]],
+  ["minecraft:glow_item_frame", ["minecraft:glow_item_frame"]],
+  ["minecraft:painting", ["minecraft:painting"]],
+  ["minecraft:oak_boat", ["minecraft:boat"]],
+  ["minecraft:spruce_boat", ["minecraft:boat"]],
+  ["minecraft:birch_boat", ["minecraft:boat"]],
+  ["minecraft:jungle_boat", ["minecraft:boat"]],
+  ["minecraft:acacia_boat", ["minecraft:boat"]],
+  ["minecraft:dark_oak_boat", ["minecraft:boat"]],
+  ["minecraft:mangrove_boat", ["minecraft:boat"]],
+  ["minecraft:cherry_boat", ["minecraft:boat"]],
+  ["minecraft:bamboo_raft", ["minecraft:boat"]],
+  ["minecraft:minecart", ["minecraft:minecart"]],
+  ["minecraft:chest_minecart", ["minecraft:chest_minecart", "minecraft:minecart"]],
+  ["minecraft:hopper_minecart", ["minecraft:hopper_minecart", "minecraft:minecart"]],
+  ["minecraft:tnt_minecart", ["minecraft:tnt_minecart", "minecraft:minecart"]],
+  ["minecraft:command_block_minecart", ["minecraft:command_block_minecart", "minecraft:minecart"]],
+]);
+const LAND_SENSITIVE_ENTITY_SPAWN_TRACK_TICKS = 10;
+const LAND_SENSITIVE_FLUID_ITEMS = new Map<string, string[]>([
+  ["minecraft:water_bucket", ["minecraft:water", "minecraft:flowing_water"]],
+  ["minecraft:lava_bucket", ["minecraft:lava", "minecraft:flowing_lava"]],
+  ["minecraft:powder_snow_bucket", ["minecraft:powder_snow"]],
+]);
+const CONTAINER_BLOCK_KEYWORDS = [
+  "chest",
+  "barrel",
+  "shulker_box",
+  "dispenser",
+  "dropper",
+  "hopper",
+  "crafter",
+];
+const DOOR_BLOCK_KEYWORDS = ["door", "trapdoor", "fence_gate"];
+
+interface SensitiveEntitySpawnRecord {
+  id: string;
+  typeId: string;
+  dimensionId: string;
+  location: Vector3;
+  tick: number;
+  entity: Entity;
+}
+
+interface DeniedSensitivePlacementRecord {
+  playerName: string;
+  ownerName: string;
+  itemTypeId: string;
+  dimensionId: string;
+  targetLocation: Vector3;
+  tick: number;
+}
+
+const recentSensitiveEntitySpawns: SensitiveEntitySpawnRecord[] = [];
+const pendingDeniedSensitivePlacements: DeniedSensitivePlacementRecord[] = [];
+
+function getCurrentPreviewPoint(player: Player): Vector3 {
+  return {
+    x: Math.floor(player.location.x),
+    y: Math.floor(player.location.y),
+    z: Math.floor(player.location.z),
+  };
+}
+
+function getSelectionOverlaps(start: Vector3, end: Vector3, dimensionId: string): LandSelectionOverlapInfo[] {
+  const volume = new BlockVolume(start, end);
+  const min = volume.getMin();
+  const max = volume.getMax();
+  const overlaps: LandSelectionOverlapInfo[] = [];
+
+  for (const land of Object.values(landManager.getLandList())) {
+    if (land.dimension !== dimensionId) continue;
+    const existingVolume = new BlockVolume(land.vectors.start, land.vectors.end);
+    const existingMin = existingVolume.getMin();
+    const existingMax = existingVolume.getMax();
+    const separated =
+      max.x < existingMin.x ||
+      existingMax.x < min.x ||
+      max.y < existingMin.y ||
+      existingMax.y < min.y ||
+      max.z < existingMin.z ||
+      existingMax.z < min.z;
+    if (!separated) {
+      overlaps.push({
+        name: stripLandDisplaySection(land.name),
+        owner: stripLandDisplaySection(land.owner),
+        start: land.vectors.start,
+        end: land.vectors.end,
+      });
+    }
+  }
+
+  return overlaps;
+}
+
+function getSelectionSize(start: Vector3, end: Vector3): Vector3 {
+  return {
+    x: Math.abs(end.x - start.x) + 1,
+    y: Math.abs(end.y - start.y) + 1,
+    z: Math.abs(end.z - start.z) + 1,
+  };
+}
+
+function buildLandSelectionGuide(player: Player, landArea: LandArea): LandSelectionGuideInfo {
+  const start = landArea.start;
+  const end = landArea.end;
+  const preview = start && !end ? getCurrentPreviewPoint(player) : undefined;
+  const activeEnd = end ?? preview;
+
+  if (!start || !activeEnd) {
+    return {
+      start,
+      end,
+      complete: false,
+      status: "preview",
+      hint: start ? "潜行并用木棍点击方块设置终点" : "用木棍点击方块设置起点",
+    };
+  }
+
+  const blockCount = landManager.calculateBlockCount(start, activeEnd);
+  const maxBlocks = Number(setting.getState("maxLandBlocks") || "30000");
+  const overlaps = getSelectionOverlaps(start, activeEnd, player.dimension.id);
+  const overlapCount = overlaps.length;
+  const economyOn = setting.getState("economy") === true;
+  const cost = economyOn ? economic.calculateLandPrice(start, activeEnd) : 0;
+  const balance = economyOn ? economic.getWallet(player.name).gold : undefined;
+  const tooLarge = Number.isFinite(maxBlocks) && blockCount > maxBlocks;
+  const cannotAfford = economyOn && typeof balance === "number" && balance < cost;
+  const hasOverlap = overlapCount > 0;
+  const complete = !!end;
+  const status: LandSelectionGuideInfo["status"] =
+    tooLarge || hasOverlap || cannotAfford ? "invalid" : complete ? "valid" : "preview";
+  const size = getSelectionSize(start, activeEnd);
+  const hints: string[] = [];
+
+  if (tooLarge) {
+    hints.push(`超出上限 ${blockCount}/${maxBlocks}`);
+  } else {
+    hints.push(`${blockCount}/${maxBlocks} 格`);
+  }
+  if (hasOverlap) {
+    const overlapNames = overlaps
+      .slice(0, 3)
+      .map((land) => `${land.name}/${land.owner}`)
+      .join("、");
+    hints.push(`重叠：${overlapNames}${overlapCount > 3 ? ` 等${overlapCount}块` : ""}`);
+  }
+  if (economyOn) hints.push(cannotAfford ? `金币不足 ${cost}/${balance}` : `费用 ${cost} 金币`);
+  hints.push(complete ? "打开领地申请确认创建" : "移动预览，潜行点击锁定终点");
+
+  player.onScreenDisplay.setActionBar(
+    [
+      color.aqua(complete ? "领地范围已锁定" : "圈地预览"),
+      color.white(`${size.x}x${size.y}x${size.z}`),
+      status === "invalid" ? color.red(hints.join(" · ")) : color.gray(hints.join(" · ")),
+    ].join("  ")
+  );
+
+  return {
+    start,
+    end,
+    preview,
+    blockCount,
+    maxBlocks,
+    cost: economyOn ? cost : undefined,
+    balance,
+    overlapCount,
+    overlaps,
+    complete,
+    status,
+    hint: hints.join(" · "),
+  };
+}
+
+function cancelLandSelection(player: Player): boolean {
+  if (!landAreas.has(player.name)) return false;
+  landAreas.delete(player.name);
+  landParticle.clearLandSelectionGuide(player);
+  player.onScreenDisplay.setActionBar(color.gray("已取消圈地模式"));
+  player.sendMessage(color.gray("已取消圈地模式，领地点已清除。"));
+  try {
+    player.playSound("random.pop", { pitch: 0.75 });
+  } catch {
+    // 忽略音效不可用。
+  }
+  return true;
+}
+
+function blockTypeContainsAny(blockTypeId: string, keywords: readonly string[]): boolean {
+  return keywords.some((keyword) => blockTypeId.includes(keyword));
+}
 
 function isLandBreakAllowed(player: Player, land: ILand): boolean {
   if (land.owner === player.name) return true;
@@ -224,6 +457,146 @@ function registerLandBreakingPreviewEvents(): void {
   );
 }
 
+function getTargetLocationFromUseOn(blockLocation: Vector3, blockFace: string | number): Vector3 {
+  const face = String(blockFace).toLowerCase();
+  if (face === "up" || blockFace === 1) return { x: blockLocation.x, y: blockLocation.y + 1, z: blockLocation.z };
+  if (face === "down" || blockFace === 0) return { x: blockLocation.x, y: blockLocation.y - 1, z: blockLocation.z };
+  if (face === "north" || blockFace === 2) return { x: blockLocation.x, y: blockLocation.y, z: blockLocation.z - 1 };
+  if (face === "south" || blockFace === 3) return { x: blockLocation.x, y: blockLocation.y, z: blockLocation.z + 1 };
+  if (face === "west" || blockFace === 4) return { x: blockLocation.x - 1, y: blockLocation.y, z: blockLocation.z };
+  if (face === "east" || blockFace === 5) return { x: blockLocation.x + 1, y: blockLocation.y, z: blockLocation.z };
+  return { x: blockLocation.x, y: blockLocation.y + 1, z: blockLocation.z };
+}
+
+function isLandPlaceAllowed(player: Player, land: ILand): boolean {
+  if (land.owner === player.name) return true;
+  if (isAdmin(player)) return true;
+  if (landManager.isPlayerTrustedOnLand(land, player.name)) return true;
+  return land.public_auth.place === true;
+}
+
+function warnDeniedLandUse(player: Player, ownerName: string): void {
+  useNotify("chat", player, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
+}
+
+function locationDistanceSq(a: Vector3, b: Vector3): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  const dz = a.z - b.z;
+  return dx * dx + dy * dy + dz * dz;
+}
+
+function normalizeDimensionId(dimensionId: string): string {
+  return dimensionId.replace(/^minecraft:/, "");
+}
+
+function isSensitivePlacedEntityType(typeId: string): boolean {
+  for (const types of LAND_SENSITIVE_ENTITY_PLACE_ITEMS.values()) {
+    if (types.includes(typeId)) return true;
+  }
+  return false;
+}
+
+function cleanupSensitivePlacementRecords(): void {
+  const minTick = system.currentTick - LAND_SENSITIVE_ENTITY_SPAWN_TRACK_TICKS;
+  for (let i = recentSensitiveEntitySpawns.length - 1; i >= 0; i--) {
+    if (recentSensitiveEntitySpawns[i].tick < minTick) {
+      recentSensitiveEntitySpawns.splice(i, 1);
+    }
+  }
+  for (let i = pendingDeniedSensitivePlacements.length - 1; i >= 0; i--) {
+    if (pendingDeniedSensitivePlacements[i].tick < minTick) {
+      pendingDeniedSensitivePlacements.splice(i, 1);
+    }
+  }
+}
+
+function removeDeniedSpawnedEntities(record: DeniedSensitivePlacementRecord): void {
+  const entityTypes = LAND_SENSITIVE_ENTITY_PLACE_ITEMS.get(record.itemTypeId);
+  if (!entityTypes) return;
+
+  const dimId = normalizeDimensionId(record.dimensionId);
+  for (const spawn of recentSensitiveEntitySpawns) {
+    if (spawn.dimensionId !== dimId) continue;
+    if (!entityTypes.includes(spawn.typeId)) continue;
+    if (locationDistanceSq(spawn.location, record.targetLocation) > 4) continue;
+    try {
+      if (spawn.entity.isValid) spawn.entity.remove();
+    } catch (_) {}
+  }
+}
+
+function registerDeniedSensitivePlacement(record: DeniedSensitivePlacementRecord): void {
+  pendingDeniedSensitivePlacements.push(record);
+  system.run(() => {
+    removeDeniedSpawnedEntities(record);
+    const index = pendingDeniedSensitivePlacements.indexOf(record);
+    if (index >= 0) pendingDeniedSensitivePlacements.splice(index, 1);
+  });
+}
+
+function handleSensitiveEntitySpawn(entity: Entity): void {
+  if (!isSensitivePlacedEntityType(entity.typeId)) return;
+
+  cleanupSensitivePlacementRecords();
+  const spawn: SensitiveEntitySpawnRecord = {
+    id: entity.id,
+    typeId: entity.typeId,
+    dimensionId: normalizeDimensionId(entity.dimension.id),
+    location: { ...entity.location },
+    tick: system.currentTick,
+    entity,
+  };
+  recentSensitiveEntitySpawns.push(spawn);
+
+  for (const record of pendingDeniedSensitivePlacements) {
+    if (record.dimensionId !== spawn.dimensionId) continue;
+    const entityTypes = LAND_SENSITIVE_ENTITY_PLACE_ITEMS.get(record.itemTypeId);
+    if (!entityTypes?.includes(spawn.typeId)) continue;
+    if (locationDistanceSq(record.targetLocation, spawn.location) > 4) continue;
+    try {
+      entity.remove();
+    } catch (_) {}
+    break;
+  }
+}
+
+function cleanupDeniedSensitivePlacement(
+  playerName: string,
+  ownerName: string,
+  dimensionId: string,
+  targetLocation: Vector3,
+  itemTypeId: string
+): void {
+  system.run(() => {
+    const dimension = world.getDimension(normalizeDimensionId(dimensionId) as any);
+
+    const fluidTypes = LAND_SENSITIVE_FLUID_ITEMS.get(itemTypeId);
+    if (fluidTypes) {
+      const block = dimension.getBlock(targetLocation);
+      if (block && fluidTypes.includes(block.typeId)) {
+        try {
+          block.setType("minecraft:air");
+        } catch (_) {}
+      }
+    }
+
+    if (LAND_SENSITIVE_ENTITY_PLACE_ITEMS.has(itemTypeId)) {
+      registerDeniedSensitivePlacement({
+        playerName,
+        ownerName,
+        itemTypeId,
+        dimensionId: normalizeDimensionId(dimensionId),
+        targetLocation,
+        tick: system.currentTick,
+      });
+    }
+
+    const player = world.getPlayers().find((p) => p.name === playerName);
+    if (player) warnDeniedLandUse(player, ownerName);
+  });
+}
+
 /**
  * 判断实体是否为敌对生物（会主动攻击玩家的生物）
  */
@@ -308,31 +681,15 @@ export function registerLandEvents(): void {
         if (landArea.lastChangeTime < Date.now() - 1000 * 60 * 10) {
           const player = world.getPlayers().find((p) => p.name === playerId);
           player?.sendMessage(color.red("领地标记坐标点已过期，请重新设置"));
+          if (player) {
+            landParticle.clearLandSelectionGuide(player);
+          }
           landAreas.delete(playerId);
         }
 
-        // 显示起始点粒子
-        if (landArea.start) {
-          const player = world.getPlayers().find((p) => p.name === playerId);
-          if (player) {
-            landParticle.createLandParticle(player, landArea.start);
-          }
-        }
-
-        // 显示结束点粒子
-        if (landArea.end) {
-          const player = world.getPlayers().find((p) => p.name === playerId);
-          if (player) {
-            landParticle.createLandParticle(player, landArea.end);
-          }
-        }
-
-        // 显示区域边框
-        if (landArea.start && landArea.end) {
-          const player = world.getPlayers().find((p) => p.name === playerId);
-          if (player) {
-            landParticle.createLandParticleArea(player, [landArea.start, landArea.end]);
-          }
+        const player = world.getPlayers().find((p) => p.name === playerId);
+        if (player) {
+          landParticle.createLandSelectionGuide(player, buildLandSelectionGuide(player, landArea));
         }
       });
 
@@ -374,6 +731,67 @@ export function registerLandEvents(): void {
     when: () => setting.getState("land") === true,
     run: () => {
       enforceWitherBossLandAccess();
+    },
+  });
+
+  /**
+   * 玩家个人开关：持续显示玩家当前维度内所有领地边界效果。
+   */
+  taskScheduler.register({
+    id: "land.boundaryParticleDisplay",
+    label: "领地范围常显",
+    category: "land",
+    intervalTicks: LAND_BOUNDARY_PARTICLE_REFRESH_TICKS,
+    when: () => setting.getState("land") === true,
+    run: () => {
+      world.getAllPlayers().forEach((p) => {
+        if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
+          return;
+        }
+
+        const lands = Object.values(landManager.getLandList()).filter(
+          (land) => land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location)
+        );
+        for (const land of lands) {
+          try {
+            landParticle.createLandAmbientBoundary(p, [land.vectors.start, land.vectors.end], {
+              seed: `${land.name}:${land.owner}`,
+              variant: getLandBoundaryVariantForPlayer(land, p),
+            });
+          } catch (error) {
+            // 忽略粒子生成错误
+          }
+        }
+      });
+    },
+  });
+
+  taskScheduler.register({
+    id: "land.boundaryScanDisplay",
+    label: "领地边界扫描光",
+    category: "land",
+    intervalTicks: LAND_BOUNDARY_SCAN_REFRESH_TICKS,
+    when: () => setting.getState("land") === true,
+    run: () => {
+      world.getAllPlayers().forEach((p) => {
+        if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
+          return;
+        }
+
+        const lands = Object.values(landManager.getLandList()).filter(
+          (land) => land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location)
+        );
+        for (const land of lands) {
+          try {
+            landParticle.createLandAmbientBoundaryScan(p, [land.vectors.start, land.vectors.end], {
+              seed: `${land.name}:${land.owner}`,
+              variant: getLandBoundaryVariantForPlayer(land, p),
+            });
+          } catch (error) {
+            // 忽略粒子生成错误
+          }
+        }
+      });
     },
   });
 
@@ -435,9 +853,9 @@ export function registerLandEvents(): void {
               // 确保Y坐标在合理范围内
               teleportPos.y = Math.max(landMin.y, Math.min(landMax.y + 1, playerPos.y));
 
-              // 先显示领地轮廓，让玩家知道领地范围（传送前显示一次）
+              // 先显示统一的领地边界，让玩家知道领地范围（传送前显示一次）
               try {
-                landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
+                showUnifiedLandBoundary(p, insideLand);
               } catch (error) {
                 // 忽略粒子生成错误
               }
@@ -456,10 +874,7 @@ export function registerLandEvents(): void {
                   try {
                     const playerAfterTeleport = world.getPlayers().find((pl) => pl.name === p.name);
                     if (playerAfterTeleport) {
-                      landParticle.createLandParticleArea(playerAfterTeleport, [
-                        insideLand.vectors.start,
-                        insideLand.vectors.end,
-                      ]);
+                      showUnifiedLandBoundary(playerAfterTeleport, insideLand);
                     }
                   } catch (error) {
                     // 忽略粒子生成错误
@@ -499,7 +914,7 @@ export function registerLandEvents(): void {
           }
 
           try {
-            landParticle.createLandParticleArea(p, [insideLand.vectors.start, insideLand.vectors.end]);
+            showUnifiedLandBoundary(p, insideLand);
           } catch (error) {}
 
           LandLog.set(p.name, insideLand);
@@ -535,7 +950,7 @@ export function registerLandEvents(): void {
             }
 
             try {
-              landParticle.createLandParticleArea(p, [landData.vectors.start, landData.vectors.end]);
+              showUnifiedLandBoundary(p, landData);
             } catch (error) {}
 
             LandLog.delete(p.name);
@@ -573,6 +988,7 @@ export function registerLandEvents(): void {
             z: block.location.z,
           };
           source.sendMessage(color.yellow(`已设置领地结束点：${endPos.x} ${endPos.y} ${endPos.z}`));
+          source.sendMessage(color.gray("领地范围已锁定，可打开领地申请确认创建。"));
           landArea.end = endPos;
           landArea.lastChangeTime = Date.now();
         } else {
@@ -583,15 +999,55 @@ export function registerLandEvents(): void {
             z: block.location.z,
           };
           source.sendMessage(color.yellow(`已设置领地起始点：${startPos.x} ${startPos.y} ${startPos.z}`));
+          source.sendMessage(color.gray("移动时会实时预览范围；潜行并用木棍点击方块设置终点。"));
           landArea.start = startPos;
           landArea.lastChangeTime = Date.now();
         }
 
         landAreas.set(playerId, landArea);
+        landParticle.createLandSelectionGuide(source, buildLandSelectionGuide(source, landArea));
+        try {
+          source.playSound(source.isSneaking ? "random.orb" : "random.click");
+        } catch {
+          // 忽略音效不可用。
+        }
       },
       1000,
       source
     );
+  });
+
+  world.afterEvents.itemUse.subscribe((event) => {
+    const { source, itemStack } = event;
+    if (!source || source.typeId !== "minecraft:player") return;
+    if (!itemStack?.typeId?.includes("minecraft:stick")) return;
+    const player = source as Player;
+    if (!player.isSneaking) return;
+    cancelLandSelection(player);
+  });
+
+  const itemStartUseOn = (world.afterEvents as any).itemStartUseOn;
+  if (typeof itemStartUseOn?.subscribe === "function") {
+    itemStartUseOn.subscribe((event: any) => {
+      const player = event.source as Player | undefined;
+      const itemTypeId = event.itemStack?.typeId as string | undefined;
+      const block = event.block;
+      if (!player || player.typeId !== "minecraft:player" || !itemTypeId || !block?.location || !block.dimension?.id) {
+        return;
+      }
+      if (!LAND_SENSITIVE_ENTITY_PLACE_ITEMS.has(itemTypeId) && !LAND_SENSITIVE_FLUID_ITEMS.has(itemTypeId)) return;
+
+      const targetLocation = getTargetLocationFromUseOn(block.location, event.blockFace);
+      const { isInside, insideLand } = landManager.testLand(targetLocation, block.dimension.id);
+      if (!isInside || !insideLand) return;
+      if (isLandPlaceAllowed(player, insideLand)) return;
+
+      cleanupDeniedSensitivePlacement(player.name, insideLand.owner, block.dimension.id, targetLocation, itemTypeId);
+    });
+  }
+
+  world.afterEvents.entitySpawn.subscribe((event) => {
+    handleSensitiveEntitySpawn(event.entity);
   });
 
   // ==================== 领地保护事件 ====================
@@ -799,13 +1255,10 @@ export function registerLandEvents(): void {
 
     const redstone = [
       MinecraftBlockTypes.Observer,
-      MinecraftBlockTypes.Dispenser,
       MinecraftBlockTypes.DaylightDetector,
       MinecraftBlockTypes.DaylightDetectorInverted,
       MinecraftBlockTypes.UnpoweredRepeater,
       MinecraftBlockTypes.UnpoweredComparator,
-      MinecraftBlockTypes.Hopper,
-      MinecraftBlockTypes.Crafter,
     ];
 
     const fireItems = [
@@ -814,13 +1267,24 @@ export function registerLandEvents(): void {
       "minecraft:water_bucket",
       "minecraft:lava_bucket",
     ];
+    const blockTypeId = block.typeId;
+    const itemTypeId = itemStack?.typeId ?? "";
 
     // 预先保存玩家名和领地主人名，避免在 system.run 中访问 beforeEvent 的对象
     const playerName = player.name;
     const ownerName = insideLand.owner;
 
+    if (fireItems.includes(itemTypeId) && !insideLand.public_auth.burn) {
+      event.cancel = true;
+      sendLandWarning(playerName, ownerName);
+      return;
+    }
+
     // 检查箱子权限
-    if (chests.includes(block.typeId as MinecraftBlockTypes)) {
+    if (
+      chests.includes(blockTypeId as MinecraftBlockTypes) ||
+      blockTypeContainsAny(blockTypeId, CONTAINER_BLOCK_KEYWORDS)
+    ) {
       if (!insideLand.public_auth.isChestOpen) {
         event.cancel = true;
         sendLandWarning(playerName, ownerName);
@@ -829,7 +1293,7 @@ export function registerLandEvents(): void {
     }
 
     // 检查按钮权限
-    if (buttons.includes(block.typeId as MinecraftBlockTypes)) {
+    if (buttons.includes(blockTypeId as MinecraftBlockTypes) || blockTypeContainsAny(blockTypeId, DOOR_BLOCK_KEYWORDS)) {
       if (!insideLand.public_auth.useButton) {
         event.cancel = true;
         sendLandWarning(playerName, ownerName);
@@ -838,7 +1302,7 @@ export function registerLandEvents(): void {
     }
 
     // 检查告示牌权限
-    if (block.typeId.endsWith("sign")) {
+    if (blockTypeId.endsWith("sign")) {
       if (!insideLand.public_auth.useSign) {
         event.cancel = true;
         sendLandWarning(playerName, ownerName);
@@ -847,7 +1311,7 @@ export function registerLandEvents(): void {
     }
 
     // 检查红石权限
-    if (redstone.includes(block.typeId as MinecraftBlockTypes)) {
+    if (redstone.includes(blockTypeId as MinecraftBlockTypes)) {
       if (!insideLand.public_auth.useRedstone) {
         event.cancel = true;
         sendLandWarning(playerName, ownerName);
@@ -856,7 +1320,7 @@ export function registerLandEvents(): void {
     }
 
     // 检查锻造类权限
-    if (smelting.includes(block.typeId as MinecraftBlockTypes)) {
+    if (smelting.includes(blockTypeId as MinecraftBlockTypes)) {
       if (!insideLand.public_auth.useSmelting) {
         event.cancel = true;
         sendLandWarning(playerName, ownerName);
@@ -865,18 +1329,10 @@ export function registerLandEvents(): void {
     }
 
     // 检查火焰物品权限
-    if (fireItems.includes(itemStack?.typeId ?? "")) {
-      if (!insideLand.public_auth.burn) {
-        event.cancel = true;
-        sendLandWarning(playerName, ownerName);
-      }
-      return;
-    }
-
-    // 检查通用方块交互权限
     if (!insideLand.public_auth.useBlock) {
       event.cancel = true;
       sendLandWarning(playerName, ownerName);
+      return;
     }
   });
 

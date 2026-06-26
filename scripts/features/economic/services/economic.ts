@@ -26,6 +26,7 @@ export class Economic {
 
       this.DAILY_GOLD_LIMIT = Number(setting.getState("daily_gold_limit"));
       this.DEFAULT_GOLD = Number(setting.getState("startingGold"));
+      this.syncDailyGoldLimitFromSetting();
 
       this.fixInvalidGoldData();
     });
@@ -157,12 +158,20 @@ export class Economic {
     return allWallets.sort((a, b) => b.gold - a.gold).slice(0, limit);
   }
 
-  private isEconomyEnabled(): boolean {
+  isEconomyEnabled(): boolean {
     return setting.getState("economy") === true;
+  }
+
+  private syncDailyGoldLimitFromSetting(): number {
+    const configured = Number(setting.getState("daily_gold_limit"));
+    const nextLimit = Number.isFinite(configured) && configured >= 0 ? Math.floor(configured) : 100000;
+    this.DAILY_GOLD_LIMIT = nextLimit;
+    return nextLimit;
   }
 
   addGold(playerName: string, amount: number, reason: string, ignoreDailyLimit: boolean = false): number {
     if (!this.isEconomyEnabled()) return 0;
+    const dailyGoldLimit = this.syncDailyGoldLimitFromSetting();
 
     if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
       console.warn(`尝试添加无效的金币数量: ${amount} 给玩家: ${playerName}`);
@@ -189,7 +198,7 @@ export class Economic {
             player.sendMessage({
               rawtext: [
                 {
-                  text: `${colorCodes.red}您已达到今日金币获取上限 ${colorCodes.gold}${this.DAILY_GOLD_LIMIT} ${colorCodes.red}金币，无法获得更多金币！`,
+                  text: `${colorCodes.red}您已达到今日金币获取上限 ${colorCodes.gold}${dailyGoldLimit} ${colorCodes.red}金币，无法获得更多金币！`,
                 },
               ],
             });
@@ -209,7 +218,7 @@ export class Economic {
             player.sendMessage({
               rawtext: [
                 {
-                  text: `${colorCodes.yellow}您已达到今日金币获取上限 ${colorCodes.gold}${this.DAILY_GOLD_LIMIT} ${colorCodes.yellow}金币！`,
+                  text: `${colorCodes.yellow}您已达到今日金币获取上限 ${colorCodes.gold}${dailyGoldLimit} ${colorCodes.yellow}金币！`,
                 },
               ],
             });
@@ -282,10 +291,20 @@ export class Economic {
     const toWallet = this.getWallet(toPlayer);
 
     fromWallet.gold -= amount;
-    this.db.set(fromPlayer, fromWallet);
-
-    toWallet.gold += amount;
-    this.db.set(toPlayer, toWallet);
+    try {
+      this.db.set(fromPlayer, fromWallet);
+      toWallet.gold += amount;
+      this.db.set(toPlayer, toWallet);
+    } catch (error) {
+      fromWallet.gold += amount;
+      try {
+        this.db.set(fromPlayer, fromWallet);
+      } catch (rollbackError) {
+        console.warn(`转账失败且回滚付款方失败: ${fromPlayer} -> ${toPlayer}`, rollbackError);
+      }
+      console.warn(`转账写入失败，已尝试回滚: ${fromPlayer} -> ${toPlayer}`, error);
+      return "转账失败，请稍后重试";
+    }
 
     this.logTransaction(fromPlayer, toPlayer, amount, reason);
 
@@ -365,12 +384,12 @@ export class Economic {
   }
 
   getDailyGoldLimit(): number {
-    return this.DAILY_GOLD_LIMIT;
+    return this.syncDailyGoldLimitFromSetting();
   }
 
   getRemainingDailyLimit(name: string): number {
     const wallet = this.getWallet(name);
-    return Math.max(0, this.DAILY_GOLD_LIMIT - wallet.dailyEarned);
+    return Math.max(0, this.syncDailyGoldLimitFromSetting() - wallet.dailyEarned);
   }
 
   setGlobalDailyLimit(limit: number): void {

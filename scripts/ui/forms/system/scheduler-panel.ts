@@ -49,11 +49,11 @@ function buildDetailBody(): string {
 
 export function openSchedulerDetailForm(player: Player, returnForm?: () => void): void {
   const form = new ActionFormData();
-  form.title("§w调度器详情");
+  form.title("调度器详情");
   form.body({ rawtext: [{ text: buildDetailBody() }] });
-  form.button("§w任务开关", "textures/icons/gear");
-  form.button("§w刷新", "textures/icons/requeue");
-  form.button("§w返回", "textures/icons/back");
+  form.button("任务开关", "textures/icons/gear");
+  form.button("刷新", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((response) => {
     if (response.canceled || response.cancelationReason) return;

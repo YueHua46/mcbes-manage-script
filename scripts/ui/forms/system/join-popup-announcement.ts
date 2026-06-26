@@ -30,7 +30,7 @@ export function openJoinPopupAnnouncementManageForm(player: Player): void {
   const form = new ActionFormData();
   const actions: (() => void)[] = [];
 
-  form.title("§w进服弹窗公告");
+  form.title("进服弹窗公告");
   form.body(
     [
       `§7公告数量：§e${announcements.length}/${MAX_JOIN_POPUP_ANNOUNCEMENTS}`,
@@ -41,22 +41,22 @@ export function openJoinPopupAnnouncementManageForm(player: Player): void {
   );
 
   if (announcements.length < MAX_JOIN_POPUP_ANNOUNCEMENTS) {
-    form.button("§w新增公告", "textures/icons/add");
+    form.button("新增公告", "textures/icons/add");
     actions.push(() => openEditJoinPopupAnnouncementForm(player));
   }
 
   if (enabledCount > 0) {
-    form.button("§w预览启用公告", "textures/icons/duyuru");
+    form.button("预览启用公告", "textures/icons/duyuru");
     actions.push(() => openJoinPopupAnnouncementPreviewForm(player));
   }
 
   announcements.forEach((announcement, index) => {
     const status = announcement.enabled ? "§a启用" : "§7停用";
-    form.button(`§w${index + 1}. ${announcement.title}\n${status}`, "textures/icons/edit2");
+    form.button(`${index + 1}. ${announcement.title}\n${status}`, "textures/icons/edit2");
     actions.push(() => openJoinPopupAnnouncementDetailForm(player, announcement.id));
   });
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   actions.push(() => openSystemSettingForm(player));
 
   form.show(player).then((data) => {
@@ -75,9 +75,9 @@ function openJoinPopupAnnouncementPreviewForm(player: Player): void {
   }
 
   const form = new ActionFormData();
-  form.title("§w进服公告预览");
+  form.title("进服公告预览");
   form.body(renderJoinPopupAnnouncements(announcements));
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   form.show(player).then(() => openJoinPopupAnnouncementManageForm(player));
 }
 
@@ -91,7 +91,7 @@ function openJoinPopupAnnouncementDetailForm(player: Player, id: string): void {
   }
 
   const form = new ActionFormData();
-  form.title("§w公告详情");
+  form.title("公告详情");
   form.body(
     [
       `§7状态：${announcement.enabled ? "§a启用" : "§7停用"}`,
@@ -99,10 +99,10 @@ function openJoinPopupAnnouncementDetailForm(player: Player, id: string): void {
       renderJoinPopupAnnouncement(announcement, 0),
     ].join("\n")
   );
-  form.button("§w编辑公告", "textures/icons/edit2");
-  form.button(announcement.enabled ? "§w停用公告" : "§w启用公告", "textures/icons/settings");
+  form.button("编辑公告", "textures/icons/edit2");
+  form.button(announcement.enabled ? "停用公告" : "启用公告", "textures/icons/settings");
   form.button("§c删除公告", "textures/icons/deny");
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -129,7 +129,7 @@ function openJoinPopupAnnouncementDetailForm(player: Player, id: string): void {
 function openEditJoinPopupAnnouncementForm(player: Player, announcement?: JoinPopupAnnouncement): void {
   const form = new ModalFormData();
   const isEdit = announcement !== undefined;
-  form.title(isEdit ? "§w编辑进服公告" : "§w新增进服公告");
+  form.title(isEdit ? "编辑进服公告" : "新增进服公告");
   form.textField("公告标题", "例如：服务器规则", {
     defaultValue: announcement?.title ?? "",
   });
@@ -180,8 +180,8 @@ function openEditJoinPopupAnnouncementForm(player: Player, announcement?: JoinPo
 function openDeleteJoinPopupAnnouncementConfirmForm(player: Player, announcement: JoinPopupAnnouncement): void {
   openConfirmDialogForm(
     player,
-    "§w删除进服公告",
-    `§c确认删除公告「${announcement.title}」吗？\n§7删除后无法恢复。`,
+    "删除进服公告",
+    `§c确认删除公告「${announcement.title}」吗？\n§0删除后无法恢复。`,
     () => {
       deleteJoinPopupAnnouncement(announcement.id);
       openDialogForm(player, { title: "删除成功", desc: color.green("进服弹窗公告已删除。") }, () =>

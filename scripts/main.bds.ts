@@ -1,5 +1,5 @@
 /**
- * 杜绝熊孩服务器插件 - BDS 增强版入口
+ * 苦力怕菜单 - BDS 增强版入口
  */
 
 import { SystemLog } from "./shared/utils/common";
@@ -16,13 +16,15 @@ import "./features/command/services/command";
 import "./features/blacklist/services/blacklist";
 import "./features/behavior-log/services/log-inspector-tool";
 import "./features/guild";
+import "./features/floating-text";
+import "./features/fake-player";
 import { eventRegistry } from "./events/registry";
 import { scheduleItemIconKeyCacheWarmup } from "./features/system/services/item-icon-key-cache";
 import "./events/handlers/index.bds";
 
 function initializeApp(): void {
   SystemLog.info("========================================");
-  SystemLog.info("杜绝熊孩服务器插件 v2.0 启动中...");
+  SystemLog.info("苦力怕菜单 v2.0 启动中...");
   SystemLog.info("当前构建：BDS 增强版（仅 BDS 服务器）");
   SystemLog.info("========================================");
 
@@ -40,6 +42,8 @@ function initializeApp(): void {
     SystemLog.info("  ✓ 玩家名称显示");
     SystemLog.info("  ✓ 自定义命令系统");
     SystemLog.info("  ✓ 试玩模式系统");
+    SystemLog.info("  ✓ 悬浮文字系统");
+    SystemLog.info("  ✓ 假人加载锚点系统");
     SystemLog.info("  ✓ 黑名单进服前校验");
 
     SystemLog.info("[3/3] 初始化事件系统...");

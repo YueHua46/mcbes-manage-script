@@ -12,6 +12,7 @@ import { glyphKeys } from "../../../assets/glyph-map";
 import ChestFormData from "../../components/chest-ui/chest-forms";
 import { buildChestItemListLores, getChestItemDurabilityBarValue, getChestItemTextureKey } from "../../components/chest-ui";
 import { getItemDisplayName, hasAnyEnchantment } from "../../../shared/utils/item-utils";
+import { isAdmin } from "../../../shared/utils/common";
 
 /**
  * 通过 emoji key 获得 emojiPath
@@ -26,14 +27,19 @@ class OfficeShopSettingForm {
    * 打开官方商店管理主菜单
    */
   openMainMenu(player: Player): void {
+    if (!isAdmin(player)) {
+      player.sendMessage("§c只有管理员可以管理官方商店。");
+      return;
+    }
+
     const { openEconomyManageForm } = require("./index");
 
     const form = new ActionFormData()
-      .title("§w官方商店管理")
+      .title("官方商店管理")
       .body("请选择要执行的操作")
-      .button("§w所有商品类别", "textures/icons/gadgets")
-      .button("§w创建新类别", "textures/icons/add")
-      .button("§w返回", "textures/icons/back");
+      .button("所有商品类别", "textures/icons/gadgets")
+      .button("创建新类别", "textures/icons/add")
+      .button("返回", "textures/icons/back");
 
     form.show(player).then((response) => {
       if (response.canceled) return;
@@ -64,13 +70,13 @@ class OfficeShopSettingForm {
   openCategoryList(player: Player): void {
     const categories = officeShop.getCategories();
 
-    const form = new ActionFormData().title("§w所有商品类别").body("请选择要管理的类别");
+    const form = new ActionFormData().title("所有商品类别").body("请选择要管理的类别");
 
     categories.forEach((category) => {
-      form.button(`§w${category.name}`, category.icon || officeShop.defaultIcon);
+      form.button(`${category.name}`, category.icon || officeShop.defaultIcon);
     });
 
-    form.button("§w返回", "textures/icons/back");
+    form.button("返回", "textures/icons/back");
 
     form.show(player).then((response) => {
       if (response.canceled) return;
@@ -97,7 +103,7 @@ class OfficeShopSettingForm {
     const categoryIcons = officeShop.getCategoryIcons()[1];
 
     const modal = new ModalFormData()
-      .title("§w添加商品类别")
+      .title("添加商品类别")
       .textField("类别名称", "请输入商品类别名称")
       .textField("类别描述", "请输入商品类别描述")
       .dropdown("类别图标", categoryIcons, { defaultValueIndex: 0 });
@@ -156,11 +162,11 @@ class OfficeShopSettingForm {
     }
 
     const form = new ActionFormData()
-      .title(`§w商品管理`)
-      .button("§w查看和编辑商品", "textures/icons/edit2")
-      .button("§w添加商品", "textures/icons/add")
-      .button("§w删除类别", "textures/icons/deny")
-      .button("§w返回", "textures/icons/back");
+      .title(`商品管理`)
+      .button("查看和编辑商品", "textures/icons/edit2")
+      .button("添加商品", "textures/icons/add")
+      .button("删除类别", "textures/icons/deny")
+      .button("返回", "textures/icons/back");
 
     form.show(player).then((res) => {
       if (res.canceled) return;
@@ -194,7 +200,7 @@ class OfficeShopSettingForm {
       .title("§c确认删除")
       .body(`§c您确定要删除类别 §e${categoryName}§c 吗？\n此操作不可撤销，该类别下的所有商品也将被删除。`)
       .button("§c确认删除", "textures/icons/deny")
-      .button("§w取消", "textures/icons/back");
+      .button("取消", "textures/icons/back");
 
     form.show(player).then((res) => {
       if (res.canceled || res.selection === 1) {
@@ -233,7 +239,7 @@ class OfficeShopSettingForm {
       openDialogForm(
         player,
         {
-          title: "§w商店为空",
+          title: "商店为空",
           desc: "当前没有任何商品",
         },
         () => this.manageCategoryItems(player, categoryName)
@@ -445,7 +451,7 @@ class OfficeShopSettingForm {
       .title(`§c确认删除`)
       .body(body)
       .button("§c确认删除", "textures/icons/deny")
-      .button("§w取消", "textures/icons/back");
+      .button("取消", "textures/icons/back");
 
     form.show(player).then((res) => {
       if (res.canceled) return;
@@ -536,7 +542,7 @@ class OfficeShopSettingForm {
     }
 
     // 添加返回按钮
-    chestForm.button(49, "返回", ["§7返回上一级"], "textures/icons/back");
+    chestForm.button(49, "返回", ["§0返回上一级"], "textures/icons/back");
 
     // 显示表单
     chestForm.show(player).then((data) => {

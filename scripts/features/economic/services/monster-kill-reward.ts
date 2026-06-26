@@ -36,12 +36,10 @@ world.afterEvents.entityDie.subscribe((event) => {
       if (amount > 0) {
         // 添加金币（应用每日限制）
         const actualEarned = economic.addGold(player.name, amount, `击杀怪物 ${monsterName}`);
-        const wallet = economic.getWallet(player.name);
-
-        // 今日金币获取未达到上限才显示提示
-        if (!(wallet.dailyEarned >= economic.getDailyGoldLimit())) {
+        // 按实际到账金额显示，避免每日上限截断后提示比到账更多。
+        if (actualEarned > 0) {
           player.runCommand(
-            `title @s actionbar ${colorCodes.yellow}击杀了 ${colorCodes.materialRedstone}${monsterName} ${colorCodes.yellow}获得了 ${colorCodes.materialGold}${amount} ${colorCodes.yellow}金币`
+            `title @s actionbar ${colorCodes.yellow}击杀了 ${colorCodes.materialRedstone}${monsterName} ${colorCodes.yellow}获得了 ${colorCodes.materialGold}${actualEarned} ${colorCodes.yellow}金币`
           );
         }
       }

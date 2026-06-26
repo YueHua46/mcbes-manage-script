@@ -8,6 +8,7 @@
 import { Player, world } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
+import { isAdmin } from "../../../shared/utils/common";
 import { formatDateOnlyBeijing, formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import { openDialogForm } from "../../components/dialog";
 import { IBlacklistEntry } from "../../../core/types";
@@ -22,10 +23,16 @@ import {
 import setting from "../../../features/system/services/setting";
 
 const PAGE_SIZE = 10;
+const DEFAULT_BAN_REASON = "您已被该服务器封禁，如有疑问请联系管理员";
 
 // ==================== 主菜单 ====================
 
 export function openBlacklistManageForm(player: Player): void {
+  if (!isAdmin(player)) {
+    player.sendMessage(color.red("只有管理员可以管理黑名单。"));
+    return;
+  }
+
   if (!isServerAdminBuild()) {
     openDialogForm(
       player,
@@ -43,16 +50,16 @@ export function openBlacklistManageForm(player: Player): void {
 
   const isEnabled = setting.getState("blacklistEnabled") as boolean;
   const form = new ActionFormData();
-  form.title("§w黑名单管理");
+  form.title("黑名单管理");
   const warningLine = isEnabled
     ? "§a✔ 黑名单进服前拦截已启用"
     : "§c✘ 黑名单进服前拦截【未启用】\n§e请先前往系统设置开启「黑名单系统」";
-  form.body(`§e⚠ 当前为 BDS 增强版\n${warningLine}\n§7管理员可在此添加、查看、移除被封禁的玩家`);
+  form.body(`§e⚠ 当前为 BDS 增强版\n${warningLine}\n§0管理员可在此添加、查看、移除被封禁的玩家`);
 
-  form.button("§w查看黑名单列表", "textures/icons/social");
-  form.button("§w添加到黑名单", "textures/icons/deny");
-  form.button("§w从黑名单移除", "textures/icons/requeue");
-  form.button("§w返回", "textures/icons/back");
+  form.button("查看黑名单列表", "textures/icons/social");
+  form.button("添加到黑名单", "textures/icons/deny");
+  form.button("从黑名单移除", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -77,14 +84,19 @@ export function openBlacklistManageForm(player: Player): void {
 // ==================== 黑名单列表（分页） ====================
 
 export function openBlacklistListForm(player: Player, page: number = 1): void {
+  if (!isAdmin(player)) {
+    player.sendMessage(color.red("只有管理员可以查看黑名单。"));
+    return;
+  }
+
   const all = blacklistService.getAll();
 
   const form = new ActionFormData();
-  form.title("§w黑名单列表");
+  form.title("黑名单列表");
 
   if (all.length === 0) {
     form.body(color.yellow("当前黑名单为空"));
-    form.button("§8返回", "textures/icons/back");
+    form.button("返回", "textures/icons/back");
     form.show(player).then((data) => {
       if (!data.canceled) openBlacklistManageForm(player);
     });
@@ -102,14 +114,14 @@ export function openBlacklistListForm(player: Player, page: number = 1): void {
     const bannedDate = formatDateOnlyBeijing(entry.bannedAt);
     const reason = entry.reason || "未填写理由";
     form.button(
-      `${color.darkRed(entry.name)}\n${color.darkGray(reason)} §8| §8${bannedDate}`,
+      `${color.darkRed(entry.name)}\n${color.darkGray(reason)} §0| §0${bannedDate}`,
       "textures/icons/profile"
     );
   });
 
-  if (page > 1) form.button("§8上一页", "textures/icons/left_arrow");
-  if (page < totalPages) form.button("§8下一页", "textures/icons/right_arrow");
-  form.button("§8返回", "textures/icons/back");
+  if (page > 1) form.button("上一页", "textures/icons/left_arrow");
+  if (page < totalPages) form.button("下一页", "textures/icons/right_arrow");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -142,19 +154,21 @@ export function openBlacklistListForm(player: Player, page: number = 1): void {
 
 function openBlacklistDetailForm(player: Player, entry: IBlacklistEntry, returnPage: number): void {
   const form = new ActionFormData();
-  form.title("§w黑名单详情");
+  form.title("黑名单详情");
 
   const bannedDate = formatDateTimeBeijing(entry.bannedAt);
+  const xuidText = blacklistService.isFallbackEntry(entry) ? "未获取（按名字 / persistentId 降级封禁）" : entry.xuid;
   form.body(
     `§e玩家名：§f${entry.name}\n` +
-      `§e XUID：§7${entry.xuid}\n` +
+      `§e XUID：§7${xuidText}\n` +
+      `§e persistentId：§7${entry.persistentId ?? "未记录"}\n` +
       `§e封禁理由：§f${entry.reason || "未填写"}\n` +
       `§e封禁时间：§7${bannedDate}\n` +
       `§e操作管理员：§f${entry.bannedBy}`
   );
 
   form.button("§c移除黑名单", "textures/icons/deny");
-  form.button("§8返回列表", "textures/icons/back");
+  form.button("返回列表", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -177,11 +191,16 @@ function openBlacklistDetailForm(player: Player, entry: IBlacklistEntry, returnP
 // ==================== 添加到黑名单 ====================
 
 export function openAddBlacklistForm(player: Player): void {
+  if (!isAdmin(player)) {
+    player.sendMessage(color.red("只有管理员可以添加黑名单。"));
+    return;
+  }
+
   const onlinePlayers = world.getAllPlayers();
   const playerNames = onlinePlayers.filter((p) => p.name !== player.name).map((p) => p.name);
 
   const form = new ModalFormData();
-  form.title("§w添加玩家到黑名单");
+  form.title("添加玩家到黑名单");
 
   if (playerNames.length > 0) {
     form.dropdown("选择在线玩家", ["── 不选择 ──", ...playerNames], { defaultValueIndex: 0 });
@@ -228,6 +247,11 @@ export function openAddBlacklistForm(player: Player): void {
 }
 
 async function processAddBlacklist(player: Player, targetName: string, reason: string): Promise<void> {
+  if (!isAdmin(player)) {
+    player.sendMessage(color.red("只有管理员可以添加黑名单。"));
+    return;
+  }
+
   if (!targetName) {
     openDialogForm(player, { title: "添加失败", desc: color.red("请选择在线玩家或输入玩家名称") }, () =>
       openAddBlacklistForm(player)
@@ -274,38 +298,44 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
     // server-net 不可用或接口异常
   }
 
-  if (!xuid) {
-    openDialogForm(
-      player,
-      {
-        title: "添加失败",
-        desc:
-          color.red(`暂时无法获取玩家 ${color.yellow(targetName)} 的 xuid。\n`) +
-          color.gray(
-            "可能原因：\n· 该玩家名不存在或拼写有误\n· 第三方查询接口暂时不可用\n请稍后重试，或确认玩家名正确后再操作"
-          ),
-      },
-      () => openAddBlacklistForm(player)
-    );
-    return;
-  }
-
-  // 再次检查 xuid 是否已在黑名单（防止同一 xuid 以不同名字被重复添加）
-  const existingByXuid = blacklistService.isBlacklistedByXuid(xuid);
-  if (existingByXuid) {
-    openDialogForm(
-      player,
-      {
-        title: "已在黑名单",
-        desc: color.yellow(`该玩家（xuid: ${xuid}）已在黑名单中，\n记录名: ${color.white(existingByXuid.name)}`),
-      },
-      () => openBlacklistManageForm(player)
-    );
-    return;
-  }
-
   const persistentId = playerPersistentIdMap.get(targetName) ?? null;
-  blacklistService.add(targetName, xuid, persistentId, reason, player.name);
+
+  if (persistentId) {
+    const existingByPersistentId = blacklistService.isBlacklistedByPersistentId(persistentId);
+    if (existingByPersistentId) {
+      openDialogForm(
+        player,
+        {
+          title: "已在黑名单",
+          desc: color.yellow(
+            `该玩家设备标识已在黑名单中，\n记录名: ${color.white(existingByPersistentId.name)}`
+          ),
+        },
+        () => openBlacklistManageForm(player)
+      );
+      return;
+    }
+  }
+
+  if (xuid) {
+    // 再次检查 xuid 是否已在黑名单（防止同一 xuid 以不同名字被重复添加）
+    const existingByXuid = blacklistService.isBlacklistedByXuid(xuid);
+    if (existingByXuid) {
+      openDialogForm(
+        player,
+        {
+          title: "已在黑名单",
+          desc: color.yellow(`该玩家（xuid: ${xuid}）已在黑名单中，\n记录名: ${color.white(existingByXuid.name)}`),
+        },
+        () => openBlacklistManageForm(player)
+      );
+      return;
+    }
+
+    blacklistService.add(targetName, xuid, persistentId, reason, player.name);
+  } else {
+    blacklistService.addFallback(targetName, persistentId, reason, player.name);
+  }
 
   try {
     const { default: guildService } = await import("../../../features/guild/services/guild-service");
@@ -318,11 +348,22 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
   const onlineTarget = world.getAllPlayers().find((p) => p.name === targetName);
   if (onlineTarget) {
     try {
-      onlineTarget.runCommand(`kick "${targetName}" ${reason || "您已被该服务器封禁，如有疑问请联系管理员"}`);
+      onlineTarget.runCommand(`kick "${targetName}" ${reason || DEFAULT_BAN_REASON}`);
     } catch (_) {
       // kick 命令可能因权限失败，忽略
     }
   }
+
+  const xuidLine = xuid
+    ? color.gray(`XUID: ${xuid}\n`)
+    : color.yellow("XUID: 未获取，已按玩家名 / persistentId 降级封禁\n");
+  const fallbackHint = xuid
+    ? ""
+    : color.gray(
+        persistentId
+          ? "该记录会按玩家名和 persistentId 拦截；若玩家改名且 persistentId 变化，可能需要重新封禁。\n"
+          : "该记录只能按玩家名拦截；若玩家改名，可能需要重新封禁。\n"
+      );
 
   openDialogForm(
     player,
@@ -330,8 +371,9 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
       title: "添加成功",
       desc:
         color.green(`已将玩家 ${color.yellow(targetName)} 加入黑名单\n`) +
-        color.gray(`XUID: ${xuid}\n`) +
+        xuidLine +
         (reason ? color.gray(`理由: ${reason}\n`) : color.darkGray("（未填写理由，将使用默认提示）\n")) +
+        fallbackHint +
         color.yellow("该记录会保存在黑名单中；若玩家当前在线，将已尝试立即踢出。\n") +
         color.green("若已启用黑名单系统，后续重新进服时也会进行拦截。"),
     },
@@ -342,14 +384,19 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
 // ==================== 从黑名单移除（列表选择） ====================
 
 export function openRemoveBlacklistForm(player: Player, page: number = 1): void {
+  if (!isAdmin(player)) {
+    player.sendMessage(color.red("只有管理员可以移除黑名单。"));
+    return;
+  }
+
   const all = blacklistService.getAll();
 
   const form = new ActionFormData();
-  form.title("§w从黑名单移除");
+  form.title("从黑名单移除");
 
   if (all.length === 0) {
     form.body(color.yellow("黑名单为空，无可移除的记录"));
-    form.button("§8返回", "textures/icons/back");
+    form.button("返回", "textures/icons/back");
     form.show(player).then((data) => {
       if (!data.canceled) openBlacklistManageForm(player);
     });
@@ -365,12 +412,12 @@ export function openRemoveBlacklistForm(player: Player, page: number = 1): void 
 
   currentPage.forEach((entry) => {
     const reason = entry.reason || "无";
-    form.button(`${color.darkGray(entry.name)}\n${color.darkGray(`理由: ${reason}`)}`, "textures/icons/profile");
+    form.button(`${entry.name}\n§0理由: ${reason}`, "textures/icons/profile");
   });
 
-  if (page > 1) form.button("§8上一页", "textures/icons/left_arrow");
-  if (page < totalPages) form.button("§8下一页", "textures/icons/right_arrow");
-  form.button("§8返回", "textures/icons/back");
+  if (page > 1) form.button("上一页", "textures/icons/left_arrow");
+  if (page < totalPages) form.button("下一页", "textures/icons/right_arrow");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
@@ -402,11 +449,12 @@ export function openRemoveBlacklistForm(player: Player, page: number = 1): void 
 
 function confirmRemoveBlacklist(player: Player, entry: IBlacklistEntry, returnPage: number): void {
   const form = new ActionFormData();
-  form.title("§w确认解除封禁");
+  form.title("确认解除封禁");
+  const xuidText = blacklistService.isFallbackEntry(entry) ? "未获取（降级封禁）" : entry.xuid;
   form.body(
     `§e确定要将以下玩家从黑名单中移除吗？\n\n` +
       `§f玩家名：${entry.name}\n` +
-      `§7XUID：${entry.xuid}\n` +
+      `§7XUID：${xuidText}\n` +
       `§7理由：${entry.reason || "未填写"}`
   );
   form.button("§a确认移除", "textures/icons/accept");

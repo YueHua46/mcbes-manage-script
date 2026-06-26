@@ -67,11 +67,11 @@ function snapshotArchiveRowLabel(
 ): RawMessage | string {
   if (localizationKey) {
     return {
-      rawtext: [{ text: `§b${playerName}§r §8· §f` }, { translate: localizationKey }, { text: `\n§8${shortTs}` }],
+      rawtext: [{ text: `§b${playerName}§r §8· §f` }, { translate: localizationKey }, { text: `\n§0${shortTs}` }],
     };
   }
   const itemShort = typeId ? shortTypeId(typeId) : "?";
-  return `§b${playerName}§r §8· §f${itemShort}\n§8${shortTs}`;
+  return `§b${playerName}§r §8· §f${itemShort}\n§0${shortTs}`;
 }
 
 async function showItemWatchForm(
@@ -119,7 +119,7 @@ function formatListLines(player: Player): string {
 
 function openAddSubscribeModal(player: Player, onDone: () => void): void {
   const form = new ModalFormData();
-  form.title("§w新增一种物品监控");
+  form.title("新增一种物品监控");
   form.textField(
     "物品类型编号（与游戏内完全一致，一般是 minecraft:xxx；也可填 spawn_egg_group 监控全部 …_spawn_egg）",
     "手持物品后用 /yuehua:get_item_typeid 复制"
@@ -152,13 +152,13 @@ function openRemoveSubscribeMenu(player: Player, onDone: () => void): void {
   }
 
   const form = new ActionFormData();
-  form.title("§w取消对已登记物品的监控");
-  form.body(`${BODY_HINT}\n§f点一下某项，就不再监控这种物品：\n${formatListLines(player)}`);
+  form.title("取消对已登记物品的监控");
+  form.body(`${BODY_HINT}\n§0点一下某项，就不再监控这种物品：\n${formatListLines(player)}`);
 
   for (const id of list) {
-    form.button(`§c不再监控 §f${formatItemWatchSubscriptionLabel(id)}`, "textures/icons/requeue");
+    form.button(`§c不再监控 §r${formatItemWatchSubscriptionLabel(id)}`, "textures/icons/requeue");
   }
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason || typeof data.selection !== "number") {
@@ -262,7 +262,7 @@ async function openSnapshotResultPage(
       : color.gray("点击下方某条记录，以箱子界面查看当时的背包。"),
   ].join("\n");
 
-  const form = new ActionFormData().title("§w背包存档记录").body(bodyLines);
+  const form = new ActionFormData().title("背包存档记录").body(bodyLines);
 
   for (const entry of finalItems) {
     const shortTs = formatBehaviorTimestamp(entry.t).slice(5);
@@ -274,13 +274,13 @@ async function openSnapshotResultPage(
 
   // 导航按钮不传 iconPath：客户端会把路径当按钮下方辅助小字，浅灰在白色底上几乎看不清
   if (!isFirstPage) {
-    form.button("§0§l« §r§w上一页");
+    form.button("上一页");
   }
   if (!isLastPage) {
-    form.button("§w下一页 §0§l»");
+    form.button("下一页");
   }
-  form.button("§w重新筛选");
-  form.button("§w返回");
+  form.button("重新筛选");
+  form.button("返回");
 
   const navOffset = finalItems.length;
   let prevBtn = -1;
@@ -362,7 +362,7 @@ async function openSnapshotFilterForm(player: Player, onBack: () => void): Promi
   const timeLabels = snapshotTimeRangeOptions.map((o) => o.label);
 
   const form = new ModalFormData()
-    .title("§w背包存档筛选")
+    .title("背包存档筛选")
     .label("选择筛选条件后点击确认，以列表方式浏览背包存档记录；点击某条记录可打开箱子界面查看当时背包。")
     .dropdown("目标玩家", playerLabels, { defaultValueIndex: 0 })
     .textField("玩家名（可选，直接输入覆盖上方选择）", "留空则使用上方选择", { defaultValue: "" })
@@ -424,15 +424,15 @@ export function openItemWatchSubscribeForm(player: Player, onBack: () => void): 
   const reopenMain = () => openItemWatchSubscribeForm(player, onBack);
 
   const form = new ActionFormData();
-  form.title("§w玩家获得物品监控\n§3自动记下当时背包里有什么");
-  form.body(`${BODY_HINT}\n§f§l当前已登记的物品类型：§r\n${formatListLines(player)}`);
+  form.title("玩家获得物品监控\n§0自动记下当时背包里有什么");
+  form.body(`${BODY_HINT}\n§0§l当前已登记的物品类型：§r\n${formatListLines(player)}`);
 
-  form.button("§w新增一种物品监控", "textures/icons/add");
-  form.button("§w取消对某一种物品的监控", "textures/icons/requeue");
-  form.button("§3清空全部物品监控", "textures/icons/deny");
-  form.button("§e登记全部生成蛋\n§8任意 …_spawn_egg 的物品", "textures/items/spawn_egg");
-  form.button("§b查看背包存档记录", "textures/icons/quest_chest");
-  form.button("§w返回", "textures/icons/back");
+  form.button("新增一种物品监控", "textures/icons/add");
+  form.button("取消对某一种物品的监控", "textures/icons/requeue");
+  form.button("清空全部物品监控", "textures/icons/deny");
+  form.button("登记全部生成蛋\n§0任意 …_spawn_egg 的物品", "textures/items/spawn_egg");
+  form.button("查看背包存档记录", "textures/icons/quest_chest");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason || typeof data.selection !== "number") {

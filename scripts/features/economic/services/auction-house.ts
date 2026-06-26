@@ -150,8 +150,25 @@ class AuctionHouse {
       const n = Math.min(remaining, maxStack);
       const stack = template.clone();
       stack.amount = n;
-      container.addItem(stack);
+      const leftover = container.addItem(stack);
+      if (leftover) {
+        throw new Error("背包空间不足，无法完整接收物品");
+      }
       remaining -= n;
+    }
+  }
+
+  private snapshotContainer(container: Container): Array<ItemStack | undefined> {
+    const snapshot: Array<ItemStack | undefined> = [];
+    for (let i = 0; i < container.size; i++) {
+      snapshot.push(container.getItem(i)?.clone());
+    }
+    return snapshot;
+  }
+
+  private restoreContainer(container: Container, snapshot: Array<ItemStack | undefined>): void {
+    for (let i = 0; i < snapshot.length; i++) {
+      container.setItem(i, snapshot[i]?.clone());
     }
   }
 
@@ -208,17 +225,23 @@ class AuctionHouse {
 
     const container = inventory.container;
 
-    if (container.emptySlotsCount === 0) {
+    const itemToBuy = entry.item.clone();
+    itemToBuy.amount = Math.min(amount, entry.item.maxAmount);
+    const canHoldAmount = this.calculateContainerCapacity(container, itemToBuy, amount);
+    if (canHoldAmount < amount) {
       openDialogForm(
         player,
         {
           title: "购买失败",
-          desc: color.red(`背包已满，无法接收物品`),
+          desc: color.red(`背包空间不足，无法完整接收 ${amount} 个物品`),
         },
         callback
       );
       return;
     }
+
+    const inventorySnapshot = this.snapshotContainer(container);
+    let paid = false;
 
     try {
       const result = economic.transfer(player.name, entry.data.playerName, totalPrice, "购买玩家商店物品");
@@ -234,21 +257,25 @@ class AuctionHouse {
         );
         return;
       }
+      paid = true;
 
       if (amount === entry.data.amount) {
-        const item = await this.takeItem(entry);
+        const item = entry.item.clone();
+        item.amount = amount;
         this.addItemStacksToContainer(container, item, item.amount);
+        await this.takeItem(entry);
       } else {
         const purchasedItem = entry.item.clone();
         purchasedItem.amount = amount;
 
-        entry.data.amount -= amount;
-        const remainingItem = entry.item.clone();
-        remainingItem.amount = entry.data.amount;
-        entry.item = remainingItem;
-        entry.itemDB.editData({ amount: entry.data.amount, item: remainingItem });
-
         this.addItemStacksToContainer(container, purchasedItem, amount);
+
+        const nextAmount = entry.data.amount - amount;
+        const remainingItem = entry.item.clone();
+        remainingItem.amount = nextAmount;
+        entry.itemDB.editData({ amount: nextAmount, item: remainingItem });
+        entry.data.amount = nextAmount;
+        entry.item = remainingItem;
       }
 
       openDialogForm(
@@ -260,7 +287,10 @@ class AuctionHouse {
         callback
       );
     } catch (error) {
-      economic.transfer(entry.data.playerName, player.name, totalPrice, "购买失败退款");
+      this.restoreContainer(container, inventorySnapshot);
+      if (paid) {
+        economic.transfer(entry.data.playerName, player.name, totalPrice, "购买失败退款");
+      }
       openDialogForm(player, { title: "购买失败", desc: color.red(`购买失败: ${error}`) }, callback);
     }
   }

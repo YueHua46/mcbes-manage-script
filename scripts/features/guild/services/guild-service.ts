@@ -19,6 +19,7 @@ import nameDisplay from "../../player/services/name-display";
 import onlineTimeService, { formatOnlineDuration } from "../../player/services/online-time";
 import wayPoint from "../../waypoint/services/waypoint";
 import type { ILand } from "../../../core/types";
+import { BRANDING } from "../../../core/constants";
 import type { IGuild, GuildRole, IPendingGuildInvite } from "../models/guild.model";
 import { CURRENT_GUILD_SCHEMA_VERSION } from "../models/guild.model";
 import { getGuildPlayerIndexDb } from "./guild-player-index-db";
@@ -377,8 +378,16 @@ class GuildService {
       createdAt: now,
       joinRequests: {},
     };
-    this.saveGuild(g);
-    this.indexDb.set(player.name, id);
+    try {
+      this.saveGuild(g);
+      this.indexDb.set(player.name, id);
+    } catch (e) {
+      if (cost > 0) {
+        economic.addGold(player.name, cost, "guild:create:rollback", true);
+      }
+      SystemLog.error("公会创建持久化失败，已回滚创建费用", e);
+      return "创建失败，已退回创建费用";
+    }
     this.invalidateDisplayCache(player.name);
     nameDisplay.forceUpdatePlayerNameDisplay(player);
     this.logGuild(player.name, "guildCreate", this.guildMeta(g, `name=${nameClean} tag=${tagClean}`));
@@ -446,7 +455,7 @@ class GuildService {
     return "";
   }
 
-  /** 管理员从服务器菜单强制解散公会（不检查公会模块总开关） */
+  /** 管理员从苦力怕菜单强制解散公会（不检查公会模块总开关） */
   adminForceDisbandGuild(admin: Player, guildId: string): string {
     if (!isAdmin(admin)) return "只有管理员可操作";
     if (!this.ensureDbs()) return "公会系统未就绪";
@@ -506,7 +515,7 @@ class GuildService {
     const online = usePlayerByName(tname);
     if (online) {
       online.sendMessage(
-        `${color.green(`你收到来自 ${player.name} 的公会邀请`)} ${color.yellow(`[${g.tag}] ${g.name}`)} ${color.gray("请打开「服务器菜单」→「公会」处理邀请")}`
+        `${color.green(`你收到来自 ${player.name} 的公会邀请`)} ${color.yellow(`[${g.tag}] ${g.name}`)} ${color.gray(`请打开「${BRANDING.MENU_ITEM_LABEL}」→「公会」处理邀请`)}`
       );
     }
     return "";
@@ -715,7 +724,10 @@ class GuildService {
     this.saveGuild(g);
 
     const added = economic.addGold(player.name, amount, "guild:treasury:withdraw", true);
-    if (added <= 0) {
+    if (added !== amount) {
+      if (added > 0) {
+        economic.removeGold(player.name, added, "guild:treasury:withdraw:rollback");
+      }
       g.treasuryGold += amount;
       this.saveGuild(g);
       return "发放金币失败，已恢复金库余额";
@@ -1549,21 +1561,26 @@ class GuildService {
     }
 
     g.treasuryGold -= perMember;
+    mem.lastDailyRedPacketDay = today;
     try {
+      this.saveGuild(g);
       const added = economic.addGold(player.name, perMember, "guild:daily:redpacket", true);
-      if (added <= 0) {
+      if (added !== perMember) {
+        if (added > 0) {
+          economic.removeGold(player.name, added, "guild:daily:redpacket:rollback");
+        }
         g.treasuryGold += perMember;
+        delete mem.lastDailyRedPacketDay;
         this.saveGuild(g);
         return "发放金币失败，请稍后重试";
       }
-      mem.lastDailyRedPacketDay = today;
-      this.saveGuild(g);
       this.logGuild(player.name, "guildDailyRedPacketGrant", this.guildMeta(g, `+${perMember}`));
       player.sendMessage(
         `${color.green("公会每日红包")} ${color.gold(`+${perMember}`)} ${color.gray("金币已存入钱包")}`
       );
     } catch (e) {
       g.treasuryGold += perMember;
+      delete mem.lastDailyRedPacketDay;
       this.saveGuild(g);
       SystemLog.error("公会每日红包发放失败", e);
       return "公会每日红包发放失败";

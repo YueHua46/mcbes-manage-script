@@ -20,7 +20,7 @@ import { openMyEnderChestForm } from "../system/player-inventory-admin";
 
 function createServerInfoForm(): MessageFormData {
   const form = new MessageFormData();
-  form.title("§w服务器信息");
+  form.title("服务器信息");
   form.body({
     rawtext: [
       { text: `§a---------------------------------\n` },
@@ -32,8 +32,8 @@ function createServerInfoForm(): MessageFormData {
       { text: `§a---------------------------------\n` },
     ],
   });
-  form.button1("§w刷新");
-  form.button2("§w返回");
+  form.button1("刷新");
+  form.button2("返回");
   return form;
 }
 
@@ -68,7 +68,7 @@ function openAuthorListForm(player: Player): void {
       author.icon
     );
   });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
     switch (data.selection) {
@@ -88,51 +88,64 @@ export function openBaseFunctionForm(player: Player): void {
   const form = new ActionFormData();
   const buttons: Array<{ text: string; icon: string; action: () => void }> = [];
 
-  buttons.push({ text: "§w留言板", icon: "textures/icons/8", action: () => openLeaveMessageForms(player) });
+  buttons.push({ text: "留言板", icon: "textures/icons/8", action: () => openLeaveMessageForms(player) });
 
   if (randomTeleport) {
     buttons.push({
-      text: "§w随机传送",
+      text: "随机传送",
       icon: "textures/icons/dunya",
       action: () => RandomTp(player),
     });
   }
 
-  buttons.push({ text: "§w自杀", icon: "textures/icons/dead", action: () => player.kill() });
+  buttons.push({ text: "自杀", icon: "textures/icons/dead", action: () => player.kill() });
 
   if (backToDeath) {
     buttons.push({
-      text: "§w回到上次死亡地点",
+      text: "回到上次死亡地点",
       icon: "textures/icons/game_battle_box",
       action: () => {
-        const deathData = player.getDynamicProperty("lastDeath") as string | undefined;
-        if (deathData?.length) {
+        try {
+          const deathData = player.getDynamicProperty("lastDeath") as string | undefined;
+          if (!deathData?.length) {
+            openDialogForm(player, { title: "失败", desc: color.red("未找到上次死亡地点！") });
+            return;
+          }
+
           const death = JSON.parse(deathData) as { location: Vector3; dimension: Dimension };
-          player.teleport(death.location, { dimension: world.getDimension(death.dimension.id) });
+          const dimensionId = death.dimension?.id;
+          if (!death.location || !dimensionId) {
+            openDialogForm(player, { title: "失败", desc: color.red("死亡地点数据无效！") });
+            return;
+          }
+
+          const targetDimension = world.getDimension(dimensionId);
+
+          player.teleport(death.location, { dimension: targetDimension });
           useNotify("actionbar", player, "§a你已回到上次死亡地点！");
-        } else {
-          openDialogForm(player, { title: "失败", desc: color.red("未找到上次死亡地点！") });
+        } catch {
+          openDialogForm(player, { title: "失败", desc: color.red("死亡地点数据异常，无法传送。") });
         }
       },
     });
   }
 
-  buttons.push({ text: "§w服务器状态", icon: "textures/icons/fotograf", action: () => openServerInfoForm(player) });
+  buttons.push({ text: "服务器状态", icon: "textures/icons/fotograf", action: () => openServerInfoForm(player) });
 
   buttons.push({
-    text: "§w我的末影箱",
+    text: "我的末影箱",
     icon: "textures/blocks/ender_chest_front",
     action: () => openMyEnderChestForm(player, () => openBaseFunctionForm(player)),
   });
 
-  buttons.push({ text: "§w制作者名单", icon: "textures/icons/social", action: () => openAuthorListForm(player) });
-  form.title("§w其他功能");
+  buttons.push({ text: "制作者名单", icon: "textures/icons/social", action: () => openAuthorListForm(player) });
+  form.title("其他功能");
 
   buttons.forEach((button) => {
     form.button(button.text, button.icon);
   });
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     switch (data.selection) {
@@ -151,22 +164,22 @@ export function openBaseFunctionForm(player: Player): void {
 
 export const openLeaveMessageForms = (player: Player): void => {
   const form = new ActionFormData();
-  form.title("§w留言板");
+  form.title("留言板");
   const buttons = [
     {
-      text: "§w留言列表",
+      text: "留言列表",
       icon: "textures/ui/realmsStoriesIcon",
       action: () => openLeaveMessageListForm(player),
     },
-    { text: "§w添加留言", icon: "textures/icons/add", action: () => openAddLeaveMessageForm(player) },
+    { text: "添加留言", icon: "textures/icons/add", action: () => openAddLeaveMessageForm(player) },
     {
-      text: "§w删除留言",
+      text: "删除留言",
       icon: "textures/icons/deny",
       action: () => openDeleteLeaveMessageForm(player, isAdmin(player)),
     },
   ];
   buttons.forEach(({ text, icon }) => form.button(text, icon));
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
     switch (data.selection) {
@@ -183,7 +196,7 @@ export const openLeaveMessageForms = (player: Player): void => {
 
 export const openLeaveMessageListForm = (player: Player, page: number = 1): void => {
   const form = new ActionFormData();
-  form.title("§w留言列表");
+  form.title("留言列表");
 
   const lms = leaveMessage.getLeaveMessages();
   const totalPages = Math.ceil(lms.length / 10);
@@ -209,7 +222,7 @@ export const openLeaveMessageListForm = (player: Player, page: number = 1): void
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
@@ -239,7 +252,7 @@ export const openLeaveMessageListForm = (player: Player, page: number = 1): void
 
 export const openAddLeaveMessageForm = (player: Player): void => {
   const form = new ModalFormData();
-  form.title("§w添加留言");
+  form.title("添加留言");
   form.textField("标题", "", {
     defaultValue: "",
     tooltip: "请输入标题",
@@ -248,7 +261,7 @@ export const openAddLeaveMessageForm = (player: Player): void => {
     defaultValue: "",
     tooltip: "请输入内容",
   });
-  form.submitButton("§w确定");
+  form.submitButton("确定");
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
     const { formValues } = data;
@@ -275,7 +288,7 @@ export const openAddLeaveMessageForm = (player: Player): void => {
 
 export const openDeleteLeaveMessageForm = (player: Player, forAllMessages: boolean = false): void => {
   const form = new ModalFormData();
-  form.title("§w删除留言");
+  form.title("删除留言");
   const lms = forAllMessages ? leaveMessage.getLeaveMessages() : leaveMessage.getPlayerLeaveMessages(player);
   if (lms.length === 0) {
     openDialogForm(
@@ -292,7 +305,7 @@ export const openDeleteLeaveMessageForm = (player: Player, forAllMessages: boole
     forAllMessages ? "选择留言（管理员：可删全部）" : "选择留言",
     lms.map((lm) => (forAllMessages ? `${lm.title} · ${lm.creator}` : lm.title))
   );
-  form.submitButton("§w确定");
+  form.submitButton("确定");
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
     const { formValues } = data;

@@ -31,18 +31,18 @@ function openOfflineLeaderboardForm(player: Player, navigateBack: () => void): v
 
   let bodyText = buildHeader();
   if (rows.length === 0) {
-    bodyText += "§3暂无符合条件的记录。\n§3（需玩家在本功能启用后至少下线过一次）";
+    bodyText += "§3暂无符合条件的记录。\n§0（需玩家在本功能启用后至少下线过一次）";
   } else {
     rows.forEach((r, i) => {
       bodyText += formatRankRow(i + 1, r.name, `§e${formatOnlineDuration(r.offlineSeconds)}`);
     });
   }
-  bodyText += `\n§e=======================\n\n§3按上次离开服务器时间计算`;
+  bodyText += `\n§e=======================\n\n§0按上次离开服务器时间计算`;
 
   const form = new ActionFormData();
-  form.title("§w离线时长排行榜");
+  form.title("离线时长排行榜");
   form.body({ rawtext: [{ text: bodyText }] });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   form.show(player).then((response) => {
     if (response.canceled) return;
     navigateBack();
@@ -51,7 +51,7 @@ function openOfflineLeaderboardForm(player: Player, navigateBack: () => void): v
 
 function openOfflineSearchForm(player: Player, navigateBack: () => void): void {
   const form = new ModalFormData();
-  form.title("§w搜索玩家离线时长");
+  form.title("搜索玩家离线时长");
   form.textField("玩家名称", "与游戏内显示名完全一致", { defaultValue: "" });
   form.submitButton("查询");
 
@@ -61,7 +61,7 @@ function openOfflineSearchForm(player: Player, navigateBack: () => void): void {
     if (!formValues) return;
     const raw = String(formValues[0] ?? "").trim();
     if (!raw) {
-      openDialogForm(player, { title: "§w提示", desc: color.yellow("请输入玩家名称。") }, () =>
+      openDialogForm(player, { title: "提示", desc: color.yellow("请输入玩家名称。") }, () =>
         openOfflineSearchForm(player, navigateBack)
       );
       return;
@@ -79,7 +79,7 @@ function openOfflineSearchForm(player: Player, navigateBack: () => void): void {
       desc = color.yellow(`未找到名为 §b${raw} §e的在线时长记录§f（可能从未进过服或名称不一致）。`);
     }
 
-    openDialogForm(player, { title: "§w查询结果", desc }, () => openOfflineSearchForm(player, navigateBack));
+    openDialogForm(player, { title: "查询结果", desc }, () => openOfflineSearchForm(player, navigateBack));
   });
 }
 
@@ -91,13 +91,13 @@ export function openOfflineDurationQueryMenu(player: Player, backToSystemSetting
   const openHub = () => openOfflineDurationQueryMenu(player, backToSystemSettings);
 
   const form = new ActionFormData();
-  form.title("§w离线玩家时长");
+  form.title("离线玩家时长");
   form.body({
-    rawtext: [{ text: "§b查看离线玩家已离开服务器多久\n§3（按上次下线时间计算）" }],
+    rawtext: [{ text: "§b查看离线玩家已离开服务器多久\n§0（按上次下线时间计算）" }],
   });
-  form.button("§w离线时长排行榜", "textures/icons/saat");
-  form.button("§w搜索玩家离线时长", "textures/icons/wisdom");
-  form.button("§w返回", "textures/icons/back");
+  form.button("离线时长排行榜", "textures/icons/saat");
+  form.button("搜索玩家离线时长", "textures/icons/wisdom");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;

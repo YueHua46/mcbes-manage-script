@@ -14,6 +14,7 @@ import { taskScheduler } from "../../platform/scheduler";
 const TICK_INTERVAL = 5;
 /** 与基岩逻辑 tick 对齐，宽限结束用 currentTick 计算，避免与 Date.now 不同步 */
 const TPS = 20;
+const ABILITY_PROBE_COOLDOWN_MS = 60 * 1000;
 
 interface LandFlightSession {
   dimensionId: string;
@@ -36,6 +37,9 @@ const EDU_FAIL_MESSAGE =
   "§7请服主将服务器存档导出并导入到本地客户端，在编辑该世界时开启作弊，\n" +
   "§7在「无敌模式」或世界选项相关设置中，找到并打开「Minecraft Education 功能」\n" +
   "§7（部分版本在「教育」分类下，文案可能略有差异），保存世界后再将存档导回服务器端使用。";
+
+let abilityCommandAvailable: boolean | undefined;
+let nextAbilityProbeAtMs = 0;
 
 function clampBillingIntervalSec(raw: number): number {
   if (!Number.isFinite(raw) || raw < 10) return 10;
@@ -70,17 +74,58 @@ function isCreativeOrSpectator(player: Player): boolean {
   }
 }
 
+function isAbilityCommandMissing(error: unknown): boolean {
+  const message = String((error as Error)?.message ?? error);
+  return (
+    message.includes("语法错误") ||
+    message.includes("Unexpected") ||
+    message.includes("unexpected") ||
+    message.includes("Unknown command") ||
+    message.includes("commands.generic.unknown") ||
+    message.includes("No such command")
+  );
+}
+
+function isLandFlightAbilityAvailable(): boolean {
+  return abilityCommandAvailable !== false || Date.now() >= nextAbilityProbeAtMs;
+}
+
+function markAbilityCommandUnavailable(): void {
+  abilityCommandAvailable = false;
+  nextAbilityProbeAtMs = Date.now() + ABILITY_PROBE_COOLDOWN_MS;
+}
+
 function setMayfly(player: Player, enabled: boolean): boolean {
+  if (abilityCommandAvailable === false && (!enabled || Date.now() < nextAbilityProbeAtMs)) {
+    return false;
+  }
+
   const cmd = enabled ? "ability @s mayfly true" : "ability @s mayfly false";
   try {
     const r = player.runCommand(cmd);
     const ok = r.successCount > 0;
     if (!ok) {
-      console.warn(`[landFlight] ${cmd} 失败 (successCount=${r.successCount})`);
+      if (enabled) {
+        console.warn(`[landFlight] ${cmd} 失败 (successCount=${r.successCount})`);
+        markAbilityCommandUnavailable();
+      }
+    } else if (enabled) {
+      abilityCommandAvailable = true;
+      nextAbilityProbeAtMs = 0;
     }
     return ok;
   } catch (e) {
+    if (isAbilityCommandMissing(e)) {
+      markAbilityCommandUnavailable();
+      if (enabled) {
+        console.warn("[landFlight] 当前世界不可用 /ability mayfly，领地飞行已自动降级为不可用。");
+      }
+      return false;
+    }
     console.warn(`[landFlight] ${cmd} 异常`, e);
+    if (enabled) {
+      markAbilityCommandUnavailable();
+    }
     return false;
   }
 }
@@ -367,6 +412,9 @@ export function tryStartLandFlightSession(player: Player): string | void {
   if (setting.getState("landFlightEnabled") !== true) {
     return color.red("领地内飞行已关闭。");
   }
+  if (!isLandFlightAbilityAvailable()) {
+    return color.red("领地飞行不可用：当前存档未开启 Education/ability 功能。");
+  }
 
   const loc = getLandProbeLocation(player);
   const { isInside, insideLand } = landManager.testLand(loc, player.dimension.id);
@@ -503,6 +551,11 @@ export function initLandFlight(): void {
             clearLandFlightHud(player);
           }
 
+          if (adm) {
+            sess.nextBillingAtMs = undefined;
+            continue;
+          }
+
           const shouldBill = useEconomy && economyOn && !adm && goldPerInterval > 0;
           if (shouldBill && sess.nextBillingAtMs !== undefined && now >= sess.nextBillingAtMs) {
             const ok = economic.removeGold(player.name, goldPerInterval, "landFlight:billing");
@@ -568,14 +621,33 @@ export function initLandFlight(): void {
    */
   world.afterEvents.playerGameModeChange.subscribe((event) => {
     const { player, toGameMode } = event;
-    if (toGameMode !== GameMode.Creative && toGameMode !== GameMode.Spectator) {
+
+    if (!isLandFlightAbilityAvailable()) {
       return;
     }
+
+    if (toGameMode === GameMode.Creative || toGameMode === GameMode.Spectator) {
+      system.runTimeout(() => {
+        try {
+          if (!player.isValid) return;
+          if (!isCreativeOrSpectator(player)) return;
+          setMayfly(player, true);
+        } catch {
+          /* ignore */
+        }
+      }, 1);
+      return;
+    }
+
     system.runTimeout(() => {
       try {
         if (!player.isValid) return;
-        if (!isCreativeOrSpectator(player)) return;
-        setMayfly(player, true);
+        if (sessions.has(player.id)) {
+          setMayfly(player, true);
+          return;
+        }
+        setMayfly(player, false);
+        scheduleForceExitLandFlight(player);
       } catch {
         /* ignore */
       }

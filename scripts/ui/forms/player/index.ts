@@ -16,6 +16,7 @@ import setting from "../../../features/system/services/setting";
 import { isAdmin } from "../../../shared/utils/common";
 import { teleportPlayer as doTpaTeleport, notifyReject } from "../../../features/player/services/tpa-logic";
 import * as tpaRequest from "../../../features/player/services/tpa-request";
+import { openFakePlayerMenu } from "./fake-player";
 
 // ==================== TPA传送系统 ====================
 
@@ -68,11 +69,11 @@ function createPlayerTpaForm(allPlayer: Player[]): ModalFormData {
   const form = new ModalFormData();
   form.title(`${"玩家传送"}`);
   form.dropdown(
-    "§w选择玩家",
+    "选择玩家",
     allPlayer.map((player) => ` ${player.name}`)
   );
-  form.dropdown("§w选择传送方式", ["§w传送到玩家", "§w请求玩家传送到你"]);
-  form.submitButton("§w确认");
+  form.dropdown("选择传送方式", ["传送到玩家", "请求玩家传送到你"]);
+  form.submitButton("确认");
   return form;
 }
 
@@ -84,6 +85,9 @@ export function openPlayerTpaForm(player: Player): void {
     const { formValues } = data;
     if (formValues) {
       const targetPlayer = allPlayer[Number(formValues[0])];
+      if (!targetPlayer) {
+        return player.sendMessage(color.red("目标玩家不存在或已离线，请重新打开传送菜单"));
+      }
       if (player.name === targetPlayer.name) {
         return player.sendMessage("§c不能传送到自己");
       }
@@ -112,12 +116,13 @@ export function openPlayerTpaForm(player: Player): void {
 
 function createPlayerActionForm(): ActionFormData {
   const form = new ActionFormData();
-  form.title("§w玩家操作");
-  form.button("§wTPA玩家传送", "textures/icons/social");
-  form.button("§wTPA设置", "textures/icons/chatCooldown");
-  form.button("§w聊天栏配置", "textures/icons/chat_bubble_white");
-  form.button("§w名字显示设置", "textures/icons/profile");
-  form.button("§w返回", "textures/icons/back");
+  form.title("玩家操作");
+  form.button("TPA玩家传送", "textures/icons/social");
+  form.button("TPA设置", "textures/icons/chatCooldown");
+  form.button("假人管理", "textures/icons/spectator");
+  form.button("聊天栏配置", "textures/icons/chat_bubble_white");
+  form.button("名字显示设置", "textures/icons/profile");
+  form.button("返回", "textures/icons/back");
   return form;
 }
 
@@ -134,12 +139,15 @@ export function openPlayerActionForm(player: Player): void {
         openTpaSettingsForm(player);
         break;
       case 2:
-        openChatForm(player);
+        openFakePlayerMenu(player, () => openPlayerActionForm(player));
         break;
       case 3:
-        openPlayerDisplaySettingsForm(player);
+        openChatForm(player);
         break;
       case 4:
+        openPlayerDisplaySettingsForm(player);
+        break;
+      case 5:
         openServerMenuForm(player);
         break;
     }
@@ -149,13 +157,13 @@ export function openPlayerActionForm(player: Player): void {
 /** TPA 设置（勿扰模式等） */
 export function openTpaSettingsForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§wTPA设置");
+  form.title("TPA设置");
   const dnd = PlayerSetting.getTPADoNotDisturb(player);
-  form.toggle("§wTPA勿扰模式", {
+  form.toggle("TPA勿扰模式", {
     defaultValue: dnd,
     tooltip: "§a开启后，他人发来的传送请求不会弹窗，改为聊天提示；你可通过输入 /tpaccept 或 /tpreject 在限定时间内处理。",
   });
-  form.submitButton("§w确认");
+  form.submitButton("确认");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
@@ -175,7 +183,7 @@ export function openTpaSettingsForm(player: Player): void {
 
 export function openChatForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w聊天栏");
+  form.title("聊天栏");
 
   const buttons = [
     {
@@ -211,14 +219,14 @@ export function openChatForm(player: Player): void {
 
 export function openDeleteChatBlackListForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w聊天黑名单列表");
+  form.title("聊天黑名单列表");
   const blackList = player.getDynamicProperty("ChatBlackList") as string | undefined;
   const _blackList = JSON.parse(blackList ?? "[]") as string[];
 
   _blackList.forEach((name) => {
     form.button(name, "textures/ui/Friend2");
   });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
@@ -244,14 +252,14 @@ export function openDeleteChatBlackListForm(player: Player): void {
 
 export function openAddChatBlackListForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w添加聊天黑名单");
+  form.title("添加聊天黑名单");
   const allPlayers = useAllPlayers();
 
   form.dropdown(
-    "§w选择对应玩家",
+    "选择对应玩家",
     allPlayers.map((p) => p.name)
   );
-  form.submitButton("§w确认");
+  form.submitButton("确认");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
@@ -277,16 +285,16 @@ export function openAddChatBlackListForm(player: Player): void {
 
 export function openChatBlackForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w聊天拉黑配置");
+  form.title("聊天拉黑配置");
 
   const buttons = [
     {
-      text: "§w添加聊天黑名单",
+      text: "添加聊天黑名单",
       icon: "textures/icons/add",
       action: () => openAddChatBlackListForm(player),
     },
     {
-      text: "§w删除聊天黑名单",
+      text: "删除聊天黑名单",
       icon: "textures/icons/deny",
       action: () => openDeleteChatBlackListForm(player),
     },
@@ -313,7 +321,7 @@ export function openChatBlackForm(player: Player): void {
 
 export function openMuteChatForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w聊天栏");
+  form.title("聊天栏");
 
   const isOpenChat = player.getDynamicProperty("Chat") as string | undefined;
   if (isOpenChat === undefined) {
@@ -321,11 +329,11 @@ export function openMuteChatForm(player: Player): void {
   }
   const _isOpenChat = JSON.parse(player.getDynamicProperty("Chat") as string) as boolean;
 
-  form.toggle("§w是否开启聊天栏", {
+  form.toggle("是否开启聊天栏", {
     defaultValue: _isOpenChat,
     tooltip: `§a当前状态: ${_isOpenChat ? "§a开启" : "§c关闭"}`,
   });
-  form.submitButton("§w确认");
+  form.submitButton("确认");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
@@ -357,7 +365,7 @@ export function openPlayerDisplaySettingsForm(player: Player): void {
   }
 
   const form = new ActionFormData();
-  form.title("§w名字显示设置");
+  form.title("名字显示设置");
 
   const currentSettings = PlayerSetting.getPlayerDisplaySettings(player);
   const colorName = nameColors[currentSettings.nameColor as keyof typeof nameColors] || "§f白色";
@@ -372,10 +380,10 @@ export function openPlayerDisplaySettingsForm(player: Player): void {
     ],
   });
 
-  form.button("§w设置名字颜色", "textures/icons/asker");
-  form.button("§w设置别名", "textures/icons/dragon");
-  form.button("§w重置设置", "textures/icons/leave_queue");
-  form.button("§w返回", "textures/icons/back");
+  form.button("设置名字颜色", "textures/icons/asker");
+  form.button("设置别名", "textures/icons/dragon");
+  form.button("重置设置", "textures/icons/leave_queue");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
@@ -403,7 +411,7 @@ export function openPlayerDisplaySettingsForm(player: Player): void {
 
 export function openNameColorSettingsForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w设置名字颜色");
+  form.title("设置名字颜色");
 
   const currentColor = PlayerSetting.getPlayerNameColor(player);
   form.body({
@@ -418,7 +426,7 @@ export function openNameColorSettingsForm(player: Player): void {
     form.button(`${code}${name}`);
   });
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;
@@ -444,13 +452,13 @@ export function openNameColorSettingsForm(player: Player): void {
 
 export function openAliasSettingsForm(player: Player): void {
   const form = new ModalFormData();
-  form.title("§w设置别名");
+  form.title("设置别名");
 
   const currentAlias = PlayerSetting.getPlayerAlias(player);
-  form.textField("§w别名", "请输入别名(最多20个字符)", {
+  form.textField("别名", "请输入别名(最多20个字符)", {
     defaultValue: currentAlias,
   });
-  form.submitButton("§w确认");
+  form.submitButton("确认");
 
   form.show(player).then((data) => {
     if (data.cancelationReason || data.canceled) return;

@@ -10,6 +10,7 @@ export enum EFunNames {
   TPA = 'TPA',
   TPADoNotDisturb = 'TPADoNotDisturb',
   Chat = 'Chat',
+  LandBoundaryParticles = 'LandBoundaryParticles',
 }
 
 // 支持的颜色列表
@@ -58,7 +59,34 @@ class PlayerSetting {
       case EFunNames.Chat:
         player.setDynamicProperty('Chat', value);
         break;
+      case EFunNames.LandBoundaryParticles:
+        player.setDynamicProperty('LandBoundaryParticles', value);
+        break;
     }
+  }
+
+  /**
+   * 获取是否持续显示当前所在领地边界（默认关闭）。
+   */
+  getLandBoundaryParticlesEnabled(player: Player): boolean {
+    const v = player.getDynamicProperty('LandBoundaryParticles');
+    return v === true || v === 'true';
+  }
+
+  /**
+   * 设置是否持续显示当前所在领地边界。
+   */
+  setLandBoundaryParticlesEnabled(player: Player, enabled: boolean): void {
+    player.setDynamicProperty('LandBoundaryParticles', enabled);
+  }
+
+  /**
+   * 切换是否持续显示当前所在领地边界，返回切换后的状态。
+   */
+  toggleLandBoundaryParticles(player: Player): boolean {
+    const enabled = !this.getLandBoundaryParticlesEnabled(player);
+    this.setLandBoundaryParticlesEnabled(player, enabled);
+    return enabled;
   }
 
   /**

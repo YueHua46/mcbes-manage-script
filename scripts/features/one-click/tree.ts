@@ -20,6 +20,8 @@ import {
 } from "@minecraft/server";
 import { splitGroups, getRadiusRange, calcGameTicks } from "@mcbe-mods/utils";
 import setting from "../system/services/setting";
+import landManager from "../land/services/land-manager";
+import { isAdmin } from "../../shared/utils/common";
 
 function isSurvivalPlayer(dimension: Dimension, player: Player): boolean {
   return dimension.getPlayers({ gameMode: GameMode.Survival }).some((p) => p.name === player.name);
@@ -35,6 +37,15 @@ const getPlayerMainhand = (player: Player) => {
 };
 
 const getPlayerAction = (player: Player) => player.isSneaking && getPlayerMainhand(player)?.hasTag("is_axe");
+
+function canBreakAt(player: Player, location: Vector3, dimensionId: string): boolean {
+  const { isInside, insideLand } = landManager.testLand(location, dimensionId);
+  if (!isInside || !insideLand) return true;
+  if (insideLand.owner === player.name) return true;
+  if (isAdmin(player)) return true;
+  if (landManager.isPlayerTrustedOnLand(insideLand, player.name)) return true;
+  return insideLand.public_auth.break === true;
+}
 
 function isTree(dimension: Dimension, locations: Vector3[]): boolean {
   const leaves = ["leaves", "warped_wart_block", "nether_wart_block"];
@@ -129,7 +140,7 @@ async function treeCut(location: Vector3, dimension: Dimension, logLocations: Ve
   });
 }
 
-async function clearLeaves(dimension: Dimension, logLocations: Vector3[]): Promise<void> {
+async function clearLeaves(player: Player, dimension: Dimension, logLocations: Vector3[]): Promise<void> {
   const visited = new Set();
   const batchSize = 27;
   let counter = 0;
@@ -146,6 +157,8 @@ async function clearLeaves(dimension: Dimension, logLocations: Vector3[]): Promi
       const block = dimension.getBlock(location);
 
       if (block && block.typeId.includes("leaves")) {
+        if (!canBreakAt(player, block.location, dimension.id)) continue;
+
         const isIncludesLog = getRadiusRange(block.location, 2).some((location) => {
           const block = dimension.getBlock(location);
           if (!block) return false;
@@ -186,7 +199,9 @@ world.afterEvents.playerBreakBlock.subscribe(async (e) => {
     const action = getPlayerAction(player);
     if (!action) return;
 
-    const logLocations = getLogLocations(dimension, block.location, currentBreakBlockTypeId);
+    const logLocations = getLogLocations(dimension, block.location, currentBreakBlockTypeId).filter((location) =>
+      canBreakAt(player, location, dimension.id)
+    );
 
     const _isTree = isTree(dimension, logLocations);
     if (!_isTree) return;
@@ -196,7 +211,7 @@ world.afterEvents.playerBreakBlock.subscribe(async (e) => {
 
     await treeCut(block.location, dimension, logLocations);
 
-    clearLeaves(dimension, logLocations);
+    clearLeaves(player, dimension, logLocations);
   } catch (error) {
     // 忽略错误
   }

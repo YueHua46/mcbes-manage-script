@@ -1,0 +1,569 @@
+{
+  "format_version": "1.20.80",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "yuehua:fake_player",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "component_groups": {
+      "despawn": {
+        "minecraft:instant_despawn": {}
+      },
+      "skin_0": {
+        "minecraft:variant": {
+          "value": 0
+        }
+      },
+      "skin_1": {
+        "minecraft:variant": {
+          "value": 1
+        }
+      },
+      "skin_2": {
+        "minecraft:variant": {
+          "value": 2
+        }
+      },
+      "skin_3": {
+        "minecraft:variant": {
+          "value": 3
+        }
+      },
+      "skin_4": {
+        "minecraft:variant": {
+          "value": 4
+        }
+      },
+      "skin_5": {
+        "minecraft:variant": {
+          "value": 5
+        }
+      },
+      "skin_6": {
+        "minecraft:variant": {
+          "value": 6
+        }
+      },
+      "skin_7": {
+        "minecraft:variant": {
+          "value": 7
+        }
+      },
+      "skin_8": {
+        "minecraft:variant": {
+          "value": 8
+        }
+      },
+      "skin_9": {
+        "minecraft:variant": {
+          "value": 9
+        }
+      },
+      "skin_10": {
+        "minecraft:variant": {
+          "value": 10
+        }
+      },
+      "skin_11": {
+        "minecraft:variant": {
+          "value": 11
+        }
+      },
+      "skin_12": {
+        "minecraft:variant": {
+          "value": 12
+        }
+      },
+      "skin_13": {
+        "minecraft:variant": {
+          "value": 13
+        }
+      },
+      "skin_14": {
+        "minecraft:variant": {
+          "value": 14
+        }
+      },
+      "skin_15": {
+        "minecraft:variant": {
+          "value": 15
+        }
+      }
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "yuehua_fake_player",
+          "inanimate"
+        ]
+      },
+      "minecraft:tick_world": {
+        "radius": 6,
+        "distance_to_players": 512,
+        "never_despawn": true
+      },
+      "minecraft:persistent": {},
+      "minecraft:nameable": {
+        "always_show": true,
+        "allow_name_tag_renaming": false
+      },
+      "minecraft:collision_box": {
+        "width": 0.6,
+        "height": 1.8
+      },
+      "minecraft:movement": {
+        "value": 0
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:physics": {
+        "has_collision": true,
+        "has_gravity": false
+      },
+      "minecraft:damage_sensor": {
+        "triggers": {
+          "cause": "all",
+          "deals_damage": false
+        }
+      },
+      "minecraft:fire_immune": true,
+      "minecraft:health": {
+        "value": 999999,
+        "max": 999999,
+        "min": 1
+      },
+      "minecraft:variant": {
+        "value": 0
+      }
+    },
+    "events": {
+      "minecraft:despawn": {
+        "add": {
+          "component_groups": [
+            "despawn"
+          ]
+        }
+      },
+      "yuehua:set_skin_0": {
+        "remove": {
+          "component_groups": [
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_0"
+          ]
+        }
+      },
+      "yuehua:set_skin_1": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_1"
+          ]
+        }
+      },
+      "yuehua:set_skin_2": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_2"
+          ]
+        }
+      },
+      "yuehua:set_skin_3": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_3"
+          ]
+        }
+      },
+      "yuehua:set_skin_4": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_4"
+          ]
+        }
+      },
+      "yuehua:set_skin_5": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_5"
+          ]
+        }
+      },
+      "yuehua:set_skin_6": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_6"
+          ]
+        }
+      },
+      "yuehua:set_skin_7": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_7"
+          ]
+        }
+      },
+      "yuehua:set_skin_8": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_8"
+          ]
+        }
+      },
+      "yuehua:set_skin_9": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_9"
+          ]
+        }
+      },
+      "yuehua:set_skin_10": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_10"
+          ]
+        }
+      },
+      "yuehua:set_skin_11": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_12",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_11"
+          ]
+        }
+      },
+      "yuehua:set_skin_12": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_13",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_12"
+          ]
+        }
+      },
+      "yuehua:set_skin_13": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_14",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_13"
+          ]
+        }
+      },
+      "yuehua:set_skin_14": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_15"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_14"
+          ]
+        }
+      },
+      "yuehua:set_skin_15": {
+        "remove": {
+          "component_groups": [
+            "skin_0",
+            "skin_1",
+            "skin_2",
+            "skin_3",
+            "skin_4",
+            "skin_5",
+            "skin_6",
+            "skin_7",
+            "skin_8",
+            "skin_9",
+            "skin_10",
+            "skin_11",
+            "skin_12",
+            "skin_13",
+            "skin_14"
+          ]
+        },
+        "add": {
+          "component_groups": [
+            "skin_15"
+          ]
+        }
+      }
+    }
+  }
+}

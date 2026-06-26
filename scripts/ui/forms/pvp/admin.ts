@@ -30,7 +30,7 @@ export function openPvpManagementForm(player: Player): void {
   const currentModeIndex = modeValues.indexOf(storedMode);
 
   const form = new ModalFormData();
-  form.title("§wPVP管理");
+  form.title("PVP管理");
 
   const moduleHint = moduleEnabled
     ? "功能开关：§a已开启"

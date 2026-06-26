@@ -20,7 +20,7 @@ import { getPendingRedPacketHint, openRedPacketMenu } from "./red-packet-form";
 // 经济系统主菜单
 export function openEconomyMenuForm(player: Player): void {
   const form = new ActionFormData();
-  form.title("§w经济系统");
+  form.title("经济系统");
 
   const hint = getPendingRedPacketHint(player);
   const rawtext: Array<{ text: string }> = [
@@ -32,14 +32,14 @@ export function openEconomyMenuForm(player: Player): void {
   }
   form.body({ rawtext });
 
-  form.button("§w钱包", "textures/icons/rewards");
-  form.button("§w商店", "textures/icons/shop");
-  form.button("§w拍卖行", "textures/icons/sandik");
-  form.button("§w出售物品", "textures/icons/coins");
-  form.button("§w转账", "textures/icons/trade");
-  form.button("§w红包", "textures/icons/gift");
-  form.button("§w排行榜", "textures/icons/trophy");
-  form.button("§w返回", "textures/icons/back");
+  form.button("钱包", "textures/icons/rewards");
+  form.button("商店", "textures/icons/shop");
+  form.button("拍卖行", "textures/icons/sandik");
+  form.button("出售物品", "textures/icons/coins");
+  form.button("转账", "textures/icons/trade");
+  form.button("红包", "textures/icons/gift");
+  form.button("排行榜", "textures/icons/trophy");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled) return;
@@ -85,7 +85,7 @@ function openMyWalletForm(player: Player): void {
   const remainingLimit = economic.getRemainingDailyLimit(player.name);
 
   const form = new ActionFormData();
-  form.title("§w我的钱包");
+  form.title("我的钱包");
 
   let bodyText = `§a当前余额: §e${wallet.gold} 金币\n`;
   bodyText += `§a今日已获得: §e${wallet.dailyEarned} / ${dailyLimit} 金币\n`;
@@ -106,7 +106,7 @@ function openMyWalletForm(player: Player): void {
   }
 
   form.body({ rawtext: [{ text: bodyText }] });
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
 
   form.show(player).then((response) => {
     if (response.canceled) return;

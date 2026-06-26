@@ -571,7 +571,7 @@ class AuctionHouseForm {
       return;
     }
 
-    chestForm.button(49, "返回", ["§7返回上一级"], "textures/icons/back");
+    chestForm.button(49, "返回", ["§0返回上一级"], "textures/icons/back");
 
     chestForm.show(player).then((data) => {
       if (data.canceled) return;

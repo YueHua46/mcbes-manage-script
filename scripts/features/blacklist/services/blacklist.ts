@@ -12,6 +12,7 @@ import { SystemLog } from "../../../shared/utils/common";
 
 class BlacklistService {
   private db!: Database<IBlacklistEntry>;
+  private static readonly FALLBACK_KEY_PREFIX = "fallback:";
 
   constructor() {
     system.run(() => {
@@ -33,6 +34,35 @@ class BlacklistService {
     };
     this.db.set(xuid, entry);
     SystemLog.info(`[Blacklist] 已将玩家 ${name}(xuid:${xuid}, persistentId:${persistentId ?? "未知"}) 加入黑名单，操作人: ${bannedBy}`);
+  }
+
+  /**
+   * XUID 无法解析时，退回到名字 + persistentId 的降级封禁。
+   * 记录仍使用 xuid 字段作为数据库主键，但值为内部 key，不代表真实 XUID。
+   */
+  addFallback(name: string, persistentId: string | null, reason: string, bannedBy: string): IBlacklistEntry {
+    const keySource = persistentId || name.toLowerCase();
+    const fallbackKey = `${BlacklistService.FALLBACK_KEY_PREFIX}${keySource}`;
+    const entry: IBlacklistEntry = {
+      xuid: fallbackKey,
+      name,
+      ...(persistentId ? { persistentId } : {}),
+      reason: reason.trim(),
+      bannedAt: Date.now(),
+      bannedBy,
+    };
+    this.db.set(fallbackKey, entry);
+    SystemLog.info(
+      `[Blacklist] 已将玩家 ${name}(fallback:${fallbackKey}, persistentId:${persistentId ?? "未知"}) 加入降级黑名单，操作人: ${bannedBy}`
+    );
+    return entry;
+  }
+
+  /**
+   * 判断条目是否为 XUID 查询失败后的降级记录。
+   */
+  isFallbackEntry(entry: IBlacklistEntry): boolean {
+    return entry.xuid.startsWith(BlacklistService.FALLBACK_KEY_PREFIX);
   }
 
   /**

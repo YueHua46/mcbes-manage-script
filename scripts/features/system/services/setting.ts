@@ -92,11 +92,6 @@ export type IModules =
   | "logLocationSnapshot"
   | "logItemWatchSnapshot"
   | "guild"
-  | "feedback"
-  | "feedbackAllowPublicView"
-  | "feedbackSubmitCost"
-  | "feedbackMaxContentLength"
-  | "feedbackMaxEntries"
   | "guildCreateCost"
   | "guildMaxMembers"
   | "guildTagMaxLen"
@@ -114,6 +109,20 @@ export type IModules =
   | "guildTreasuryCostWaypointCreate"
   /** 创建公会所需累计在线小时数，0 为不限制 */
   | "guildCreateMinOnlineHours"
+  /** 悬浮文字系统入口与管理员管理开关 */
+  | "floatingText"
+  /** 是否允许普通玩家创建和管理自己的悬浮文字 */
+  | "floatingTextAllowMembers"
+  /** 普通玩家最多可创建的悬浮文字数量 */
+  | "floatingTextMaxPerPlayer"
+  /** 所有玩家每次创建悬浮文字消耗金币；0 表示免费 */
+  | "floatingTextCreateCost"
+  /** 假人加载锚点系统入口与实体维护开关 */
+  | "fakePlayer"
+  /** 普通玩家最多可创建的假人数量 */
+  | "fakePlayerMaxPerPlayer"
+  /** 每次创建假人消耗金币；0 表示免费 */
+  | "fakePlayerCreateCost"
   /** 保留键（兼容旧库）；在线时长不由本键控制，仅「stats」控制数据统计入口 */
   | "onlineTime"
   /** 服务器主菜单「数据统计」入口；子榜单不再单独设开关 */
@@ -189,7 +198,7 @@ export const defaultSetting = {
   pvpForcedIgnoreLandProtection: false, // 强制大乱斗模式是否无视领地保护，默认关闭
   serverName: "服务器", // 服务器名称
   welcomeMessage:
-    "§a欢迎使用杜绝熊孩服务器插件~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取服务器菜单管理员权限", // 进服欢迎消息
+    "§a欢迎使用苦力怕菜单~\\n§a此插件由 §eYuehua §a制作，B站ID： §e月花zzZ\\n§a管理员请输入命令 §b/tag @s add admin §a来获取苦力怕菜单管理员权限", // 进服欢迎消息
   joinPopupAnnouncements: "[]", // 进服弹窗公告，JSON 字符串数组，最多 5 条
   blacklistEnabled: false, // 黑名单进服前拦截开关（仅 BDS 增强版有效）
   behaviorLogEnabled: true, // 玩家行为日志
@@ -218,15 +227,6 @@ export const defaultSetting = {
   logLocationSnapshot: false,
   logItemWatchSnapshot: true,
   guild: true,
-  feedback: true,
-  /** 允许无管理员权限玩家查看/处理举报工单；关闭时仅 admin / OP / feedback_staff 标签可处理 */
-  feedbackAllowPublicView: false,
-  /** 每次提交举报或工单扣除金币；0 为免费 */
-  feedbackSubmitCost: "0",
-  /** 举报/工单内容最大字数 */
-  feedbackMaxContentLength: "200",
-  /** 最多保留举报/工单记录数，超出后删除最旧记录 */
-  feedbackMaxEntries: "300",
   guildCreateCost: "100000",
   guildMaxMembers: "50",
   guildTagMaxLen: "6",
@@ -248,6 +248,13 @@ export const defaultSetting = {
   /** 新增公会坐标时从金库扣除（0 为不扣） */
   guildTreasuryCostWaypointCreate: "0",
   guildCreateMinOnlineHours: "0",
+  floatingText: true,
+  floatingTextAllowMembers: false,
+  floatingTextMaxPerPlayer: "3",
+  floatingTextCreateCost: "0",
+  fakePlayer: true,
+  fakePlayerMaxPerPlayer: "3",
+  fakePlayerCreateCost: "0",
   onlineTime: true,
   stats: true,
   /** 红包从发放到过期的小时数（默认 24 小时即 1 天） */

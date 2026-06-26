@@ -176,13 +176,13 @@ function openShulkerActionForm(
     .title("§d潜影盒操作")
     .body(
       canCopy
-        ? `§b你选择的是潜影盒（${placeLabel}）。\n\n§3可先取走整盒，或复制一份；无法在脚本内展开盒内格子（与游戏内打开盒子不同）。`
-        : `§b你选择的是潜影盒（${placeLabel}）。\n\n§3普通玩家只能取出整盒，不能复制潜影盒。`
+        ? `§b你选择的是潜影盒（${placeLabel}）。\n\n§0可先取走整盒，或复制一份；无法在脚本内展开盒内格子（与游戏内打开盒子不同）。`
+        : `§b你选择的是潜影盒（${placeLabel}）。\n\n§0普通玩家只能取出整盒，不能复制潜影盒。`
     )
-    .button(`§a取走潜影盒（从目标${placeLabel}移除）`);
+    .button(`取走潜影盒（从目标${placeLabel}移除）`);
 
-  if (canCopy) form.button("§b复制一份潜影盒（目标保留原件）");
-  form.button("§3返回");
+  if (canCopy) form.button("复制一份潜影盒（目标保留原件）");
+  form.button("返回");
 
   form.show(adminPlayer).then((res) => {
     const backSelection = canCopy ? 2 : 1;
@@ -220,8 +220,8 @@ export function openPlayerInventoryAdminForm(adminPlayer: Player): void {
   const form = new ActionFormData()
     .title("§6玩家背包管理")
     .body("§b请选择要查看的内容，然后选择在线玩家。")
-    .button("§a查看玩家背包", "textures/icons/quest_chest")
-    .button("§d查看玩家末影箱", "textures/blocks/ender_chest_front")
+    .button("查看玩家背包", "textures/icons/quest_chest")
+    .button("查看玩家末影箱", "textures/blocks/ender_chest_front")
     .button("返回", "textures/icons/back");
 
   form.show(adminPlayer).then((res) => {
@@ -299,7 +299,7 @@ function openPlayerInventoryMainDualForm(adminPlayer: Player, targetPlayer: Play
   const targetSize = targetContainer.size;
   const chestForm = new ChestFormData("45_inv");
   chestForm.title(
-    `§6上边容器为目标玩家 §f${targetPlayer.name} §6的背包\n§3下边容器即为你的背包`
+    `§6上边容器为目标玩家 §f${targetPlayer.name} §6的背包\n§0下边容器即为你的背包`
   );
 
   for (let i = 0; i < targetSize; i++) {
@@ -358,7 +358,7 @@ function openPlayerInventoryMainDualForm(adminPlayer: Player, targetPlayer: Play
           hasAnyEnchantment(item)
         );
       } else {
-        chestForm.button(buttonIndex, `§8空·${label}`, [`§7装备栏·${label}`], emptyTexture, 1, 0, false);
+        chestForm.button(buttonIndex, `§0空·${label}`, [`§0装备栏·${label}`], emptyTexture, 1, 0, false);
       }
     });
   }
@@ -531,7 +531,7 @@ export function openEnderChestDualForm(viewer: Player, target: Player, opts: End
 function openPlayerInventoryEnderDualForm(adminPlayer: Player, targetPlayer: Player): void {
   openEnderChestDualForm(adminPlayer, targetPlayer, {
     onCancel: () => openPlayerInventoryTargetForm(adminPlayer, "ender"),
-    titleText: `§5上边容器为目标玩家 §f${targetPlayer.name} §5的末影箱\n§3下边容器即为你的背包`,
+    titleText: `§5上边容器为目标玩家 §f${targetPlayer.name} §5的末影箱\n§0下边容器即为你的背包`,
   });
 }
 
@@ -540,6 +540,6 @@ export function openMyEnderChestForm(player: Player, onCancel: () => void): void
   openEnderChestDualForm(player, player, {
     onCancel,
     missingEnderDesc: "无法获取你的末影箱。",
-    titleText: `§5上边容器为你的末影箱\n§3下边容器即为我的背包`,
+    titleText: `§5上边容器为你的末影箱\n§0下边容器即为我的背包`,
   });
 }

@@ -30,7 +30,13 @@ const isProduction = argv()["production"];
 function createBundleTaskOptions(entryPoint: string, define: Record<string, string>) {
   return {
     entryPoint: path.join(__dirname, entryPoint),
-    external: ["@minecraft/server", "@minecraft/server-ui", "@minecraft/server-net", "@minecraft/server-admin"],
+    external: [
+      "@minecraft/server",
+      "@minecraft/server-ui",
+      "@minecraft/server-net",
+      "@minecraft/server-admin",
+      "@minecraft/debug-utilities",
+    ],
     outfile: path.resolve(__dirname, "./dist/scripts/main.js"),
     minifyWhitespace: false,
     sourcemap: true,
@@ -44,12 +50,21 @@ function createBundleTaskOptions(entryPoint: string, define: Record<string, stri
 const bundleTaskOptionsStandard = createBundleTaskOptions("./scripts/main.standard.ts", {
   __BDS_BUILD__: "false",
   __SERVER_ADMIN_BUILD__: "false",
+  __DEBUG_UTILITIES_BUILD__: "false",
+});
+
+/** 本地/BDS 调试版构建：包含 @minecraft/debug-utilities，不适用于 Realms */
+const bundleTaskOptionsDebug = createBundleTaskOptions("./scripts/main.debug.ts", {
+  __BDS_BUILD__: "false",
+  __SERVER_ADMIN_BUILD__: "false",
+  __DEBUG_UTILITIES_BUILD__: "true",
 });
 
 /** BDS 增强版构建：包含 server-net / server-admin 相关能力，仅供 BDS 服务器使用 */
 const bundleTaskOptionsBdsAdmin = createBundleTaskOptions("./scripts/main.bds.ts", {
   __BDS_BUILD__: "true",
   __SERVER_ADMIN_BUILD__: "true",
+  __DEBUG_UTILITIES_BUILD__: "false",
 });
 
 /** 使用 esbuild 直接打主包 */
@@ -93,6 +108,11 @@ const mcaddonTaskOptionsStandard: ZipTaskParameters = {
   outputFile: `./dist/packages/${projectName}_普通兼容版（适用本地、BDS、Realms领域服）.mcaddon`,
 };
 
+const mcaddonTaskOptionsDebug: ZipTaskParameters = {
+  ...copyTaskOptions,
+  outputFile: `./dist/packages/${projectName}_本地BDS调试版（不适用Realms领域服，含DebugUtilities）.mcaddon`,
+};
+
 const mcaddonTaskOptionsBdsAdmin: ZipTaskParameters = {
   ...copyTaskOptions,
   outputFile: `./dist/packages/${projectName}_BDS增强版（仅适用BDS服务器，含额外黑名单功能等）.mcaddon`,
@@ -101,6 +121,7 @@ const mcaddonTaskOptionsBdsAdmin: ZipTaskParameters = {
 const behaviorPackDir = path.join(__dirname, "behavior_packs", projectName);
 const manifestPath = path.join(behaviorPackDir, "manifest.json");
 const manifestStandardPath = path.join(behaviorPackDir, "manifest.standard.json");
+const manifestDebugPath = path.join(behaviorPackDir, "manifest.debug.json");
 const manifestBdsPath = path.join(behaviorPackDir, "manifest.bds.json");
 
 function useManifestVariant(sourcePath: string, label: string) {
@@ -112,6 +133,10 @@ function useManifestVariant(sourcePath: string, label: string) {
 
 function useStandardManifest() {
   useManifestVariant(manifestStandardPath, "manifest.standard.json");
+}
+
+function useDebugManifest() {
+  useManifestVariant(manifestDebugPath, "manifest.debug.json");
 }
 
 function useBdsManifest() {
@@ -137,16 +162,21 @@ task("lint", coreLint(["scripts/**/*.ts"], argv().fix));
 
 // Build
 task("bundle:standard", () => runMainBundle(bundleTaskOptionsStandard));
+task("bundle:debug", () => runMainBundle(bundleTaskOptionsDebug));
 task("bundle:bds-admin", () => runMainBundle(bundleTaskOptionsBdsAdmin));
 task("typescript", tscTask());
 task("useManifestStandard", () => {
   useStandardManifest();
+});
+task("useManifestDebug", () => {
+  useDebugManifest();
 });
 task("useManifestBds", () => {
   useBdsManifest();
 });
 
 task("build:standard", series("useManifestStandard", "typescript", "bundle:standard"));
+task("build:debug", series("useManifestDebug", "typescript", "bundle:debug"));
 task("build:bds-admin", series("useManifestBds", "typescript", "bundle:bds-admin"));
 task("build", series("build:standard"));
 
@@ -174,6 +204,13 @@ task(
   )
 );
 task(
+  "local-deploy:debug",
+  watchTask(
+    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
+    series("setDefaultDeployEnv", "clean-local", "build:debug", "package")
+  )
+);
+task(
   "local-deploy:bds-admin",
   watchTask(
     ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
@@ -184,10 +221,13 @@ task("local-deploy:bds", series("local-deploy:bds-admin"));
 
 // Mcaddon
 task("createMcaddonFile:standard", mcaddonTask(mcaddonTaskOptionsStandard));
+task("createMcaddonFile:debug", mcaddonTask(mcaddonTaskOptionsDebug));
 task("createMcaddonFile:bds-admin", mcaddonTask(mcaddonTaskOptionsBdsAdmin));
 task("package:standard", series("build:standard", "createMcaddonFile:standard"));
+task("package:debug", series("build:debug", "createMcaddonFile:debug"));
 task("package:bds-admin", series("build:bds-admin", "createMcaddonFile:bds-admin"));
 task("mcaddon:standard", series("clean-local", "package:standard"));
+task("mcaddon:debug", series("clean-local", "package:debug"));
 task("mcaddon:bds-admin", series("clean-local", "package:bds-admin"));
 task("mcaddon", series("mcaddon:standard"));
 task("mcaddon:bds", series("mcaddon:bds-admin"));

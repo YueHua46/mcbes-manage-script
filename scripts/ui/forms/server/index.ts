@@ -15,7 +15,8 @@ import { openBaseFunctionForm } from "../other";
 import { openHelpMenuForm } from "../help";
 import { openSystemSettingForm } from "../system";
 import { openGuildMenuForm } from "../guild";
-import { openFeedbackForm } from "../feedback";
+import { openFloatingTextMenu } from "../floating-text";
+import { BRANDING } from "../../../core/constants";
 
 interface MenuItem {
   text: string;
@@ -26,13 +27,13 @@ interface MenuItem {
 }
 
 /**
- * 创建服务器菜单表单
+ * 创建苦力怕菜单表单
  */
 function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: any): ActionFormData {
   const _isAdmin = isAdmin(player);
 
   const form = new ActionFormData();
-  form.title("§w服务器菜单");
+  form.title(BRANDING.MENU_TITLE);
   form.body("");
 
   menuItems
@@ -47,7 +48,7 @@ function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: an
 }
 
 /**
- * 打开服务器菜单表单
+ * 打开苦力怕菜单表单
  */
 export async function openServerMenuForm(player: Player): Promise<void> {
   // 动态导入以避免循环依赖
@@ -56,7 +57,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
   const menuItems: MenuItem[] = [
     {
       id: "player",
-      text: "§w玩家操作",
+      text: "玩家操作",
       icon: "textures/icons/faces",
       action: async (player: Player) => {
         openPlayerActionForm(player);
@@ -64,7 +65,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "wayPoint",
-      text: "§w坐标点管理",
+      text: "坐标点管理",
       icon: "textures/icons/fast_travel",
       action: async (player: Player) => {
         openWayPointMenuForms(player);
@@ -72,7 +73,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "land",
-      text: "§w领地管理",
+      text: "领地管理",
       icon: "textures/icons/bina",
       action: async (player: Player) => {
         openLandManageForms(player);
@@ -80,7 +81,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "economy",
-      text: "§w经济系统",
+      text: "经济系统",
       icon: "textures/icons/clock",
       action: async (player: Player) => {
         openEconomyMenuForm(player);
@@ -88,23 +89,24 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "guild",
-      text: "§w公会",
+      text: "公会",
       icon: "textures/icons/discord",
       action: async (player: Player) => {
         await openGuildMenuForm(player);
       },
     },
     {
-      id: "feedback",
-      text: "§w举报与工单",
-      icon: "textures/icons/quest_log",
+      id: "floatingText",
+      text: "悬浮文字",
+      icon: "textures/icons/chat_bubble_white",
       action: async (player: Player) => {
-        openFeedbackForm(player);
+        openFloatingTextMenu(player);
       },
+      adminOnly: setting.getState("floatingTextAllowMembers") !== true,
     },
     {
       id: "pvp",
-      text: "§wPVP系统",
+      text: "PVP系统",
       icon: "textures/icons/kilic",
       action: async (player: Player) => {
         const { openPvpSystemForm } = await import("../pvp");
@@ -113,7 +115,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "stats",
-      text: "§w数据统计",
+      text: "数据统计",
       icon: "textures/icons/trophy",
       action: async (player: Player) => {
         const { openStatsHubForm } = await import("../stats");
@@ -122,7 +124,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "other",
-      text: "§w其他功能",
+      text: "其他功能",
       icon: "textures/icons/accessories",
       action: async (player: Player) => {
         openBaseFunctionForm(player);
@@ -130,7 +132,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "help",
-      text: "§w获取帮助",
+      text: "获取帮助",
       icon: "textures/icons/marker_quest",
       action: async (player: Player) => {
         openHelpMenuForm(player);
@@ -138,7 +140,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "sm",
-      text: "§w给予我服务器菜单道具",
+      text: `给予我${BRANDING.MENU_ITEM_LABEL}道具`,
       icon: "textures/icons/uye",
       action: (player: Player) => {
         player.runCommand("give @s yuehua:sm");
@@ -159,7 +161,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
 
   form.show(player).then(async (data) => {
     if (data.cancelationReason === FormCancelationReason.UserBusy) {
-      player.sendMessage("§e请关闭你当前的聊天窗口，以便显示服务器菜单。");
+      player.sendMessage(`§e请关闭你当前的聊天窗口，以便显示${BRANDING.MENU_ITEM_LABEL}。`);
       const forceForm = await useForceOpen(player, form);
       if (forceForm?.canceled) return;
       if (forceForm?.selection !== undefined) {

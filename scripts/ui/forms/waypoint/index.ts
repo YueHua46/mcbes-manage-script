@@ -587,13 +587,13 @@ export const openPlayerWayPointListForm = (
   let nextButtonIndex = currentPagePoints.length;
 
   if (page > 1) {
-    form.button("§w上一页", "textures/icons/left_arrow");
+    form.button("上一页", "textures/icons/left_arrow");
     previousButtonIndex++;
     nextButtonIndex++;
   }
 
   if (page < totalPages) {
-    form.button("§w下一页", "textures/icons/right_arrow");
+    form.button("下一页", "textures/icons/right_arrow");
     nextButtonIndex++;
   }
 
@@ -604,9 +604,9 @@ export const openPlayerWayPointListForm = (
     nextButtonIndex++;
   }
 
-  form.button("§w返回", "textures/icons/back");
+  form.button("返回", "textures/icons/back");
   form.body(
-    `第 ${page} 页 / 共 ${totalPages} 页\n§7总计: ${allPoints.length} 个坐标点 (私有: ${privatePoints.length}, 公开: ${publicPoints.length})`
+    `第 ${page} 页 / 共 ${totalPages} 页\n§0总计: ${allPoints.length} 个坐标点 (私有: ${privatePoints.length}, 公开: ${publicPoints.length})`
   );
 
   form.show(player).then((data) => {

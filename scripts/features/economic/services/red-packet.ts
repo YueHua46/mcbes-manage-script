@@ -11,6 +11,7 @@ import { SystemLog } from "../../../shared/utils/common";
 import setting from "../../system/services/setting";
 import economic from "./economic";
 import { taskScheduler } from "../../platform/scheduler";
+import { BRANDING } from "../../../core/constants";
 import type { IRedPacket, RedPacketMode } from "../models/red-packet.model";
 
 /** 未配置时的默认有效时长：24 小时（毫秒） */
@@ -305,7 +306,7 @@ class RedPacketService {
       lines.push(`${color.lightPurple("寄语:")} ${color.white(packet.message)}`);
     }
     lines.push(`${color.gray("────────────────────────────────")}`);
-    lines.push(`${color.gray("领取方式:")} ${color.green("服务器菜单:")} ${color.white("经济系统 → 红包 → 待领红包")}`);
+    lines.push(`${color.gray("领取方式:")} ${color.green(`${BRANDING.MENU_ITEM_LABEL}:`)} ${color.white("经济系统 → 红包 → 待领红包")}`);
     lines.push(`${color.gold("§l═══════════════════════════════════§r")}`);
 
     const text = lines.join("\n");
@@ -519,11 +520,6 @@ class RedPacketService {
       const amt = shares[claimed.length];
       if (amt < 1) return "该份金额为 0";
 
-      const added = economic.addGold(player.name, amt, "玩家红包领取", true);
-      if (added < amt) {
-        return "领取失败，请稍后重试";
-      }
-
       claimed = [...claimed, player.name];
       packet.claimedBy = claimed;
       packet.claimAtMs = [...(packet.claimAtMs ?? []), Date.now()];
@@ -532,7 +528,25 @@ class RedPacketService {
         packet.finished = true;
       }
 
-      db.set(packetId, packet);
+      try {
+        db.set(packetId, packet);
+      } catch (e) {
+        SystemLog.error("红包领取记录保存失败", e);
+        return "领取失败，请稍后重试";
+      }
+
+      const added = economic.addGold(player.name, amt, "玩家红包领取", true);
+      if (added < amt) {
+        packet.claimedBy = packet.claimedBy.filter((name) => name !== player.name);
+        packet.claimAtMs = packet.claimAtMs?.slice(0, packet.claimedBy.length);
+        packet.finished = false;
+        try {
+          db.set(packetId, packet);
+        } catch (e) {
+          SystemLog.error("红包领取失败回滚记录失败", e);
+        }
+        return "领取失败，请稍后重试";
+      }
 
       player.sendMessage(
         `${color.gold("§l【红包到账】§r")} ${color.gray("来自")} ${color.aqua(packet.senderName)} ${color.gray("·")} ${color.green("+")}${color.gold(String(amt))} ${color.gray("金币")}`
@@ -556,11 +570,6 @@ class RedPacketService {
     const amt = rec.amount;
     if (amt < 1) return "可领取金额为 0";
 
-    const added = economic.addGold(player.name, amt, "玩家红包领取", true);
-    if (added < amt) {
-      return "领取失败，请稍后重试";
-    }
-
     rec.claimed = true;
 
     const allDone = Object.values(packet.recipients!).every((x) => x.claimed);
@@ -568,7 +577,26 @@ class RedPacketService {
       packet.finished = true;
     }
 
-    db.set(packetId, packet);
+    try {
+      db.set(packetId, packet);
+    } catch (e) {
+      SystemLog.error("旧版红包领取记录保存失败", e);
+      rec.claimed = false;
+      packet.finished = false;
+      return "领取失败，请稍后重试";
+    }
+
+    const added = economic.addGold(player.name, amt, "玩家红包领取", true);
+    if (added < amt) {
+      rec.claimed = false;
+      packet.finished = false;
+      try {
+        db.set(packetId, packet);
+      } catch (e) {
+        SystemLog.error("旧版红包领取失败回滚记录失败", e);
+      }
+      return "领取失败，请稍后重试";
+    }
 
     player.sendMessage(
       `${color.gold("§l【红包到账】§r")} ${color.gray("来自")} ${color.aqua(packet.senderName)} ${color.gray("·")} ${color.green("+")}${color.gold(String(amt))} ${color.gray("金币")}`
