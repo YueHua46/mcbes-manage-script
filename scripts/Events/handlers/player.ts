@@ -10,6 +10,7 @@ import setting from "../../features/system/services/setting";
 import { showJoinPopupAnnouncements } from "../../features/system/services/join-popup-announcement";
 import economic from "../../features/economic/services/economic";
 import { BRANDING } from "../../core/constants";
+import { isFakePlayer } from "../../features/fake-player/services/fake-player";
 
 /**
  * 注册玩家事件处理器
@@ -18,6 +19,7 @@ export function registerPlayerEvents(): void {
   // 玩家欢迎事件（首次加入）
   world.afterEvents.playerSpawn.subscribe(async (event) => {
     const { player } = event;
+    if (isFakePlayer(player)) return;
 
     const isJoin = player.getDynamicProperty("join") as boolean;
     if (isJoin) return;
@@ -55,6 +57,7 @@ export function registerPlayerEvents(): void {
   // 玩家首次加入服务器初始化
   world.afterEvents.playerSpawn.subscribe((event) => {
     const { player } = event;
+    if (isFakePlayer(player)) return;
 
     const isFirstJoin = player?.getDynamicProperty("isFirst");
 
@@ -70,6 +73,7 @@ export function registerPlayerEvents(): void {
   // 玩家生成时设置显示名称
   world.afterEvents.playerSpawn.subscribe((e) => {
     const { player } = e;
+    if (isFakePlayer(player)) return;
 
     const alias = playerSettings.getPlayerAlias(player);
     const nameColor = playerSettings.getPlayerNameColor(player);
@@ -92,6 +96,7 @@ export function registerPlayerEvents(): void {
     const { deadEntity } = event;
     if (deadEntity.typeId === "minecraft:player") {
       const player = deadEntity as Player;
+      if (isFakePlayer(player)) return;
       const backToDeath = setting.getState("backToDeath") as boolean;
 
       // 只有在功能开启时才显示提示消息

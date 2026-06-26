@@ -8,6 +8,7 @@ import PlayerSetting from "./player-settings";
 import { guildFacade } from "../../guild/services/guild-facade";
 import setting from "../../system/services/setting";
 import { taskScheduler } from "../../platform/scheduler";
+import { isFakePlayer } from "../../fake-player/services/fake-player";
 
 export class NameDisplay {
   private static instance: NameDisplay;
@@ -55,6 +56,7 @@ export class NameDisplay {
    */
   public updatePlayerNameDisplay(player: Player): void {
     try {
+      if (isFakePlayer(player)) return;
       let displayName = PlayerSetting.getPlayerDisplayName(player);
       if (guildFacade.isGuildModuleEnabled() && setting.getState("guildShowTagInName") === true) {
         const gTag = guildFacade.getGuildTagPrefixForNameTag(player.name);

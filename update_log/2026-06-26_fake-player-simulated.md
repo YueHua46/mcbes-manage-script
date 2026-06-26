@@ -1,0 +1,31 @@
+# 2026-06-26 假人系统 SimulatedPlayer 改造
+
+## 概述
+
+假人系统从 `yuehua:fake_player` 自定义实体（`minecraft:tick_world` 区块锚点）迁移为 `@minecraft/server-gametest.spawnSimulatedPlayer()`。模拟玩家属于真实 `Player`，可参与 simulation distance 内的原版自然刷怪。
+
+## 功能入口
+
+- 玩家操作菜单 → **假人管理**
+- 命令：`/yuehua:fakeplayer list | spawn <名称> | remove <名称>`
+
+## 变更说明
+
+- 假人功能默认开启（`fakePlayer: true`）。
+- 创建假人时使用 `GameMode.Survival` 在当前位置生成 SimulatedPlayer。
+- 服务器重启或重载后自动恢复假人；死亡后自动回到存储坐标。
+- 升级时会清理世界中残留的 `yuehua:fake_player` 旧实体。
+- **皮肤选择功能已暂时移除**（SimulatedPlayer 无法使用原 16 套自定义贴图）。
+
+## 手动测试清单
+
+1. 在刷怪塔放置假人，真实玩家远离 simulation distance，确认怪物自然生成。
+2. UI 与命令创建/列表/删除；扣费与失败退款。
+3. 重载行为包后假人回到原坐标。
+4. 杀死假人后是否回位并继续可用。
+5. 普通玩家数量上限、管理员全服管理、名称冲突校验。
+
+## 风险
+
+- `@minecraft/server-gametest` 仍为 pre-release，API 可能变更。
+- SimulatedPlayer 不等同于真实客户端玩家，部分 Player 事件可能不完整。

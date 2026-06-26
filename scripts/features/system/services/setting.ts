@@ -117,7 +117,7 @@ export type IModules =
   | "floatingTextMaxPerPlayer"
   /** 所有玩家每次创建悬浮文字消耗金币；0 表示免费 */
   | "floatingTextCreateCost"
-  /** 假人加载锚点系统入口与实体维护开关 */
+  /** 假人模拟玩家系统入口与实体维护开关 */
   | "fakePlayer"
   /** 普通玩家最多可创建的假人数量 */
   | "fakePlayerMaxPerPlayer"

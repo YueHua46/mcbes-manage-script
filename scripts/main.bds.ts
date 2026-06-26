@@ -43,7 +43,7 @@ function initializeApp(): void {
     SystemLog.info("  ✓ 自定义命令系统");
     SystemLog.info("  ✓ 试玩模式系统");
     SystemLog.info("  ✓ 悬浮文字系统");
-    SystemLog.info("  ✓ 假人加载锚点系统");
+    SystemLog.info("  ✓ 假人模拟玩家系统");
     SystemLog.info("  ✓ 黑名单进服前校验");
 
     SystemLog.info("[3/3] 初始化事件系统...");

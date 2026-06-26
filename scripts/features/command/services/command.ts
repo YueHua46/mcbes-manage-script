@@ -155,7 +155,7 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   floatingTextAllowMembers: "是否对普通成员开放悬浮文字。false 时只有管理员可创建和管理。",
   floatingTextMaxPerPlayer: "普通玩家最多可创建的悬浮文字数量。填写 0 或正整数。",
   floatingTextCreateCost: "所有玩家每次创建悬浮文字消耗金币。0 表示免费，不扣金币。",
-  fakePlayer: "假人加载锚点系统总开关。true 允许玩家创建假人维持附近区块活跃，false 关闭入口和自愈。",
+  fakePlayer: "假人模拟玩家系统总开关。true 允许玩家创建假人参与原版模拟，false 关闭入口和自愈。",
   fakePlayerMaxPerPlayer: "普通玩家最多可创建的假人数量。管理员不受此上限限制。",
   fakePlayerCreateCost: "每次创建假人消耗金币。0 表示免费；经济系统关闭时需设为 0 才能创建。",
   onlineTime: "旧版在线时长入口兼容键。在线时长数据入口优先使用 stats。",
@@ -326,7 +326,7 @@ system.beforeEvents.startup.subscribe((init) => {
   const fakePlayerCommand: CustomCommand = {
     name: "yuehua:fakeplayer",
     description:
-      "假人加载锚点。list=列出自己的假人；add=在当前位置创建假人；remove=按名称删除自己的假人。假人用于维持附近区块活跃。",
+      "假人模拟玩家。list=列出假人；add=在当前位置创建假人；remove=按名称删除假人。",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
       {
@@ -908,13 +908,14 @@ function handleFakePlayerCommand(origin: CustomCommandOrigin, operation?: string
     const op = (operation ?? "list").toLowerCase();
 
     if (op === "list") {
-      const list = fakePlayerService.listForPlayer(player.name);
+      const admin = isAdmin(player);
+      const list = admin ? fakePlayerService.listAllForAdmin() : fakePlayerService.listForPlayer(player.name);
       if (list.length === 0) {
-        player.sendMessage(color.yellow("你还没有创建任何假人。"));
+        player.sendMessage(color.yellow(admin ? "全服暂无假人。" : "你还没有创建任何假人。"));
         player.sendMessage(color.gray("用法: /yuehua:fakeplayer add <名称>"));
         return;
       }
-      player.sendMessage(color.green(`=== 我的假人 (${list.length}) ===`));
+      player.sendMessage(color.green(admin ? `=== 全服假人 (${list.length}) ===` : `=== 我的假人 (${list.length}) ===`));
       for (const item of list) {
         player.sendMessage(
           `${color.aqua(item.name)} ${color.gray(`${item.dimension} ${item.location.x}, ${item.location.y}, ${item.location.z}`)}`
@@ -929,7 +930,7 @@ function handleFakePlayerCommand(origin: CustomCommandOrigin, operation?: string
         player.sendMessage(color.red(result));
         return;
       }
-      player.sendMessage(color.green(`已创建假人 ${color.yellow(result.name)}，它会维持附近区块活跃。`));
+      player.sendMessage(color.green(`已创建模拟玩家 ${color.yellow(result.name)}。`));
       return;
     }
 
@@ -939,7 +940,8 @@ function handleFakePlayerCommand(origin: CustomCommandOrigin, operation?: string
         return;
       }
 
-      const item = fakePlayerService.listForPlayer(player.name).find((fakePlayer) => fakePlayer.name === name.trim());
+      const list = isAdmin(player) ? fakePlayerService.listAllForAdmin() : fakePlayerService.listForPlayer(player.name);
+      const item = list.find((fakePlayer) => fakePlayer.name === name.trim());
       if (!item) {
         player.sendMessage(color.red("没有找到这个名称的假人。"));
         return;
