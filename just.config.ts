@@ -36,6 +36,7 @@ function createBundleTaskOptions(entryPoint: string, define: Record<string, stri
       "@minecraft/server-net",
       "@minecraft/server-admin",
       "@minecraft/debug-utilities",
+      "@minecraft/server-gametest",
     ],
     outfile: path.resolve(__dirname, "./dist/scripts/main.js"),
     minifyWhitespace: false,

@@ -1,8 +1,7 @@
 import { Player } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import fakePlayerService, { IFakePlayer } from "../../../features/fake-player/services/fake-player";
-import { FAKE_PLAYER_SKINS, getFakePlayerSkinName } from "../../../features/fake-player/services/fake-player-skins";
-import { color, colorCodes } from "../../../shared/utils/color";
+import { color } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
 
@@ -26,7 +25,7 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
     [
       `§a我的假人: §e${own.length}/${isAdmin(player) ? "不限" : max}`,
       `§a创建费用: §e${cost} 金币`,
-      `§7假人会作为区块加载锚点维持附近区块活跃。`,
+      `§7假人会作为模拟玩家维持原版刷怪等行为。`,
     ].join("\n")
   );
   form.button("在当前位置创建假人", "textures/icons/add");
@@ -63,11 +62,6 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
   form.textField("假人名称", "例如: 地狱树场加载点", {
     defaultValue: `${player.name}的假人`,
   });
-  form.dropdown(
-    "假人皮肤",
-    FAKE_PLAYER_SKINS.map((skin) => `${skin.name}`),
-    { defaultValueIndex: 0 }
-  );
   form.submitButton("确认创建");
 
   form.show(player).then((data) => {
@@ -77,8 +71,7 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
     }
 
     const name = String(data.formValues?.[0] ?? "");
-    const skinId = FAKE_PLAYER_SKINS[Number(data.formValues?.[1] ?? 0)]?.id ?? 0;
-    const result = fakePlayerService.create({ player, name, skinId });
+    const result = fakePlayerService.create({ player, name });
     if (typeof result === "string") {
       openDialogForm(player, { title: "创建失败", desc: color.red(result) }, () => openCreateFakePlayerForm(player, back));
       return;
@@ -88,7 +81,7 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
       player,
       {
         title: "创建成功",
-        desc: `§a已在当前位置创建假人 §e${result.name}§a。\n§a皮肤: §e${getFakePlayerSkinName(result.skinId)}\n§0${formatLocation(result)}`,
+        desc: `§a已在当前位置创建模拟玩家 §e${result.name}§a。\n§0${formatLocation(result)}`,
       },
       () => openFakePlayerMenu(player, back)
     );
@@ -130,13 +123,11 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
   form.body(
     [
       `§a拥有者: §e${item.ownerName}`,
-      `§a皮肤: §e${getFakePlayerSkinName(item.skinId)}`,
       `§a位置: §e${formatLocation(item)}`,
       `§a创建时间: §e${item.created}`,
     ].join("\n")
   );
-  form.button("重生成实体", "textures/icons/requeue");
-  form.button("更换皮肤", "textures/icons/edit2");
+  form.button("重新生成", "textures/icons/requeue");
   form.button("删除假人", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
 
@@ -148,17 +139,14 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
         openDialogForm(
           player,
           {
-            title: typeof result === "string" ? "重生成失败" : "重生成成功",
-            desc: typeof result === "string" ? color.red(result) : color.green("假人实体已重新生成并绑定。"),
+            title: typeof result === "string" ? "重新生成失败" : "重新生成成功",
+            desc: typeof result === "string" ? color.red(result) : color.green("假人已重新生成。"),
           },
           () => openFakePlayerListForm(player, adminView, back)
         );
         break;
       }
       case 1:
-        openFakePlayerSkinForm(player, item, adminView, back);
-        break;
-      case 2:
         openConfirmDialogForm(
           player,
           "删除假人",
@@ -178,39 +166,9 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
           { dangerConfirm: true }
         );
         break;
-      case 3:
+      case 2:
         openFakePlayerListForm(player, adminView, back);
         break;
     }
-  });
-}
-
-function openFakePlayerSkinForm(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {
-  const form = new ModalFormData();
-  const currentIndex = FAKE_PLAYER_SKINS.findIndex((skin) => skin.id === (item.skinId ?? 0));
-  form.title("更换假人皮肤");
-  form.dropdown(
-    "假人皮肤",
-    FAKE_PLAYER_SKINS.map((skin) => `${skin.name}`),
-    { defaultValueIndex: Math.max(0, currentIndex) }
-  );
-  form.submitButton("确认");
-
-  form.show(player).then((data) => {
-    if (data.canceled || data.cancelationReason) {
-      openFakePlayerDetailForm(player, item, adminView, back);
-      return;
-    }
-
-    const skinId = FAKE_PLAYER_SKINS[Number(data.formValues?.[0] ?? 0)]?.id ?? 0;
-    const result = fakePlayerService.updateSkin(player, item.id, skinId);
-    openDialogForm(
-      player,
-      {
-        title: typeof result === "string" ? "更换失败" : "更换成功",
-        desc: typeof result === "string" ? color.red(result) : color.green(`皮肤已更换为 ${getFakePlayerSkinName(result.skinId)}。`),
-      },
-      () => openFakePlayerListForm(player, adminView, back)
-    );
   });
 }

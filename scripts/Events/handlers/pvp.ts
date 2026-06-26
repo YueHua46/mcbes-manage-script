@@ -14,6 +14,7 @@ import { isAdmin } from "../../shared/utils/common";
 import { color } from "../../shared/utils/color";
 import { useNotify } from "../../shared/hooks";
 import { BRANDING } from "../../core/constants";
+import { isFakePlayer } from "../../features/fake-player/services/fake-player";
 
 // 用于跟踪玩家的战斗状态（用于触发进入战斗特效）
 const playerCombatStatus = new Map<string, boolean>();
@@ -113,6 +114,7 @@ export function registerPvpEvents(): void {
     if (hurtEntity.typeId !== "minecraft:player") return;
 
     const victim = hurtEntity as Player;
+    if (isFakePlayer(victim)) return;
     const isFireDamage = cause === EntityDamageCause.fire || cause === EntityDamageCause.fireTick;
 
     // ===== 情形二：fire/fireTick 且无 damagingEntity（fireTick 兜底）=====
@@ -137,6 +139,10 @@ export function registerPvpEvents(): void {
     if (damageSource.damagingEntity?.typeId !== "minecraft:player") return;
 
     const attacker = damageSource.damagingEntity as Player;
+    if (isFakePlayer(attacker)) {
+      event.cancel = true;
+      return;
+    }
 
     // 防止自己攻击自己
     if (attacker.id === victim.id) {
@@ -215,6 +221,7 @@ export function registerPvpEvents(): void {
 
     const killer = damageSource.damagingEntity as Player;
     const victim = deadEntity as Player;
+    if (isFakePlayer(killer) || isFakePlayer(victim)) return;
 
     // 防止自己击杀自己
     if (killer.id === victim.id) return;

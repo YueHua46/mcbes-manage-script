@@ -589,7 +589,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "stats", name: "数据统计（仅此项控制入口，子榜无单独开关）" },
     { key: "guild", name: "公会系统" },
     { key: "floatingText", name: "悬浮文字系统" },
-    { key: "fakePlayer", name: "假人加载锚点系统" },
+    { key: "fakePlayer", name: "假人模拟玩家系统" },
     { key: "other", name: "其他功能模块" },
     { key: "help", name: "帮助功能" },
     { key: "sm", name: "苦力怕菜单" },
