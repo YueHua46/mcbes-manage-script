@@ -881,7 +881,7 @@ function handleRtpCommand(origin: CustomCommandOrigin): CustomCommandResult {
   system.run(async () => {
     try {
       const { RandomTp } = await import("../../other/services/random-tp");
-      RandomTp(player);
+      await RandomTp(player);
     } catch (error) {
       player.sendMessage(color.red(`传送失败: ${(error as Error).message}`));
     }
