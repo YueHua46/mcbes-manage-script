@@ -2,8 +2,9 @@
  * 全服玩家统计：怪物击杀、累计死亡、等级快照（持久化，排行榜含离线玩家）
  */
 
-import { Player, system, world } from "@minecraft/server";
+import { Player, system } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
+import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
 
 const DATABASE_NAME = "player_stats";
 
@@ -16,7 +17,7 @@ export interface PlayerStatRecord {
 }
 
 function findOnlinePlayerByName(name: string): Player | undefined {
-  return world.getPlayers().find((p) => p.name === name);
+  return getOnlineRealPlayerByName(name);
 }
 
 function emptyRecord(): PlayerStatRecord {
@@ -28,7 +29,10 @@ function emptyRecord(): PlayerStatRecord {
   };
 }
 
-function lexLevel(a: { level: number; xpAtCurrentLevel: number }, b: { level: number; xpAtCurrentLevel: number }): number {
+function lexLevel(
+  a: { level: number; xpAtCurrentLevel: number },
+  b: { level: number; xpAtCurrentLevel: number }
+): number {
   if (a.level !== b.level) return a.level - b.level;
   return a.xpAtCurrentLevel - b.xpAtCurrentLevel;
 }
@@ -126,14 +130,14 @@ class PlayerStatsService {
   getLeaderboard(
     kind: "mobKills" | "totalDeaths" | "level",
     limit: number
-): Array<{ name: string; value: number; subValue?: number }> {
+  ): Array<{ name: string; value: number; subValue?: number }> {
     const lim = Math.max(1, Math.min(100, Math.floor(limit)));
     const db = this.ensureDb();
     if (!db) return [];
 
     const names = new Set<string>(Object.keys(db.getAll() as Record<string, PlayerStatRecord>));
     if (kind === "level") {
-      for (const p of world.getAllPlayers()) {
+      for (const p of getOnlineRealPlayers()) {
         names.add(p.name);
       }
     }
@@ -180,7 +184,7 @@ class PlayerStatsService {
   }
 
   refreshAllOnlineLevels(): void {
-    for (const p of world.getAllPlayers()) {
+    for (const p of getOnlineRealPlayers()) {
       try {
         this.refreshLevelSnapshot(p);
       } catch (_) {}

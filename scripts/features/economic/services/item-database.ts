@@ -6,7 +6,8 @@
 
 import { Dimension, Entity, ItemStack, LocationInUnloadedChunkError, system, world } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
-import { SystemLog } from "../../../shared/utils/common";
+import { isAdmin, SystemLog } from "../../../shared/utils/common";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 
 // 每个实体可存储的最大槽位数
 const ITEM_MAX_PER_ENTITY = 256;
@@ -20,8 +21,24 @@ const TICKING_AREA_CMD = `tickingarea add circle 8 0 8 4 "PaoDatabase" true`;
 const ANCHOR_LOAD_WAIT_TICKS = 25;
 /** spawn 遇未加载区块时的最大重试次数 */
 const SPAWN_ANCHOR_MAX_ATTEMPTS = 45;
+const DB_ENTITY_TAG = "pao_item_database";
+const DB_NAME_TAG_PREFIX = "pao_db_name:";
+const DB_INDEX_TAG_PREFIX = "pao_db_index:";
 // 记录已注册的数据库名称，防止重复
 const nameRegistered: string[] = [];
+const databaseInstances = new Set<ItemDatabase>();
+let entityRemoveGuardRegistered = false;
+
+interface RescueSlot {
+  slot: number;
+  item: ItemStack;
+}
+
+interface RescueSnapshot {
+  entityIndex: number;
+  entityId: string;
+  slots: RescueSlot[];
+}
 
 /**
  * 单个槽位的数据结构
@@ -111,6 +128,41 @@ function findIndexByValue<T extends Record<string, any>>(obj: T, value: any): st
   return undefined;
 }
 
+function getEntityDbName(entity: Entity): string | undefined {
+  const dynamicName = entity.getDynamicProperty("paoDbName");
+  if (typeof dynamicName === "string" && dynamicName) return dynamicName;
+
+  const tagName = entity
+    .getTags()
+    .find((tag) => tag.startsWith(DB_NAME_TAG_PREFIX))
+    ?.slice(DB_NAME_TAG_PREFIX.length);
+  if (tagName) return tagName;
+
+  const nameTag = entity.nameTag;
+  if (nameTag.startsWith("DB_")) return nameTag.slice(3);
+  return undefined;
+}
+
+function registerEntityRemoveGuard(): void {
+  if (entityRemoveGuardRegistered) return;
+  entityRemoveGuardRegistered = true;
+
+  world.beforeEvents.entityRemove.subscribe((event) => {
+    const entity = event.removedEntity;
+    if (entity.typeId !== ENTITY_TYPE_ID) return;
+
+    const dbName = getEntityDbName(entity);
+    if (!dbName) return;
+
+    for (const db of databaseInstances) {
+      if (db.name === dbName) {
+        db.captureUnexpectedEntityRemoval(entity);
+        return;
+      }
+    }
+  });
+}
+
 /**
  * 封装单个物品，提供对数据库操作的方法
  */
@@ -155,6 +207,8 @@ export default class ItemDatabase {
   #entities: Entity[] = [];
   #itemData: Record<number, SlotData> = {};
   #database!: Database;
+  #unhealthyReason?: string;
+  #expectedRemovalIds = new Set<string>();
 
   constructor(name: string) {
     if (nameRegistered.includes(name)) {
@@ -166,8 +220,14 @@ export default class ItemDatabase {
       this.#database = new Database(`EntityDatabase_${name}`);
     });
     nameRegistered.push(name);
+    databaseInstances.add(this);
+    registerEntityRemoveGuard();
 
     this.init().catch((e) => console.error(e));
+  }
+
+  get name(): string {
+    return this.#name;
   }
 
   /** 初始化，加载已有实体与槽位数据 */
@@ -201,6 +261,7 @@ export default class ItemDatabase {
     if (ents.length > 0) {
       let entityCount = 0;
       for (const ent of ents) {
+        this.#bindDatabaseEntity(ent, entityCount);
         const inv = ent.getComponent("inventory")?.container;
         for (let i = 0; i < ITEM_MAX_PER_ENTITY; i++) {
           const t0 = Date.now();
@@ -210,20 +271,25 @@ export default class ItemDatabase {
           if (it && stored) {
             stored.item = it;
             this.#itemData[slot] = stored;
+          } else if (it && !stored) {
+            this.#markUnhealthy(`槽位 ${slot} 有实体物品但缺少索引记录`);
+          } else if (!it && stored) {
+            this.#markUnhealthy(`槽位 ${slot} 有索引记录但实体物品缺失`);
           } else {
-            this.#database.delete(`slot_${slot}`);
+            // empty slot
           }
           loadedTimes.push(Date.now() - t0);
         }
         this.#entities.push(ent);
         entityCount++;
       }
+    } else if (this.#database.keys().some((key) => key.startsWith("slot_"))) {
+      this.#markUnhealthy("启动时未找到数据库实体，但动态索引中仍存在物品槽位记录");
     } else {
       const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
         overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
       );
-      e.nameTag = `DB_${this.#name}`;
-      e.addTag(`spawntime:${Date.now()}`);
+      this.#bindDatabaseEntity(e, 0);
       this.#entities.push(e);
     }
 
@@ -241,6 +307,7 @@ export default class ItemDatabase {
 
   /** 查找空槽位索引列表 */
   #findEmptySlot(): number[] {
+    this.#assertHealthy();
     const empties: number[] = [];
     for (let i = 0; i < this.fullInventory; i++) {
       if (!this.#itemData[i]) empties.push(i);
@@ -250,6 +317,7 @@ export default class ItemDatabase {
 
   /** 将数据写入指定槽位并更新实体与持久化 */
   #setItem(slot: number, item: ItemStack, data: Omit<SlotData, "slot" | "item">): SlotData {
+    this.#assertHealthy();
     const entityIndex = Math.floor(slot / ITEM_MAX_PER_ENTITY);
     const entitySlot = slot % ITEM_MAX_PER_ENTITY;
     const ent = this.#entities[entityIndex];
@@ -263,6 +331,7 @@ export default class ItemDatabase {
 
   /** 删除指定槽位的物品与持久化数据 */
   #deleteItem(slot: number): void {
+    this.#assertHealthy();
     const entityIndex = Math.floor(slot / ITEM_MAX_PER_ENTITY);
     const entitySlot = slot % ITEM_MAX_PER_ENTITY;
     const ent = this.#entities[entityIndex];
@@ -276,6 +345,7 @@ export default class ItemDatabase {
       entityIndex === this.#entities.length - 1
     ) {
       this.#entities.pop();
+      this.#markExpectedRemoval(ent);
       ent.remove();
     }
 
@@ -285,10 +355,10 @@ export default class ItemDatabase {
 
   /** 在已加载的 anchor 上生成一只存储实体并加入列表 */
   #spawnAndRegisterOneEntity(): void {
+    this.#assertHealthy();
     const overworld = world.getDimension("minecraft:overworld");
     const e = overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR);
-    e.nameTag = `DB_${this.#name}`;
-    e.addTag(`spawntime:${Date.now()}`);
+    this.#bindDatabaseEntity(e, this.#entities.length);
     this.#entities.push(e);
   }
 
@@ -299,8 +369,7 @@ export default class ItemDatabase {
       const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
         overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
       );
-      e.nameTag = `DB_${this.#name}`;
-      e.addTag(`spawntime:${Date.now()}`);
+      this.#bindDatabaseEntity(e, this.#entities.length);
       this.#entities.push(e);
       const slot = this.#findEmptySlot()[0]!;
       this.#setItem(slot, item, data);
@@ -316,8 +385,7 @@ export default class ItemDatabase {
       const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
         overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
       );
-      e.nameTag = `DB_${this.#name}`;
-      e.addTag(`spawntime:${Date.now()}`);
+      this.#bindDatabaseEntity(e, this.#entities.length);
       this.#entities.push(e);
     } catch (err) {
       console.error(`[ItemDatabase ${this.#name}] deferred clear respawn failed`, err);
@@ -339,6 +407,7 @@ export default class ItemDatabase {
    */
   add(item: ItemStack, data: Record<string, any> = {}): void {
     if (!this.#loaded) throw new ReferenceError("Database is not loaded");
+    this.#assertHealthy();
     if (this.#findEmptySlot().length === 0) {
       try {
         this.#spawnAndRegisterOneEntity();
@@ -358,6 +427,7 @@ export default class ItemDatabase {
    * 根据槽位索引获取封装后的 Item 对象
    */
   get(slot: number): Item | undefined {
+    this.#assertHealthy();
     const d = this.#itemData[slot];
     return d ? new Item(d, this) : undefined;
   }
@@ -367,6 +437,7 @@ export default class ItemDatabase {
    */
   remove(data: Partial<SlotData>): void {
     if (!this.#loaded) throw new ReferenceError("Database is not loaded");
+    this.#assertHealthy();
     const key = findIndexByValue(this.#itemData, data);
     if (key === undefined) throw new Error("Item not found!");
     this.#deleteItem(Number(key));
@@ -377,6 +448,7 @@ export default class ItemDatabase {
    */
   unStore(data: Partial<SlotData>, keepItem = true): ItemStack {
     if (!this.#loaded) throw new ReferenceError("Database is not loaded");
+    this.#assertHealthy();
     const key = findIndexByValue(this.#itemData, data);
     if (key === undefined) throw new Error("Item not found!");
     const slot = Number(key);
@@ -391,6 +463,7 @@ export default class ItemDatabase {
    */
   edit(oldData: Partial<SlotData>, newData: Partial<SlotData>): SlotData {
     if (!this.#loaded) throw new ReferenceError("Database is not loaded");
+    this.#assertHealthy();
     const key = findIndexByValue(this.#itemData, oldData);
     if (key === undefined) throw new Error("Item not found!");
     const slot = Number(key);
@@ -418,10 +491,14 @@ export default class ItemDatabase {
   /** 清空整个数据库并重置实体 */
   clear(): void {
     if (!this.#loaded) throw new ReferenceError("Database is not loaded");
-    for (const e of this.#entities) e.remove();
+    for (const e of this.#entities) {
+      this.#markExpectedRemoval(e);
+      e.remove();
+    }
     this.#entities = [];
     this.#itemData = {};
     this.#database.clear();
+    this.#unhealthyReason = undefined;
 
     try {
       this.#spawnAndRegisterOneEntity();
@@ -439,6 +516,7 @@ export default class ItemDatabase {
    */
   forEach(callback: (item: Item) => void): void {
     if (!this.#loaded) throw new ReferenceError("Database is not loaded");
+    this.#assertHealthy();
     for (const slot of Object.keys(this.#itemData).map((n) => Number(n))) {
       const it = this.get(slot);
       if (it) callback(it);
@@ -450,20 +528,168 @@ export default class ItemDatabase {
    */
   async hardReset(): Promise<void> {
     const overworld = world.getDimension("minecraft:overworld");
+    for (const e of this.#entities) this.#markExpectedRemoval(e);
     this.#entities = [];
     overworld
       .getEntities()
       .filter((e) => e.typeId === ENTITY_TYPE_ID && e.nameTag === `DB_${this.#name}`)
-      .forEach((e) => e.remove());
+      .forEach((e) => {
+        this.#markExpectedRemoval(e);
+        e.remove();
+      });
 
     await prepareDatabaseAnchorRegion(overworld);
     const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
       overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
     );
-    e.nameTag = `DB_${this.#name}`;
-    e.addTag(`spawntime:${Date.now()}`);
+    this.#bindDatabaseEntity(e, 0);
     this.#entities.push(e);
 
     this.#itemData = {};
+    this.#unhealthyReason = undefined;
+  }
+
+  #bindDatabaseEntity(entity: Entity, index: number): void {
+    entity.nameTag = `DB_${this.#name}`;
+    for (const tag of entity.getTags()) {
+      if (tag.startsWith(DB_NAME_TAG_PREFIX) || tag.startsWith(DB_INDEX_TAG_PREFIX)) {
+        entity.removeTag(tag);
+      }
+    }
+    entity.addTag(DB_ENTITY_TAG);
+    entity.addTag(`${DB_NAME_TAG_PREFIX}${this.#name}`);
+    entity.addTag(`${DB_INDEX_TAG_PREFIX}${index}`);
+    if (!entity.getTags().some((tag) => tag.startsWith("spawntime:"))) {
+      entity.addTag(`spawntime:${Date.now()}`);
+    }
+    entity.setDynamicProperty("paoDbName", this.#name);
+    entity.setDynamicProperty("paoDbIndex", index);
+  }
+
+  #markExpectedRemoval(entity: Entity): void {
+    this.#expectedRemovalIds.add(entity.id);
+    system.runTimeout(() => {
+      this.#expectedRemovalIds.delete(entity.id);
+    }, 5);
+  }
+
+  #markUnhealthy(reason: string): void {
+    if (!this.#unhealthyReason) {
+      SystemLog.error(`[ItemDatabase ${this.#name}] 数据库进入保护状态: ${reason}`);
+      this.#notifyAdmins(`§c物品数据库 ${this.#name} 进入保护状态: §e${reason}`);
+    }
+    this.#unhealthyReason = reason;
+  }
+
+  #assertHealthy(): void {
+    if (this.#unhealthyReason) {
+      throw new Error(`ItemDatabase ${this.#name} is unhealthy: ${this.#unhealthyReason}`);
+    }
+
+    for (const entity of this.#entities) {
+      if (!entity?.isValid) {
+        this.#markUnhealthy("存储实体已失效");
+        throw new Error(`ItemDatabase ${this.#name} is unhealthy: ${this.#unhealthyReason}`);
+      }
+      if (!entity.getComponent("inventory")?.container) {
+        this.#markUnhealthy("存储实体缺少 inventory 容器");
+        throw new Error(`ItemDatabase ${this.#name} is unhealthy: ${this.#unhealthyReason}`);
+      }
+    }
+  }
+
+  #notifyAdmins(message: string): void {
+    for (const player of getOnlineRealPlayers()) {
+      if (isAdmin(player)) {
+        player.sendMessage(message);
+      }
+    }
+  }
+
+  #getEntityIndex(entity: Entity): number {
+    const dynamicIndex = entity.getDynamicProperty("paoDbIndex");
+    if (typeof dynamicIndex === "number" && Number.isInteger(dynamicIndex) && dynamicIndex >= 0) {
+      return dynamicIndex;
+    }
+
+    const tagIndex = entity
+      .getTags()
+      .find((tag) => tag.startsWith(DB_INDEX_TAG_PREFIX))
+      ?.slice(DB_INDEX_TAG_PREFIX.length);
+    const parsed = Number.parseInt(tagIndex ?? "", 10);
+    if (Number.isInteger(parsed) && parsed >= 0) return parsed;
+
+    const byId = this.#entities.findIndex((candidate) => candidate.id === entity.id);
+    return byId >= 0 ? byId : 0;
+  }
+
+  captureUnexpectedEntityRemoval(entity: Entity): void {
+    if (this.#expectedRemovalIds.has(entity.id)) {
+      this.#expectedRemovalIds.delete(entity.id);
+      return;
+    }
+
+    try {
+      const entityIndex = this.#getEntityIndex(entity);
+      const container = entity.getComponent("inventory")?.container;
+      const slots: RescueSlot[] = [];
+
+      if (container) {
+        for (let slot = 0; slot < Math.min(container.size, ITEM_MAX_PER_ENTITY); slot++) {
+          const item = container.getItem(slot);
+          if (item) slots.push({ slot, item: item.clone() });
+        }
+      }
+
+      const snapshot: RescueSnapshot = {
+        entityIndex,
+        entityId: entity.id,
+        slots,
+      };
+
+      this.#markUnhealthy(`存储实体被意外移除，正在尝试抢救 ${slots.length} 个物品槽`);
+      system.run(() => {
+        void this.#restoreRemovedEntity(snapshot);
+      });
+    } catch (error) {
+      this.#markUnhealthy(`存储实体被意外移除，但抢救快照读取失败: ${String(error)}`);
+      SystemLog.error(`[ItemDatabase ${this.#name}] 存储实体抢救快照读取失败`, error);
+    }
+  }
+
+  async #restoreRemovedEntity(snapshot: RescueSnapshot): Promise<void> {
+    try {
+      const overworld = world.getDimension("minecraft:overworld");
+      await prepareDatabaseAnchorRegion(overworld);
+      const replacement = await spawnEntityAtAnchorWithRetry(overworld, () =>
+        overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
+      );
+      this.#bindDatabaseEntity(replacement, snapshot.entityIndex);
+      this.#entities[snapshot.entityIndex] = replacement;
+
+      const container = replacement.getComponent("inventory")?.container;
+      if (!container) {
+        this.#markUnhealthy("抢救后新实体缺少 inventory 容器");
+        return;
+      }
+
+      for (const rescued of snapshot.slots) {
+        container.setItem(rescued.slot, rescued.item);
+        const fullSlot = snapshot.entityIndex * ITEM_MAX_PER_ENTITY + rescued.slot;
+        const stored = this.#itemData[fullSlot] ?? this.#database.get(`slot_${fullSlot}`);
+        const restoredData: SlotData = { ...(stored ?? {}), slot: fullSlot, item: rescued.item };
+        this.#itemData[fullSlot] = restoredData;
+        this.#database.set(`slot_${fullSlot}`, restoredData);
+      }
+
+      this.#unhealthyReason = undefined;
+      SystemLog.warn(
+        `[ItemDatabase ${this.#name}] 检测到存储实体 ${snapshot.entityId} 被移除，已重建并恢复 ${snapshot.slots.length} 个物品槽`
+      );
+      this.#notifyAdmins(`§e物品数据库 ${this.#name} 的存储实体被移除，已恢复 ${snapshot.slots.length} 个物品槽。`);
+    } catch (error) {
+      this.#markUnhealthy(`存储实体抢救失败: ${String(error)}`);
+      SystemLog.error(`[ItemDatabase ${this.#name}] 存储实体抢救失败`, error);
+    }
   }
 }

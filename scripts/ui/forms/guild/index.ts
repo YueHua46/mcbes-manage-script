@@ -5,6 +5,7 @@
 import { Player, world } from "@minecraft/server";
 import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import guildService from "../../../features/guild/services/guild-service";
 import type { GuildRole, IGuild } from "../../../features/guild/models/guild.model";
 import economic from "../../../features/economic/services/economic";
@@ -950,9 +951,7 @@ async function openGuildLandListSubmenu(player: Player): Promise<void> {
   for (const land of bound) {
     const ln = stripSectionForUi(land.name);
     form.button(`${ln}\n§0${getDimensionName(land.dimension)}`, "textures/icons/island");
-    actions.push(() =>
-      openLandDetailForm(player, land, false, () => void openGuildLandListSubmenu(player))
-    );
+    actions.push(() => openLandDetailForm(player, land, false, () => void openGuildLandListSubmenu(player)));
   }
 
   form.button("返回", "textures/icons/back");
@@ -1272,8 +1271,7 @@ async function openCreateGuildForm(player: Player): Promise<void> {
 }
 
 async function openInvitePlayerForm(player: Player): Promise<void> {
-  const eligibleNames = world
-    .getPlayers()
+  const eligibleNames = getOnlineRealPlayers()
     .map((p) => p.name)
     .filter((n) => n !== player.name)
     .filter((n) => !guildService.getGuildIdForPlayerName(n))

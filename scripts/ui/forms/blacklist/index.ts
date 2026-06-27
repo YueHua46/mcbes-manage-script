@@ -5,11 +5,12 @@
  * 仅管理员可访问（由调用方保证）。
  */
 
-import { Player, world } from "@minecraft/server";
+import { Player } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
 import { formatDateOnlyBeijing, formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
+import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { openDialogForm } from "../../components/dialog";
 import { IBlacklistEntry } from "../../../core/types";
 import blacklistService from "../../../features/blacklist/services/blacklist";
@@ -196,7 +197,7 @@ export function openAddBlacklistForm(player: Player): void {
     return;
   }
 
-  const onlinePlayers = world.getAllPlayers();
+  const onlinePlayers = getOnlineRealPlayers();
   const playerNames = onlinePlayers.filter((p) => p.name !== player.name).map((p) => p.name);
 
   const form = new ModalFormData();
@@ -307,9 +308,7 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
         player,
         {
           title: "已在黑名单",
-          desc: color.yellow(
-            `该玩家设备标识已在黑名单中，\n记录名: ${color.white(existingByPersistentId.name)}`
-          ),
+          desc: color.yellow(`该玩家设备标识已在黑名单中，\n记录名: ${color.white(existingByPersistentId.name)}`),
         },
         () => openBlacklistManageForm(player)
       );
@@ -345,7 +344,7 @@ async function processAddBlacklist(player: Player, targetName: string, reason: s
   }
 
   // 如果玩家当前在线，直接踢出
-  const onlineTarget = world.getAllPlayers().find((p) => p.name === targetName);
+  const onlineTarget = getOnlineRealPlayerByName(targetName);
   if (onlineTarget) {
     try {
       onlineTarget.runCommand(`kick "${targetName}" ${reason || DEFAULT_BAN_REASON}`);

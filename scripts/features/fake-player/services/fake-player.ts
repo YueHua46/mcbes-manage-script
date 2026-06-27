@@ -1,13 +1,4 @@
-import {
-  Dimension,
-  Entity,
-  GameMode,
-  Player,
-  system,
-  Vector2,
-  Vector3,
-  world,
-} from "@minecraft/server";
+import { Dimension, Entity, GameMode, Player, system, Vector2, Vector3, world } from "@minecraft/server";
 import { spawnSimulatedPlayer, SimulatedPlayer } from "@minecraft/server-gametest";
 import { Database } from "../../../shared/database/database";
 import { generateId, isAdmin, SystemLog } from "../../../shared/utils/common";
@@ -15,6 +6,12 @@ import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import economic from "../../economic/services/economic";
 import { taskScheduler } from "../../platform/scheduler";
 import setting from "../../system/services/setting";
+import {
+  hasPersistedInventory,
+  PersistedFakeInventory,
+  restorePlayerInventory,
+  snapshotPlayerInventory,
+} from "./fake-player-inventory-store";
 
 const LEGACY_ENTITY_TYPE = "yuehua:fake_player";
 const FAKE_PLAYER_ID_PROPERTY = "fakePlayerId";
@@ -47,6 +44,10 @@ export interface IFakePlayer {
   rotationY?: number;
   entityId?: string;
   gameMode?: GameMode;
+  /** 可额外打开假人背包的玩家名列表；创建者与管理员始终可访问 */
+  inventoryViewers?: string[];
+  /** 假人背包持久化快照（实体卸载/脚本重载后恢复） */
+  inventory?: PersistedFakeInventory;
   /** 旧版本遗留字段：当前不再尝试复制玩家皮肤 */
   ownerSkinJson?: string;
   /** 旧版本遗留字段：当前不再尝试复制玩家皮肤 */
@@ -162,6 +163,54 @@ class FakePlayerService {
         }
       });
     });
+
+    world.beforeEvents.entityRemove.subscribe((event) => {
+      const entity = event.removedEntity;
+      if (!isFakePlayer(entity)) return;
+
+      const fakeId = entity.getDynamicProperty(FAKE_PLAYER_ID_PROPERTY) as string | undefined;
+      if (!fakeId) return;
+
+      try {
+        const item = this.getById(fakeId);
+        if (!item) return;
+        item.inventory = snapshotPlayerInventory(entity as SimulatedPlayer);
+        this.db.set(item.id, item);
+        this.db.save();
+      } catch (error) {
+        SystemLog.warn(`[FakePlayer] 假人移除前持久化背包失败: ${fakeId} ${String(error)}`);
+      }
+    });
+
+    world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
+      if (!isFakePlayer(event.target) || isFakePlayer(event.player)) return;
+
+      event.cancel = true;
+      const player = event.player;
+      const fakeId = event.target.getDynamicProperty(FAKE_PLAYER_ID_PROPERTY) as string | undefined;
+      if (!fakeId) return;
+
+      system.run(async () => {
+        const item = this.getById(fakeId);
+        if (!item) {
+          player.sendMessage("§c这个假人的数据不存在。");
+          return;
+        }
+
+        if (!this.canAccessInventory(player, item)) {
+          player.sendMessage("§c你没有权限打开这个假人的背包。");
+          return;
+        }
+
+        try {
+          const { openFakePlayerInteractMenu } = await import("../../../ui/forms/player/fake-player-inventory");
+          openFakePlayerInteractMenu(player, fakeId);
+        } catch (error) {
+          SystemLog.warn(`[FakePlayer] 打开假人交互菜单失败: ${fakeId} ${String(error)}`);
+          player.sendMessage("§c打开假人交互菜单失败，请稍后再试。");
+        }
+      });
+    });
   }
 
   canUse(player: Player): boolean {
@@ -197,6 +246,90 @@ class FakePlayerService {
   getByName(name: string): IFakePlayer | undefined {
     const normalized = name.trim();
     return this.db.values().find((item) => item.name === normalized);
+  }
+
+  getByEntity(entity: Entity): IFakePlayer | undefined {
+    const fakeId = entity.getDynamicProperty(FAKE_PLAYER_ID_PROPERTY);
+    return typeof fakeId === "string" ? this.getById(fakeId) : undefined;
+  }
+
+  getLivePlayer(id: string): SimulatedPlayer | undefined {
+    const item = this.getById(id);
+    return item ? this.getSimulatedPlayer(item) : undefined;
+  }
+
+  persistInventory(id: string, inventory?: PersistedFakeInventory): void {
+    const item = this.getById(id);
+    if (!item) return;
+
+    if (inventory) {
+      item.inventory = inventory;
+    } else {
+      const simulated = this.getSimulatedPlayer(item);
+      if (!simulated?.isValid) return;
+      item.inventory = snapshotPlayerInventory(simulated);
+    }
+
+    this.db.set(item.id, item);
+    this.db.save();
+  }
+
+  persistInventoryFromEntity(fakeId: string, entity: SimulatedPlayer): void {
+    const item = this.getById(fakeId);
+    if (!item) return;
+
+    try {
+      item.inventory = snapshotPlayerInventory(entity);
+      this.db.set(item.id, item);
+      this.db.save();
+    } catch (error) {
+      SystemLog.warn(`[FakePlayer] 持久化假人背包失败: ${fakeId} ${String(error)}`);
+    }
+  }
+
+  canAccessInventory(player: Player, item: IFakePlayer): boolean {
+    return item.ownerName === player.name || isAdmin(player) || this.getInventoryViewers(item).includes(player.name);
+  }
+
+  canManageInventoryAccess(player: Player, item: IFakePlayer): boolean {
+    return item.ownerName === player.name || isAdmin(player);
+  }
+
+  getInventoryViewers(item: IFakePlayer): string[] {
+    return Array.from(new Set((item.inventoryViewers ?? []).map((name) => name.trim()).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }
+
+  addInventoryViewer(operator: Player, id: string, viewerName: string): string | true {
+    const item = this.getById(id);
+    if (!item) return "假人不存在";
+    if (!this.canManageInventoryAccess(operator, item)) return "无权管理这个假人的背包权限";
+
+    const normalized = viewerName.trim();
+    const nameError = this.validateInventoryViewerName(item, normalized);
+    if (nameError) return nameError;
+
+    const viewers = this.getInventoryViewers(item);
+    if (viewers.includes(normalized)) return "该玩家已经拥有背包查看权限";
+
+    item.inventoryViewers = [...viewers, normalized];
+    this.db.set(item.id, item);
+    return true;
+  }
+
+  removeInventoryViewer(operator: Player, id: string, viewerName: string): string | true {
+    const item = this.getById(id);
+    if (!item) return "假人不存在";
+    if (!this.canManageInventoryAccess(operator, item)) return "无权管理这个假人的背包权限";
+
+    const viewers = this.getInventoryViewers(item);
+    const next = viewers.filter((name) => name !== viewerName.trim());
+    if (next.length === viewers.length) return "该玩家不在授权名单中";
+
+    item.inventoryViewers = next;
+    this.db.set(item.id, item);
+    return true;
   }
 
   create(input: FakePlayerCreateInput): IFakePlayer | string {
@@ -273,7 +406,7 @@ class FakePlayerService {
 
     const existing = this.getSimulatedPlayer(item);
     if (existing) {
-      this.prepareSimulatedPlayer(existing, item);
+      this.prepareSimulatedPlayer(existing, item, false);
       this.guardPosition(existing, item);
       item.entityId = existing.id;
       this.db.set(item.id, item);
@@ -295,6 +428,11 @@ class FakePlayerService {
 
     for (const item of this.db.values()) {
       try {
+        const simulated = this.getSimulatedPlayer(item);
+        if (simulated?.isValid) {
+          this.persistInventory(item.id);
+        }
+
         const result = this.refresh(item.id);
         if (typeof result === "string" && result !== item.id) {
           SystemLog.warn(`[FakePlayer] 自愈假人失败: ${item.id} ${item.name}`);
@@ -319,6 +457,13 @@ class FakePlayerService {
       }
     }
 
+    return undefined;
+  }
+
+  private validateInventoryViewerName(item: IFakePlayer, name: string): string | undefined {
+    if (!name) return "玩家名不能为空";
+    if (name.length > 32) return "玩家名不能超过 32 个字符";
+    if (name === item.ownerName) return "创建者默认拥有权限，无需添加";
     return undefined;
   }
 
@@ -379,7 +524,7 @@ class FakePlayerService {
         item.name,
         item.gameMode ?? GameMode.Survival
       );
-      this.prepareSimulatedPlayer(simulated, item);
+      this.prepareSimulatedPlayer(simulated, item, true);
       this.activeById.set(item.id, simulated);
       return simulated;
     } catch (error) {
@@ -388,7 +533,7 @@ class FakePlayerService {
     }
   }
 
-  private prepareSimulatedPlayer(simulated: SimulatedPlayer, item: IFakePlayer): void {
+  private prepareSimulatedPlayer(simulated: SimulatedPlayer, item: IFakePlayer, restoreInventory: boolean): void {
     try {
       simulated.addTag(FAKE_PLAYER_TAG);
       simulated.addTag(`yuehua_fake_player_id:${item.id}`);
@@ -396,6 +541,9 @@ class FakePlayerService {
       simulated.setDynamicProperty("fakePlayerOwner", item.ownerName);
       simulated.nameTag = buildFakePlayerNameTag(item);
       this.applyStoredRotation(simulated, item);
+      if (restoreInventory && hasPersistedInventory(item.inventory)) {
+        restorePlayerInventory(simulated, item.inventory);
+      }
       simulated.stopMoving();
     } catch (error) {
       SystemLog.warn(`[FakePlayer] 绑定模拟玩家失败: ${item.id} ${String(error)}`);
@@ -453,6 +601,9 @@ class FakePlayerService {
 
   private removeSimulatedPlayer(item: IFakePlayer): void {
     const simulated = this.getSimulatedPlayer(item);
+    if (simulated?.isValid) {
+      this.persistInventoryFromEntity(item.id, simulated);
+    }
     this.activeById.delete(item.id);
     if (!simulated?.isValid) return;
 

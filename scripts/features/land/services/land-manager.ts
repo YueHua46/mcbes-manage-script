@@ -13,6 +13,7 @@ import { openConfirmDialogForm } from "../../../ui/components/dialog";
 import economic from "../../economic/services/economic";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import { getGuildPlayerIndexDb } from "../../guild/services/guild-player-index-db";
+import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
 
 class LandManager {
   db!: Database<ILand>;
@@ -209,7 +210,7 @@ class LandManager {
     if (!this.db.has(name)) return "领地不存在";
 
     const maxLandPerPlayer = Number(setting.getState("maxLandPerPlayer") || 5);
-    const targetPlayer = world.getPlayers({ name: playerName })[0];
+    const targetPlayer = getOnlineRealPlayerByName(playerName);
     const targetIsAdmin = targetPlayer ? isAdmin(targetPlayer) : false;
 
     if (!targetIsAdmin && this.getPlayerLandCount(playerName) >= maxLandPerPlayer) {
@@ -266,7 +267,7 @@ class LandManager {
    * 创建领地
    */
   async createLand(landData: ILand): Promise<string | true> {
-    const player = world.getPlayers({ name: landData.owner })[0];
+    const player = getOnlineRealPlayerByName(landData.owner);
 
     // 检查领地名是否冲突
     if (this.db.has(landData.name)) {
@@ -284,6 +285,10 @@ class LandManager {
     const overlaps = this.checkOverlap(landData, 1);
     if (overlaps.length > 0) {
       return "领地范围与已有领地重叠，请缩小或移动选择范围后重试。";
+    }
+
+    if (!player) {
+      return "领地创建需要创建者在线，且不能由假人发起";
     }
 
     // 公会领地：只受每公会上限约束，不占个人领地名额
@@ -316,10 +321,6 @@ class LandManager {
       if (treasuryCost > treasuryBalance) {
         return `金库余额不足，需要 ${treasuryCost} 金币，当前 ${treasuryBalance}`;
       }
-      if (!player) {
-        return "公会领地创建需要领主在线以确认";
-      }
-
       const { isCancel } = await new Promise<{ isCancel: boolean }>((resolve) => {
         openConfirmDialogForm(
           player,

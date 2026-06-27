@@ -6,17 +6,11 @@
  * @see https://github.com/Herobrine643928/Chest-UI （Inventory Section：上半箱子 + 下半查看者背包）
  */
 
-import {
-  Player,
-  world,
-  EntityEquippableComponent,
-  EquipmentSlot,
-  EntityComponentTypes,
-  ItemStack,
-} from "@minecraft/server";
+import { Player, EntityEquippableComponent, EquipmentSlot, EntityComponentTypes, ItemStack } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { openDialogForm } from "../../components/dialog";
 import { isAdmin } from "../../../shared/utils/common";
+import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import ChestFormData from "../../components/chest-ui/chest-forms";
 import type { ChestFormResponse } from "../../components/chest-ui/chest-forms";
 import { getChestItemDurabilityBarValue } from "../../components/chest-ui";
@@ -81,7 +75,9 @@ function moveItemToAdminInventory(
     const overflow = adminContainer.addItem(item);
     if (overflow) {
       targetEnder.setItem(sourceSlot as number, overflow);
-      adminPlayer.sendMessage(sameStackIdentity(overflow, item) ? MSG_BAG_FULL : "§e背包已满，部分物品已放回目标末影箱。");
+      adminPlayer.sendMessage(
+        sameStackIdentity(overflow, item) ? MSG_BAG_FULL : "§e背包已满，部分物品已放回目标末影箱。"
+      );
     }
     doReopen();
     return;
@@ -103,7 +99,9 @@ function moveItemToAdminInventory(
     const overflow = adminContainer.addItem(item);
     if (overflow) {
       targetInv.setItem(sourceSlot as number, overflow);
-      adminPlayer.sendMessage(sameStackIdentity(overflow, item) ? MSG_BAG_FULL : "§e背包已满，部分物品已放回目标背包。");
+      adminPlayer.sendMessage(
+        sameStackIdentity(overflow, item) ? MSG_BAG_FULL : "§e背包已满，部分物品已放回目标背包。"
+      );
     }
     doReopen();
     return;
@@ -240,7 +238,7 @@ export function openPlayerInventoryAdminForm(adminPlayer: Player): void {
  * 选择目标玩家（在已选 main/ender 模式后）
  */
 function openPlayerInventoryTargetForm(adminPlayer: Player, mode: InventoryAdminMode): void {
-  const onlinePlayers = world.getPlayers().filter((p) => p.id !== adminPlayer.id);
+  const onlinePlayers = getOnlineRealPlayers().filter((p) => p.id !== adminPlayer.id);
   const playerNames = onlinePlayers.map((p) => p.name);
 
   if (playerNames.length === 0) {
@@ -263,7 +261,7 @@ function openPlayerInventoryTargetForm(adminPlayer: Player, mode: InventoryAdmin
     const idx = data.formValues?.[0] as number;
     if (idx === undefined) return;
     const targetName = playerNames[idx];
-    const targetPlayer = world.getPlayers().find((p) => p.name === targetName);
+    const targetPlayer = getOnlineRealPlayerByName(targetName);
     if (!targetPlayer) {
       openDialogForm(adminPlayer, { title: "§c错误", desc: "目标玩家已离线。" }, () =>
         openPlayerInventoryTargetForm(adminPlayer, mode)
@@ -298,9 +296,7 @@ function openPlayerInventoryMainDualForm(adminPlayer: Player, targetPlayer: Play
   const targetContainer = targetInv.container;
   const targetSize = targetContainer.size;
   const chestForm = new ChestFormData("45_inv");
-  chestForm.title(
-    `§6上边容器为目标玩家 §f${targetPlayer.name} §6的背包\n§0下边容器即为你的背包`
-  );
+  chestForm.title(`§6上边容器为目标玩家 §f${targetPlayer.name} §6的背包\n§0下边容器即为你的背包`);
 
   for (let i = 0; i < targetSize; i++) {
     const item = targetContainer.getItem(i);
@@ -457,9 +453,7 @@ export function openEnderChestDualForm(viewer: Player, target: Player, opts: End
       }
       if (isShulkerBox(item.typeId)) {
         lores.push(
-          isAdmin(viewer)
-            ? "§3末影箱槽 · 潜影盒 · 点击选择取走或复制"
-            : "§3末影箱槽 · 潜影盒 · 点击取到你的背包"
+          isAdmin(viewer) ? "§3末影箱槽 · 潜影盒 · 点击选择取走或复制" : "§3末影箱槽 · 潜影盒 · 点击取到你的背包"
         );
       } else {
         lores.push("§3末影箱槽 · 点击 → 取到你的背包");

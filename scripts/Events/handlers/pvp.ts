@@ -15,6 +15,7 @@ import { color } from "../../shared/utils/color";
 import { useNotify } from "../../shared/hooks";
 import { BRANDING } from "../../core/constants";
 import { isFakePlayer } from "../../features/fake-player/services/fake-player";
+import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../shared/utils/online-players";
 
 // 用于跟踪玩家的战斗状态（用于触发进入战斗特效）
 const playerCombatStatus = new Map<string, boolean>();
@@ -172,7 +173,7 @@ export function registerPvpEvents(): void {
         } catch (_) {}
         // 仅在直接攻击时通知，避免 fire/fireTick 事件造成消息刷屏
         if (!isFireDamage) {
-          const p = world.getAllPlayers().find((pl) => pl.name === attackerName);
+          const p = getOnlineRealPlayerByName(attackerName);
           if (p) {
             useNotify("chat", p, errorMessage);
           }
@@ -261,7 +262,7 @@ export function registerPvpEvents(): void {
       const config = pvpManager.getConfig();
       const combatDuration = config.combatTagDuration;
 
-      world.getAllPlayers().forEach((player) => {
+      getOnlineRealPlayers().forEach((player) => {
         try {
           const playerData = pvpManager.getPlayerData(player.name);
 
@@ -296,7 +297,7 @@ export function registerPvpEvents(): void {
   world.afterEvents.playerLeave.subscribe((event) => {
     playerCombatStatus.delete(event.playerName);
     // 清理离线受害者的火焰来源记录
-    const leavingPlayer = world.getAllPlayers().find((pl) => pl.name === event.playerName);
+    const leavingPlayer = getOnlineRealPlayerByName(event.playerName);
     if (leavingPlayer) {
       pvpFireSourceMap.delete(leavingPlayer.id);
     }

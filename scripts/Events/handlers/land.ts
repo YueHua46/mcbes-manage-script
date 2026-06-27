@@ -31,6 +31,7 @@ import { taskScheduler } from "../../features/platform/scheduler";
 import setting from "../../features/system/services/setting";
 import economic from "../../features/economic/services/economic";
 import PlayerSetting from "../../features/player/services/player-settings";
+import { getOnlineRealPlayers } from "../../shared/utils/online-players";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
@@ -77,7 +78,10 @@ function isLandNearPlayerForBoundaryDisplay(land: ILand, playerPos: Vector3): bo
   return dx * dx + dz * dz <= LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE * LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE;
 }
 
-function getLandBoundaryVariantForPlayer(land: ILand, player: Player): "owner" | "trusted" | "guild" | "public" | "foreign" {
+function getLandBoundaryVariantForPlayer(
+  land: ILand,
+  player: Player
+): "owner" | "trusted" | "guild" | "public" | "foreign" {
   if (land.owner === player.name) return "owner";
   if (land.guildId) {
     if (landManager.isPlayerTrustedOnLand(land, player.name)) return "guild";
@@ -136,15 +140,7 @@ const LAND_SENSITIVE_FLUID_ITEMS = new Map<string, string[]>([
   ["minecraft:lava_bucket", ["minecraft:lava", "minecraft:flowing_lava"]],
   ["minecraft:powder_snow_bucket", ["minecraft:powder_snow"]],
 ]);
-const CONTAINER_BLOCK_KEYWORDS = [
-  "chest",
-  "barrel",
-  "shulker_box",
-  "dispenser",
-  "dropper",
-  "hopper",
-  "crafter",
-];
+const CONTAINER_BLOCK_KEYWORDS = ["chest", "barrel", "shulker_box", "dispenser", "dropper", "hopper", "crafter"];
 const DOOR_BLOCK_KEYWORDS = ["door", "trapdoor", "fence_gate"];
 
 interface SensitiveEntitySpawnRecord {
@@ -336,7 +332,7 @@ function warnDeniedLandBreaking(player: Player, block: any, land: ILand): void {
   logLandBreakAttemptOnce(player, block, land);
 
   system.run(() => {
-    const p = world.getPlayers().find((pl) => pl.id === player.id);
+    const p = getOnlineRealPlayers().find((pl) => pl.id === player.id);
     if (!p) return;
     useNotify("actionbar", p, color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地方块`));
   });
@@ -449,7 +445,7 @@ function registerLandBreakingPreviewEvents(): void {
 
       landBreakWarningState.delete(player.id);
       system.run(() => {
-        const p = world.getPlayers().find((pl) => pl.id === player.id);
+        const p = getOnlineRealPlayers().find((pl) => pl.id === player.id);
         p?.onScreenDisplay.setActionBar("");
       });
     },
@@ -592,7 +588,7 @@ function cleanupDeniedSensitivePlacement(
       });
     }
 
-    const player = world.getPlayers().find((p) => p.name === playerName);
+    const player = getOnlineRealPlayers().find((p) => p.name === playerName);
     if (player) warnDeniedLandUse(player, ownerName);
   });
 }
@@ -679,7 +675,7 @@ export function registerLandEvents(): void {
       // 1. 清除过期的领地标记坐标点
       landAreas.forEach((landArea, playerId) => {
         if (landArea.lastChangeTime < Date.now() - 1000 * 60 * 10) {
-          const player = world.getPlayers().find((p) => p.name === playerId);
+          const player = getOnlineRealPlayers().find((p) => p.name === playerId);
           player?.sendMessage(color.red("领地标记坐标点已过期，请重新设置"));
           if (player) {
             landParticle.clearLandSelectionGuide(player);
@@ -687,7 +683,7 @@ export function registerLandEvents(): void {
           landAreas.delete(playerId);
         }
 
-        const player = world.getPlayers().find((p) => p.name === playerId);
+        const player = getOnlineRealPlayers().find((p) => p.name === playerId);
         if (player) {
           landParticle.createLandSelectionGuide(player, buildLandSelectionGuide(player, landArea));
         }
@@ -744,7 +740,7 @@ export function registerLandEvents(): void {
     intervalTicks: LAND_BOUNDARY_PARTICLE_REFRESH_TICKS,
     when: () => setting.getState("land") === true,
     run: () => {
-      world.getAllPlayers().forEach((p) => {
+      getOnlineRealPlayers().forEach((p) => {
         if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
           return;
         }
@@ -773,7 +769,7 @@ export function registerLandEvents(): void {
     intervalTicks: LAND_BOUNDARY_SCAN_REFRESH_TICKS,
     when: () => setting.getState("land") === true,
     run: () => {
-      world.getAllPlayers().forEach((p) => {
+      getOnlineRealPlayers().forEach((p) => {
         if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
           return;
         }
@@ -805,7 +801,7 @@ export function registerLandEvents(): void {
     intervalTicks: 5,
     when: () => setting.getState("land") === true,
     run: () => {
-      world.getAllPlayers().forEach((p) => {
+      getOnlineRealPlayers().forEach((p) => {
         if (!isMoving(p)) return;
         if (p.location.y <= -63) return;
 
@@ -872,7 +868,7 @@ export function registerLandEvents(): void {
                 // 传送后再次显示轮廓，确保玩家在领地外也能看到
                 system.runTimeout(() => {
                   try {
-                    const playerAfterTeleport = world.getPlayers().find((pl) => pl.name === p.name);
+                    const playerAfterTeleport = getOnlineRealPlayers().find((pl) => pl.name === p.name);
                     if (playerAfterTeleport) {
                       showUnifiedLandBoundary(playerAfterTeleport, insideLand);
                     }
@@ -1074,7 +1070,7 @@ export function registerLandEvents(): void {
         const playerName = player.name;
         const ownerName = insideLand.owner;
         system.run(() => {
-          const p = world.getPlayers().find((pl) => pl.name === playerName);
+          const p = getOnlineRealPlayers().find((pl) => pl.name === playerName);
           if (p) {
             useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，不允许放置水！")}`));
           }
@@ -1088,7 +1084,7 @@ export function registerLandEvents(): void {
     const playerName = player.name;
     const ownerName = insideLand.owner;
     system.run(() => {
-      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      const p = getOnlineRealPlayers().find((pl) => pl.name === playerName);
       if (p) {
         useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
       }
@@ -1111,7 +1107,7 @@ export function registerLandEvents(): void {
     const playerName = player.name;
     const ownerName = insideLand.owner;
     system.run(() => {
-      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      const p = getOnlineRealPlayers().find((pl) => pl.name === playerName);
       if (p) {
         useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
       }
@@ -1157,7 +1153,7 @@ export function registerLandEvents(): void {
                 const playerName = player.name;
                 const ownerName = insideLand.owner;
                 system.run(() => {
-                  const p = world.getPlayers().find((pl) => pl.name === playerName);
+                  const p = getOnlineRealPlayers().find((pl) => pl.name === playerName);
                   if (p) {
                     useNotify(
                       "chat",
@@ -1179,7 +1175,7 @@ export function registerLandEvents(): void {
     // 延迟发送领地警告消息的辅助函数
     const sendLandWarning = (playerName: string, ownerName: string) => {
       system.run(() => {
-        const p = world.getPlayers().find((pl) => pl.name === playerName);
+        const p = getOnlineRealPlayers().find((pl) => pl.name === playerName);
         if (p) {
           useNotify(
             "chat",
@@ -1293,7 +1289,10 @@ export function registerLandEvents(): void {
     }
 
     // 检查按钮权限
-    if (buttons.includes(blockTypeId as MinecraftBlockTypes) || blockTypeContainsAny(blockTypeId, DOOR_BLOCK_KEYWORDS)) {
+    if (
+      buttons.includes(blockTypeId as MinecraftBlockTypes) ||
+      blockTypeContainsAny(blockTypeId, DOOR_BLOCK_KEYWORDS)
+    ) {
       if (!insideLand.public_auth.useButton) {
         event.cancel = true;
         sendLandWarning(playerName, ownerName);
@@ -1354,7 +1353,7 @@ export function registerLandEvents(): void {
     const playerName = player.name;
     const ownerName = insideLand.owner;
     system.run(() => {
-      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      const p = getOnlineRealPlayers().find((pl) => pl.name === playerName);
       if (p) {
         useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
       }
@@ -1458,7 +1457,7 @@ export function registerLandEvents(): void {
           targetEntity.extinguishFire(true);
           targetEntity.clearVelocity();
         } catch (_) {}
-        const p = world.getPlayers().find((pl) => pl.name === playerName);
+        const p = getOnlineRealPlayers().find((pl) => pl.name === playerName);
         if (p) {
           useNotify(
             "chat",
@@ -1480,7 +1479,7 @@ export function registerLandEvents(): void {
         targetEntity.extinguishFire(true);
         targetEntity.clearVelocity();
       } catch (_) {}
-      const p = world.getPlayers().find((pl) => pl.name === playerName);
+      const p = getOnlineRealPlayers().find((pl) => pl.name === playerName);
       if (p) {
         useNotify(
           "chat",

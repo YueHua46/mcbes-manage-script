@@ -5,6 +5,7 @@ import { taskScheduler } from "../../features/platform/scheduler";
 import setting from "../../features/system/services/setting";
 import { isMenuChatTrigger } from "../../core/constants";
 import { eventRegistry } from "../registry";
+import { getOnlineRealPlayers } from "../../shared/utils/online-players";
 
 const JOIN_FLAG = "behaviorLogJoinState";
 const LAND_SCAN_INTERVAL_TICKS = 20;
@@ -161,7 +162,7 @@ function findNearestPlayer(location: Vector3, dimensionId: string, radiusSq: num
   let nearestName: string | undefined;
   let nearestDistSq = radiusSq;
 
-  for (const player of world.getAllPlayers()) {
+  for (const player of getOnlineRealPlayers()) {
     if (player.dimension.id !== dimensionId) continue;
     const dx = player.location.x - location.x;
     const dy = player.location.y - location.y;
@@ -384,7 +385,7 @@ export function registerBehaviorLogEvents(): void {
     intervalTicks: LAND_SCAN_INTERVAL_TICKS,
     when: () => setting.getState("behaviorLogEnabled") === true && setting.getState("land") === true,
     run: () => {
-      const onlineIds = new Set(world.getAllPlayers().map((player) => player.id));
+      const onlineIds = new Set(getOnlineRealPlayers().map((player) => player.id));
 
       for (const [playerId] of playerLandState) {
         if (!onlineIds.has(playerId)) {
@@ -392,7 +393,7 @@ export function registerBehaviorLogEvents(): void {
         }
       }
 
-      for (const player of world.getAllPlayers()) {
+      for (const player of getOnlineRealPlayers()) {
         const landInfo = getLandInfoAt(player.location, player.dimension.id);
         const previous = playerLandState.get(player.id);
 
@@ -445,7 +446,7 @@ export function registerBehaviorLogEvents(): void {
       }
       lastLocationSnapshotTick = currentTick;
 
-      for (const player of world.getAllPlayers()) {
+      for (const player of getOnlineRealPlayers()) {
         const landInfo = getLandInfoAt(player.location, player.dimension.id);
         behaviorLog.logLocationSnapshot(player, landInfo);
       }

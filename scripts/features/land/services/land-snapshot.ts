@@ -3,6 +3,7 @@ import type { ILand } from "../../../core/types";
 import { Database } from "../../../shared/database/database";
 import { color } from "../../../shared/utils/color";
 import { SystemLog } from "../../../shared/utils/common";
+import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
 import setting from "../../system/services/setting";
 import landManager from "./land-manager";
 import { taskScheduler } from "../../platform/scheduler";
@@ -114,7 +115,7 @@ function makeStructureId(snapshotId: string, chunkIndex: number): string {
 }
 
 function notify(playerName: string, message: string, actionBar = true): void {
-  const player = world.getPlayers({ name: playerName })[0];
+  const player = getOnlineRealPlayerByName(playerName);
   if (!player?.isValid) return;
   if (actionBar) {
     player.onScreenDisplay.setActionBar(message);

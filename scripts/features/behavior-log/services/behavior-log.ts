@@ -3,6 +3,7 @@ import { Database } from "../../../shared/database/database";
 import { taskScheduler } from "../../platform/scheduler";
 import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import setting from "../../system/services/setting";
 import itemWatchSnapshotStore, { type ItemWatchSnapshotPayload } from "./item-watch-snapshot-store";
 
@@ -575,7 +576,7 @@ class BehaviorLogService {
     this.flush();
     const state = this.getState();
     const playerSet = new Set<string>(state.ps);
-    for (const player of world.getAllPlayers()) {
+    for (const player of getOnlineRealPlayers()) {
       playerSet.add(player.name);
     }
 

@@ -5,6 +5,7 @@
 
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color } from "../../../shared/utils/color";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { Player, Vector3, world } from "@minecraft/server";
 import landManager from "../../../features/land/services/land-manager";
 import landParticle from "../../../features/land/services/land-particle";
@@ -1017,8 +1018,7 @@ export const openLandDetailForm = (
   };
 
   /** 公会领地：会长/副会长或管理员可管理传送点与删除 */
-  const canManageGuildLand =
-    isGuildLand && (guildService.canOfficerManageGuildLand(player, landData) || isAdmin);
+  const canManageGuildLand = isGuildLand && (guildService.canOfficerManageGuildLand(player, landData) || isAdmin);
 
   type Btn = { text: string; icon: string; action: () => void };
   const buttons: Btn[] = [];
@@ -1044,28 +1044,19 @@ export const openLandDetailForm = (
     });
 
     // 管理员从「领地系统管理 → 公会领地（管理员）」进入时不展示：已有飞行权限，无需限时领地飞行入口
-    if (
-      !isAdmin &&
-      canAccess &&
-      canShowLandFlightEntry(player) &&
-      isPlayerStandingOnLand(player, landData.name)
-    ) {
+    if (!isAdmin && canAccess && canShowLandFlightEntry(player) && isPlayerStandingOnLand(player, landData.name)) {
       buttons.push({
         text: "领地飞行（限时）",
         icon: "textures/icons/ada",
         action: () => {
           const err = tryStartLandFlightSession(player);
           if (typeof err === "string") {
-            openDialogForm(
-              player,
-              { title: "领地飞行", desc: err },
-              () => openLandDetailForm(player, landData, isAdmin, returnForm)
+            openDialogForm(player, { title: "领地飞行", desc: err }, () =>
+              openLandDetailForm(player, landData, isAdmin, returnForm)
             );
           } else {
-            openDialogForm(
-              player,
-              { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") },
-              () => openLandDetailForm(player, landData, isAdmin, returnForm)
+            openDialogForm(player, { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") }, () =>
+              openLandDetailForm(player, landData, isAdmin, returnForm)
             );
           }
         },
@@ -1136,16 +1127,14 @@ export const openLandDetailForm = (
 
     if (landData.teleportPoint) {
       infoList.push(
-        "传送点: " + color.yellow(`${landData.teleportPoint.x}, ${landData.teleportPoint.y}, ${landData.teleportPoint.z}`)
+        "传送点: " +
+          color.yellow(`${landData.teleportPoint.x}, ${landData.teleportPoint.y}, ${landData.teleportPoint.z}`)
       );
     } else {
       infoList.push("传送点: " + color.gray("未设置"));
     }
 
-    infoList.push(
-      "所属公会: " +
-        (g ? color.green(`[${g.tag}] ${g.name}`) : color.gray("（公会数据异常）"))
-    );
+    infoList.push("所属公会: " + (g ? color.green(`[${g.tag}] ${g.name}`) : color.gray("（公会数据异常）")));
     infoList.push(color.gray("公会成员均视为可信，不单独维护领地成员名单。"));
 
     form.body(
@@ -1199,27 +1188,19 @@ export const openLandDetailForm = (
     action: () => toggleLandBoundaryParticleSetting(player, reopenDetail),
   });
 
-  if (
-    canAccess &&
-    canShowLandFlightEntry(player) &&
-    isPlayerStandingOnLand(player, landData.name)
-  ) {
+  if (canAccess && canShowLandFlightEntry(player) && isPlayerStandingOnLand(player, landData.name)) {
     buttons.push({
       text: "领地飞行（限时）",
       icon: "textures/icons/ada",
       action: () => {
         const err = tryStartLandFlightSession(player);
         if (typeof err === "string") {
-          openDialogForm(
-            player,
-            { title: "领地飞行", desc: err },
-            () => openLandDetailForm(player, landData, isAdmin, returnForm)
+          openDialogForm(player, { title: "领地飞行", desc: err }, () =>
+            openLandDetailForm(player, landData, isAdmin, returnForm)
           );
         } else {
-          openDialogForm(
-            player,
-            { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") },
-            () => openLandDetailForm(player, landData, isAdmin, returnForm)
+          openDialogForm(player, { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") }, () =>
+            openLandDetailForm(player, landData, isAdmin, returnForm)
           );
         }
       },
@@ -1456,9 +1437,7 @@ function buildLandFlightButtonLabel(player: Player): string {
 
 function buildLandBoundaryParticleButtonLabel(player: Player): string {
   const enabled = PlayerSetting.getLandBoundaryParticlesEnabled(player);
-  return enabled
-    ? "领地范围常显\n§0已开启 | 定时显示附近领地边界"
-    : "领地范围常显\n§0已关闭 | 点击显示附近领地边界";
+  return enabled ? "领地范围常显\n§0已开启 | 定时显示附近领地边界" : "领地范围常显\n§0已关闭 | 点击显示附近领地边界";
 }
 
 function previewAllDimensionLandBoundaries(player: Player): void {
@@ -1493,7 +1472,10 @@ function isLandNearPlayerForBoundaryPreview(land: ILand, playerPos: Vector3): bo
   return dx * dx + dz * dz <= LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE * LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE;
 }
 
-function getLandBoundaryVariantForPlayer(land: ILand, player: Player): "owner" | "trusted" | "guild" | "public" | "foreign" {
+function getLandBoundaryVariantForPlayer(
+  land: ILand,
+  player: Player
+): "owner" | "trusted" | "guild" | "public" | "foreign" {
   if (land.owner === player.name) return "owner";
   if (land.guildId) {
     if (landManager.isPlayerTrustedOnLand(land, player.name)) return "guild";
@@ -1534,16 +1516,10 @@ export function openLandManageForms(player: Player): void {
       action: () => {
         const err = tryStartLandFlightSession(player);
         if (typeof err === "string") {
-          openDialogForm(
-            player,
-            { title: "领地飞行", desc: err },
-            () => openLandManageForms(player)
-          );
+          openDialogForm(player, { title: "领地飞行", desc: err }, () => openLandManageForms(player));
         } else {
-          openDialogForm(
-            player,
-            { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") },
-            () => openLandManageForms(player)
+          openDialogForm(player, { title: "领地飞行", desc: color.green("已尝试开启，请查看聊天提示。") }, () =>
+            openLandManageForms(player)
           );
         }
       },
@@ -1668,7 +1644,7 @@ export const openPlayerLandListForm = (
 // ==================== 搜索玩家领地 ====================
 
 export const openSearchLandForm = (player: Player, returnForm?: () => void): void => {
-  const onlinePlayers = world.getPlayers();
+  const onlinePlayers = getOnlineRealPlayers();
   const playerNames = onlinePlayers.map((p) => p.name);
 
   if (playerNames.length === 0) {
@@ -1770,14 +1746,10 @@ export const openSearchLandForm = (player: Player, returnForm?: () => void): voi
 /** 仅管理员：列出所有带 guildId 的领地，进入详情后可删改传送点等 */
 export function openAdminGuildLandListForm(player: Player, page: number = 1, returnForm?: () => void): void {
   if (!isAdmin(player)) {
-    openDialogForm(
-      player,
-      { title: "提示", desc: color.red("只有管理员可操作") },
-      () => {
-        if (returnForm) returnForm();
-        else openSystemSettingForm(player);
-      }
-    );
+    openDialogForm(player, { title: "提示", desc: color.red("只有管理员可操作") }, () => {
+      if (returnForm) returnForm();
+      else openSystemSettingForm(player);
+    });
     return;
   }
 
@@ -1797,14 +1769,10 @@ export function openAdminGuildLandListForm(player: Player, page: number = 1, ret
   });
 
   if (guildLands.length === 0) {
-    openDialogForm(
-      player,
-      { title: "公会领地", desc: color.gray("当前没有公会领地数据。") },
-      () => {
-        if (returnForm) returnForm();
-        else openSystemSettingForm(player);
-      }
-    );
+    openDialogForm(player, { title: "公会领地", desc: color.gray("当前没有公会领地数据。") }, () => {
+      if (returnForm) returnForm();
+      else openSystemSettingForm(player);
+    });
     return;
   }
 
@@ -1878,9 +1846,7 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1, re
   const currentPagePlayers = players.slice(start, end);
 
   currentPagePlayers.forEach((playerName) => {
-    const playerLands = Object.values(landManager.getLandList()).filter(
-      (l) => l.owner === playerName && !l.guildId
-    );
+    const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName && !l.guildId);
     form.button(
       `${color.blue(playerName)} 的所有领地\n${color.darkPurple("领地数量:")} ${playerLands.length}`,
       "textures/icons/uye"

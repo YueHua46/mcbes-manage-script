@@ -10,6 +10,7 @@ import economic from "../../economic/services/economic";
 import { isAdmin } from "../../../shared/utils/common";
 import { color } from "../../../shared/utils/color";
 import { taskScheduler } from "../../platform/scheduler";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 
 const TICK_INTERVAL = 5;
 /** 与基岩逻辑 tick 对齐，宽限结束用 currentTick 计算，避免与 Date.now 不同步 */
@@ -506,7 +507,7 @@ export function initLandFlight(): void {
       if (!landOn || !flightOn) {
         if (sessions.size > 0) {
           for (const id of [...sessions.keys()]) {
-            const p = world.getPlayers().find((pl) => pl.id === id);
+            const p = getOnlineRealPlayers().find((pl) => pl.id === id);
             if (p) {
               revokeLandFlightImmediate(p);
             } else {
@@ -525,7 +526,7 @@ export function initLandFlight(): void {
       const leaveGraceSec = clampLeaveGraceSec(Number(setting.getState("landFlightLeaveGraceSec")));
 
       for (const [playerId, sess] of [...sessions.entries()]) {
-        const player = world.getPlayers().find((pl) => pl.id === playerId);
+        const player = getOnlineRealPlayers().find((pl) => pl.id === playerId);
         if (!player) {
           sessions.delete(playerId);
           continue;

@@ -43,7 +43,11 @@ export class SystemLog {
   }
 
   static error(message: string, error?: any): void {
-    console.error(`${message}`, error);
+    if (error !== undefined) {
+      console.error(`${message}`, error);
+      return;
+    }
+    console.error(`${message}`);
   }
 
   static warn(message: string): void {

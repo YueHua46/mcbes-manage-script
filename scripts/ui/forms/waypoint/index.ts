@@ -14,6 +14,7 @@ import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/di
 import { openSystemSettingForm } from "../system";
 import { isAdmin } from "../../../shared";
 import { useAllPlayers } from "../../../shared/hooks/use-player";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -65,7 +66,7 @@ export function openDeleteAllPointsConfirmForm(
 // ==================== 搜索玩家坐标点 ====================
 
 export const openSearchWayPointForm = (player: Player, returnForm?: () => void): void => {
-  const onlinePlayers = world.getPlayers();
+  const onlinePlayers = getOnlineRealPlayers();
   const playerNames = onlinePlayers.map((p) => p.name);
 
   if (playerNames.length === 0) {

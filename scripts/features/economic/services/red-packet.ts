@@ -3,7 +3,7 @@
  * 份数与在线人数无关；有效期内任意玩家可各领一份，先到先得。
  */
 
-import { Player, system, world } from "@minecraft/server";
+import { Player, system } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
@@ -12,6 +12,7 @@ import setting from "../../system/services/setting";
 import economic from "./economic";
 import { taskScheduler } from "../../platform/scheduler";
 import { BRANDING } from "../../../core/constants";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import type { IRedPacket, RedPacketMode } from "../models/red-packet.model";
 
 /** 未配置时的默认有效时长：24 小时（毫秒） */
@@ -306,11 +307,13 @@ class RedPacketService {
       lines.push(`${color.lightPurple("寄语:")} ${color.white(packet.message)}`);
     }
     lines.push(`${color.gray("────────────────────────────────")}`);
-    lines.push(`${color.gray("领取方式:")} ${color.green(`${BRANDING.MENU_ITEM_LABEL}:`)} ${color.white("经济系统 → 红包 → 待领红包")}`);
+    lines.push(
+      `${color.gray("领取方式:")} ${color.green(`${BRANDING.MENU_ITEM_LABEL}:`)} ${color.white("经济系统 → 红包 → 待领红包")}`
+    );
     lines.push(`${color.gold("§l═══════════════════════════════════§r")}`);
 
     const text = lines.join("\n");
-    for (const p of world.getPlayers()) {
+    for (const p of getOnlineRealPlayers()) {
       p.sendMessage(text);
     }
   }
@@ -325,7 +328,7 @@ class RedPacketService {
     const { claimerName, senderName, amount, packetFinished } = params;
     const tail = packetFinished ? ` ${color.gray("（该包已领完）")}` : "";
     const line = `${color.red("【红包】")} ${color.aqua(claimerName)} ${color.gray("领取了")} ${color.yellow(senderName)} ${color.gray("的红包 ·")} ${color.gold(String(amount))} ${color.gray("金币")}${tail}`;
-    for (const p of world.getPlayers()) {
+    for (const p of getOnlineRealPlayers()) {
       p.sendMessage(line);
     }
   }

@@ -2,8 +2,9 @@
  * 全服玩家累计在线时长（秒），每分钟落库 + 离线立即结算本会话。
  */
 
-import { Player, system, world } from "@minecraft/server";
+import { Player, system } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
+import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
 
 const DATABASE_NAME = "online_time";
 const TICK_INTERVAL = 1200;
@@ -39,7 +40,7 @@ export type OfflineDurationLookup =
 const anchorMsByName = new Map<string, number>();
 
 function findOnlinePlayerByName(name: string): Player | undefined {
-  return world.getPlayers().find((p) => p.name === name);
+  return getOnlineRealPlayerByName(name);
 }
 
 class OnlineTimeService {
@@ -126,7 +127,7 @@ class OnlineTimeService {
     const db = this.ensureDb();
     if (!db) return;
     const now = Date.now();
-    for (const player of world.getAllPlayers()) {
+    for (const player of getOnlineRealPlayers()) {
       const name = player.name;
       if (!anchorMsByName.has(name)) {
         anchorMsByName.set(name, now);

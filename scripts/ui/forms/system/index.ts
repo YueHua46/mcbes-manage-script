@@ -7,6 +7,7 @@ import { Player, RawMessage, world, ItemStack } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import type { IGuild } from "../../../features/guild/models/guild.model";
 import { color, colorCodes } from "../../../shared/utils/color";
+import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import setting from "../../../features/system/services/setting";
 import { openServerMenuForm } from "../server";
 import { openDialogForm, openConfirmDialogForm } from "../../../ui/components/dialog";
@@ -603,9 +604,7 @@ export function openModuleToggleForm(player: Player): void {
     { key: "enableCropPlantOneClick", name: "下蹲一键连锁播种" },
     { key: "digOreChainObsidian", name: "一键挖矿：连锁黑曜石（含哭泣黑曜石）" },
     { key: "allowPlayerDisplaySettings", name: "允许玩家编辑名字显示设置" },
-    ...(isServerAdminBuild()
-      ? ([{ key: "blacklistEnabled", name: "黑名单系统（仅 BDS 增强版可用）" }] as const)
-      : []),
+    ...(isServerAdminBuild() ? ([{ key: "blacklistEnabled", name: "黑名单系统（仅 BDS 增强版可用）" }] as const) : []),
     { key: "behaviorLogEnabled", name: "玩家行为日志" },
     {
       key: "antiDupeEnabled",
@@ -630,8 +629,7 @@ export function openModuleToggleForm(player: Player): void {
     const applySettings = () => {
       const prevPvpEnabled = setting.getState("pvp") === true;
       const pvpModuleIndex = modules.findIndex((m) => m.key === "pvp");
-      const nextPvpEnabled =
-        pvpModuleIndex >= 0 ? (formValues[pvpModuleIndex] as boolean) : prevPvpEnabled;
+      const nextPvpEnabled = pvpModuleIndex >= 0 ? (formValues[pvpModuleIndex] as boolean) : prevPvpEnabled;
 
       modules.forEach((module, index) => {
         const nextValue = formValues[index] as boolean;
@@ -717,7 +715,7 @@ function openMemberListForm(player: Player): void {
 }
 
 function openAddMemberForm(player: Player): void {
-  const onlinePlayers = world.getPlayers();
+  const onlinePlayers = getOnlineRealPlayers();
   const playerNames = onlinePlayers.map((p) => p.name);
 
   if (playerNames.length === 0) {
@@ -819,7 +817,7 @@ function openAddMemberForm(player: Player): void {
 }
 
 function openRemoveMemberForm(player: Player): void {
-  const onlinePlayers = world.getPlayers();
+  const onlinePlayers = getOnlineRealPlayers();
   const playerNames = onlinePlayers.map((p) => p.name);
 
   if (playerNames.length === 0) {
@@ -1438,7 +1436,7 @@ function openSetPlayerMoneyForm(player: Player): void {
   form.title("设置指定玩家金币");
 
   // 获取所有在线玩家
-  const onlinePlayers = world.getAllPlayers();
+  const onlinePlayers = getOnlineRealPlayers();
   const playerNames = onlinePlayers.map((p) => p.name);
 
   form.dropdown("选择在线玩家", playerNames.length > 0 ? playerNames : ["无在线玩家"]);
@@ -1520,7 +1518,7 @@ function openSetPlayerMoneyForm(player: Player): void {
     const success = economic.setPlayerGold(targetPlayerName, amount);
     if (success) {
       // 如果目标玩家在线，通知他
-      const targetPlayer = world.getAllPlayers().find((p) => p.name === targetPlayerName);
+      const targetPlayer = getOnlineRealPlayerByName(targetPlayerName);
       if (targetPlayer) {
         targetPlayer.sendMessage(color.yellow(`管理员将您的金币设置为 ${color.gold(amount.toString())}`));
       }
@@ -1622,7 +1620,7 @@ function openResetAllPlayerMoneyForm(player: Player): void {
         if (success) {
           successCount++;
           // 如果玩家在线，通知他
-          const targetPlayer = world.getAllPlayers().find((p) => p.name === wallet.name);
+          const targetPlayer = getOnlineRealPlayerByName(wallet.name);
           if (targetPlayer) {
             targetPlayer.sendMessage(
               color.yellow(`管理员已重置所有玩家金币，您的金币已设置为 ${color.gold(resetAmount.toString())}`)

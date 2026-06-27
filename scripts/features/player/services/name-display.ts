@@ -9,6 +9,7 @@ import { guildFacade } from "../../guild/services/guild-facade";
 import setting from "../../system/services/setting";
 import { taskScheduler } from "../../platform/scheduler";
 import { isFakePlayer } from "../../fake-player/services/fake-player";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 
 export class NameDisplay {
   private static instance: NameDisplay;
@@ -45,7 +46,7 @@ export class NameDisplay {
    * 更新所有玩家的名字显示
    */
   private updateAllPlayersNameDisplay(): void {
-    const players = world.getAllPlayers();
+    const players = getOnlineRealPlayers();
     players.forEach((player: Player) => {
       this.updatePlayerNameDisplay(player);
     });

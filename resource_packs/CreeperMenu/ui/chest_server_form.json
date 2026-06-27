@@ -172,6 +172,15 @@
         }
       },
       {
+        "36_inv@chest_ui.chest_ui_template": {
+          "$grid_size": [9, 4],
+          "$condition": "§c§h§e§s§t§i§n§v§3§6§r",
+          "$show_inventory_override": true,
+          "$start_index": 36,
+          "ignored": "$disable_36_inv_slots_layout"
+        }
+      },
+      {
         "45_inv@chest_ui.chest_ui_template": {
           "$grid_size": [9, 5],
           "$condition": "§c§h§e§s§t§i§n§v§4§5§r",

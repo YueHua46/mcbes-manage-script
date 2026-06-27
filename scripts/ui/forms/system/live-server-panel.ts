@@ -10,6 +10,7 @@ import {
 } from "../../../features/platform/sapi-capabilities";
 import { taskScheduler } from "../../../features/platform/scheduler";
 import { color } from "../../../shared/utils/color";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { openSchedulerDetailForm } from "./scheduler-panel";
 
 function boolState(value: unknown): string {
@@ -47,7 +48,7 @@ function countDimensionEntities(type?: string): number {
 }
 
 function buildSnapshot(): string {
-  const onlinePlayers = world.getAllPlayers();
+  const onlinePlayers = getOnlineRealPlayers();
   const totalEntities = countDimensionEntities();
   const tps = serverInfo.TPS || 0;
   const mobs = serverInfo.organismLength || 0;

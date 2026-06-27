@@ -6,6 +6,7 @@
 import { Player, Entity, system, world, GameMode, EasingType } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { useNotify } from "../../../shared/hooks/use-notify";
+import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
 
 /**
  * 视角类型
@@ -278,7 +279,15 @@ class CameraService {
             const presets = PERSPECTIVE_PRESETS[defaultPerspective];
             const targetViewDirection = targetEntity.getViewDirection();
             const targetRotation = directionToRotation(targetViewDirection);
-            cameraApiAvailable = applyCameraFrame(player, cameraCache, presets, observerLocation, targetRotation, 0.05, true);
+            cameraApiAvailable = applyCameraFrame(
+              player,
+              cameraCache,
+              presets,
+              observerLocation,
+              targetRotation,
+              0.05,
+              true
+            );
           } catch (cameraError) {
             // Camera API 完全不可用
             console.error("Camera API 初始化失败:", cameraError);
@@ -888,7 +897,7 @@ class CameraService {
         }
       } else {
         // 如果是玩家名称
-        const targetPlayer = world.getAllPlayers().find((p) => p.name === selector);
+        const targetPlayer = getOnlineRealPlayerByName(selector);
         if (targetPlayer) {
           return targetPlayer;
         }

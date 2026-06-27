@@ -4,6 +4,7 @@ import fakePlayerService, { IFakePlayer } from "../../../features/fake-player/se
 import { color } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
+import { openFakePlayerInteractMenu } from "./fake-player-inventory";
 
 function formatLocation(item: IFakePlayer): string {
   return `${item.dimension.replace("minecraft:", "")} ${item.location.x}, ${item.location.y}, ${item.location.z}`;
@@ -73,7 +74,9 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
     const name = String(data.formValues?.[0] ?? "");
     const result = fakePlayerService.create({ player, name });
     if (typeof result === "string") {
-      openDialogForm(player, { title: "创建失败", desc: color.red(result) }, () => openCreateFakePlayerForm(player, back));
+      openDialogForm(player, { title: "创建失败", desc: color.red(result) }, () =>
+        openCreateFakePlayerForm(player, back)
+      );
       return;
     }
 
@@ -81,7 +84,14 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
       player,
       {
         title: "创建成功",
-        desc: `§a已在当前位置创建模拟玩家 §e${result.name}§a。\n§0${formatLocation(result)}`,
+        desc: [
+          `§a已在当前位置创建模拟玩家 §e${result.name}§a。`,
+          `§7${formatLocation(result)}`,
+          "",
+          "§e右键这个假人可以打开交互菜单。",
+          "§e默认只有创建者和管理员可以查看假人背包。",
+          "§e创建者或管理员可以在交互菜单里添加其他可查看背包的玩家。",
+        ].join("\n"),
       },
       () => openFakePlayerMenu(player, back)
     );
@@ -100,7 +110,7 @@ function openFakePlayerListForm(player: Player, adminView: boolean, back: () => 
   }
 
   items.forEach((item) => {
-    form.button(`${item.name}\n§0${item.ownerName} · ${formatLocation(item)}`, "textures/icons/spectator");
+    form.button(`${item.name}\n§7${item.ownerName} · ${formatLocation(item)}`, "textures/icons/spectator");
   });
   form.button("返回", "textures/icons/back");
 
@@ -121,12 +131,9 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
   const form = new ActionFormData();
   form.title(`${item.name}`);
   form.body(
-    [
-      `§a拥有者: §e${item.ownerName}`,
-      `§a位置: §e${formatLocation(item)}`,
-      `§a创建时间: §e${item.created}`,
-    ].join("\n")
+    [`§a拥有者: §e${item.ownerName}`, `§a位置: §e${formatLocation(item)}`, `§a创建时间: §e${item.created}`].join("\n")
   );
+  form.button("背包与权限", "textures/icons/quest_chest");
   form.button("重新生成", "textures/icons/requeue");
   form.button("删除假人", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
@@ -135,6 +142,10 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
     if (data.canceled || data.cancelationReason) return;
     switch (data.selection) {
       case 0: {
+        openFakePlayerInteractMenu(player, item.id);
+        break;
+      }
+      case 1: {
         const result = fakePlayerService.refresh(item.id);
         openDialogForm(
           player,
@@ -146,11 +157,11 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
         );
         break;
       }
-      case 1:
+      case 2:
         openConfirmDialogForm(
           player,
           "删除假人",
-          `§c确定删除假人 §e${item.name}§c 吗？\n§0创建费用不会退回。`,
+          `§c确定删除假人 §e${item.name}§c 吗？\n§7创建费用不会退回。`,
           () => {
             const result = fakePlayerService.delete(player, item.id);
             openDialogForm(
@@ -166,7 +177,7 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
           { dangerConfirm: true }
         );
         break;
-      case 2:
+      case 3:
         openFakePlayerListForm(player, adminView, back);
         break;
     }

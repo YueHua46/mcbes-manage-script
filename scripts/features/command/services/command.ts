@@ -22,6 +22,7 @@ import {
 } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { isAdmin, SystemLog } from "../../../shared/utils/common";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { usePlayerByName } from "../../../shared/hooks/use-player";
 import wayPoint from "../../waypoint/services/waypoint";
 import landManager from "../../land/services/land-manager";
@@ -168,7 +169,7 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   landFlightLeaveGraceSec: "离开领地后的飞行宽限秒数。0 表示立即收回，建议 0 到 30。",
   antiDupeEnabled: "防刷物品总开关。true 启用防刷逻辑与白名单，false 全部关闭。",
   antiDupeBundleRestrictEnabled: "收纳袋防刷子项。true 禁止放入非常规容器，false 放开。",
-  antiDupeTrustedPlacers: "防刷白名单玩家名 JSON 字符串数组，例如 [\"Steve\",\"Alex\"]。",
+  antiDupeTrustedPlacers: '防刷白名单玩家名 JSON 字符串数组，例如 ["Steve","Alex"]。',
 };
 
 /**
@@ -233,8 +234,7 @@ system.beforeEvents.startup.subscribe((init) => {
   // 1. 注册 waypoint 指令
   const waypointCommand: CustomCommand = {
     name: "yuehua:waypoint",
-    description:
-      "坐标点管理。list=列出自己的坐标点；add=把当前位置保存为坐标点；del=删除坐标点；tp=传送到坐标点。",
+    description: "坐标点管理。list=列出自己的坐标点；add=把当前位置保存为坐标点；del=删除坐标点；tp=传送到坐标点。",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
       {
@@ -276,7 +276,11 @@ system.beforeEvents.startup.subscribe((init) => {
     description: "金币查询。不带参数查看自己的余额；top=查看财富排行榜前 20。",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
-      { type: CustomCommandParamType.Enum, name: "操作(top查看财富排行榜；留空查看余额)", enumName: "yuehua:MoneyOperationType" },
+      {
+        type: CustomCommandParamType.Enum,
+        name: "操作(top查看财富排行榜；留空查看余额)",
+        enumName: "yuehua:MoneyOperationType",
+      },
     ],
   };
   registerCommandIgnoreReloadLock(registry, moneyCommand, handleMoneyCommand);
@@ -317,16 +321,14 @@ system.beforeEvents.startup.subscribe((init) => {
   // 6.1 领地内飞行（与领地菜单权限一致）
   const landFlightCommand: CustomCommand = {
     name: "yuehua:landflight",
-    description:
-      "领地内飞行。站在有权限的领地内使用；领主、信任成员或同公会成员可开启；可能按服务器配置周期扣金币。",
+    description: "领地内飞行。站在有权限的领地内使用；领主、信任成员或同公会成员可开启；可能按服务器配置周期扣金币。",
     permissionLevel: CommandPermissionLevel.Any,
   };
   registerCommandIgnoreReloadLock(registry, landFlightCommand, handleLandFlightCommand);
 
   const fakePlayerCommand: CustomCommand = {
     name: "yuehua:fakeplayer",
-    description:
-      "假人模拟玩家。list=列出假人；add=在当前位置创建假人；remove=按名称删除假人。",
+    description: "假人模拟玩家。list=列出假人；add=在当前位置创建假人；remove=按名称删除假人。",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
       {
@@ -434,7 +436,11 @@ system.beforeEvents.startup.subscribe((init) => {
       "实体视角观察(仅管理员)。start=开始观察选择器匹配的第一个实体；stop=退出观察并恢复位置/模式；next=在第一/第三人称观察视角间循环切换。",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
-      { type: CustomCommandParamType.Enum, name: "操作(start开始/stop退出/next切换下一视角)", enumName: "yuehua:CameraOperationType" },
+      {
+        type: CustomCommandParamType.Enum,
+        name: "操作(start开始/stop退出/next切换下一视角)",
+        enumName: "yuehua:CameraOperationType",
+      },
       { type: CustomCommandParamType.EntitySelector, name: "目标实体选择器(start时填写，如@p或@e[type=zombie])" },
     ],
   };
@@ -458,8 +464,7 @@ system.beforeEvents.startup.subscribe((init) => {
   // 13. 注册 get_item_typeid 指令 (获取手持或背包物品ID)
   const getItemTypeIdCommand: CustomCommand = {
     name: "yuehua:get_item_typeid",
-    description:
-      "获取物品 typeId。留空或 hand=显示手持物品 typeId；all/inventory=统计背包内全部物品 typeId 和数量。",
+    description: "获取物品 typeId。留空或 hand=显示手持物品 typeId；all/inventory=统计背包内全部物品 typeId 和数量。",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
       {
@@ -483,7 +488,10 @@ system.beforeEvents.startup.subscribe((init) => {
         name: "操作(add新增/remove移除/list查看/clear清空)",
         enumName: "yuehua:SubscribeItemHoldOperationType",
       },
-      { type: CustomCommandParamType.String, name: "物品typeId(add/remove时填写，如minecraft:diamond；生成蛋族群用spawn_egg_group)" },
+      {
+        type: CustomCommandParamType.String,
+        name: "物品typeId(add/remove时填写，如minecraft:diamond；生成蛋族群用spawn_egg_group)",
+      },
     ],
   };
   registerCommandIgnoreReloadLock(registry, subscribeItemHoldCommand, handleSubscribeItemHoldCommand);
@@ -915,7 +923,9 @@ function handleFakePlayerCommand(origin: CustomCommandOrigin, operation?: string
         player.sendMessage(color.gray("用法: /yuehua:fakeplayer add <名称>"));
         return;
       }
-      player.sendMessage(color.green(admin ? `=== 全服假人 (${list.length}) ===` : `=== 我的假人 (${list.length}) ===`));
+      player.sendMessage(
+        color.green(admin ? `=== 全服假人 (${list.length}) ===` : `=== 我的假人 (${list.length}) ===`)
+      );
       for (const item of list) {
         player.sendMessage(
           `${color.aqua(item.name)} ${color.gray(`${item.dimension} ${item.location.x}, ${item.location.y}, ${item.location.z}`)}`
@@ -1213,7 +1223,7 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
 
   system.run(() => {
     try {
-      const allPlayers = world.getAllPlayers();
+      const allPlayers = getOnlineRealPlayers();
       const playerCount = allPlayers.length;
       const playerNames = allPlayers.map((p) => p.name).join(", ");
 
@@ -1347,9 +1357,7 @@ function handleMoneySettingCommand(
                     `余额变化: ${color.gold(oldBalance.toString())} 到 ${color.gold(currentBalance.toString())}`
                   )
                 );
-                targetPlayer.sendMessage(
-                  color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`)
-                );
+                targetPlayer.sendMessage(color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`));
                 successCount++;
               } else {
                 player.sendMessage(color.red(`为玩家 ${color.yellow(targetPlayer.name)} 添加金币失败。`));
@@ -1438,7 +1446,10 @@ function handleMoneySettingCommand(
       // );
       if (isNaN(amount) || amount < 0) {
         // SystemLog.error("请输入有效的金额 (必须大于0)。");
-        return { status: CustomCommandStatus.Failure, message: "请输入有效的金额 (必须大于等于0；add/remove 必须大于0)" };
+        return {
+          status: CustomCommandStatus.Failure,
+          message: "请输入有效的金额 (必须大于等于0；add/remove 必须大于0)",
+        };
       }
 
       const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
@@ -1467,9 +1478,7 @@ function handleMoneySettingCommand(
               // );
               // SystemLog.info(`余额变化: ${oldBalance} 到 ${currentBalance}`);
 
-              targetPlayer.sendMessage(
-                color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`)
-              );
+              targetPlayer.sendMessage(color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`));
               successCount++;
             } else {
               // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 添加金币失败。`);
@@ -1496,7 +1505,9 @@ function handleMoneySettingCommand(
               // );
               // SystemLog.info(`余额变化: ${wallet.gold} 到 ${currentBalanceAfterRemove}`);
 
-              targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${currentBalanceAfterRemove}`));
+              targetPlayer.sendMessage(
+                color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${currentBalanceAfterRemove}`)
+              );
               successCount++;
             } else {
               // SystemLog.error(`为玩家 ${color.yellow(targetPlayer.name)} 扣除金币失败。`);
@@ -1597,14 +1608,10 @@ function handleMoneySettingOfflineCommand(
                 color.green(`成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`)
               );
               player.sendMessage(
-                color.gray(
-                  `余额变化: ${color.gold(oldBalance.toString())} 到 ${color.gold(currentBalance.toString())}`
-                )
+                color.gray(`余额变化: ${color.gold(oldBalance.toString())} 到 ${color.gold(currentBalance.toString())}`)
               );
               if (targetPlayer) {
-                targetPlayer.sendMessage(
-                  color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`)
-                );
+                targetPlayer.sendMessage(color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`));
               }
             } else {
               player.sendMessage(color.red(`为玩家 ${color.yellow(targetPlayerName)} 添加金币失败。`));
@@ -1715,14 +1722,12 @@ function handleMoneySettingOfflineCommand(
           if (addedAmount > 0) {
             const currentBalance = economic.getWallet(targetPlayerName).gold;
             // SystemLog.info(
-              //   `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
+            //   `成功为玩家 ${color.yellow(targetPlayerName)} 添加 ${color.gold(amount.toString())} 金币。`
             // );
             // SystemLog.info(`余额变化: ${oldBalance} 到 ${currentBalance}`);
 
             if (targetPlayer) {
-              targetPlayer.sendMessage(
-                color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`)
-              );
+              targetPlayer.sendMessage(color.green(`管理员为您添加了 ${amount} 金币，当前余额: ${currentBalance}`));
             }
           } else {
             // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 添加金币失败。`);
@@ -1750,7 +1755,9 @@ function handleMoneySettingOfflineCommand(
             // SystemLog.info(`余额变化: ${wallet.gold} 到 ${currentBalanceAfterRemove}`);
 
             if (targetPlayer) {
-              targetPlayer.sendMessage(color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${currentBalanceAfterRemove}`));
+              targetPlayer.sendMessage(
+                color.red(`管理员扣除了您 ${amount} 金币，当前余额: ${currentBalanceAfterRemove}`)
+              );
             }
           } else {
             // SystemLog.error(`为玩家 ${color.yellow(targetPlayerName)} 扣除金币失败。`);
@@ -1975,7 +1982,13 @@ function handleTprejectCommand(origin: CustomCommandOrigin): CustomCommandResult
 function normalizeCameraPerspective(perspective: string): "first_person" | "third_person" | undefined {
   const normalized = perspective.toLowerCase();
   if (normalized === "first" || normalized === "1" || normalized === "first_person") return "first_person";
-  if (normalized === "third" || normalized === "3" || normalized === "third_person" || normalized === "front" || normalized === "third_front") {
+  if (
+    normalized === "third" ||
+    normalized === "3" ||
+    normalized === "third_person" ||
+    normalized === "front" ||
+    normalized === "third_front"
+  ) {
     return "third_person";
   }
   return undefined;
@@ -2003,7 +2016,9 @@ function handleCameraPerspectiveCommand(origin: CustomCommandOrigin, perspective
       if (typeof result === "string") {
         player.sendMessage(color.red(result));
       } else {
-        player.sendMessage(color.green(`已切换到${perspectiveType === "first_person" ? "第一人称" : "第三人称"}观察视角`));
+        player.sendMessage(
+          color.green(`已切换到${perspectiveType === "first_person" ? "第一人称" : "第三人称"}观察视角`)
+        );
       }
     } catch (error) {
       player.sendMessage(color.red(`指令执行错误: ${(error as Error).message}`));

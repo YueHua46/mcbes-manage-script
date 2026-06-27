@@ -16,6 +16,7 @@ import { getRadiusRange } from "@mcbe-mods/utils";
 import landManager from "../land/services/land-manager";
 import { isAdmin } from "../../shared/utils/common";
 import { CropProfile, getProfileByBlock } from "./crop-profiles";
+import { getOnlineRealPlayers } from "../../shared/utils/online-players";
 
 export { getProfileByBlock, getProfileBySeed, getClipInteractProfiles } from "./crop-profiles";
 
@@ -73,7 +74,7 @@ export function releaseCropJob(playerId: string): void {
 }
 
 export function getPlayerOrAbort(playerId: string): Player | undefined {
-  return world.getPlayers().find((p) => p.id === playerId && p.isValid);
+  return getOnlineRealPlayers().find((p) => p.id === playerId && p.isValid);
 }
 
 export function tryConsumeSeed(player: Player, seedTypeId: string): boolean {
@@ -131,7 +132,12 @@ export function isBlockInWater(dimension: Dimension, location: Vector3): boolean
   return isWaterBlockId(above?.typeId) || isWaterBlockId(below?.typeId);
 }
 
-function getMaturityPermutation(dimension: Dimension, location: Vector3, block: Block, profile: CropProfile): BlockPermutation {
+function getMaturityPermutation(
+  dimension: Dimension,
+  location: Vector3,
+  block: Block,
+  profile: CropProfile
+): BlockPermutation {
   if (profile.plant.mode !== "farmland-double") return block.permutation;
   if (block.permutation.getState("upper_block_bit") !== true) return block.permutation;
   const lower = dimension.getBlock({ x: location.x, y: location.y - 1, z: location.z });
@@ -289,7 +295,11 @@ export function getTargetLocationFromUseOn(block: Block, blockFace: string | num
   return { x: loc.x, y: loc.y + 1, z: loc.z };
 }
 
-export function resolvePlantOrigin(block: Block, blockFace: string | number, profile: CropProfile): Vector3 | undefined {
+export function resolvePlantOrigin(
+  block: Block,
+  blockFace: string | number,
+  profile: CropProfile
+): Vector3 | undefined {
   const target = getTargetLocationFromUseOn(block, blockFace);
 
   if (profile.plant.mode === "ceiling-vine") {
@@ -367,11 +377,7 @@ export function collectMatureHarvestChain(
 }
 
 /** 甘蔗：连通 reeds，保留每列最底下一格（不含玩家已破坏的原点） */
-export function collectSugarCaneHarvest(
-  dimension: Dimension,
-  origin: Vector3,
-  excludeKeys: Set<string>
-): Vector3[] {
+export function collectSugarCaneHarvest(dimension: Dimension, origin: Vector3, excludeKeys: Set<string>): Vector3[] {
   const visited = new Set<string>(excludeKeys);
   const allReeds: Vector3[] = [];
   const queue: Vector3[] = [];
@@ -429,10 +435,7 @@ export function collectColumnHarvestAboveBase(
   for (const adj of getRadiusRange(origin)) {
     queue.push(adj);
   }
-  queue.push(
-    { x: origin.x, y: origin.y + 1, z: origin.z },
-    { x: origin.x, y: origin.y - 1, z: origin.z }
-  );
+  queue.push({ x: origin.x, y: origin.y + 1, z: origin.z }, { x: origin.x, y: origin.y - 1, z: origin.z });
 
   while (queue.length > 0) {
     if (all.length >= MAX_CHAIN_BLOCKS * 8) break;

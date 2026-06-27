@@ -3,11 +3,12 @@
  * 完整迁移自 Modules/Economic/Transfer/TransferForm.ts (277行)
  */
 
-import { Player, world, RawMessage } from "@minecraft/server";
+import { Player, RawMessage } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { openDialogForm } from "../../components/dialog";
 import economic from "../../../features/economic/services/economic";
 import { colorCodes } from "../../../shared/utils/color";
+import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
 
 /**
  * 玩家转账系统UI管理类
@@ -46,7 +47,7 @@ class TransferForm {
    * 显示转账表单
    */
   private showTransferForm(player: Player): void {
-    const onlinePlayers = world.getPlayers();
+    const onlinePlayers = getOnlineRealPlayers();
     const playerNames = onlinePlayers.map((p) => p.name);
 
     if (playerNames.length === 0) {
@@ -234,7 +235,7 @@ class TransferForm {
       );
 
       try {
-        const targetPlayer = world.getPlayers().find((p) => p.name === targetName);
+        const targetPlayer = getOnlineRealPlayerByName(targetName);
         if (targetPlayer) {
           const notificationMessage: RawMessage = {
             rawtext: [

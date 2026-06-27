@@ -3,9 +3,10 @@
  * 处理所有PVP相关的视觉和听觉效果
  */
 
-import { Player, world, system } from "@minecraft/server";
+import { Player, system } from "@minecraft/server";
 import type { Vector3 } from "../../../core/types";
 import { color } from "../../../shared/utils/color";
+import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 
 class EffectManager {
   private combatStatusTimers = new Map<string, number>();
@@ -71,9 +72,7 @@ class EffectManager {
 
         // 显示伤害反馈（Actionbar）
         try {
-          attacker.onScreenDisplay.setActionBar(
-            `${color.red("⚔")} ${color.yellow("命中")} ${color.red(victim.name)}`
-          );
+          attacker.onScreenDisplay.setActionBar(`${color.red("⚔")} ${color.yellow("命中")} ${color.red(victim.name)}`);
         } catch (error) {
           // 忽略显示错误
         }
@@ -118,9 +117,7 @@ class EffectManager {
         player.playSound("random.levelup", { pitch: 1.5, volume: 0.8 });
 
         // 显示脱离战斗提示
-        player.onScreenDisplay.setActionBar(
-          `${color.green("✓")} ${color.aqua("已脱离战斗状态")}`
-        );
+        player.onScreenDisplay.setActionBar(`${color.green("✓")} ${color.aqua("已脱离战斗状态")}`);
 
         // 播放绿色粒子效果
         const location = player.location;
@@ -228,12 +225,7 @@ class EffectManager {
   /**
    * 播放击杀音效
    */
-  private playKillSounds(
-    killer: Player,
-    location: Vector3,
-    dimension: any,
-    level: number
-  ): void {
+  private playKillSounds(killer: Player, location: Vector3, dimension: any, level: number): void {
     try {
       // 基础击杀音效
       killer.playSound("random.explode", { volume: 1.0 });
@@ -398,15 +390,9 @@ class EffectManager {
   /**
    * 为附近玩家播放音效
    */
-  private playNearbySound(
-    location: Vector3,
-    dimension: any,
-    soundId: string,
-    radius: number,
-    options?: any
-  ): void {
+  private playNearbySound(location: Vector3, dimension: any, soundId: string, radius: number, options?: any): void {
     try {
-      const nearbyPlayers = world.getAllPlayers().filter((p) => {
+      const nearbyPlayers = getOnlineRealPlayers().filter((p) => {
         if (p.dimension.id !== dimension.id) return false;
         return this.getDistance(p.location, location) < radius;
       });
@@ -438,11 +424,7 @@ class EffectManager {
    * 计算两点之间的距离
    */
   private getDistance(loc1: Vector3, loc2: Vector3): number {
-    return Math.sqrt(
-      Math.pow(loc1.x - loc2.x, 2) +
-        Math.pow(loc1.y - loc2.y, 2) +
-        Math.pow(loc1.z - loc2.z, 2)
-    );
+    return Math.sqrt(Math.pow(loc1.x - loc2.x, 2) + Math.pow(loc1.y - loc2.y, 2) + Math.pow(loc1.z - loc2.z, 2));
   }
 }
 

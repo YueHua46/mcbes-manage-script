@@ -8,6 +8,7 @@ import { getBlockInventoryContainer, getEntityInventoryContainer } from "./block
 import { isBundleTypeId } from "./constants";
 import setting from "../system/services/setting";
 import { taskScheduler } from "../platform/scheduler";
+import { getOnlineRealPlayers } from "../../shared/utils/online-players";
 
 const ANTI_DUPE_MSG =
   "§c当前服务器已禁止在非常规箱子类容器内放入收纳袋（防止刷物）。如有特殊需求请联系管理员将你加入防刷白名单后再放置。";
@@ -53,7 +54,7 @@ function distSq(a: Vector3, b: Vector3): number {
 export function hasPlayerNearPosition(dimension: Dimension, pos: Vector3, radiusBlocks: number): boolean {
   const r = radiusBlocks;
   const r2 = r * r;
-  const players = world.getPlayers();
+  const players = getOnlineRealPlayers();
   for (const p of players) {
     if (!p.isValid || p.dimension.id !== dimension.id) continue;
     if (distSq(p.location, pos) <= r2) return true;
@@ -165,7 +166,7 @@ function processAllSessionsTick(nowTick: number): void {
   }
   if (sessions.size === 0) return;
 
-  for (const player of world.getPlayers()) {
+  for (const player of getOnlineRealPlayers()) {
     if (!player.isValid) continue;
     if (!sessions.has(player.id)) continue;
     scanAndPurgeSession(player, nowTick);
