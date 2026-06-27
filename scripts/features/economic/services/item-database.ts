@@ -7,7 +7,8 @@
 import { Dimension, Entity, ItemStack, LocationInUnloadedChunkError, system, world } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import { isAdmin, SystemLog } from "../../../shared/utils/common";
-import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
+import { deserializeItemStack, PersistedItemStack, serializeItemStack } from "../../../shared/utils/item-stack-persist";
+import { getOnlineRealPlayerCount, getOnlineRealPlayers, isScriptFakePlayerEntity } from "../../../shared/utils/online-players";
 
 // 每个实体可存储的最大槽位数
 const ITEM_MAX_PER_ENTITY = 256;
@@ -28,6 +29,9 @@ const DB_INDEX_TAG_PREFIX = "pao_db_index:";
 const nameRegistered: string[] = [];
 const databaseInstances = new Set<ItemDatabase>();
 let entityRemoveGuardRegistered = false;
+let storageWindDownGuardRegistered = false;
+/** 最后一名真实玩家离线后，存储实体随区块卸载属于预期行为 */
+let storageWindDownActive = false;
 
 interface RescueSlot {
   slot: number;
@@ -46,6 +50,7 @@ interface RescueSnapshot {
 interface SlotData {
   slot: number;
   item?: ItemStack;
+  itemSnapshot?: PersistedItemStack;
   [key: string]: unknown;
 }
 
@@ -163,6 +168,33 @@ function registerEntityRemoveGuard(): void {
   });
 }
 
+function registerStorageWindDownGuard(): void {
+  if (storageWindDownGuardRegistered) return;
+  storageWindDownGuardRegistered = true;
+
+  world.afterEvents.playerSpawn.subscribe((event) => {
+    if (isScriptFakePlayerEntity(event.player)) return;
+    storageWindDownActive = false;
+  });
+
+  world.beforeEvents.playerLeave.subscribe((event) => {
+    if (isScriptFakePlayerEntity(event.player)) return;
+
+    const realPlayers = getOnlineRealPlayers();
+    if (realPlayers.length <= 1 && realPlayers[0]?.id === event.player.id) {
+      storageWindDownActive = true;
+    }
+
+    system.run(() => {
+      storageWindDownActive = getOnlineRealPlayerCount() === 0;
+    });
+  });
+}
+
+function isExpectedStorageUnload(): boolean {
+  return storageWindDownActive || getOnlineRealPlayerCount() === 0;
+}
+
 /**
  * 封装单个物品，提供对数据库操作的方法
  */
@@ -222,6 +254,7 @@ export default class ItemDatabase {
     nameRegistered.push(name);
     databaseInstances.add(this);
     registerEntityRemoveGuard();
+    registerStorageWindDownGuard();
 
     this.init().catch((e) => console.error(e));
   }
@@ -270,11 +303,21 @@ export default class ItemDatabase {
           const stored = this.#database.get(`slot_${slot}`);
           if (it && stored) {
             stored.item = it;
+            stored.itemSnapshot = serializeItemStack(it);
             this.#itemData[slot] = stored;
+            this.#database.set(`slot_${slot}`, stored);
           } else if (it && !stored) {
             this.#markUnhealthy(`槽位 ${slot} 有实体物品但缺少索引记录`);
           } else if (!it && stored) {
-            this.#markUnhealthy(`槽位 ${slot} 有索引记录但实体物品缺失`);
+            if (stored.itemSnapshot) {
+              const restored = deserializeItemStack(stored.itemSnapshot);
+              inv?.setItem(i, restored);
+              stored.item = restored;
+              this.#itemData[slot] = stored;
+              this.#database.set(`slot_${slot}`, stored);
+            } else {
+              this.#markUnhealthy(`槽位 ${slot} 有索引记录但实体物品缺失`);
+            }
           } else {
             // empty slot
           }
@@ -284,7 +327,7 @@ export default class ItemDatabase {
         entityCount++;
       }
     } else if (this.#database.keys().some((key) => key.startsWith("slot_"))) {
-      this.#markUnhealthy("启动时未找到数据库实体，但动态索引中仍存在物品槽位记录");
+      await this.#bootstrapStorageFromPersisted(overworld);
     } else {
       const e = await spawnEntityAtAnchorWithRetry(overworld, () =>
         overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
@@ -323,7 +366,7 @@ export default class ItemDatabase {
     const ent = this.#entities[entityIndex];
     ent.getComponent("inventory")?.container.setItem(entitySlot, item);
 
-    const fullData: SlotData = { slot, item, ...data };
+    const fullData: SlotData = { slot, item, itemSnapshot: serializeItemStack(item), ...data };
     this.#database.set(`slot_${slot}`, fullData);
     this.#itemData[slot] = fullData;
     return fullData;
@@ -474,6 +517,7 @@ export default class ItemDatabase {
       const entitySlot = slot % ITEM_MAX_PER_ENTITY;
       const ent = this.#entities[entityIndex];
       ent.getComponent("inventory")?.container.setItem(entitySlot, newData.item);
+      merged.itemSnapshot = serializeItemStack(newData.item);
     }
 
     this.#database.set(`slot_${slot}`, merged);
@@ -623,9 +667,100 @@ export default class ItemDatabase {
     return byId >= 0 ? byId : 0;
   }
 
+  #syncSlotFromEntityItem(slot: number, item: ItemStack, stored?: SlotData): SlotData {
+    const merged: SlotData = {
+      ...(stored ?? {}),
+      slot,
+      item,
+      itemSnapshot: serializeItemStack(item),
+    };
+    this.#itemData[slot] = merged;
+    this.#database.set(`slot_${slot}`, merged);
+    return merged;
+  }
+
+  #handleExpectedStorageUnload(entity: Entity): void {
+    try {
+      const entityIndex = this.#getEntityIndex(entity);
+      const container = entity.getComponent("inventory")?.container;
+      let syncedSlots = 0;
+
+      if (container) {
+        for (let localSlot = 0; localSlot < Math.min(container.size, ITEM_MAX_PER_ENTITY); localSlot++) {
+          const item = container.getItem(localSlot);
+          if (!item) continue;
+
+          const fullSlot = entityIndex * ITEM_MAX_PER_ENTITY + localSlot;
+          this.#syncSlotFromEntityItem(fullSlot, item.clone(), this.#itemData[fullSlot] ?? this.#database.get(`slot_${fullSlot}`));
+          syncedSlots++;
+        }
+      }
+
+      const entityIdx = this.#entities.findIndex((candidate) => candidate.id === entity.id);
+      if (entityIdx >= 0) {
+        this.#entities.splice(entityIdx, 1);
+      }
+
+      this.#database.save();
+      SystemLog.info(
+        `[ItemDatabase ${this.#name}] 世界暂无真实玩家在线，存储实体已随区块卸载（已同步 ${syncedSlots} 个物品索引，下次进服将自动重建，无需处理）`
+      );
+    } catch (error) {
+      SystemLog.warn(`[ItemDatabase ${this.#name}] 关服前同步物品索引失败: ${String(error)}`);
+    }
+  }
+
+  async #bootstrapStorageFromPersisted(overworld: Dimension): Promise<void> {
+    const slotKeys = this.#database.keys().filter((key) => key.startsWith("slot_"));
+    const maxSlot = slotKeys.reduce((max, key) => Math.max(max, Number(key.slice(5))), -1);
+    const entityCount = Math.max(1, Math.floor(maxSlot / ITEM_MAX_PER_ENTITY) + 1);
+
+    for (let entityIndex = 0; entityIndex < entityCount; entityIndex++) {
+      const entity = await spawnEntityAtAnchorWithRetry(overworld, () =>
+        overworld.spawnEntity<"pao:new_database">(ENTITY_TYPE_ID, DB_ANCHOR)
+      );
+      this.#bindDatabaseEntity(entity, entityIndex);
+      this.#entities.push(entity);
+
+      const container = entity.getComponent("inventory")?.container;
+      if (!container) {
+        this.#markUnhealthy("重建存储实体后缺少 inventory 容器");
+        return;
+      }
+
+      for (let localSlot = 0; localSlot < ITEM_MAX_PER_ENTITY; localSlot++) {
+        const fullSlot = entityIndex * ITEM_MAX_PER_ENTITY + localSlot;
+        const key = `slot_${fullSlot}`;
+        if (!this.#database.has(key)) continue;
+
+        const stored = this.#database.get(key) as SlotData | undefined;
+        if (!stored?.itemSnapshot) continue;
+
+        try {
+          const restored = deserializeItemStack(stored.itemSnapshot);
+          container.setItem(localSlot, restored);
+          stored.item = restored;
+          this.#itemData[fullSlot] = stored;
+        } catch {
+          // ignore invalid snapshot
+        }
+      }
+    }
+
+    this.#database.save();
+    SystemLog.info(
+      `[ItemDatabase ${this.#name}] 未找到存储实体，已根据物品索引重建 ${this.#entities.length} 个存储实体并恢复 ${this.length} 个物品槽`
+    );
+  }
+
   captureUnexpectedEntityRemoval(entity: Entity): void {
     if (this.#expectedRemovalIds.has(entity.id)) {
       this.#expectedRemovalIds.delete(entity.id);
+      return;
+    }
+
+    if (isExpectedStorageUnload()) {
+      this.#handleExpectedStorageUnload(entity);
       return;
     }
 
@@ -647,7 +782,7 @@ export default class ItemDatabase {
         slots,
       };
 
-      this.#markUnhealthy(`存储实体被意外移除，正在尝试抢救 ${slots.length} 个物品槽`);
+      this.#markUnhealthy(`存储实体在有人在线时被意外移除，正在尝试抢救 ${slots.length} 个物品槽`);
       system.run(() => {
         void this.#restoreRemovedEntity(snapshot);
       });
@@ -677,7 +812,12 @@ export default class ItemDatabase {
         container.setItem(rescued.slot, rescued.item);
         const fullSlot = snapshot.entityIndex * ITEM_MAX_PER_ENTITY + rescued.slot;
         const stored = this.#itemData[fullSlot] ?? this.#database.get(`slot_${fullSlot}`);
-        const restoredData: SlotData = { ...(stored ?? {}), slot: fullSlot, item: rescued.item };
+        const restoredData: SlotData = {
+          ...(stored ?? {}),
+          slot: fullSlot,
+          item: rescued.item,
+          itemSnapshot: serializeItemStack(rescued.item),
+        };
         this.#itemData[fullSlot] = restoredData;
         this.#database.set(`slot_${fullSlot}`, restoredData);
       }
