@@ -307,7 +307,8 @@ export default class ItemDatabase {
             this.#itemData[slot] = stored;
             this.#database.set(`slot_${slot}`, stored);
           } else if (it && !stored) {
-            this.#markUnhealthy(`槽位 ${slot} 有实体物品但缺少索引记录`);
+            this.#quarantineOrphanEntityItem(slot, it);
+            inv?.setItem(i);
           } else if (!it && stored) {
             if (stored.itemSnapshot) {
               const restored = deserializeItemStack(stored.itemSnapshot);
@@ -364,11 +365,12 @@ export default class ItemDatabase {
     const entityIndex = Math.floor(slot / ITEM_MAX_PER_ENTITY);
     const entitySlot = slot % ITEM_MAX_PER_ENTITY;
     const ent = this.#entities[entityIndex];
-    ent.getComponent("inventory")?.container.setItem(entitySlot, item);
 
     const fullData: SlotData = { slot, item, itemSnapshot: serializeItemStack(item), ...data };
     this.#database.set(`slot_${slot}`, fullData);
     this.#itemData[slot] = fullData;
+    this.#database.save();
+    ent.getComponent("inventory")?.container.setItem(entitySlot, item);
     return fullData;
   }
 
@@ -380,6 +382,9 @@ export default class ItemDatabase {
     const ent = this.#entities[entityIndex];
     const inv = ent.getComponent("inventory")?.container;
     if (!inv) return;
+    this.#database.delete(`slot_${slot}`);
+    delete this.#itemData[slot];
+    this.#database.save();
     inv.setItem(entitySlot);
 
     if (
@@ -391,9 +396,6 @@ export default class ItemDatabase {
       this.#markExpectedRemoval(ent);
       ent.remove();
     }
-
-    this.#database.delete(`slot_${slot}`);
-    delete this.#itemData[slot];
   }
 
   /** 在已加载的 anchor 上生成一只存储实体并加入列表 */
@@ -513,15 +515,20 @@ export default class ItemDatabase {
     const merged = { ...this.#itemData[slot], ...newData };
 
     if (newData.item) {
-      const entityIndex = Math.floor(slot / ITEM_MAX_PER_ENTITY);
-      const entitySlot = slot % ITEM_MAX_PER_ENTITY;
-      const ent = this.#entities[entityIndex];
-      ent.getComponent("inventory")?.container.setItem(entitySlot, newData.item);
       merged.itemSnapshot = serializeItemStack(newData.item);
     }
 
     this.#database.set(`slot_${slot}`, merged);
     this.#itemData[slot] = merged;
+    this.#database.save();
+
+    if (newData.item) {
+      const entityIndex = Math.floor(slot / ITEM_MAX_PER_ENTITY);
+      const entitySlot = slot % ITEM_MAX_PER_ENTITY;
+      const ent = this.#entities[entityIndex];
+      ent.getComponent("inventory")?.container.setItem(entitySlot, newData.item);
+    }
+
     return merged;
   }
 
@@ -677,6 +684,26 @@ export default class ItemDatabase {
     this.#itemData[slot] = merged;
     this.#database.set(`slot_${slot}`, merged);
     return merged;
+  }
+
+  #quarantineOrphanEntityItem(slot: number, item: ItemStack): void {
+    try {
+      const detectedAt = Date.now();
+      const backupKey = `orphan_${slot}_${detectedAt}`;
+      this.#database.set(backupKey, {
+        slot,
+        detectedAt,
+        reason: "entity item exists but slot index is missing",
+        itemSnapshot: serializeItemStack(item),
+      });
+      this.#database.save();
+      SystemLog.warn(
+        `[ItemDatabase ${this.#name}] 槽位 ${slot} 有实体物品但缺少索引记录，已备份为 ${backupKey} 并清空实体槽位`
+      );
+      this.#notifyAdmins(`§e物品数据库 ${this.#name} 已隔离无索引物品槽位 ${slot}，数据库已自动恢复。`);
+    } catch (error) {
+      this.#markUnhealthy(`槽位 ${slot} 有实体物品但缺少索引记录，且备份失败: ${String(error)}`);
+    }
   }
 
   #handleExpectedStorageUnload(entity: Entity): void {
