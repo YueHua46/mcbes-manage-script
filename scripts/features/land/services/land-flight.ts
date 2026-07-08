@@ -19,7 +19,7 @@ const ABILITY_PROBE_COOLDOWN_MS = 60 * 1000;
 
 interface LandFlightSession {
   dimensionId: string;
-  /** 下次周期扣费时间（仅普通玩家且开启周期扣费时存在） */
+  /** 下次周期扣费时间（开启周期扣费时存在） */
   nextBillingAtMs?: number;
   phase: "normal" | "graceOutside";
   /** 宽限结束 tick（仅 phase === graceOutside；system.currentTick >= 此值时到期） */
@@ -435,13 +435,13 @@ export function tryStartLandFlightSession(player: Player): string | void {
 
   const useEconomy = setting.getState("landFlightUseEconomy") === true;
   const economyOn = setting.getState("economy") === true;
-  if (useEconomy && !economyOn && !admin) {
+  if (useEconomy && !economyOn) {
     return color.red("已开启「飞行扣费」，但经济系统未启用。请管理员打开经济模块或关闭「领地飞行绑定经济」。");
   }
 
   const intervalSec = clampBillingIntervalSec(Number(setting.getState("landFlightBillingIntervalSec")));
   const goldPerInterval = clampGold(Number(setting.getState("landFlightGoldPerInterval")));
-  const periodicCharge = useEconomy && economyOn && !admin && goldPerInterval > 0;
+  const periodicCharge = useEconomy && economyOn && goldPerInterval > 0;
 
   if (periodicCharge) {
     if (!economic.hasEnoughGold(player.name, goldPerInterval)) {
@@ -483,8 +483,6 @@ export function tryStartLandFlightSession(player: Player): string | void {
         `§7余额不足以支付下一笔时，飞行将自动关闭并会提示你。` +
         `\n§7离开领地、换维度或死亡等也会结束飞行。`
     );
-  } else if (admin) {
-    player.sendMessage(color.green("§a领地飞行已开启。") + `\n§7管理员不扣金币。离开领地、换维度或死亡等会结束飞行。`);
   } else {
     player.sendMessage(
       color.green("§a领地飞行已开启。") +
@@ -552,12 +550,7 @@ export function initLandFlight(): void {
             clearLandFlightHud(player);
           }
 
-          if (adm) {
-            sess.nextBillingAtMs = undefined;
-            continue;
-          }
-
-          const shouldBill = useEconomy && economyOn && !adm && goldPerInterval > 0;
+          const shouldBill = useEconomy && economyOn && goldPerInterval > 0;
           if (shouldBill && sess.nextBillingAtMs !== undefined && now >= sess.nextBillingAtMs) {
             const ok = economic.removeGold(player.name, goldPerInterval, "landFlight:billing");
             if (!ok) {
