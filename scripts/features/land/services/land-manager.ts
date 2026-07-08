@@ -14,6 +14,8 @@ import economic from "../../economic/services/economic";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import { getGuildPlayerIndexDb } from "../../guild/services/guild-player-index-db";
 import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
+import identityService from "../../player/services/identity-service";
+import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
 
 class LandManager {
   db!: Database<ILand>;
@@ -74,6 +76,13 @@ class LandManager {
     const land = this.db.get(name) as ILand;
     if (land.members.includes(member)) return "成员已存在";
     land.members.push(member);
+    const memberIdentityId = identityService.getProfileByName(member)?.id;
+    if (memberIdentityId) {
+      land.memberIdentityIds = land.memberIdentityIds ?? [];
+      if (!land.memberIdentityIds.includes(memberIdentityId)) {
+        land.memberIdentityIds.push(memberIdentityId);
+      }
+    }
     return this.db.set(name, land);
   }
 
@@ -85,6 +94,10 @@ class LandManager {
     const land = this.db.get(name) as ILand;
     if (!land.members.includes(member)) return "成员不存在";
     land.members = land.members.filter((m) => m !== member);
+    const memberIdentityId = identityService.getProfileByName(member)?.id;
+    if (memberIdentityId && land.memberIdentityIds) {
+      land.memberIdentityIds = land.memberIdentityIds.filter((id) => id !== memberIdentityId);
+    }
     return this.db.set(name, land);
   }
 
@@ -176,11 +189,14 @@ class LandManager {
    * 领地信任判定：领主、领地成员名单、或「公会领地」且玩家公会 ID 与领地 guildId 一致
    */
   isPlayerTrustedOnLand(land: ILand, playerName: string): boolean {
+    const profile = identityService.getProfileByName(playerName);
+    if (profile?.id && land.ownerIdentityId === profile.id) return true;
+    if (profile?.id && land.memberIdentityIds?.includes(profile.id)) return true;
     if (land.owner === playerName) return true;
     if (land.members.includes(playerName)) return true;
     if (land.guildId) {
       try {
-        const gid = getGuildPlayerIndexDb().get(playerName);
+        const gid = getGuildPlayerIndexDb().get(profile?.id ?? playerName) ?? getGuildPlayerIndexDb().get(playerName);
         if (typeof gid === "string" && gid === land.guildId) return true;
       } catch {
         /* ignore */
@@ -200,7 +216,10 @@ class LandManager {
    * 获取指定玩家的所有领地
    */
   getPlayerLands(playerName: string): ILand[] {
-    return Object.values(this.db.getAll()).filter((land) => land.owner === playerName);
+    const identityId = identityService.getProfileByName(playerName)?.id;
+    return Object.values(this.db.getAll()).filter(
+      (land) => land.owner === playerName || (identityId !== undefined && land.ownerIdentityId === identityId)
+    );
   }
 
   /**
@@ -219,6 +238,7 @@ class LandManager {
 
     const land = this.db.get(name) as ILand;
     land.owner = playerName;
+    land.ownerIdentityId = identityService.getProfileByName(playerName)?.id;
     return this.db.set(name, land);
   }
 
@@ -227,7 +247,12 @@ class LandManager {
    */
   getPlayerLandCount(playerName: string): number {
     const lands = this.db.values();
-    return lands.filter((land) => land.owner === playerName && !land.guildId).length;
+    const identityId = identityService.getProfileByName(playerName)?.id;
+    return lands.filter(
+      (land) =>
+        !land.guildId &&
+        (land.owner === playerName || (identityId !== undefined && land.ownerIdentityId === identityId))
+    ).length;
   }
 
   /** 某公会当前已登记的公会领地块数（独立配额用） */
@@ -290,6 +315,8 @@ class LandManager {
     if (!player) {
       return "领地创建需要创建者在线，且不能由假人发起";
     }
+    const ownerProfile = identityService.getProfileForPlayer(player);
+    landData.ownerIdentityId = ownerProfile.id;
 
     // 公会领地：只受每公会上限约束，不占个人领地名额
     if (landData.guildId) {
@@ -610,6 +637,18 @@ class LandManager {
         createProgressiveParticles(player, startLocation, 1.0, false);
 
         system.run(() => {
+          const chargeError = chargeTeleportCost(player, "landTeleportCost", "领地传送");
+          if (chargeError) {
+            player.onScreenDisplay.setTitle("");
+            player.onScreenDisplay.setActionBar(color.red(chargeError));
+            try {
+              player.playSound("random.pop");
+            } catch {
+              // ignore sound errors
+            }
+            return;
+          }
+
           try {
             player.teleport(targetLocation, {
               dimension: targetDimension,
@@ -665,6 +704,7 @@ class LandManager {
               }
             }, 1);
           } catch (error) {
+            refundTeleportCost(player, "landTeleportCost", "领地传送失败退款");
             player.onScreenDisplay.setTitle("");
             player.onScreenDisplay.setActionBar(color.red("传送失败！"));
             try {

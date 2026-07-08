@@ -23,6 +23,7 @@ import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
 import { openLiveServerPanel } from "./live-server-panel";
 import { openFloatingTextMenu } from "../floating-text";
+import { openQuestSystemManageForm } from "../quest-system";
 import {
   BDS_ONLY_FEATURE_HINT,
   isServerAdminBuild,
@@ -181,6 +182,11 @@ export function openSystemSettingForm(player: Player): void {
       action: () => openEconomyManageForm(player),
     },
     {
+      text: "任务系统",
+      icon: "textures/icons/quest_log",
+      action: () => openQuestSystemManageForm(player, () => openSystemSettingForm(player)),
+    },
+    {
       text: "PVP管理",
       icon: "textures/icons/sword",
       action: async () => {
@@ -263,6 +269,11 @@ export function openGeneralSettingsForm(player: Player): void {
     { key: "welcomeMessage", name: "进服欢迎消息(支持颜色代码和\\n换行符)", type: "string" },
     { key: "killItemAmount", name: "掉落物清理数量阈值", type: "number" },
     { key: "randomTpRange", name: "随机传送范围", type: "number" },
+    { key: "randomTeleportCost", name: "随机传送费用(0为免费)", type: "number" },
+    { key: "backToDeathCost", name: "回到死亡地点费用(0为免费)", type: "number" },
+    { key: "tpaTeleportCost", name: "TPA传送费用(0为免费)", type: "number" },
+    { key: "waypointTeleportCost", name: "坐标点传送费用(0为免费)", type: "number" },
+    { key: "landTeleportCost", name: "领地传送费用(0为免费)", type: "number" },
     { key: "maxLandPerPlayer", name: "每玩家最大领地数(不含已登记为公会领地的地块)", type: "number" },
     { key: "maxLandBlocks", name: "领地最大方块数", type: "number" },
     { key: "maxPrivatePointsPerPlayer", name: "每玩家最大私人坐标点数", type: "number" },
@@ -277,6 +288,7 @@ export function openGeneralSettingsForm(player: Player): void {
     { key: "fakePlayerCreateCost", name: "创建假人费用", type: "number" },
     { key: "redPacketExpiryHours", name: "全服红包有效时长(小时，过期未领退回)", type: "number" },
     { key: "behaviorLogMaxEntries", name: "行为日志最大保留条数", type: "number" },
+    { key: "itemWatchSnapshotMaxEntries", name: "物品监控背包快照最大保留条数", type: "number" },
     { key: "behaviorLogLocationIntervalSec", name: "行为日志坐标采样间隔(秒)", type: "number" },
   ];
 
@@ -326,6 +338,7 @@ function openEditSettingForm(
     const { formValues } = data;
     if (formValues?.[0]) {
       const newValue = formValues[0].toString();
+      let savedValue = newValue;
 
       if (type === "number") {
         const numValue = Number(newValue);
@@ -336,7 +349,26 @@ function openEditSettingForm(
           });
           return;
         }
-        if (key === "redPacketExpiryHours") {
+        if (
+          [
+            "randomTeleportCost",
+            "backToDeathCost",
+            "tpaTeleportCost",
+            "waypointTeleportCost",
+            "landTeleportCost",
+          ].includes(key)
+        ) {
+          const cost = Math.floor(numValue);
+          if (!Number.isFinite(cost) || cost < 0) {
+            openDialogForm(player, {
+              title: "设置失败",
+              desc: color.red("传送费用须为 0 或正整数"),
+            });
+            return;
+          }
+          savedValue = String(cost);
+          setting.setState(key as any, savedValue);
+        } else if (key === "redPacketExpiryHours") {
           const h = Math.floor(numValue);
           if (h < 1 || h > 8760) {
             openDialogForm(player, {
@@ -345,7 +377,8 @@ function openEditSettingForm(
             });
             return;
           }
-          setting.setState(key as any, String(h));
+          savedValue = String(h);
+          setting.setState(key as any, savedValue);
         } else {
           setting.setState(key as any, newValue);
         }
@@ -357,7 +390,7 @@ function openEditSettingForm(
         player,
         {
           title: "设置成功",
-          desc: color.green(`${name} 已更新为: ${newValue}`),
+          desc: color.green(`${name} 已更新为: ${savedValue}`),
         },
         afterSave
       );

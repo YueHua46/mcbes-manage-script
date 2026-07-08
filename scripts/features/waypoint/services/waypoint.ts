@@ -9,6 +9,7 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 import { isAdmin } from "../../../shared/utils/common";
 import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
+import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
 import setting, { IValueType } from "../../system/services/setting";
 
 export interface IWayPoint {
@@ -471,6 +472,18 @@ class WayPoint {
 
         // 执行传送
         system.run(() => {
+          const chargeError = chargeTeleportCost(player, "waypointTeleportCost", "坐标点传送");
+          if (chargeError) {
+            player.onScreenDisplay.setTitle("");
+            player.onScreenDisplay.setActionBar(color.red(chargeError));
+            try {
+              player.playSound("random.pop");
+            } catch {
+              // ignore sound errors
+            }
+            return;
+          }
+
           try {
             player.teleport(targetLocation, {
               dimension: targetDimension,
@@ -489,6 +502,7 @@ class WayPoint {
               }
             }, 1); // 延迟1 tick确保传送完成
           } catch (error) {
+            refundTeleportCost(player, "waypointTeleportCost", "坐标点传送失败退款");
             player.onScreenDisplay.setTitle("");
             player.onScreenDisplay.setActionBar(color.red("传送失败！"));
             try {

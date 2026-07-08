@@ -10,6 +10,7 @@ import { usePlayerByName } from "../../../shared/hooks/use-player";
 import setting from "../../system/services/setting";
 import { colorCodes } from "../../../shared/utils/color";
 import { formatDateOnlyBeijing } from "../../../shared/utils/datetime-beijing";
+import identityService from "../../player/services/identity-service";
 import type { IUserWallet, IUserWalletWithDailyLimit, ITransaction } from "../models/economic.model";
 
 export class Economic {
@@ -75,15 +76,55 @@ export class Economic {
     return this.getCurrentDateString();
   }
 
-  initWallet(name: string): IUserWalletWithDailyLimit {
+  private resolveWalletKey(playerName: string): string {
+    const profile = identityService.getProfileByName(playerName);
+    if (!profile) return playerName;
+    const identityKey = profile.id;
+    if (this.db.get(identityKey)) return identityKey;
+
+    const legacyKeys = [profile.currentName, ...profile.knownNames, playerName];
+    const legacyKey = legacyKeys.find((key) => key !== identityKey && this.db.get(key));
+    if (!legacyKey) return identityKey;
+
+    const legacyWallet = this.db.get(legacyKey) as IUserWalletWithDailyLimit | undefined;
+    if (!legacyWallet) return identityKey;
+
+    const migratedWallet: IUserWalletWithDailyLimit = {
+      ...legacyWallet,
+      name: profile.currentName,
+      identityId: identityKey,
+    };
+    this.db.set(identityKey, migratedWallet);
+    for (const key of legacyKeys) {
+      if (key !== identityKey && this.db.has(key)) {
+        this.db.delete(key);
+      }
+    }
+    return identityKey;
+  }
+
+  private getTransactionLookupKeys(playerName: string): Set<string> {
+    const keys = new Set<string>([playerName]);
+    const profile = identityService.getProfileByName(playerName);
+    if (profile) {
+      keys.add(profile.id);
+      keys.add(profile.currentName);
+      profile.knownNames.forEach((name) => keys.add(name));
+    }
+    return keys;
+  }
+
+  initWallet(name: string, storageKey: string = name): IUserWalletWithDailyLimit {
+    const profile = identityService.getProfileByName(name);
     const wallet: IUserWalletWithDailyLimit = {
-      name,
+      name: profile?.currentName ?? name,
+      identityId: profile?.id,
       gold: this.DEFAULT_GOLD,
       dailyEarned: 0,
       lastResetDate: this.getCurrentDateString(),
       dailyLimitNotifyCount: 0,
     };
-    this.db.set(name, wallet);
+    this.db.set(storageKey, wallet);
     return wallet;
   }
 
@@ -91,26 +132,34 @@ export class Economic {
    * 检查玩家是否有钱包数据（不自动创建）
    */
   hasWallet(playerName: string): boolean {
-    const wallet = this.db.get(playerName);
+    const wallet = this.db.get(this.resolveWalletKey(playerName));
     return wallet !== undefined && wallet !== null;
   }
 
   getWallet(playerName: string): IUserWalletWithDailyLimit {
-    let wallet = this.db.get(playerName) as IUserWalletWithDailyLimit;
+    const storageKey = this.resolveWalletKey(playerName);
+    const profile = identityService.getProfileByName(playerName);
+    let wallet = this.db.get(storageKey) as IUserWalletWithDailyLimit;
     if (!wallet) {
-      wallet = this.initWallet(playerName);
+      wallet = this.initWallet(playerName, storageKey);
+    }
+
+    if (profile && (wallet.identityId !== profile.id || wallet.name !== profile.currentName)) {
+      wallet.identityId = profile.id;
+      wallet.name = profile.currentName;
+      this.db.set(storageKey, wallet);
     }
 
     if (wallet.dailyEarned === undefined) {
       wallet.dailyEarned = 0;
       wallet.lastResetDate = this.getCurrentDateString();
-      this.db.set(playerName, wallet);
+      this.db.set(storageKey, wallet);
     }
 
     if (wallet.lastResetDate !== this.getCurrentDateString()) {
       wallet.dailyEarned = 0;
       wallet.lastResetDate = this.getCurrentDateString();
-      this.db.set(playerName, wallet);
+      this.db.set(storageKey, wallet);
     }
 
     let needsFix = false;
@@ -142,7 +191,7 @@ export class Economic {
     }
 
     if (needsFix) {
-      this.db.set(playerName, wallet);
+      this.db.set(storageKey, wallet);
     }
 
     return wallet;
@@ -203,7 +252,7 @@ export class Economic {
               ],
             });
             wallet.dailyLimitNotifyCount++;
-            this.db.set(playerName, wallet);
+            this.db.set(this.resolveWalletKey(playerName), wallet);
           }
         }
         return 0;
@@ -223,7 +272,7 @@ export class Economic {
               ],
             });
             wallet.dailyLimitNotifyCount++;
-            this.db.set(playerName, wallet);
+            this.db.set(this.resolveWalletKey(playerName), wallet);
           }
         }
       }
@@ -235,7 +284,7 @@ export class Economic {
       wallet.dailyEarned += amount;
     }
 
-    this.db.set(playerName, wallet);
+    this.db.set(this.resolveWalletKey(playerName), wallet);
     this.logTransaction("system", playerName, amount, reason);
 
     return amount;
@@ -259,7 +308,7 @@ export class Economic {
     if (wallet.gold < amount) return false;
 
     wallet.gold -= amount;
-    this.db.set(playerName, wallet);
+    this.db.set(this.resolveWalletKey(playerName), wallet);
     this.logTransaction(playerName, "system", amount, reason);
 
     return true;
@@ -289,16 +338,18 @@ export class Economic {
     if (fromWallet.gold < amount) return "余额不足";
 
     const toWallet = this.getWallet(toPlayer);
+    const fromKey = this.resolveWalletKey(fromPlayer);
+    const toKey = this.resolveWalletKey(toPlayer);
 
     fromWallet.gold -= amount;
     try {
-      this.db.set(fromPlayer, fromWallet);
+      this.db.set(fromKey, fromWallet);
       toWallet.gold += amount;
-      this.db.set(toPlayer, toWallet);
+      this.db.set(toKey, toWallet);
     } catch (error) {
       fromWallet.gold += amount;
       try {
-        this.db.set(fromPlayer, fromWallet);
+        this.db.set(fromKey, fromWallet);
       } catch (rollbackError) {
         console.warn(`转账失败且回滚付款方失败: ${fromPlayer} -> ${toPlayer}`, rollbackError);
       }
@@ -364,16 +415,17 @@ export class Economic {
 
     const wallet = this.getWallet(playerName);
     wallet.gold = amount;
-    this.db.set(playerName, wallet);
+    this.db.set(this.resolveWalletKey(playerName), wallet);
 
     return true;
   }
 
   getPlayerTransactions(playerName: string, limit: number = 10): ITransaction[] {
     const allLogs = this.logDb.get("transactions") || [];
+    const lookupKeys = this.getTransactionLookupKeys(playerName);
 
     return allLogs
-      .filter((log) => log.from === playerName || log.to === playerName)
+      .filter((log) => lookupKeys.has(log.from) || lookupKeys.has(log.to))
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit);
   }
@@ -413,7 +465,7 @@ export class Economic {
     const wallet = this.getWallet(playerName);
     wallet.dailyEarned = 0;
     wallet.lastResetDate = this.getCurrentDateString();
-    this.db.set(playerName, wallet);
+    this.db.set(this.resolveWalletKey(playerName), wallet);
   }
 
   fixInvalidGoldData(): void {

@@ -4,10 +4,15 @@
  */
 
 import { ActionFormData, ActionFormResponse } from "@minecraft/server-ui";
-import { Player, RawMessage } from "@minecraft/server";
+import { ItemStack, Player, RawMessage } from "@minecraft/server";
 import { resolveChestUiItemDisplayTexture } from "../../../features/system/services/chest-ui-icon-paths";
-import { getChestItemTextureKey } from "./item-chest-display";
+import {
+  getChestItemDurabilityBarValue,
+  getChestItemTextureKey,
+  getChestItemTooltipExtraLines,
+} from "./item-chest-display";
 import { inventory_enabled, CHEST_UI_SIZES, ChestUISize } from "./constants";
+import ChestUIUtility from "./utility";
 
 /**
  * 增强的响应接口，包含物品栏槽位映射（本项目扩展）
@@ -25,6 +30,65 @@ export interface ChestFormShowOptions {
 }
 
 type ButtonData = [RawMessage | string, string | undefined];
+type ButtonRawtext = { rawtext: RawMessage[] };
+
+function appendRawMessage(target: ButtonRawtext, message: string | RawMessage, newline = false, reset = false): boolean {
+  if (typeof message === "string") {
+    target.rawtext.push({ text: `${newline ? "\n" : ""}${message}${reset ? "§r" : ""}` });
+    return true;
+  }
+
+  if (!message || typeof message !== "object") return false;
+
+  if (newline) target.rawtext.push({ text: "\n" });
+
+  if ("rawtext" in message && message.rawtext) {
+    for (const frag of message.rawtext as RawMessage[]) {
+      const f = frag as { text?: string; translate?: string; with?: string[] | RawMessage };
+      if (f.translate !== undefined) {
+        target.rawtext.push(
+          f.with !== undefined ? { translate: f.translate, with: f.with as string[] } : { translate: f.translate }
+        );
+      } else if (f.text !== undefined) {
+        target.rawtext.push({ text: f.text });
+      }
+    }
+  } else if ("translate" in message && message.translate) {
+    const m = message as RawMessage;
+    if (m.with !== undefined) {
+      target.rawtext.push({ translate: m.translate!, with: m.with as string[] });
+    } else {
+      target.rawtext.push({ translate: m.translate! });
+    }
+  } else if ("text" in message && message.text !== undefined) {
+    target.rawtext.push({ text: message.text });
+  } else {
+    return false;
+  }
+
+  if (reset) target.rawtext.push({ text: "§r" });
+  return true;
+}
+
+function buildViewerInventoryButtonRawtext(item: ItemStack): RawMessage {
+  const stackSize = String(Math.min(Math.max(item.amount, 1), 99)).padStart(2, "0");
+  const durability = String(Math.min(Math.max(getChestItemDurabilityBarValue(item), 0), 99)).padStart(2, "0");
+  const displayName: string | RawMessage = item.nameTag ? item.nameTag : ChestUIUtility.getItemDisplayName(item);
+  const itemDesc = [...getChestItemTooltipExtraLines(item), ...item.getLore()];
+  const buttonRawtext: ButtonRawtext = {
+    rawtext: [{ text: `stack#${stackSize}dur#${durability}§r` }],
+  };
+
+  if (!appendRawMessage(buttonRawtext, displayName, false, true)) {
+    buttonRawtext.rawtext.push({ text: "§r" });
+  }
+
+  for (const line of itemDesc) {
+    appendRawMessage(buttonRawtext, line, true);
+  }
+
+  return buttonRawtext as RawMessage;
+}
 
 /**
  * pattern() 中每个字符对应的数据
@@ -240,29 +304,7 @@ export class ChestFormData {
       }
 
       const iconTexture = getChestItemTextureKey(item);
-      const durabilityComponent = item.getComponent("durability");
-      const durDamage = durabilityComponent
-        ? Math.round(
-            ((durabilityComponent.maxDurability - durabilityComponent.damage) / durabilityComponent.maxDurability) * 99
-          )
-        : 0;
-      const amount = item.amount;
-      const formattedItemName = item.typeId
-        .replace(/.*(?<=:)/, "")
-        .replace(/_/g, " ")
-        .replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
-
-      const buttonRawtext = {
-        rawtext: [
-          {
-            text: `stack#${String(amount).padStart(2, "0")}dur#${String(durDamage).padStart(2, "0")}§r${formattedItemName}`,
-          },
-        ],
-      };
-      const loreText = item.getLore().join("\n");
-      if (loreText) buttonRawtext.rawtext.push({ text: loreText });
-
-      form.button(buttonRawtext, iconTexture);
+      form.button(buildViewerInventoryButtonRawtext(item), iconTexture);
     }
 
     return form.show(player).then((response) => {
@@ -408,29 +450,7 @@ export class FurnaceFormData {
       }
 
       const iconTexture = getChestItemTextureKey(item);
-      const durabilityComponent = item.getComponent("durability");
-      const durDamage = durabilityComponent
-        ? Math.round(
-            ((durabilityComponent.maxDurability - durabilityComponent.damage) / durabilityComponent.maxDurability) * 99
-          )
-        : 0;
-      const amount = item.amount;
-      const formattedItemName = item.typeId
-        .replace(/.*(?<=:)/, "")
-        .replace(/_/g, " ")
-        .replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
-
-      const buttonRawtext = {
-        rawtext: [
-          {
-            text: `stack#${String(amount).padStart(2, "0")}dur#${String(durDamage).padStart(2, "0")}§r${formattedItemName}`,
-          },
-        ],
-      };
-      const loreText = item.getLore().join("\n");
-      if (loreText) buttonRawtext.rawtext.push({ text: loreText });
-
-      form.button(buttonRawtext, iconTexture);
+      form.button(buildViewerInventoryButtonRawtext(item), iconTexture);
     }
 
     return form.show(player).then((response) => {

@@ -3,7 +3,7 @@
  * Database 在 system.run 中初始化，避免 early execution 调用 getDynamicProperty。
  */
 
-import { system } from "@minecraft/server";
+import { system, world } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import setting from "../../system/services/setting";
 
@@ -40,16 +40,48 @@ interface SnapshotState {
 
 const DATABASE_NAME = "itemWatchSnapshots";
 const STORE_KEY = "state";
-const DEFAULT_MAX = 20000;
+const EMPTY_DATABASE_JSON = JSON.stringify({ [STORE_KEY]: { v: 1, entries: {} } });
+const DEFAULT_MAX = 500;
+const HARD_MAX = 5000;
+const MAX_STORAGE_CHARS = 8 * 1024 * 1024;
+const MIN_DATABASE_CHUNK_SIZE = Math.floor(32767 * 0.75);
+const MAX_STARTUP_CHUNKS = Math.ceil(MAX_STORAGE_CHARS / MIN_DATABASE_CHUNK_SIZE);
 
 function generateId(): string {
   return `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
 }
 
 function getMaxSnapshots(): number {
-  const raw = Number(setting.getState("behaviorLogMaxEntries" as never));
+  const raw = Number(setting.getState("itemWatchSnapshotMaxEntries" as never));
   if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_MAX;
-  return Math.min(Math.floor(raw), 200000);
+  return Math.min(Math.floor(raw), HARD_MAX);
+}
+
+function resetOversizedStartupDatabase(): void {
+  const index = Number(world.getDynamicProperty(`${DATABASE_NAME}Index`));
+  if (!Number.isFinite(index) || index <= MAX_STARTUP_CHUNKS) return;
+
+  console.warn(
+    `[ItemWatchSnapshotStore] ${DATABASE_NAME} 数据块过多(${index})，为避免启动内存溢出已重置快照库`
+  );
+  world.setDynamicProperty(`${DATABASE_NAME}Index`, 1);
+  world.setDynamicProperty(`${DATABASE_NAME}:0`, EMPTY_DATABASE_JSON);
+
+  let nextChunk = 1;
+  const clearOldChunks = system.runInterval(() => {
+    const end = Math.min(nextChunk + 64, index);
+    for (let i = nextChunk; i < end; i++) {
+      try {
+        world.setDynamicProperty(`${DATABASE_NAME}:${i}`, undefined);
+      } catch {
+        // 清理旧分块失败不影响新库启动，后续不会再读取这些分块。
+      }
+    }
+    nextChunk = end;
+    if (nextChunk >= index) {
+      system.clearRun(clearOldChunks);
+    }
+  }, 1);
 }
 
 class ItemWatchSnapshotStore {
@@ -61,7 +93,8 @@ class ItemWatchSnapshotStore {
 
   constructor() {
     system.run(() => {
-      this.db = new Database<SnapshotState>(DATABASE_NAME);
+      resetOversizedStartupDatabase();
+      this.db = new Database<SnapshotState>(DATABASE_NAME, EMPTY_DATABASE_JSON);
       this.ensureState();
       if (this.pendingSave.length > 0) {
         const state = this.getState();
@@ -72,6 +105,9 @@ class ItemWatchSnapshotStore {
         this.trim(state);
         this.saveState(state);
       }
+      const state = this.getState();
+      this.trim(state);
+      this.saveState(state);
     });
   }
 
@@ -125,16 +161,28 @@ class ItemWatchSnapshotStore {
   private trim(state: SnapshotState): void {
     const max = getMaxSnapshots();
     const keys = Object.keys(state.entries);
-    if (keys.length <= max) return;
-
     const sorted = keys
       .map((k) => ({ k, t: state.entries[k]?.t ?? 0 }))
       .sort((a, b) => a.t - b.t);
-    const remove = sorted.length - max;
+
+    const remove = Math.max(0, sorted.length - max);
     for (let i = 0; i < remove; i++) {
       const k = sorted[i].k;
       delete state.entries[k];
       this.memoryCache.delete(k);
+    }
+
+    let nextRemoveIndex = remove;
+    let serializedLength = JSON.stringify({ [STORE_KEY]: state }).length;
+    while (serializedLength > MAX_STORAGE_CHARS && nextRemoveIndex < sorted.length) {
+      const batchEnd = Math.min(sorted.length, nextRemoveIndex + 50);
+      for (let i = nextRemoveIndex; i < batchEnd; i++) {
+        const k = sorted[i].k;
+        delete state.entries[k];
+        this.memoryCache.delete(k);
+      }
+      nextRemoveIndex = batchEnd;
+      serializedLength = JSON.stringify({ [STORE_KEY]: state }).length;
     }
   }
 

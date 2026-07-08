@@ -21,7 +21,11 @@ export interface IGuild {
   name: string;
   tag: string;
   ownerName: string;
+  /** 新版内部身份 ID；旧存档没有该字段时继续按 ownerName 兼容 */
+  ownerIdentityId?: string;
   members: Record<string, IGuildMemberEntry>;
+  /** 成员名键 → 内部身份 ID；旧存档没有该字段时继续按 members 名字兼容 */
+  memberIdentityIds?: Record<string, string>;
   treasuryGold: number;
   createdAt: number;
   announcement?: string;

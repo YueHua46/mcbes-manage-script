@@ -17,6 +17,7 @@ import behaviorLog, {
 import landManager from "../../land/services/land-manager";
 import nameDisplay from "../../player/services/name-display";
 import onlineTimeService, { formatOnlineDuration } from "../../player/services/online-time";
+import identityService from "../../player/services/identity-service";
 import wayPoint from "../../waypoint/services/waypoint";
 import type { ILand } from "../../../core/types";
 import { BRANDING } from "../../../core/constants";
@@ -130,21 +131,72 @@ class GuildService {
     this.displayCache.set(name, { guildId, tag, exp: Date.now() + DISPLAY_CACHE_TTL_MS });
   }
 
+  private getIdentityId(playerName: string): string | undefined {
+    return identityService.getProfileByName(playerName)?.id;
+  }
+
+  private getIndexKey(playerName: string): string {
+    return this.getIdentityId(playerName) ?? playerName;
+  }
+
+  private setPlayerIndex(playerName: string, guildId: string): void {
+    this.indexDb.set(playerName, guildId);
+    const identityId = this.getIdentityId(playerName);
+    if (identityId) this.indexDb.set(identityId, guildId);
+  }
+
+  private deletePlayerIndex(playerName: string): void {
+    this.indexDb.delete(playerName);
+    const identityId = this.getIdentityId(playerName);
+    if (identityId) this.indexDb.delete(identityId);
+  }
+
+  private getIndexedGuildId(playerName: string): string | undefined {
+    const identityId = this.getIdentityId(playerName);
+    const byIdentity = identityId ? this.indexDb.get(identityId) : undefined;
+    return byIdentity ?? this.indexDb.get(playerName);
+  }
+
+  private getMemberKey(g: IGuild, playerName: string): string | undefined {
+    if (g.members[playerName]) return playerName;
+    const identityId = this.getIdentityId(playerName);
+    if (!identityId || !g.memberIdentityIds) return undefined;
+    return Object.entries(g.memberIdentityIds).find(
+      ([memberName, id]) => id === identityId && g.members[memberName]
+    )?.[0];
+  }
+
+  private isGuildOwner(g: IGuild, playerName: string): boolean {
+    if (g.ownerName === playerName) return true;
+    const identityId = this.getIdentityId(playerName);
+    return Boolean(identityId && g.ownerIdentityId === identityId);
+  }
+
+  private attachMemberIdentity(g: IGuild, playerName: string): void {
+    const identityId = this.getIdentityId(playerName);
+    if (!identityId) return;
+    g.memberIdentityIds = g.memberIdentityIds ?? {};
+    g.memberIdentityIds[playerName] = identityId;
+    if (g.ownerName === playerName) {
+      g.ownerIdentityId = identityId;
+    }
+  }
+
   getGuildIdForPlayerName(playerName: string): string | undefined {
     if (!this.ensureDbs() || !this.isModuleEnabled()) return undefined;
     const cached = this.cacheGet(playerName);
     if (cached) return cached.guildId;
-    const gid = this.indexDb.get(playerName);
+    const gid = this.getIndexedGuildId(playerName);
     if (typeof gid === "string" && gid.length > 0) {
       const g = this.guildsDb.get(gid);
-      if (g && g.members[playerName]) {
+      if (g && this.getMemberKey(g, playerName)) {
         const mig = this.migrateGuild(g);
         if (mig) {
           this.cacheSet(playerName, gid, mig.tag);
           return gid;
         }
       }
-      this.indexDb.delete(playerName);
+      this.deletePlayerIndex(playerName);
     }
     return undefined;
   }
@@ -159,10 +211,10 @@ class GuildService {
     if (setting.getState("guildShowTagInChat") !== true) return undefined;
     const cached = this.cacheGet(playerName);
     if (cached) return this.buildBracketTag(cached.tag);
-    const gid = this.indexDb.get(playerName);
+    const gid = this.getIndexedGuildId(playerName);
     if (typeof gid !== "string" || !gid) return undefined;
     const g = this.migrateGuild(this.guildsDb.get(gid));
-    if (!g || !g.members[playerName]) {
+    if (!g || !this.getMemberKey(g, playerName)) {
       this.invalidateDisplayCache(playerName);
       return undefined;
     }
@@ -176,10 +228,10 @@ class GuildService {
     if (setting.getState("guildShowTagInName") !== true) return undefined;
     const cached = this.cacheGet(playerName);
     if (cached) return this.buildBracketTag(cached.tag);
-    const gid = this.indexDb.get(playerName);
+    const gid = this.getIndexedGuildId(playerName);
     if (typeof gid !== "string" || !gid) return undefined;
     const g = this.migrateGuild(this.guildsDb.get(gid));
-    if (!g || !g.members[playerName]) {
+    if (!g || !this.getMemberKey(g, playerName)) {
       this.invalidateDisplayCache(playerName);
       return undefined;
     }
@@ -204,6 +256,16 @@ class GuildService {
       if (m.lastDailyRedPacketDay != null && typeof m.lastDailyRedPacketDay !== "string") {
         delete m.lastDailyRedPacketDay;
       }
+    }
+    if (g.memberIdentityIds == null) g.memberIdentityIds = {};
+    for (const name of Object.keys(g.members)) {
+      const identityId = this.getIdentityId(name);
+      if (identityId && !g.memberIdentityIds[name]) {
+        g.memberIdentityIds[name] = identityId;
+      }
+    }
+    if (!g.ownerIdentityId) {
+      g.ownerIdentityId = g.memberIdentityIds[g.ownerName] ?? this.getIdentityId(g.ownerName);
     }
     if (g.joinRequests == null) g.joinRequests = {};
     if (g.dailyRedPacketEnabled == null) g.dailyRedPacketEnabled = false;
@@ -261,7 +323,8 @@ class GuildService {
   }
 
   private getRole(g: IGuild, name: string): GuildRole | undefined {
-    return g.members[name]?.role;
+    const memberKey = this.getMemberKey(g, name);
+    return memberKey ? g.members[memberKey]?.role : undefined;
   }
 
   /** 行为日志 meta：固定带 gid=，总长度截断 */
@@ -337,11 +400,10 @@ class GuildService {
     if (tagClean.length < 1) return "公会标签无效";
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法创建公会";
 
-    if (this.indexDb.has(player.name)) return "你已在公会中，请先退出";
+    if (this.getIndexedGuildId(player.name)) return "你已在公会中，请先退出";
 
     const minOnlineHours = Number(setting.getState("guildCreateMinOnlineHours" as never));
-    const minH =
-      Number.isFinite(minOnlineHours) && minOnlineHours > 0 ? Math.floor(minOnlineHours) : 0;
+    const minH = Number.isFinite(minOnlineHours) && minOnlineHours > 0 ? Math.floor(minOnlineHours) : 0;
     if (minH > 0) {
       const needSec = minH * 3600;
       const haveSec = onlineTimeService.getDisplayTotalSeconds(player);
@@ -371,8 +433,12 @@ class GuildService {
       name: nameClean,
       tag: tagClean,
       ownerName: player.name,
+      ownerIdentityId: identityService.getProfileForPlayer(player).id,
       members: {
         [player.name]: { role: "owner", joinedAt: now },
+      },
+      memberIdentityIds: {
+        [player.name]: identityService.getProfileForPlayer(player).id,
       },
       treasuryGold: 0,
       createdAt: now,
@@ -380,7 +446,7 @@ class GuildService {
     };
     try {
       this.saveGuild(g);
-      this.indexDb.set(player.name, id);
+      this.setPlayerIndex(player.name, id);
     } catch (e) {
       if (cost > 0) {
         economic.addGold(player.name, cost, "guild:create:rollback", true);
@@ -401,7 +467,7 @@ class GuildService {
     this.removeAllGuildLandsForGuild(g);
 
     for (const n of Object.keys(g.members)) {
-      this.indexDb.delete(n);
+      this.deletePlayerIndex(n);
       this.invalidateDisplayCache(n);
       const p = usePlayerByName(n);
       if (p) nameDisplay.forceUpdatePlayerNameDisplay(p);
@@ -441,14 +507,14 @@ class GuildService {
     if (!this.ensureDbs()) return "公会系统未就绪";
     if (!this.isModuleEnabled()) return "公会功能已关闭";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) {
-      this.indexDb.delete(player.name);
+      this.deletePlayerIndex(player.name);
       return "公会数据异常，已清理你的索引";
     }
-    if (g.ownerName !== player.name) return "只有会长可以解散公会";
+    if (!this.isGuildOwner(g, player.name)) return "只有会长可以解散公会";
 
     this.disbandGuildDataCore(g);
     this.logGuild(player.name, "guildDisband", this.guildMeta(g, ""));
@@ -491,7 +557,7 @@ class GuildService {
     if (!tname) return "请指定玩家名";
     if (tname === player.name) return "不能邀请自己";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -501,7 +567,7 @@ class GuildService {
 
     if (Object.keys(g.members).length >= this.numSetting("guildMaxMembers")) return "公会人数已满";
 
-    if (this.indexDb.has(tname)) return "该玩家已在其他公会中";
+    if (this.getIndexedGuildId(tname)) return "该玩家已在其他公会中";
 
     const expSec = this.numSetting("guildInviteExpireSec");
     const inv: IPendingGuildInvite = {
@@ -532,7 +598,7 @@ class GuildService {
       return "邀请已过期";
     }
 
-    if (this.indexDb.has(player.name)) {
+    if (this.getIndexedGuildId(player.name)) {
       this.invitesDb.delete(player.name);
       return "你已在公会中";
     }
@@ -548,8 +614,9 @@ class GuildService {
     if (Object.keys(g.members).length >= this.numSetting("guildMaxMembers")) return "公会人数已满";
 
     g.members[player.name] = { role: "member", joinedAt: Date.now() };
+    this.attachMemberIdentity(g, player.name);
     this.saveGuild(g);
-    this.indexDb.set(player.name, g.id);
+    this.setPlayerIndex(player.name, g.id);
     this.invalidateDisplayCache(player.name);
     nameDisplay.forceUpdatePlayerNameDisplay(player);
     this.removePendingJoinRequestsForPlayer(player.name);
@@ -570,18 +637,20 @@ class GuildService {
 
   leaveGuild(player: Player): string {
     if (!this.ensureDbs()) return "公会系统未就绪";
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) {
-      this.indexDb.delete(player.name);
+      this.deletePlayerIndex(player.name);
       return "公会数据异常";
     }
-    if (g.ownerName === player.name) return "会长请先转让会长或解散公会";
+    if (this.isGuildOwner(g, player.name)) return "会长请先转让会长或解散公会";
 
-    delete g.members[player.name];
+    const memberKey = this.getMemberKey(g, player.name) ?? player.name;
+    delete g.members[memberKey];
+    if (g.memberIdentityIds) delete g.memberIdentityIds[memberKey];
     this.saveGuild(g);
-    this.indexDb.delete(player.name);
+    this.deletePlayerIndex(player.name);
     this.invalidateDisplayCache(player.name);
     nameDisplay.forceUpdatePlayerNameDisplay(player);
     this.logGuild(player.name, "guildLeave", this.guildMeta(g, ""));
@@ -592,7 +661,7 @@ class GuildService {
     if (!this.ensureDbs()) return "公会系统未就绪";
     const tname = stripSection(targetName.trim());
     if (!tname) return "请指定玩家";
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -600,15 +669,17 @@ class GuildService {
     const actorRole = this.getRole(g, player.name);
     if (actorRole !== "owner" && actorRole !== "officer") return "无权踢人";
 
-    if (!g.members[tname]) return "该成员不在本会";
-    if (tname === g.ownerName) return "不能踢出会长";
+    const targetMemberKey = this.getMemberKey(g, tname) ?? tname;
+    if (!g.members[targetMemberKey]) return "该成员不在本会";
+    if (this.isGuildOwner(g, targetMemberKey)) return "不能踢出会长";
 
     const targetRole = this.getRole(g, tname);
     if (actorRole === "officer" && targetRole !== "member") return "副会长只能踢出普通成员";
 
-    delete g.members[tname];
+    delete g.members[targetMemberKey];
+    if (g.memberIdentityIds) delete g.memberIdentityIds[targetMemberKey];
     this.saveGuild(g);
-    this.indexDb.delete(tname);
+    this.deletePlayerIndex(tname);
     this.invalidateDisplayCache(tname);
     const tp = usePlayerByName(tname);
     if (tp) nameDisplay.forceUpdatePlayerNameDisplay(tp);
@@ -619,13 +690,14 @@ class GuildService {
   promote(player: Player, targetName: string): string {
     if (!this.ensureDbs()) return "公会系统未就绪";
     const tname = stripSection(targetName.trim());
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
-    if (!g || g.ownerName !== player.name) return "只有会长可以任免副会长";
-    if (!g.members[tname]) return "该成员不存在";
-    if (tname === g.ownerName) return "会长无需晋升";
-    g.members[tname].role = "officer";
+    if (!g || !this.isGuildOwner(g, player.name)) return "只有会长可以任免副会长";
+    const targetMemberKey = this.getMemberKey(g, tname) ?? tname;
+    if (!g.members[targetMemberKey]) return "该成员不存在";
+    if (this.isGuildOwner(g, targetMemberKey)) return "会长无需晋升";
+    g.members[targetMemberKey].role = "officer";
     this.saveGuild(g);
     this.logGuild(player.name, "guildPromote", this.guildMeta(g, `target=${tname} -> officer`));
     return "";
@@ -634,13 +706,14 @@ class GuildService {
   demote(player: Player, targetName: string): string {
     if (!this.ensureDbs()) return "公会系统未就绪";
     const tname = stripSection(targetName.trim());
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
-    if (!g || g.ownerName !== player.name) return "只有会长可以任免副会长";
-    if (!g.members[tname]) return "该成员不存在";
-    if (tname === g.ownerName) return "不能降职会长";
-    g.members[tname].role = "member";
+    if (!g || !this.isGuildOwner(g, player.name)) return "只有会长可以任免副会长";
+    const targetMemberKey = this.getMemberKey(g, tname) ?? tname;
+    if (!g.members[targetMemberKey]) return "该成员不存在";
+    if (this.isGuildOwner(g, targetMemberKey)) return "不能降职会长";
+    g.members[targetMemberKey].role = "member";
     this.saveGuild(g);
     this.logGuild(player.name, "guildPromote", this.guildMeta(g, `target=${tname} -> member`));
     return "";
@@ -650,17 +723,20 @@ class GuildService {
     if (!this.ensureDbs()) return "公会系统未就绪";
     const tname = stripSection(targetName.trim());
     if (!tname) return "请指定玩家";
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
-    if (g.ownerName !== player.name) return "只有会长可以转让";
-    if (!g.members[tname]) return "目标必须是本公会成员";
+    if (!this.isGuildOwner(g, player.name)) return "只有会长可以转让";
+    const actorMemberKey = this.getMemberKey(g, player.name) ?? player.name;
+    const targetMemberKey = this.getMemberKey(g, tname) ?? tname;
+    if (!g.members[targetMemberKey]) return "目标必须是本公会成员";
     if (tname === player.name) return "不能转让给自己";
 
-    g.ownerName = tname;
-    g.members[player.name].role = "officer";
-    g.members[tname].role = "owner";
+    g.ownerName = targetMemberKey;
+    g.ownerIdentityId = g.memberIdentityIds?.[targetMemberKey] ?? this.getIdentityId(targetMemberKey);
+    g.members[actorMemberKey].role = "officer";
+    g.members[targetMemberKey].role = "owner";
     this.saveGuild(g);
     this.refreshNameTagsForGuild(g.id);
     this.logGuild(player.name, "guildPromote", this.guildMeta(g, `transfer owner -> ${tname}`));
@@ -675,7 +751,7 @@ class GuildService {
     if (!Number.isFinite(amount) || amount <= 0) return "金额无效";
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法使用公会金库";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -687,7 +763,8 @@ class GuildService {
 
     try {
       g.treasuryGold += amount;
-      const mem = g.members[player.name];
+      const memberKey = this.getMemberKey(g, player.name) ?? player.name;
+      const mem = g.members[memberKey];
       if (mem) {
         mem.treasuryContributedGold = (mem.treasuryContributedGold ?? 0) + amount;
       }
@@ -709,7 +786,7 @@ class GuildService {
     if (!Number.isFinite(amount) || amount <= 0) return "金额无效";
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法使用公会金库";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -796,7 +873,7 @@ class GuildService {
         return;
       }
     } else {
-      const gid = this.indexDb.get(player.name);
+      const gid = this.getIndexedGuildId(player.name);
       if (!gid) {
         player.sendMessage(color.yellow("你不在任何公会中"));
         return;
@@ -820,9 +897,7 @@ class GuildService {
   /**
    * 供表单 UI 展示成员列表（不写入聊天）
    */
-  getMemberListSnapshot(
-    player: Player
-  ): {
+  getMemberListSnapshot(player: Player): {
     tag: string;
     name: string;
     rows: Array<{
@@ -834,7 +909,7 @@ class GuildService {
     total: number;
   } | null {
     if (!this.ensureDbs()) return null;
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return null;
     const g = this.getGuild(gid);
     if (!g) return null;
@@ -844,7 +919,10 @@ class GuildService {
       contribution: m.treasuryContributedGold ?? 0,
       joinedAt: m.joinedAt,
     }));
-    rows.sort((a, b) => b.contribution - a.contribution || a.playerName.localeCompare(b.playerName, undefined, { sensitivity: "base" }));
+    rows.sort(
+      (a, b) =>
+        b.contribution - a.contribution || a.playerName.localeCompare(b.playerName, undefined, { sensitivity: "base" })
+    );
     return { tag: g.tag, name: g.name, rows, total: rows.length };
   }
 
@@ -906,11 +984,11 @@ class GuildService {
 
   setAnnouncement(player: Player, text: string): string {
     if (!this.ensureDbs()) return "公会系统未就绪";
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
-    if (g.ownerName !== player.name && this.getRole(g, player.name) !== "officer") return "无权修改公告";
+    if (!this.isGuildOwner(g, player.name) && this.getRole(g, player.name) !== "officer") return "无权修改公告";
     g.announcement = stripSection(text).slice(0, 200);
     this.saveGuild(g);
     return "";
@@ -930,7 +1008,7 @@ class GuildService {
 
     if (land.owner !== player.name && !isAdmin(player)) return "只有领地主人或管理员可操作";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -984,7 +1062,7 @@ class GuildService {
     if (typeof landRaw === "string") return landRaw;
     if (!landRaw.guildId) return "该领地未绑定公会";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     if (landRaw.guildId !== gid) return "该领地未绑定你的公会";
 
@@ -1056,23 +1134,25 @@ class GuildService {
     if (!this.ensureDbs()) return;
     if (setting.getState("guildLeaveOnBlacklist") !== true) return;
 
-    const gid = this.indexDb.get(playerName);
+    const gid = this.getIndexedGuildId(playerName);
     if (!gid) return;
     const g = this.getGuild(gid);
     if (!g) {
-      this.indexDb.delete(playerName);
+      this.deletePlayerIndex(playerName);
       return;
     }
 
-    if (g.ownerName === playerName) {
+    if (this.isGuildOwner(g, playerName)) {
       this.disbandGuildDataCore(g);
       SystemLog.info(`[Guild] 会长 ${playerName} 被封禁，公会 ${g.tag} 已解散`);
       return;
     }
 
-    delete g.members[playerName];
+    const memberKey = this.getMemberKey(g, playerName) ?? playerName;
+    delete g.members[memberKey];
+    if (g.memberIdentityIds) delete g.memberIdentityIds[memberKey];
     this.saveGuild(g);
-    this.indexDb.delete(playerName);
+    this.deletePlayerIndex(playerName);
     this.invalidateDisplayCache(playerName);
     const p = usePlayerByName(playerName);
     if (p) nameDisplay.forceUpdatePlayerNameDisplay(p);
@@ -1081,7 +1161,7 @@ class GuildService {
   /** 菜单/UI：当前玩家所在公会完整数据 */
   getGuildForPlayer(player: Player): IGuild | undefined {
     if (!this.ensureDbs()) return undefined;
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return undefined;
     return this.getGuild(gid);
   }
@@ -1131,7 +1211,7 @@ class GuildService {
     if (!this.isModuleEnabled()) return "公会功能已关闭";
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法申请加入公会";
 
-    if (this.indexDb.has(player.name)) return "你已在公会中，无法申请";
+    if (this.getIndexedGuildId(player.name)) return "你已在公会中，无法申请";
 
     const g = this.getGuild(targetGuildId);
     if (!g) return "公会不存在";
@@ -1162,7 +1242,7 @@ class GuildService {
     const aname = stripSection(applicantName.trim());
     if (!aname) return "请指定玩家";
 
-    const gid = this.indexDb.get(actor.name);
+    const gid = this.getIndexedGuildId(actor.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -1172,7 +1252,7 @@ class GuildService {
 
     if (!g.joinRequests?.[aname]) return "该玩家没有待处理的申请";
 
-    if (this.indexDb.has(aname)) {
+    if (this.getIndexedGuildId(aname)) {
       delete g.joinRequests[aname];
       if (Object.keys(g.joinRequests).length === 0) delete g.joinRequests;
       this.saveGuild(g);
@@ -1185,8 +1265,9 @@ class GuildService {
     if (Object.keys(g.joinRequests).length === 0) delete g.joinRequests;
 
     g.members[aname] = { role: "member", joinedAt: Date.now() };
+    this.attachMemberIdentity(g, aname);
     this.saveGuild(g);
-    this.indexDb.set(aname, g.id);
+    this.setPlayerIndex(aname, g.id);
     this.invalidateDisplayCache(aname);
     const ap = usePlayerByName(aname);
     if (ap) nameDisplay.forceUpdatePlayerNameDisplay(ap);
@@ -1204,7 +1285,7 @@ class GuildService {
     const aname = stripSection(applicantName.trim());
     if (!aname) return "请指定玩家";
 
-    const gid = this.indexDb.get(actor.name);
+    const gid = this.getIndexedGuildId(actor.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -1228,7 +1309,7 @@ class GuildService {
     opts: { limit: number; offset: number }
   ): { total: number; items: BehaviorLogEntry[] } | null {
     if (!this.ensureDbs()) return null;
-    if (this.indexDb.get(player.name) !== guildId) return null;
+    if (this.getIndexedGuildId(player.name) !== guildId) return null;
     const g = this.getGuild(guildId);
     if (!g) return null;
     return behaviorLog.query({
@@ -1357,7 +1438,7 @@ class GuildService {
     if (!this.isModuleEnabled()) return "公会功能已关闭";
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法设置公会坐标";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -1428,7 +1509,7 @@ class GuildService {
     if (!this.ensureDbs()) return "公会系统未就绪";
     if (!this.isModuleEnabled()) return "公会功能已关闭";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -1485,7 +1566,7 @@ class GuildService {
     if (!this.isModuleEnabled()) return "公会功能已关闭";
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法设置公会坐标";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -1511,7 +1592,7 @@ class GuildService {
     if (!this.isEconomyOk()) return "经济系统已关闭";
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法修改公会设置";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -1538,7 +1619,7 @@ class GuildService {
     if (!this.isEconomyOk()) return "经济系统已关闭";
     if (this.trialBlocksGuildFeatures(player)) return "试玩期间无法领取公会每日红包";
 
-    const gid = this.indexDb.get(player.name);
+    const gid = this.getIndexedGuildId(player.name);
     if (!gid) return "你不在任何公会中";
     const g = this.getGuild(gid);
     if (!g) return "公会不存在";
@@ -1550,7 +1631,8 @@ class GuildService {
     }
 
     const today = economic.getCalendarDateString();
-    const mem = g.members[player.name];
+    const memberKey = this.getMemberKey(g, player.name) ?? player.name;
+    const mem = g.members[memberKey];
     if (!mem) return "你不是本会成员";
 
     if (mem.lastDailyRedPacketDay === today) return "今日已领取过公会每日红包";
@@ -1591,8 +1673,22 @@ class GuildService {
   /**
    * 进服时可扩展：同步改名（基岩脚本无可靠改名事件时仅保留占位）
    */
-  reconcilePlayerNameOnJoin(_player: Player): void {
+  reconcilePlayerNameOnJoin(player: Player): void {
     if (!this.ensureDbs() || !this.isModuleEnabled()) return;
+    const profile = identityService.getProfileForPlayer(player);
+    const gid = this.indexDb.get(profile.id) ?? this.indexDb.get(player.name);
+    if (!gid) return;
+    const g = this.getGuild(gid);
+    if (!g) return;
+    const memberKey = this.getMemberKey(g, player.name);
+    if (!memberKey) return;
+    g.memberIdentityIds = g.memberIdentityIds ?? {};
+    g.memberIdentityIds[memberKey] = profile.id;
+    if (g.ownerName === memberKey) {
+      g.ownerIdentityId = profile.id;
+    }
+    this.setPlayerIndex(player.name, g.id);
+    this.saveGuild(g);
   }
 }
 

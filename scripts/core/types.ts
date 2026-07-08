@@ -67,9 +67,13 @@ export interface ILand {
   id: string;
   name: string;
   owner: string;
+  /** 新版内部身份 ID；旧存档没有该字段时继续按 owner 名字兼容 */
+  ownerIdentityId?: string;
   dimension: string;
   vectors: ILandVectors;
   members: string[];
+  /** 新版成员内部身份 ID 列表；旧存档没有该字段时继续按 members 名字兼容 */
+  memberIdentityIds?: string[];
   public_auth: ILandPublicAuth;
   config_public_auth: ILandPublicAuth; // 权限配置权限
   createdAt: number;
@@ -101,10 +105,10 @@ export interface IDatabaseItem<T = any> {
 
 // 黑名单系统类型
 export interface IBlacklistEntry {
-  xuid: string;               // 主键，稳定的 Xbox 用户标识
-  name: string;               // 当前已知 gamertag（随玩家改名自动同步）
-  persistentId?: string;      // 设备级持久标识（重装游戏会变，可选补充）
-  reason: string;             // 封禁理由（为空时使用默认提示）
-  bannedAt: number;           // 封禁时间戳 Date.now()
-  bannedBy: string;           // 执行封禁的管理员名
+  xuid: string; // 主键，稳定的 Xbox 用户标识
+  name: string; // 当前已知 gamertag（随玩家改名自动同步）
+  persistentId?: string; // 设备级持久标识（重装游戏会变，可选补充）
+  reason: string; // 封禁理由（为空时使用默认提示）
+  bannedAt: number; // 封禁时间戳 Date.now()
+  bannedBy: string; // 执行封禁的管理员名
 }

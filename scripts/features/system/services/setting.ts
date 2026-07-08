@@ -36,7 +36,12 @@ export type IModules =
   | "trialMode"
   | "trialModeDuration"
   | "randomTeleport"
+  | "randomTeleportCost"
   | "backToDeath"
+  | "backToDeathCost"
+  | "tpaTeleportCost"
+  | "waypointTeleportCost"
+  | "landTeleportCost"
   | "enableTreeCutOneClick"
   | "enableDigOreOneClick"
   /** 下蹲连锁收割作物（默认开） */
@@ -68,6 +73,7 @@ export type IModules =
   | "blacklistEnabled"
   | "behaviorLogEnabled"
   | "behaviorLogMaxEntries"
+  | "itemWatchSnapshotMaxEntries"
   | "behaviorLogLocationIntervalSec"
   | "behaviorLogInspectorRadius"
   | "logPlayerJoin"
@@ -174,7 +180,12 @@ export const defaultSetting = {
   trialMode: false,
   trialModeDuration: "3600",
   randomTeleport: true,
+  randomTeleportCost: "300",
   backToDeath: true,
+  backToDeathCost: "200",
+  tpaTeleportCost: "50",
+  waypointTeleportCost: "100",
+  landTeleportCost: "100",
   enableTreeCutOneClick: true,
   enableDigOreOneClick: true,
   enableCropHarvestOneClick: true,
@@ -203,6 +214,7 @@ export const defaultSetting = {
   blacklistEnabled: false, // 黑名单进服前拦截开关（仅 BDS 增强版有效）
   behaviorLogEnabled: true, // 玩家行为日志
   behaviorLogMaxEntries: "20000", // 行为日志最大保留条数
+  itemWatchSnapshotMaxEntries: "500", // 物品监控背包快照最大保留条数
   behaviorLogLocationIntervalSec: "60", // 玩家坐标采样间隔（秒）
   behaviorLogInspectorRadius: "3", // 行为日志查询器点击方块时的查询半径
   logPlayerJoin: true,

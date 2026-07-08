@@ -9,6 +9,7 @@ import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
 import setting from "../../system/services/setting";
 import landManager from "../../land/services/land-manager";
 import { color } from "../../../shared/utils/color";
+import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
 
 /**
  * 生成指定范围的随机数
@@ -334,6 +335,14 @@ function startRandomTeleportCountdown(player: Player, result: RandomLocationResu
       createProgressiveParticles(player, startLocation, 1.0, false);
 
       system.run(() => {
+        const chargeError = chargeTeleportCost(player, "randomTeleportCost", "随机传送");
+        if (chargeError) {
+          player.onScreenDisplay.setTitle("");
+          player.onScreenDisplay.setActionBar(color.red(chargeError));
+          cleanup();
+          return;
+        }
+
         try {
           player.teleport(result.target, {
             dimension: result.dimension,
@@ -348,6 +357,7 @@ function startRandomTeleportCountdown(player: Player, result: RandomLocationResu
             }
           }, 1);
         } catch {
+          refundTeleportCost(player, "randomTeleportCost", "随机传送失败退款");
           player.onScreenDisplay.setTitle("");
           player.onScreenDisplay.setActionBar(color.red("随机传送失败：目标区块传送失败，请稍后重试。"));
           try {

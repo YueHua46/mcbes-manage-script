@@ -311,13 +311,21 @@ export default class ItemDatabase {
             inv?.setItem(i);
           } else if (!it && stored) {
             if (stored.itemSnapshot) {
-              const restored = deserializeItemStack(stored.itemSnapshot);
-              inv?.setItem(i, restored);
-              stored.item = restored;
-              this.#itemData[slot] = stored;
-              this.#database.set(`slot_${slot}`, stored);
+              try {
+                const restored = deserializeItemStack(stored.itemSnapshot);
+                inv?.setItem(i, restored);
+                stored.item = restored;
+                this.#itemData[slot] = stored;
+                this.#database.set(`slot_${slot}`, stored);
+              } catch (error) {
+                this.#quarantineMissingIndexedItem(
+                  slot,
+                  stored,
+                  `slot index exists but item snapshot cannot be restored: ${String(error)}`
+                );
+              }
             } else {
-              this.#markUnhealthy(`槽位 ${slot} 有索引记录但实体物品缺失`);
+              this.#quarantineMissingIndexedItem(slot, stored, "slot index exists but entity item is missing");
             }
           } else {
             // empty slot
@@ -703,6 +711,31 @@ export default class ItemDatabase {
       this.#notifyAdmins(`§e物品数据库 ${this.#name} 已隔离无索引物品槽位 ${slot}，数据库已自动恢复。`);
     } catch (error) {
       this.#markUnhealthy(`槽位 ${slot} 有实体物品但缺少索引记录，且备份失败: ${String(error)}`);
+    }
+  }
+
+  #quarantineMissingIndexedItem(slot: number, stored: SlotData, reason: string): void {
+    try {
+      const detectedAt = Date.now();
+      const backupKey = `missing_${slot}_${detectedAt}`;
+      const { item: _item, ...backupData } = stored;
+
+      this.#database.set(backupKey, {
+        ...backupData,
+        slot,
+        detectedAt,
+        reason,
+      });
+      this.#database.delete(`slot_${slot}`);
+      delete this.#itemData[slot];
+      this.#database.save();
+
+      SystemLog.warn(
+        `[ItemDatabase ${this.#name}] 槽位 ${slot} 有索引记录但实体物品缺失，已备份为 ${backupKey} 并删除坏索引，数据库已自动恢复`
+      );
+      this.#notifyAdmins(`§e物品数据库 ${this.#name} 已隔离缺失物品槽位 ${slot}，商店已自动恢复。`);
+    } catch (error) {
+      this.#markUnhealthy(`槽位 ${slot} 有索引记录但实体物品缺失，且自动隔离失败: ${String(error)}`);
     }
   }
 

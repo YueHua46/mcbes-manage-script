@@ -26,6 +26,7 @@ import blacklistService from "../../features/blacklist/services/blacklist";
 import { playerPersistentIdMap } from "../../features/blacklist/services/persistent-id-map";
 import setting from "../../features/system/services/setting";
 import { isBdsBuild, subscribeAsyncPlayerJoin } from "../../features/platform/sapi-capabilities";
+import identityService from "../../features/player/services/identity-service";
 import { SystemLog } from "../../shared/utils/common";
 
 const DEFAULT_BAN_REASON = "您已被该服务器封禁，如有疑问请联系管理员";
@@ -35,6 +36,7 @@ async function handleAsyncPlayerJoin(event: AsyncPlayerJoinBeforeEvent): Promise
 
   if (persistentId) {
     playerPersistentIdMap.set(name, persistentId);
+    identityService.rememberPreJoinIdentity(name, { persistentId });
   }
 
   let hitEntry: IBlacklistEntry | undefined;

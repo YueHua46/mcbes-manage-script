@@ -53,9 +53,10 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
   const forcedModeHint = forcedMode
     ? `\n§e大乱斗模式下个人不能关闭PVP，管理员也会参与战斗。\n§e领地保护：${config.forcedIgnoreLandProtection ? "§c已被无视" : "§a仍然生效"}\n`
     : "";
+  const pluginModeHint = config.mode === "plugin" ? "\n§e领地保护：§a仍然生效，领地内禁止PVP\n" : "";
 
   form.body(
-    `当前模式：§a${pvpManager.getModeDisplay(config.mode)}\n当前PVP状态：${status}\n战斗状态：${combatStatus}\n${forcedModeHint}\n§e击杀数：§f${data.kills}\n§e死亡数：§f${data.deaths}\n§e当前连杀：§f${data.killStreak}\n§e最佳连杀：§f${data.bestKillStreak}\n§e总夺取金币：§f${data.totalSeized}\n§e总被夺取金币：§f${data.totalLost}`
+    `当前模式：§a${pvpManager.getModeDisplay(config.mode)}\n当前PVP状态：${status}\n战斗状态：${combatStatus}\n${forcedModeHint}${pluginModeHint}\n§e击杀数：§f${data.kills}\n§e死亡数：§f${data.deaths}\n§e当前连杀：§f${data.killStreak}\n§e最佳连杀：§f${data.bestKillStreak}\n§e总夺取金币：§f${data.totalSeized}\n§e总被夺取金币：§f${data.totalLost}`
   );
 
   if (!forcedMode) {

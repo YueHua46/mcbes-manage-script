@@ -59,6 +59,12 @@ class PvpManager {
   /** 读取持久化的 PVP 模式，不受功能开关关闭时的「对外表现为原版」影响 */
   getStoredMode(): PvpMode {
     const rawMode = setting.getState("pvpMode");
+    // 兼容旧版只保存 pvpEnabled=true 的世界。新版默认 pvpMode=vanilla，
+    // 如果不迁移，玩家个人状态会显示已开启，但插件规则并不会接管伤害。
+    if (rawMode === "vanilla" && setting.getState("pvpEnabled") === true) {
+      setting.setState("pvpMode", "plugin");
+      return "plugin";
+    }
     if (rawMode === "vanilla" || rawMode === "plugin" || rawMode === "forced" || rawMode === "off") {
       return rawMode;
     }

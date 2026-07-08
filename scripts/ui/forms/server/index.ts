@@ -16,6 +16,7 @@ import { openHelpMenuForm } from "../help";
 import { openSystemSettingForm } from "../system";
 import { openGuildMenuForm } from "../guild";
 import { openFloatingTextMenu } from "../floating-text";
+import { openQuestPlayerForm } from "../quest-system";
 import { BRANDING } from "../../../core/constants";
 
 interface MenuItem {
@@ -24,6 +25,7 @@ interface MenuItem {
   id: string;
   action: (player: Player) => void | Promise<void>;
   adminOnly?: boolean;
+  alwaysVisible?: boolean;
 }
 
 /**
@@ -37,7 +39,7 @@ function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: an
   form.body("");
 
   menuItems
-    .filter(({ id }) => setting.getState(id))
+    .filter(({ id, alwaysVisible }) => alwaysVisible || setting.getState(id))
     .forEach((item) => {
       if (!item.adminOnly || _isAdmin) {
         form.button(item.text, item.icon);
@@ -123,6 +125,15 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       },
     },
     {
+      id: "quest",
+      text: "任务系统",
+      icon: "textures/icons/quest_log",
+      action: async (player: Player) => {
+        openQuestPlayerForm(player, () => void openServerMenuForm(player));
+      },
+      alwaysVisible: true,
+    },
+    {
       id: "other",
       text: "其他功能",
       icon: "textures/icons/accessories",
@@ -166,7 +177,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       if (forceForm?.canceled) return;
       if (forceForm?.selection !== undefined) {
         const availableItems = menuItems.filter(
-          ({ id, adminOnly }) => setting.getState(id as IModules) && (!adminOnly || isAdmin(player))
+          ({ id, adminOnly, alwaysVisible }) => (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
         );
         const selectedItem = availableItems[forceForm.selection];
         if (selectedItem) {
@@ -179,7 +190,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     if (data.canceled) return;
     if (data.selection !== undefined) {
       const availableItems = menuItems.filter(
-        ({ id, adminOnly }) => setting.getState(id as IModules) && (!adminOnly || isAdmin(player))
+        ({ id, adminOnly, alwaysVisible }) => (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
       );
       const selectedItem = availableItems[data.selection];
       if (selectedItem) {

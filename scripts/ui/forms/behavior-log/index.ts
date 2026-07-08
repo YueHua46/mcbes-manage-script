@@ -500,6 +500,7 @@ async function openBehaviorLogQueryForm(player: Player): Promise<void> {
 async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
   const enabled = setting.getState("behaviorLogEnabled" as never) as boolean;
   const maxEntries = String(setting.getState("behaviorLogMaxEntries" as never));
+  const snapshotMaxEntries = String(setting.getState("itemWatchSnapshotMaxEntries" as never));
   const locationInterval = String(setting.getState("behaviorLogLocationIntervalSec" as never));
   const inspectorRadius = String(getBlockInspectorRadius());
 
@@ -510,6 +511,9 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
     )
     .toggle("启用行为日志系统", { defaultValue: enabled })
     .textField("行为日志最大保留条数", "全服总日志上限，例如 20000", { defaultValue: maxEntries })
+    .textField("物品监控背包快照最大保留条数", "建议 100～1000，最高 5000", {
+      defaultValue: snapshotMaxEntries,
+    })
     .textField("坐标采样间隔（秒）", "对所有在线玩家进行一次坐标记录的间隔", { defaultValue: locationInterval })
     .textField("日志查询器范围半径（格）", `点击方块后查询附近日志，0～${MAX_BLOCK_INSPECT_RADIUS}`, {
       defaultValue: inspectorRadius,
@@ -531,38 +535,54 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
 
   const formValues = result.formValues;
   // 表单顺序：.label() 可能占 formValues[0]（视 API 而定），然后 toggle、3 个 textField、若干 toggle
-  const minLength = 5 + behaviorEventDefinitions.length;
+  const minLength = 6 + behaviorEventDefinitions.length;
   if (!formValues || formValues.length < minLength) {
     runAfterDelay(() => void openBehaviorLogForm(player));
     return;
   }
 
-  // 若 .label() 占一位：索引为 [1]=启用 toggle, [2]=最大条数, [3]=坐标间隔, [4]=查询器半径, [5+i]=事件 toggle
-  // 若 .label() 不占位：索引为 [0]=启用, [1]=最大条数, [2]=坐标间隔, [3]=查询器半径, [4+i]=事件 toggle
-  // 通过类型判断：启用为 boolean，后面三个是 string（数字输入框）
+  // 若 .label() 占一位：索引为 [1]=启用 toggle, [2]=最大条数, [3]=快照条数, [4]=坐标间隔, [5]=查询器半径, [6+i]=事件 toggle
+  // 若 .label() 不占位：索引为 [0]=启用, [1]=最大条数, [2]=快照条数, [3]=坐标间隔, [4]=查询器半径, [5+i]=事件 toggle
+  // 通过类型判断：启用为 boolean，后面四个是 string（数字输入框）
   const a = formValues[0];
   const b = formValues[1];
   const c = formValues[2];
   const d = formValues[3];
   const e = formValues[4];
+  const f = formValues[5];
   let enableToggle: boolean;
   let maxEntriesStr: string;
+  let snapshotMaxEntriesStr: string;
   let locationIntervalStr: string;
   let inspectorRadiusStr: string;
   let eventToggleStartIndex: number;
 
-  if (typeof a === "boolean" && typeof b === "string" && typeof c === "string" && typeof d === "string") {
+  if (
+    typeof a === "boolean" &&
+    typeof b === "string" &&
+    typeof c === "string" &&
+    typeof d === "string" &&
+    typeof e === "string"
+  ) {
     enableToggle = a;
     maxEntriesStr = b.trim() || maxEntries;
-    locationIntervalStr = c.trim() || locationInterval;
-    inspectorRadiusStr = d.trim() || inspectorRadius;
-    eventToggleStartIndex = 4;
-  } else if (typeof b === "boolean" && typeof c === "string" && typeof d === "string" && typeof e === "string") {
-    enableToggle = b;
-    maxEntriesStr = c.trim() || maxEntries;
+    snapshotMaxEntriesStr = c.trim() || snapshotMaxEntries;
     locationIntervalStr = d.trim() || locationInterval;
     inspectorRadiusStr = e.trim() || inspectorRadius;
     eventToggleStartIndex = 5;
+  } else if (
+    typeof b === "boolean" &&
+    typeof c === "string" &&
+    typeof d === "string" &&
+    typeof e === "string" &&
+    typeof f === "string"
+  ) {
+    enableToggle = b;
+    maxEntriesStr = c.trim() || maxEntries;
+    snapshotMaxEntriesStr = d.trim() || snapshotMaxEntries;
+    locationIntervalStr = e.trim() || locationInterval;
+    inspectorRadiusStr = f.trim() || inspectorRadius;
+    eventToggleStartIndex = 6;
   } else {
     openDialogForm(player, { title: "保存失败", desc: "表单数据异常，请重试。" }, () => {
       void openBehaviorLogSettingsForm(player);
@@ -571,11 +591,19 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
   }
 
   const maxEntriesNum = Number(maxEntriesStr);
+  const snapshotMaxEntriesNum = Number(snapshotMaxEntriesStr);
   const locationIntervalNum = Number(locationIntervalStr);
   const inspectorRadiusNum = Number(inspectorRadiusStr);
 
   if (!Number.isFinite(maxEntriesNum) || maxEntriesNum <= 0) {
     openDialogForm(player, { title: "保存失败", desc: "行为日志最大保留条数必须是大于 0 的数字。" }, () => {
+      void openBehaviorLogSettingsForm(player);
+    });
+    return;
+  }
+
+  if (!Number.isFinite(snapshotMaxEntriesNum) || snapshotMaxEntriesNum <= 0 || snapshotMaxEntriesNum > 5000) {
+    openDialogForm(player, { title: "保存失败", desc: "物品监控背包快照最大保留条数必须是 1～5000 的数字。" }, () => {
       void openBehaviorLogSettingsForm(player);
     });
     return;
@@ -601,6 +629,7 @@ async function openBehaviorLogSettingsForm(player: Player): Promise<void> {
 
   setting.setState("behaviorLogEnabled" as never, enableToggle);
   setting.setState("behaviorLogMaxEntries" as never, String(Math.floor(maxEntriesNum)));
+  setting.setState("itemWatchSnapshotMaxEntries" as never, String(Math.floor(snapshotMaxEntriesNum)));
   setting.setState("behaviorLogLocationIntervalSec" as never, String(Math.floor(locationIntervalNum)));
   setting.setState("behaviorLogInspectorRadius" as never, String(Math.floor(inspectorRadiusNum)));
 

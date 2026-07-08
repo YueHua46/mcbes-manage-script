@@ -112,11 +112,22 @@ function openFakePlayerListForm(player: Player, adminView: boolean, back: () => 
   items.forEach((item) => {
     form.button(`${item.name}\n§7${item.ownerName} · ${formatLocation(item)}`, "textures/icons/spectator");
   });
+  if (adminView && items.length > 0) {
+    form.button("§c一键清除全部假人\n§7删除数据并踢出在线假人", "textures/icons/deny");
+  }
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
-    if (data.selection === items.length) {
+    const clearAllIndex = adminView && items.length > 0 ? items.length : -1;
+    const backIndex = clearAllIndex >= 0 ? items.length + 1 : items.length;
+
+    if (data.selection === clearAllIndex) {
+      openClearAllFakePlayersConfirmForm(player, back);
+      return;
+    }
+
+    if (data.selection === backIndex) {
       openFakePlayerMenu(player, back);
       return;
     }
@@ -125,6 +136,42 @@ function openFakePlayerListForm(player: Player, adminView: boolean, back: () => 
     if (!item) return;
     openFakePlayerDetailForm(player, item, adminView, back);
   });
+}
+
+function openClearAllFakePlayersConfirmForm(player: Player, back: () => void): void {
+  if (!isAdmin(player)) {
+    openDialogForm(player, { title: "无权操作", desc: color.red("只有管理员可以清除全服假人。") }, () =>
+      openFakePlayerMenu(player, back)
+    );
+    return;
+  }
+
+  const count = fakePlayerService.listAllForAdmin().length;
+  openConfirmDialogForm(
+    player,
+    "清除全部假人",
+    [
+      `§c确定删除全服 ${count} 个假人吗？`,
+      "§c此操作会删除所有假人数据，并踢出/移除当前在线假人。",
+      "§7假人背包会按现有移除逻辑先尝试持久化，但删除数据后不会再自动恢复。",
+    ].join("\n"),
+    () => {
+      const result = fakePlayerService.deleteAll(player);
+      openDialogForm(
+        player,
+        {
+          title: typeof result === "string" ? "清除失败" : "清除完成",
+          desc:
+            typeof result === "string"
+              ? color.red(result)
+              : color.green(`已删除 ${result.deleted} 条假人数据，并踢出/移除 ${result.kicked} 个在线假人。`),
+        },
+        () => openFakePlayerMenu(player, back)
+      );
+    },
+    () => openFakePlayerListForm(player, true, back),
+    { dangerConfirm: true }
+  );
 }
 
 function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {

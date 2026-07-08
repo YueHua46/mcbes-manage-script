@@ -5,28 +5,44 @@
 import { Player } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
+import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
 
 export type TpaType = "to" | "come";
 
 export function teleportPlayer(requestPlayer: Player, targetPlayer: Player, type: TpaType): void {
-  if (type === "to") {
-    requestPlayer.teleport(targetPlayer.location, {
-      dimension: targetPlayer.dimension,
-    });
-    requestPlayer.sendMessage(
-      `${color.green("你已")}${color.green("传送到")} ${color.yellow(targetPlayer.name)} ${color.green("的旁边")}`
-    );
+  const chargeError = chargeTeleportCost(requestPlayer, "tpaTeleportCost", "TPA传送");
+  if (chargeError) {
+    requestPlayer.sendMessage(color.red(chargeError));
     targetPlayer.sendMessage(
-      `${color.green("玩家")} ${color.yellow(requestPlayer.name)} ${color.green("已传送到你的旁边")}`
+      `${color.red("玩家")} ${color.yellow(requestPlayer.name)} ${color.red("金币不足，传送请求未执行")}`
     );
-  } else {
-    targetPlayer.teleport(requestPlayer.location, {
-      dimension: requestPlayer.dimension,
-    });
-    requestPlayer.sendMessage(`${color.yellow(targetPlayer.name)} ${color.green("已传送到你的旁边")}`);
-    targetPlayer.sendMessage(
-      `${color.green("你已")}${color.green("传送到")} ${color.yellow(requestPlayer.name)} ${color.green("的旁边")}`
-    );
+    return;
+  }
+
+  try {
+    if (type === "to") {
+      requestPlayer.teleport(targetPlayer.location, {
+        dimension: targetPlayer.dimension,
+      });
+      requestPlayer.sendMessage(
+        `${color.green("你已")}${color.green("传送到")} ${color.yellow(targetPlayer.name)} ${color.green("的旁边")}`
+      );
+      targetPlayer.sendMessage(
+        `${color.green("玩家")} ${color.yellow(requestPlayer.name)} ${color.green("已传送到你的旁边")}`
+      );
+    } else {
+      targetPlayer.teleport(requestPlayer.location, {
+        dimension: requestPlayer.dimension,
+      });
+      requestPlayer.sendMessage(`${color.yellow(targetPlayer.name)} ${color.green("已传送到你的旁边")}`);
+      targetPlayer.sendMessage(
+        `${color.green("你已")}${color.green("传送到")} ${color.yellow(requestPlayer.name)} ${color.green("的旁边")}`
+      );
+    }
+  } catch {
+    refundTeleportCost(requestPlayer, "tpaTeleportCost", "TPA传送失败退款");
+    requestPlayer.sendMessage(color.red("传送失败，已退回金币。"));
+    targetPlayer.sendMessage(color.red("传送失败，请稍后再试。"));
   }
 }
 

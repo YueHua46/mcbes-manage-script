@@ -7,6 +7,8 @@ export interface IUserWallet {
   dailyEarned: number;
   lastResetDate: string;
   name: string;
+  /** 新版内部身份 ID；旧数据没有该字段时仍按玩家名兼容读取 */
+  identityId?: string;
   gold: number;
 }
 

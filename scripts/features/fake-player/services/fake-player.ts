@@ -395,6 +395,33 @@ class FakePlayerService {
     return this.delete(player, item.id);
   }
 
+  deleteAll(player: Player): { deleted: number; kicked: number } | string {
+    if (!isAdmin(player)) return "无权删除全服假人";
+
+    const items = this.listAllForAdmin();
+    const knownFakeIds = new Set(items.map((item) => item.id));
+    let kicked = 0;
+
+    for (const item of items) {
+      const simulated = this.getSimulatedPlayer(item);
+      if (simulated?.isValid) kicked++;
+      this.removeSimulatedPlayer(item);
+      this.db.delete(item.id);
+    }
+
+    for (const online of world.getAllPlayers()) {
+      if (!isFakePlayer(online)) continue;
+      const fakeId = online.getDynamicProperty(FAKE_PLAYER_ID_PROPERTY);
+      if (typeof fakeId === "string" && knownFakeIds.has(fakeId)) continue;
+      kicked++;
+      this.removeLiveFakePlayer(online as SimulatedPlayer);
+    }
+
+    this.activeById.clear();
+    this.db.save(true);
+    return { deleted: items.length, kicked };
+  }
+
   refresh(id: string): IFakePlayer | string {
     const item = this.getById(id);
     if (!item) return "假人不存在";
@@ -618,6 +645,23 @@ class FakePlayerService {
       simulated.disconnect();
     } catch (error) {
       SystemLog.warn(`[FakePlayer] 移除模拟玩家失败: ${item.id} ${item.name} ${String(error)}`);
+    }
+  }
+
+  private removeLiveFakePlayer(simulated: SimulatedPlayer): void {
+    if (!simulated?.isValid) return;
+
+    try {
+      simulated.remove();
+      return;
+    } catch {
+      // fall through
+    }
+
+    try {
+      simulated.disconnect();
+    } catch (error) {
+      SystemLog.warn(`[FakePlayer] 移除游离模拟玩家失败: ${String(error)}`);
     }
   }
 }

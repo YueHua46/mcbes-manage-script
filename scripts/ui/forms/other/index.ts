@@ -15,6 +15,7 @@ import { useNotify } from "../../../shared/hooks/use-notify";
 import setting from "../../../features/system/services/setting";
 import { isAdmin } from "../../../shared/utils/common";
 import { openMyEnderChestForm } from "../system/player-inventory-admin";
+import { chargeTeleportCost, refundTeleportCost } from "../../../features/economic/services/teleport-cost";
 
 // ==================== 服务器信息 ====================
 
@@ -105,6 +106,7 @@ export function openBaseFunctionForm(player: Player): void {
       text: "回到上次死亡地点",
       icon: "textures/icons/game_battle_box",
       action: () => {
+        let charged = false;
         try {
           const deathData = player.getDynamicProperty("lastDeath") as string | undefined;
           if (!deathData?.length) {
@@ -120,10 +122,17 @@ export function openBaseFunctionForm(player: Player): void {
           }
 
           const targetDimension = world.getDimension(dimensionId);
+          const chargeError = chargeTeleportCost(player, "backToDeathCost", "回到死亡地点");
+          if (chargeError) {
+            openDialogForm(player, { title: "失败", desc: color.red(chargeError) });
+            return;
+          }
+          charged = true;
 
           player.teleport(death.location, { dimension: targetDimension });
           useNotify("actionbar", player, "§a你已回到上次死亡地点！");
         } catch {
+          if (charged) refundTeleportCost(player, "backToDeathCost", "回到死亡地点失败退款");
           openDialogForm(player, { title: "失败", desc: color.red("死亡地点数据异常，无法传送。") });
         }
       },

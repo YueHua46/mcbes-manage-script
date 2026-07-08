@@ -55,8 +55,15 @@ const CAMERA_OPERATION_VALUES = ["start", "stop", "next", "n"];
 const CAMERA_PERSPECTIVE_VALUES = ["first", "third", "first_person", "third_person", "front", "third_front"];
 const GET_ITEM_TYPE_ID_MODE_VALUES = ["hand", "all", "inventory"];
 const SUBSCRIBE_ITEM_HOLD_OPERATION_VALUES = ["add", "remove", "list", "clear"];
-const FAKE_PLAYER_OPERATION_VALUES = ["list", "add", "remove"];
+const FAKE_PLAYER_OPERATION_VALUES = ["list", "add", "remove", "remove_all"];
 const SETTING_KEY_VALUES = ["list", ...Object.keys(defaultSetting)];
+const TELEPORT_COST_SETTING_KEYS = new Set([
+  "randomTeleportCost",
+  "backToDeathCost",
+  "tpaTeleportCost",
+  "waypointTeleportCost",
+  "landTeleportCost",
+]);
 
 const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   player: "玩家功能模块总开关。true 开启玩家相关菜单/逻辑，false 关闭。",
@@ -84,7 +91,12 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   trialMode: "试玩模式开关。true 未成为正式会员的玩家会受试玩限制，false 不限制。",
   trialModeDuration: "试玩模式时长，单位秒。填写正整数。",
   randomTeleport: "随机传送功能开关。true 允许 /yuehua:rtp，false 关闭相关入口。",
+  randomTeleportCost: "随机传送成功时扣除的金币。填写 0 表示免费。",
   backToDeath: "回到死亡地点功能开关。true 开启，false 关闭。",
+  backToDeathCost: "回到上次死亡地点成功时扣除的金币。填写 0 表示免费。",
+  tpaTeleportCost: "TPA 请求被接受并成功执行时，从请求方扣除的金币。填写 0 表示免费。",
+  waypointTeleportCost: "普通坐标点传送成功时扣除的金币。填写 0 表示免费。",
+  landTeleportCost: "传送到领地传送点成功时扣除的金币。填写 0 表示免费。",
   enableTreeCutOneClick: "一键砍树开关。true 启用连锁砍树，false 关闭。",
   enableDigOreOneClick: "一键挖矿开关。true 启用连锁挖矿，false 关闭。",
   enableCropHarvestOneClick: "下蹲连锁收割作物开关。true 启用，false 关闭。",
@@ -112,6 +124,7 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   blacklistEnabled: "黑名单进服前拦截开关。BDS 增强版有效，true 启用，false 关闭。",
   behaviorLogEnabled: "玩家行为日志总开关。true 记录行为日志，false 停止记录。",
   behaviorLogMaxEntries: "行为日志最大保留条数。超过后按日志服务策略清理。",
+  itemWatchSnapshotMaxEntries: "物品监控背包快照最大保留条数。建议 100 到 1000，最高 5000。",
   behaviorLogLocationIntervalSec: "玩家坐标采样间隔秒数。数值越小日志越密集。",
   behaviorLogInspectorRadius: "日志查询器点击方块时的查询半径。填写非负整数。",
   logPlayerJoin: "是否记录玩家进入服务器事件。",
@@ -328,12 +341,12 @@ system.beforeEvents.startup.subscribe((init) => {
 
   const fakePlayerCommand: CustomCommand = {
     name: "yuehua:fakeplayer",
-    description: "假人模拟玩家。list=列出假人；add=在当前位置创建假人；remove=按名称删除假人。",
+    description: "假人模拟玩家。list=列出假人；add=在当前位置创建假人；remove=按名称删除假人；remove_all=管理员删除全部假人。",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
       {
         type: CustomCommandParamType.Enum,
-        name: "操作(list列表/add创建/remove删除)",
+        name: "操作(list列表/add创建/remove删除/remove_all管理员清空)",
         enumName: "yuehua:FakePlayerOperationType",
       },
       { type: CustomCommandParamType.String, name: "假人名称(add/remove时填写)" },
@@ -863,6 +876,14 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
       let finalValue: boolean | string = value;
       if (value === "true") finalValue = true;
       if (value === "false") finalValue = false;
+      if (TELEPORT_COST_SETTING_KEYS.has(key)) {
+        const cost = Math.floor(Number(value));
+        if (!Number.isFinite(cost) || cost < 0) {
+          player.sendMessage(color.red("传送费用须为 0 或正整数。"));
+          return;
+        }
+        finalValue = String(cost);
+      }
 
       setting.setState(key as any, finalValue);
       player.sendMessage(color.green(`已将设置 ${key} 更新为 ${finalValue}`));
@@ -962,7 +983,23 @@ function handleFakePlayerCommand(origin: CustomCommandOrigin, operation?: string
       return;
     }
 
-    player.sendMessage(color.yellow("用法: /yuehua:fakeplayer <list|add|remove> [名称]"));
+    if (op === "remove_all") {
+      if (!isAdmin(player)) {
+        player.sendMessage(color.red("只有管理员可以删除全服假人。"));
+        return;
+      }
+
+      const result = fakePlayerService.deleteAll(player);
+      if (typeof result === "string") {
+        player.sendMessage(color.red(result));
+        return;
+      }
+
+      player.sendMessage(color.green(`已删除 ${result.deleted} 条假人数据，并踢出/移除 ${result.kicked} 个在线假人。`));
+      return;
+    }
+
+    player.sendMessage(color.yellow("用法: /yuehua:fakeplayer <list|add|remove|remove_all> [名称]"));
   });
 
   return { status: CustomCommandStatus.Success };

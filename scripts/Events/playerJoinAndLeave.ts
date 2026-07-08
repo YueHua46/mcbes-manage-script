@@ -3,6 +3,7 @@ import { welcomeFoxGlyphs, welcomeGlyphs } from "../assets/glyph-map";
 import { eventRegistry } from "./registry";
 import setting from "../features/system/services/setting";
 import guildService from "../features/guild/services/guild-service";
+import identityService from "../features/player/services/identity-service";
 
 function registerPlayerJoinEvent(): void {
   world.afterEvents.playerSpawn.subscribe(async (event) => {
@@ -11,6 +12,7 @@ function registerPlayerJoinEvent(): void {
     const isJoin = player.getDynamicProperty("join") as boolean;
     if (isJoin) return;
     player.setDynamicProperty("join", true);
+    identityService.bindPlayer(player);
     guildService.reconcilePlayerNameOnJoin(player);
     await system.waitTicks(70);
     system.run(() => {
@@ -26,11 +28,11 @@ function registerPlayerJoinEvent(): void {
         `titleraw @s subtitle {"rawtext":[{"text":"${fox}\n\n${left} §d欢迎来到 ${right}\n§s${serverName}"}]}`
       );
       player.playSound("yuehua.welcome");
-      
+
       // 获取自定义的欢迎消息并处理换行符
       const welcomeMessageRaw = (setting.getState("welcomeMessage") as string) || "";
       const welcomeMessage = welcomeMessageRaw.replace(/\\n/g, "\n");
-      
+
       if (welcomeMessage) {
         player.sendMessage(welcomeMessage);
       }

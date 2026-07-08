@@ -1,5 +1,6 @@
-import { Player } from "@minecraft/server";
+import { Player, system } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { getLiveFormCapabilities } from "../../../features/platform/sapi-capabilities";
 import { taskScheduler } from "../../../features/platform/scheduler";
 import { color } from "../../../shared/utils/color";
 
@@ -47,7 +48,7 @@ function buildDetailBody(): string {
   return lines.join("\n\n");
 }
 
-export function openSchedulerDetailForm(player: Player, returnForm?: () => void): void {
+function openFallbackSchedulerDetailForm(player: Player, returnForm?: () => void): void {
   const form = new ActionFormData();
   form.title("调度器详情");
   form.body({ rawtext: [{ text: buildDetailBody() }] });
@@ -69,6 +70,59 @@ export function openSchedulerDetailForm(player: Player, returnForm?: () => void)
         break;
     }
   });
+}
+
+function safeClose(form: { close?: () => void }): void {
+  try {
+    form.close?.();
+  } catch {
+    // 表单可能已经被客户端关闭。
+  }
+}
+
+async function openLiveSchedulerDetailForm(player: Player, returnForm?: () => void): Promise<void> {
+  const liveForm = await getLiveFormCapabilities();
+  if (!liveForm) {
+    openFallbackSchedulerDetailForm(player, returnForm);
+    return;
+  }
+
+  const { CustomForm, Observable } = liveForm;
+  const snapshot = Observable.create(buildDetailBody());
+  const form = CustomForm.create(player, "调度器详情");
+
+  form
+    .label(snapshot)
+    .divider()
+    .button("任务开关", () => {
+      safeClose(form);
+      system.run(() => openSchedulerToggleForm(player, () => openSchedulerDetailForm(player, returnForm)));
+    })
+    .button("返回", () => {
+      safeClose(form);
+      system.run(() => returnForm?.());
+    });
+
+  const refreshRun = system.runInterval(() => {
+    try {
+      if (!form.isShowing()) return;
+      snapshot.setData(buildDetailBody());
+    } catch {
+      system.clearRun(refreshRun);
+    }
+  }, 20);
+
+  try {
+    await form.show();
+  } catch {
+    openFallbackSchedulerDetailForm(player, returnForm);
+  } finally {
+    system.clearRun(refreshRun);
+  }
+}
+
+export function openSchedulerDetailForm(player: Player, returnForm?: () => void): void {
+  void openLiveSchedulerDetailForm(player, returnForm);
 }
 
 function openSchedulerToggleForm(player: Player, returnForm?: () => void): void {
