@@ -134,6 +134,12 @@ const LAND_SENSITIVE_ENTITY_PLACE_ITEMS = new Map<string, string[]>([
   ["minecraft:tnt_minecart", ["minecraft:tnt_minecart", "minecraft:minecart"]],
   ["minecraft:command_block_minecart", ["minecraft:command_block_minecart", "minecraft:minecart"]],
 ]);
+const LAND_BREAK_PROTECTED_ENTITY_TYPE_IDS = new Set<string>();
+for (const entityTypeIds of LAND_SENSITIVE_ENTITY_PLACE_ITEMS.values()) {
+  for (const entityTypeId of entityTypeIds) {
+    LAND_BREAK_PROTECTED_ENTITY_TYPE_IDS.add(entityTypeId);
+  }
+}
 const LAND_SENSITIVE_ENTITY_SPAWN_TRACK_TICKS = 10;
 const LAND_SENSITIVE_FLUID_ITEMS = new Map<string, string[]>([
   ["minecraft:water_bucket", ["minecraft:water", "minecraft:flowing_water"]],
@@ -335,6 +341,21 @@ function warnDeniedLandBreaking(player: Player, block: any, land: ILand): void {
     const p = getOnlineRealPlayers().find((pl) => pl.id === player.id);
     if (!p) return;
     useNotify("actionbar", p, color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地方块`));
+  });
+}
+
+function warnDeniedLandEntityBreaking(player: Player, entity: Entity, land: ILand): void {
+  const pseudoBlock = {
+    typeId: entity.typeId,
+    location: entity.location,
+    dimension: entity.dimension,
+  };
+  logLandBreakAttemptOnce(player, pseudoBlock, land);
+
+  system.run(() => {
+    const p = getOnlineRealPlayers().find((pl) => pl.id === player.id);
+    if (!p) return;
+    useNotify("actionbar", p, color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地展示实体`));
   });
 }
 
@@ -1343,6 +1364,11 @@ export function registerLandEvents(): void {
     const { isInside, insideLand } = landManager.testLand(target.location, target.dimension.id);
 
     if (!isInside || !insideLand) return;
+    if (LAND_BREAK_PROTECTED_ENTITY_TYPE_IDS.has(target.typeId) && !isLandBreakAllowed(player, insideLand)) {
+      event.cancel = true;
+      warnDeniedLandEntityBreaking(player, target, insideLand);
+      return;
+    }
     if (insideLand.owner === player.name) return;
     if (isAdmin(player)) return;
     if (insideLand.public_auth.useEntity) return;
@@ -1426,6 +1452,21 @@ export function registerLandEvents(): void {
     // 2. 检查受伤实体是否在领地内
     const { isInside, insideLand } = landManager.testLand(hurtEntity.location, hurtEntity.dimension.id);
     if (!isInside || !insideLand) return;
+
+    if (LAND_BREAK_PROTECTED_ENTITY_TYPE_IDS.has(hurtEntity.typeId)) {
+      if (isLandBreakAllowed(attacker, insideLand)) return;
+
+      event.cancel = true;
+      const targetEntity = hurtEntity;
+      system.run(() => {
+        try {
+          targetEntity.extinguishFire(true);
+          targetEntity.clearVelocity();
+        } catch (_) {}
+      });
+      warnDeniedLandEntityBreaking(attacker, hurtEntity, insideLand);
+      return;
+    }
 
     // 3. 如果攻击者是领地主人,则允许
     if (insideLand.owner === attacker.name) return;
