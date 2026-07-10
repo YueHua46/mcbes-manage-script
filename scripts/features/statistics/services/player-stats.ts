@@ -4,7 +4,12 @@
 
 import { Player, system } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
-import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
+import {
+  getOnlineRealPlayerByName,
+  getOnlineRealPlayers,
+  isKnownRealPlayerName,
+  isRealPlayerEntity,
+} from "../../../shared/utils/online-players";
 
 const DATABASE_NAME = "player_stats";
 
@@ -70,12 +75,14 @@ class PlayerStatsService {
   }
 
   incrementMobKill(playerName: string): void {
+    if (!isKnownRealPlayerName(playerName)) return;
     const cur = this.getRecord(playerName);
     cur.mobKills += 1;
     this.setRecord(playerName, cur);
   }
 
   incrementTotalDeath(playerName: string): void {
+    if (!isKnownRealPlayerName(playerName)) return;
     const cur = this.getRecord(playerName);
     cur.totalDeaths += 1;
     this.setRecord(playerName, cur);
@@ -85,6 +92,7 @@ class PlayerStatsService {
    * 仅当 (level,xp) 不低于已存快照时更新，避免死亡掉级等导致回退
    */
   refreshLevelSnapshot(player: Player): void {
+    if (!isRealPlayerEntity(player)) return;
     const name = player.name;
     const curLv = Math.max(0, Math.floor(player.level));
     const curXp = Math.max(0, Math.floor(player.xpEarnedAtCurrentLevel));
@@ -144,7 +152,7 @@ class PlayerStatsService {
 
     const rows: Array<{ name: string; value: number; subValue?: number }> = [];
     for (const name of names) {
-      if (!name) continue;
+      if (!isKnownRealPlayerName(name)) continue;
       if (kind === "mobKills") {
         const r = this.getRecord(name);
         rows.push({ name, value: r.mobKills });

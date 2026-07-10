@@ -1,10 +1,12 @@
 import { RawMessage, world } from "@minecraft/server";
 import { BRANDING } from "../core/constants";
 import { eventRegistry } from "./registry";
+import { isRealPlayerEntity } from "../shared/utils/online-players";
 
 function registerPlayerSpawnEvent(): void {
   world.afterEvents.playerSpawn.subscribe((event) => {
     const { player } = event;
+    if (!isRealPlayerEntity(player)) return;
     const isFirstJoin = player?.getDynamicProperty("isFirst");
     if (!isFirstJoin) {
       player?.setDynamicProperty("isFirst", true);

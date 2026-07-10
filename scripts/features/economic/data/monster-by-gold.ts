@@ -46,3 +46,27 @@ export const monsterByGold: Record<string, [number, number]> = {
   hoglin: [5, 15],
 };
 
+export function normalizeMonsterRewardRange(value: unknown): [number, number] | undefined {
+  if (!Array.isArray(value) || value.length < 2) return undefined;
+  const first = Math.floor(Number(value[0]));
+  const second = Math.floor(Number(value[1]));
+  if (!Number.isSafeInteger(first) || !Number.isSafeInteger(second) || first < 0 || second < 0) return undefined;
+  return first <= second ? [first, second] : [second, first];
+}
+
+export function getMonsterRewardOverrides(raw: unknown): Record<string, [number, number]> {
+  if (typeof raw !== "string" || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const result: Record<string, [number, number]> = {};
+    for (const [monster, value] of Object.entries(parsed)) {
+      const range = normalizeMonsterRewardRange(value);
+      if (range) result[monster] = range;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+

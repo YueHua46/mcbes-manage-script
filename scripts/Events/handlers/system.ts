@@ -34,19 +34,25 @@ export function registerSystemEvents(): void {
 
       if (items.length > Number(killItemAmount)) {
         isRunning = true;
-        world.sendMessage(`${other.note} §e服务器掉落物过多，即将在30秒后清理掉落物！`);
-        await system.waitTicks(20 * 25);
-        world.sendMessage(`${other.note} §e即将在5秒后清理掉落物！`);
-        await system.waitTicks(20 * 2);
-        world.sendMessage(`${other.note} §e3...`);
-        await system.waitTicks(20 * 1);
-        world.sendMessage(`${other.note} §e2...`);
-        await system.waitTicks(20 * 1);
-        world.sendMessage(`${other.note} §e1...`);
-        useItems().forEach((i) => i.kill());
-        await system.waitTicks(20 * 1);
-        world.sendMessage(`${other.note} §a掉落物清理完成`);
-        isRunning = false;
+        try {
+          for (let remaining = 30; remaining >= 1; remaining--) {
+            if (remaining === 30 || remaining === 20 || remaining === 10 || remaining <= 9) {
+              world.sendMessage(`${other.note} §e服务器掉落物过多，将在 §c${remaining} §e秒后自动清理！`);
+            }
+            await system.waitTicks(20);
+          }
+          const latestItems = useItems();
+          latestItems.forEach((item) => {
+            try {
+              item.kill();
+            } catch {
+              // 实体可能刚好被拾取或卸载。
+            }
+          });
+          world.sendMessage(`${other.note} §a掉落物清理完成，共处理 ${latestItems.length} 个掉落物。`);
+        } finally {
+          isRunning = false;
+        }
       }
     },
   });

@@ -54,6 +54,8 @@ export type IModules =
   | "daily_gold_limit"
   | "startingGold"
   | "monsterKillGoldReward"
+  /** 怪物击杀金币自定义范围，JSON 对象：实体短 ID -> [最小值, 最大值] */
+  | "monsterKillRewardRanges"
   | "deathGoldPenaltyEnabled"
   | "deathGoldPenaltyAmount"
   | "allowPlayerDisplaySettings"
@@ -145,6 +147,8 @@ export type IModules =
   | "landFlightGoldPerInterval"
   /** 领地内飞行：离开领地后宽限秒数（0=立即收回，建议 0～30） */
   | "landFlightLeaveGraceSec"
+  /** 领地常显粒子档位：off / low / balanced / high */
+  | "landBoundaryParticleLevel"
   /** 防刷物品：总开关（功能开关管理；关则所有防刷逻辑与白名单登记不运行） */
   | "antiDupeEnabled"
   /** 防刷物品：禁止收纳袋放入非常规容器（子项，受总开关约束） */
@@ -195,6 +199,7 @@ export const defaultSetting = {
   daily_gold_limit: "100000",
   startingGold: "500",
   monsterKillGoldReward: true,
+  monsterKillRewardRanges: "{}",
   deathGoldPenaltyEnabled: true,
   deathGoldPenaltyAmount: "100",
   allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
@@ -281,6 +286,8 @@ export const defaultSetting = {
   landFlightGoldPerInterval: "0",
   /** 离开领地后仍可飞行的宽限秒数；0 表示一出领地立即收回 */
   landFlightLeaveGraceSec: "5",
+  /** 默认使用均衡档，保留清晰边界的同时降低扫描频率与渲染距离 */
+  landBoundaryParticleLevel: "balanced",
   /** 防刷物品总开关（默认开；仅「功能开关管理」中切换） */
   antiDupeEnabled: true,
   /** 收纳袋防刷：不得放入漏斗/投掷器等（默认开；总开关关则不生效） */

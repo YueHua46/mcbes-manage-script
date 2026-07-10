@@ -9,6 +9,7 @@ import { color } from '../../../shared/utils/color';
 import { isAdmin } from '../../../shared/utils/common';
 import { Database } from '../../../shared/database/database';
 import { usePlayerByName } from '../../../shared/hooks/use-player';
+import { isKnownRealPlayerName, isRealPlayerEntity } from '../../../shared/utils/online-players';
 
 // 存储玩家计时器ID的Map
 const playerTimerIds = new Map<string, number>();
@@ -138,6 +139,7 @@ export function initPlayerTimer(player: Player): void {
 // 监听玩家加入事件
 world.afterEvents.playerSpawn.subscribe((event) => {
   const { player } = event;
+  if (!isRealPlayerEntity(player)) return;
   const isJoin = player.getDynamicProperty('join');
   if (isJoin) return;
 
@@ -147,6 +149,7 @@ world.afterEvents.playerSpawn.subscribe((event) => {
 // 监听玩家离开事件
 world.afterEvents.playerLeave.subscribe((event) => {
   const { playerName } = event;
+  if (!isKnownRealPlayerName(playerName)) return;
   const timerId = playerTimerIds.get(playerName);
   if (timerId) {
     system.clearRun(timerId);

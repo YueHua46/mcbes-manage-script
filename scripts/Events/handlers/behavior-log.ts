@@ -5,7 +5,7 @@ import { taskScheduler } from "../../features/platform/scheduler";
 import setting from "../../features/system/services/setting";
 import { isMenuChatTrigger } from "../../core/constants";
 import { eventRegistry } from "../registry";
-import { getOnlineRealPlayers } from "../../shared/utils/online-players";
+import { getOnlineRealPlayers, isKnownRealPlayerName, isRealPlayerEntity } from "../../shared/utils/online-players";
 
 const JOIN_FLAG = "behaviorLogJoinState";
 const LAND_SCAN_INTERVAL_TICKS = 20;
@@ -42,7 +42,7 @@ function getLandInfoAt(location: Vector3, dimensionId: string): LandLogInfo | un
 }
 
 function asPlayer(entity: any): Player | undefined {
-  return entity?.typeId === "minecraft:player" ? (entity as Player) : undefined;
+  return entity && isRealPlayerEntity(entity) ? (entity as Player) : undefined;
 }
 
 function registerNativeContainerAccessEvents(): {
@@ -210,6 +210,7 @@ export function registerBehaviorLogEvents(): void {
 
   world.afterEvents.playerSpawn.subscribe((event) => {
     const { player } = event;
+    if (!isRealPlayerEntity(player)) return;
     const joined = player.getDynamicProperty(JOIN_FLAG) as boolean | undefined;
 
     if (joined) return;
@@ -222,18 +223,19 @@ export function registerBehaviorLogEvents(): void {
     const player = event.player as Player | undefined;
     const playerName = player?.name ?? event.playerName;
 
-    if (player) {
+    if (player && isRealPlayerEntity(player)) {
       player.setDynamicProperty(JOIN_FLAG, false);
       playerLandState.delete(player.id);
     }
 
-    if (playerName) {
+    if (playerName && isKnownRealPlayerName(playerName)) {
       behaviorLog.logLeave(playerName);
     }
   });
 
   world.beforeEvents.chatSend.subscribe((event) => {
     const { sender, message } = event;
+    if (!isRealPlayerEntity(sender)) return;
     if (!message.trim()) return;
     if (isMenuChatTrigger(message)) return;
     behaviorLog.logChat(sender, message);
@@ -243,6 +245,7 @@ export function registerBehaviorLogEvents(): void {
     if (!event.block?.typeId) return;
     const blockTypeId = event.block.typeId;
     const { player, block } = event;
+    if (!isRealPlayerEntity(player)) return;
 
     if (isWaterBlock(blockTypeId)) {
       behaviorLog.logPlaceWater(player, block.location, block.dimension.id);
@@ -266,6 +269,7 @@ export function registerBehaviorLogEvents(): void {
       const itemId = event.itemStack?.typeId;
       if (!itemId || !event.block?.location) return;
       const { source: player, block, blockFace } = event;
+      if (!player || !isRealPlayerEntity(player)) return;
       const dimId = block.dimension?.id;
       if (!dimId) return;
 
@@ -290,6 +294,7 @@ export function registerBehaviorLogEvents(): void {
   world.beforeEvents.playerInteractWithBlock.subscribe((event: any) => {
     if (event.cancel) return;
     const { player, block, itemStack } = event;
+    if (!isRealPlayerEntity(player)) return;
     const blockTypeId = block?.typeId;
     if (!blockTypeId) return;
 
@@ -316,6 +321,7 @@ export function registerBehaviorLogEvents(): void {
   world.beforeEvents.playerInteractWithEntity.subscribe((event: any) => {
     if (event.cancel) return;
     const { player, target } = event;
+    if (!isRealPlayerEntity(player)) return;
     if (!target) return;
 
     if (hasEntityContainerAccessEvents) return;
@@ -339,7 +345,7 @@ export function registerBehaviorLogEvents(): void {
     const victim = event.hurtEntity;
     const attacker = event.damageSource?.damagingEntity;
 
-    if (attacker?.typeId !== "minecraft:player") {
+    if (!attacker || !isRealPlayerEntity(attacker)) {
       return;
     }
 
@@ -361,6 +367,7 @@ export function registerBehaviorLogEvents(): void {
     if (victim?.typeId !== "minecraft:player") return;
 
     const player = victim as Player;
+    if (!isRealPlayerEntity(player)) return;
     const killer = event.damageSource?.damagingEntity;
     const reason =
       killer?.typeId === "minecraft:player"

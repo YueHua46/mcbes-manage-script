@@ -9,6 +9,7 @@ import playerSettings from "../../features/player/services/player-settings";
 import setting from "../../features/system/services/setting";
 import { guildFacade } from "../../features/guild/services/guild-facade";
 import { isMenuChatTrigger } from "../../core/constants";
+import { isRealPlayerEntity } from "../../shared/utils/online-players";
 
 /**
  * 注册聊天事件处理器
@@ -17,6 +18,7 @@ export function registerChatEvents(): void {
   // 苦力怕菜单命令
   world.beforeEvents.chatSend.subscribe((event) => {
     const { sender, message } = event;
+    if (!isRealPlayerEntity(sender)) return;
     if (isMenuChatTrigger(message)) {
       event.cancel = true;
       system.run(async () => {
@@ -29,6 +31,7 @@ export function registerChatEvents(): void {
   // 聊天消息处理（包含别名显示和屏蔽功能）
   world.beforeEvents.chatSend.subscribe((e) => {
     const { message, sender } = e;
+    if (!isRealPlayerEntity(sender)) return;
     if (isMenuChatTrigger(message)) return;
     e.cancel = true;
 

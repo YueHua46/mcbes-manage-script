@@ -3,7 +3,7 @@ import { eventRegistry } from "../registry";
 import questPlayerService from "../../features/quest/services/quest-player";
 import { taskScheduler } from "../../features/platform/scheduler";
 import { ONLINE_TIME_TICK_INTERVAL } from "../../features/player/services/online-time";
-import { getOnlineRealPlayers } from "../../shared/utils/online-players";
+import { getOnlineRealPlayers, isRealPlayerEntity } from "../../shared/utils/online-players";
 
 const pendingItemDeltas = new Map<string, { player: Player; items: Map<string, number> }>();
 let itemFlushScheduled = false;
@@ -57,7 +57,7 @@ function flushPendingItemDeltas(): void {
 export function registerQuestEvents(): void {
   world.afterEvents.entityDie.subscribe((event) => {
     const killer = event.damageSource.damagingEntity;
-    if (killer?.typeId !== "minecraft:player") return;
+    if (!killer || !isRealPlayerEntity(killer)) return;
     const player = killer as Player;
     const deadEntity = event.deadEntity;
     if (deadEntity.typeId === "minecraft:player") return;
@@ -72,6 +72,7 @@ export function registerQuestEvents(): void {
   });
 
   world.afterEvents.playerBreakBlock.subscribe((event) => {
+    if (!isRealPlayerEntity(event.player)) return;
     notifyQuestChanges(
       event.player,
       questPlayerService.recordEvent(event.player, "block.break", {
@@ -82,6 +83,7 @@ export function registerQuestEvents(): void {
   });
 
   world.afterEvents.playerInventoryItemChange.subscribe((event) => {
+    if (!isRealPlayerEntity(event.player)) return;
     if (event.inventoryType !== PlayerInventoryType.Hotbar && event.inventoryType !== PlayerInventoryType.Inventory) return;
     if (event.beforeItemStack) {
       addPendingItemDelta(event.player, event.beforeItemStack.typeId, -event.beforeItemStack.amount);

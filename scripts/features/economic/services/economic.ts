@@ -8,6 +8,7 @@ import { taskScheduler } from "../../platform/scheduler";
 import { Database } from "../../../shared/database/database";
 import { usePlayerByName } from "../../../shared/hooks/use-player";
 import setting from "../../system/services/setting";
+import { filterRealPlayerRecords } from "../../../shared/utils/online-players";
 import { colorCodes } from "../../../shared/utils/color";
 import { formatDateOnlyBeijing } from "../../../shared/utils/datetime-beijing";
 import identityService from "../../player/services/identity-service";
@@ -199,7 +200,7 @@ export class Economic {
 
   getAllWallets(): IUserWallet[] {
     const allPlayerWallets = this.db.getAll();
-    return Object.values(allPlayerWallets);
+    return filterRealPlayerRecords(Object.values(allPlayerWallets));
   }
 
   getTopWallets(limit: number = 10): IUserWallet[] {

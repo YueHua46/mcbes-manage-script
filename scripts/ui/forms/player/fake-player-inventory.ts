@@ -1,6 +1,6 @@
 import { Container, Player } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
-import fakePlayerService from "../../../features/fake-player/services/fake-player";
+import fakePlayerService, { getFakePlayerType } from "../../../features/fake-player/services/fake-player";
 import ChestFormData, { ChestFormResponse } from "../../components/chest-ui/chest-forms";
 import { getChestItemDurabilityBarValue } from "../../components/chest-ui";
 import { getItemDisplayName, hasAnyEnchantment } from "../../../shared/utils/item-utils";
@@ -43,6 +43,22 @@ export function openFakePlayerInteractMenu(viewer: Player, fakeId: string): void
   const fakeItem = fakePlayerService.getById(fakeId);
   if (!fakeItem) {
     openDialogForm(viewer, { title: "§c错误", desc: "这个假人的数据不存在。" }, () => undefined);
+    return;
+  }
+
+  if (getFakePlayerType(fakeItem) === "entity") {
+    const form = new ActionFormData();
+    form.title(`旧版假人 · ${fakeItem.name}`);
+    form.body(
+      [
+        `§a创建者: §e${fakeItem.ownerName}`,
+        "§7这是兼容性更好的实体假人，可加载区块并维持红石、农作物运行。",
+        "§e实体假人没有玩家背包，也不会参与原版玩家刷怪判定。",
+        "§7创建者或管理员可从假人管理列表中移动、换肤、重生或删除它。",
+      ].join("\n")
+    );
+    form.button("关闭", "textures/icons/back");
+    form.show(viewer);
     return;
   }
 

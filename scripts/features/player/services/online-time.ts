@@ -4,7 +4,12 @@
 
 import { Player, system } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
-import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
+import {
+  getOnlineRealPlayerByName,
+  getOnlineRealPlayers,
+  isKnownRealPlayerName,
+  isRealPlayerEntity,
+} from "../../../shared/utils/online-players";
 
 const DATABASE_NAME = "online_time";
 const TICK_INTERVAL = 1200;
@@ -57,6 +62,7 @@ class OnlineTimeService {
   }
 
   getTotalSeconds(name: string): number {
+    if (!isKnownRealPlayerName(name)) return 0;
     const db = this.ensureDb();
     if (!db) return 0;
     const r = db.get(name);
@@ -67,6 +73,7 @@ class OnlineTimeService {
 
   /** 已持久化 + 当前在线且存在锚点时的未落库秒数 */
   getDisplayTotalSeconds(player: Player): number {
+    if (!isRealPlayerEntity(player)) return 0;
     const base = this.getTotalSeconds(player.name);
     const anchor = anchorMsByName.get(player.name);
     if (anchor === undefined) return base;
@@ -107,12 +114,14 @@ class OnlineTimeService {
   }
 
   onPlayerSpawn(player: Player): void {
+    if (!isRealPlayerEntity(player)) return;
     if (!anchorMsByName.has(player.name)) {
       anchorMsByName.set(player.name, Date.now());
     }
   }
 
   onPlayerLeave(player: Player): void {
+    if (!isRealPlayerEntity(player)) return;
     const name = player.name;
     const anchor = anchorMsByName.get(name);
     if (anchor !== undefined) {
@@ -151,7 +160,7 @@ class OnlineTimeService {
         name,
         totalSeconds: this.getDisplayTotalSecondsByName(name),
       }))
-      .filter((e) => e.name.length > 0)
+      .filter((e) => isKnownRealPlayerName(e.name))
       .sort((a, b) => b.totalSeconds - a.totalSeconds)
       .slice(0, Math.max(1, Math.min(limit, 100)));
     return rows;
@@ -167,7 +176,7 @@ class OnlineTimeService {
         name,
         totalSeconds: this.getDisplayTotalSecondsByName(name),
       }))
-      .filter((e) => e.name.length > 0)
+      .filter((e) => isKnownRealPlayerName(e.name))
       .sort((a, b) => b.totalSeconds - a.totalSeconds);
     const idx = rows.findIndex((r) => r.name === playerName);
     return idx === -1 ? -1 : idx + 1;
@@ -178,6 +187,7 @@ class OnlineTimeService {
    * 库中无该键、或从未记录过下线时间会有对应 kind。
    */
   lookupOfflineDuration(playerName: string): OfflineDurationLookup {
+    if (!isKnownRealPlayerName(playerName)) return { kind: "not_in_db" };
     if (findOnlinePlayerByName(playerName)) {
       return { kind: "online" };
     }
@@ -201,7 +211,7 @@ class OnlineTimeService {
     const now = Date.now();
     const rows: Array<{ name: string; offlineSeconds: number }> = [];
     for (const name of Object.keys(all)) {
-      if (!name.length) continue;
+      if (!isKnownRealPlayerName(name)) continue;
       if (findOnlinePlayerByName(name)) continue;
       const r = all[name];
       const ms = r?.lastLogoutMs;

@@ -7,7 +7,8 @@ import { world, Player } from "@minecraft/server";
 import economic from "./economic";
 import setting from "../../system/services/setting";
 import { colorCodes } from "../../../shared/utils/color";
-import { monsterByGold } from "../data/monster-by-gold";
+import { getMonsterRewardOverrides, monsterByGold } from "../data/monster-by-gold";
+import { isRealPlayerEntity } from "../../../shared/utils/online-players";
 
 // 订阅实体死亡事件
 world.afterEvents.entityDie.subscribe((event) => {
@@ -21,12 +22,13 @@ world.afterEvents.entityDie.subscribe((event) => {
   // 检查是否是玩家击杀
   if (damageSource.damagingEntity?.typeId === "minecraft:player") {
     const player = damageSource.damagingEntity as Player;
-    const entityType = deadEntity.typeId;
+    if (!isRealPlayerEntity(player)) return;
     const fullType = deadEntity.typeId;
     const monsterName = fullType.includes(":") ? fullType.split(":")[1] : fullType;
 
     // 检查是否有对应的金币奖励
-    const reward = monsterByGold[monsterName];
+    const customRanges = getMonsterRewardOverrides(setting.getState("monsterKillRewardRanges"));
+    const reward = customRanges[monsterName] ?? monsterByGold[monsterName];
     if (reward) {
       // 随机生成奖励金额
       const min = reward[0] || 0;

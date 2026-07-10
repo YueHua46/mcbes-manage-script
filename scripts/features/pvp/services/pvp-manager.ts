@@ -9,6 +9,7 @@ import type { IPvpPlayerData, IPvpConfig, PvpMode } from "../models/pvp-data";
 import { isAdmin } from "../../../shared/utils/common";
 import landManager from "../../land/services/land-manager";
 import setting from "../../system/services/setting";
+import { isKnownRealPlayerName } from "../../../shared/utils/online-players";
 
 const PLUGIN_CONTROLLED_MODES: PvpMode[] = ["plugin", "forced"];
 const MAX_PVP_MONEY_VALUE = Number.MAX_SAFE_INTEGER;
@@ -169,7 +170,9 @@ class PvpManager {
    * 获取所有玩家PVP数据
    */
   getAllPlayerData(): Record<string, IPvpPlayerData> {
-    return this.playerDataDb.getAll();
+    return Object.fromEntries(
+      Object.entries(this.playerDataDb.getAll()).filter(([name]) => isKnownRealPlayerName(name))
+    );
   }
 
   /**

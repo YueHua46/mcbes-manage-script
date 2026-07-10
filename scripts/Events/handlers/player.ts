@@ -88,6 +88,7 @@ export function registerPlayerEvents(): void {
   // 玩家离开事件
   world.beforeEvents.playerLeave.subscribe((event) => {
     const { player } = event;
+    if (isFakePlayer(player)) return;
     player.setDynamicProperty("join", false);
   });
 

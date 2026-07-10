@@ -2,15 +2,18 @@ import { Player, system, world } from "@minecraft/server";
 import onlineTimeService, { ONLINE_TIME_TICK_INTERVAL } from "../../features/player/services/online-time";
 import { taskScheduler } from "../../features/platform/scheduler";
 import { eventRegistry } from "../registry";
+import { isRealPlayerEntity, registerKnownRealPlayer } from "../../shared/utils/online-players";
 
 export function registerOnlineTimeEvents(): void {
   world.afterEvents.playerSpawn.subscribe((event) => {
+    if (!isRealPlayerEntity(event.player)) return;
+    registerKnownRealPlayer(event.player);
     onlineTimeService.onPlayerSpawn(event.player);
   });
 
   world.beforeEvents.playerLeave.subscribe((event) => {
     const player = event.player as Player | undefined;
-    if (player) {
+    if (player && isRealPlayerEntity(player)) {
       onlineTimeService.onPlayerLeave(player);
     }
   });

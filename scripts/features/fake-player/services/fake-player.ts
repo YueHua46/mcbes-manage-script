@@ -3,9 +3,15 @@ import { spawnSimulatedPlayer, SimulatedPlayer } from "@minecraft/server-gametes
 import { Database } from "../../../shared/database/database";
 import { generateId, isAdmin, SystemLog } from "../../../shared/utils/common";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
+import {
+  isScriptFakePlayerEntity,
+  isKnownFakePlayerName,
+  registerKnownFakePlayerName,
+} from "../../../shared/utils/online-players";
 import economic from "../../economic/services/economic";
 import { taskScheduler } from "../../platform/scheduler";
 import setting from "../../system/services/setting";
+import identityService from "../../player/services/identity-service";
 import {
   hasPersistedInventory,
   PersistedFakeInventory,
@@ -21,10 +27,7 @@ const POSITION_GUARD_DISTANCE_SQ = 1;
 
 /** 判断实体是否为脚本创建的假人（SimulatedPlayer） */
 export function isFakePlayer(entity: Entity): boolean {
-  if (entity.typeId !== "minecraft:player") return false;
-  if (entity.hasTag(FAKE_PLAYER_TAG)) return true;
-  const fakeId = entity.getDynamicProperty(FAKE_PLAYER_ID_PROPERTY);
-  return typeof fakeId === "string" && fakeId.length > 0;
+  return isScriptFakePlayerEntity(entity);
 }
 
 /** 假人头顶名称：第一行假人名，第二行创建者 */
@@ -39,6 +42,8 @@ export interface IFakePlayer {
   location: Vector3;
   dimension: string;
   created: string;
+  /** entity=兼容性更好的旧版实体；simulated=可参与原版玩家刷怪判定的新版模拟玩家 */
+  type?: FakePlayerType;
   skinId?: number;
   rotationX?: number;
   rotationY?: number;
@@ -57,6 +62,14 @@ export interface IFakePlayer {
 export interface FakePlayerCreateInput {
   player: Player;
   name: string;
+  type?: FakePlayerType;
+  skinId?: number;
+}
+
+export type FakePlayerType = "entity" | "simulated";
+
+export function getFakePlayerType(item: IFakePlayer): FakePlayerType {
+  return item.type === "entity" ? "entity" : "simulated";
 }
 
 function parseNonNegativeInteger(value: unknown, fallback: number): number {
@@ -124,7 +137,7 @@ class FakePlayerService {
   constructor() {
     system.run(() => {
       this.db = new Database<IFakePlayer>("fake_players");
-      this.cleanupLegacyEntities();
+      for (const item of this.db.values()) registerKnownFakePlayerName(item.name);
       this.ensureAllSpawned();
     });
 
@@ -174,9 +187,11 @@ class FakePlayerService {
       try {
         const item = this.getById(fakeId);
         if (!item) return;
-        item.inventory = snapshotPlayerInventory(entity as SimulatedPlayer);
-        this.db.set(item.id, item);
-        this.db.save();
+        if (getFakePlayerType(item) === "simulated" && entity.typeId === "minecraft:player") {
+          item.inventory = snapshotPlayerInventory(entity as SimulatedPlayer);
+          this.db.set(item.id, item);
+          this.db.save();
+        }
       } catch (error) {
         SystemLog.warn(`[FakePlayer] 假人移除前持久化背包失败: ${fakeId} ${String(error)}`);
       }
@@ -255,12 +270,18 @@ class FakePlayerService {
 
   getLivePlayer(id: string): SimulatedPlayer | undefined {
     const item = this.getById(id);
-    return item ? this.getSimulatedPlayer(item) : undefined;
+    return item && getFakePlayerType(item) === "simulated" ? this.getSimulatedPlayer(item) : undefined;
+  }
+
+  getLiveEntity(id: string): Entity | undefined {
+    const item = this.getById(id);
+    if (!item) return undefined;
+    return getFakePlayerType(item) === "entity" ? this.getLegacyEntity(item) : this.getSimulatedPlayer(item);
   }
 
   persistInventory(id: string, inventory?: PersistedFakeInventory): void {
     const item = this.getById(id);
-    if (!item) return;
+    if (!item || getFakePlayerType(item) !== "simulated") return;
 
     if (inventory) {
       item.inventory = inventory;
@@ -360,20 +381,24 @@ class FakePlayerService {
       location: formatLocation(input.player.location),
       dimension: input.player.dimension.id,
       created: time,
+      type: input.type === "entity" ? "entity" : "simulated",
+      skinId: input.type === "entity" ? this.normalizeSkinId(input.skinId) : undefined,
       rotationX: input.player.getRotation().x,
       rotationY: input.player.getRotation().y,
       gameMode: GameMode.Survival,
     };
 
-    const simulated = this.spawnSimulatedPlayer(item);
-    if (!simulated) {
+    registerKnownFakePlayerName(item.name);
+
+    const spawned = this.spawnForType(item);
+    if (!spawned) {
       if (cost > 0) {
         economic.addGold(input.player.name, cost, "创建假人失败退款", true);
       }
       return "创建假人失败，请确认当前区块已加载";
     }
 
-    item.entityId = simulated.id;
+    item.entityId = spawned.id;
     this.db.set(item.id, item);
     return item;
   }
@@ -385,7 +410,7 @@ class FakePlayerService {
       return "无权删除该假人";
     }
 
-    this.removeSimulatedPlayer(item);
+    this.removeManagedPlayer(item);
     return this.db.delete(id);
   }
 
@@ -403,9 +428,9 @@ class FakePlayerService {
     let kicked = 0;
 
     for (const item of items) {
-      const simulated = this.getSimulatedPlayer(item);
-      if (simulated?.isValid) kicked++;
-      this.removeSimulatedPlayer(item);
+      const entity = this.getLiveEntity(item.id);
+      if (entity?.isValid) kicked++;
+      this.removeManagedPlayer(item);
       this.db.delete(item.id);
     }
 
@@ -415,6 +440,19 @@ class FakePlayerService {
       if (typeof fakeId === "string" && knownFakeIds.has(fakeId)) continue;
       kicked++;
       this.removeLiveFakePlayer(online as SimulatedPlayer);
+    }
+
+    for (const dimensionId of ["overworld", "nether", "the_end"]) {
+      try {
+        for (const entity of world.getDimension(dimensionId).getEntities({ type: LEGACY_ENTITY_TYPE as any })) {
+          const fakeId = entity.getDynamicProperty(FAKE_PLAYER_ID_PROPERTY);
+          if (typeof fakeId === "string" && knownFakeIds.has(fakeId)) continue;
+          kicked++;
+          entity.remove();
+        }
+      } catch {
+        // 忽略未加载维度或已卸载实体。
+      }
     }
 
     this.activeById.clear();
@@ -431,16 +469,20 @@ class FakePlayerService {
       return item;
     }
 
-    const existing = this.getSimulatedPlayer(item);
+    const existing = this.getLiveEntity(item.id);
     if (existing) {
-      this.prepareSimulatedPlayer(existing, item, false);
-      this.guardPosition(existing, item);
+      if (getFakePlayerType(item) === "entity") {
+        this.prepareLegacyEntity(existing, item);
+      } else {
+        this.prepareSimulatedPlayer(existing as SimulatedPlayer, item, false);
+        this.guardPosition(existing as SimulatedPlayer, item);
+      }
       item.entityId = existing.id;
       this.db.set(item.id, item);
       return item;
     }
 
-    const spawned = this.spawnSimulatedPlayer(item);
+    const spawned = this.spawnForType(item);
     if (!spawned) {
       return item;
     }
@@ -450,12 +492,44 @@ class FakePlayerService {
     return item;
   }
 
+  moveToOperator(operator: Player, id: string): IFakePlayer | string {
+    const item = this.getById(id);
+    if (!item) return "假人不存在";
+    if (item.ownerName !== operator.name && !isAdmin(operator)) return "无权移动该假人";
+
+    this.removeManagedPlayer(item);
+    item.location = formatLocation(operator.location);
+    item.dimension = operator.dimension.id;
+    item.rotationX = operator.getRotation().x;
+    item.rotationY = operator.getRotation().y;
+    delete item.entityId;
+    this.db.set(item.id, item);
+    const spawned = this.spawnForType(item);
+    if (!spawned) return "新位置所在区块未加载，数据已保存，稍后会自动生成";
+    item.entityId = spawned.id;
+    this.db.set(item.id, item);
+    return item;
+  }
+
+  setLegacySkin(operator: Player, id: string, skinId: number): IFakePlayer | string {
+    const item = this.getById(id);
+    if (!item) return "假人不存在";
+    if (getFakePlayerType(item) !== "entity") return "新版模拟玩家不支持二次元皮肤";
+    if (item.ownerName !== operator.name && !isAdmin(operator)) return "无权修改该假人";
+    item.skinId = this.normalizeSkinId(skinId);
+    const entity = this.getLegacyEntity(item);
+    if (entity) this.applyLegacySkin(entity, item.skinId);
+    this.db.set(item.id, item);
+    return item;
+  }
+
   ensureAllSpawned(): void {
     if (setting.getState("fakePlayer") !== true) return;
 
     for (const item of this.db.values()) {
       try {
-        const simulated = this.getSimulatedPlayer(item);
+        registerKnownFakePlayerName(item.name);
+        const simulated = getFakePlayerType(item) === "simulated" ? this.getSimulatedPlayer(item) : undefined;
         if (simulated?.isValid) {
           this.persistInventory(item.id);
         }
@@ -476,6 +550,10 @@ class FakePlayerService {
 
     if (this.getByName(name)) {
       return "已有同名假人，请换一个名称";
+    }
+
+    if (identityService.getProfileByName(name) && !isKnownFakePlayerName(name)) {
+      return "该名称属于曾进入服务器的真实玩家，请换一个名称";
     }
 
     for (const online of world.getAllPlayers()) {
@@ -515,22 +593,58 @@ class FakePlayerService {
     }, 5);
   }
 
-  private cleanupLegacyEntities(): void {
-    const dimensions = ["overworld", "nether", "the_end"] as const;
-    for (const dimId of dimensions) {
-      try {
-        const dimension = world.getDimension(dimId);
-        const legacyEntities = dimension.getEntities({ type: LEGACY_ENTITY_TYPE as any });
-        for (const entity of legacyEntities) {
-          try {
-            entity.remove();
-          } catch {
-            // ignore
-          }
-        }
-      } catch {
-        // ignore missing dimension
-      }
+  private spawnForType(item: IFakePlayer): Entity | undefined {
+    return getFakePlayerType(item) === "entity" ? this.spawnLegacyEntity(item) : this.spawnSimulatedPlayer(item);
+  }
+
+  private spawnLegacyEntity(item: IFakePlayer): Entity | undefined {
+    const dimension = getDimension(item.dimension);
+    if (!isLocationLoaded(dimension, item.location)) return undefined;
+    try {
+      const entity = dimension.spawnEntity(LEGACY_ENTITY_TYPE as any, item.location);
+      this.prepareLegacyEntity(entity, item);
+      return entity;
+    } catch (error) {
+      SystemLog.warn(`[FakePlayer] 生成旧版实体假人失败: ${item.id} ${item.name} ${String(error)}`);
+      return undefined;
+    }
+  }
+
+  private prepareLegacyEntity(entity: Entity, item: IFakePlayer): void {
+    try {
+      registerKnownFakePlayerName(item.name);
+      entity.addTag(FAKE_PLAYER_TAG);
+      entity.addTag(`yuehua_fake_player_id:${item.id}`);
+      entity.setDynamicProperty(FAKE_PLAYER_ID_PROPERTY, item.id);
+      entity.setDynamicProperty("fakePlayerOwner", item.ownerName);
+      entity.nameTag = buildFakePlayerNameTag(item);
+      this.applyLegacySkin(entity, this.normalizeSkinId(item.skinId));
+      entity.teleport(item.location, {
+        dimension: getDimension(item.dimension),
+        rotation: getStoredRotation(item),
+      });
+    } catch (error) {
+      SystemLog.warn(`[FakePlayer] 绑定旧版实体假人失败: ${item.id} ${String(error)}`);
+    }
+  }
+
+  private applyLegacySkin(entity: Entity, skinId: number): void {
+    try {
+      entity.triggerEvent(`yuehua:set_skin_${this.normalizeSkinId(skinId)}`);
+    } catch {
+      // 资源版本过旧时保留默认皮肤。
+    }
+  }
+
+  private getLegacyEntity(item: IFakePlayer): Entity | undefined {
+    try {
+      const entities = getDimension(item.dimension).getEntities({ type: LEGACY_ENTITY_TYPE as any });
+      return entities.find((entity) => {
+        if (item.entityId && entity.id === item.entityId) return true;
+        return entity.getDynamicProperty(FAKE_PLAYER_ID_PROPERTY) === item.id;
+      });
+    } catch {
+      return undefined;
     }
   }
 
@@ -562,6 +676,7 @@ class FakePlayerService {
 
   private prepareSimulatedPlayer(simulated: SimulatedPlayer, item: IFakePlayer, restoreInventory: boolean): void {
     try {
+      registerKnownFakePlayerName(item.name);
       simulated.addTag(FAKE_PLAYER_TAG);
       simulated.addTag(`yuehua_fake_player_id:${item.id}`);
       simulated.setDynamicProperty(FAKE_PLAYER_ID_PROPERTY, item.id);
@@ -646,6 +761,25 @@ class FakePlayerService {
     } catch (error) {
       SystemLog.warn(`[FakePlayer] 移除模拟玩家失败: ${item.id} ${item.name} ${String(error)}`);
     }
+  }
+
+  private removeManagedPlayer(item: IFakePlayer): void {
+    if (getFakePlayerType(item) === "simulated") {
+      this.removeSimulatedPlayer(item);
+      return;
+    }
+    const entity = this.getLegacyEntity(item);
+    if (!entity?.isValid) return;
+    try {
+      entity.remove();
+    } catch (error) {
+      SystemLog.warn(`[FakePlayer] 移除旧版实体假人失败: ${item.id} ${item.name} ${String(error)}`);
+    }
+  }
+
+  private normalizeSkinId(value: unknown): number {
+    const skinId = Math.floor(Number(value));
+    return Number.isFinite(skinId) && skinId >= 0 && skinId <= 15 ? skinId : 0;
   }
 
   private removeLiveFakePlayer(simulated: SimulatedPlayer): void {

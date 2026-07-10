@@ -5,9 +5,11 @@ import { teleportPlayer as tpaTeleport, notifyReject as tpaNotifyReject } from "
 import { usePlayerByName } from "../shared/hooks/use-player";
 import { color } from "../shared/utils/color";
 import { isMenuChatTrigger } from "../core/constants";
+import { isRealPlayerEntity } from "../shared/utils/online-players";
 
 world.beforeEvents.chatSend.subscribe((event) => {
   const { sender, message } = event;
+  if (!isRealPlayerEntity(sender)) return;
   const trimmed = message.trim().toLowerCase();
 
   if (isMenuChatTrigger(message)) {

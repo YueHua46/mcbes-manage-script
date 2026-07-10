@@ -35,6 +35,10 @@ import itemPriceDb from "../../../features/economic/services/item-price-database
 import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
 import floatingTextService from "../../../features/floating-text/services/floating-text";
+import {
+  getMonsterRewardOverrides,
+  monsterByGold,
+} from "../../../features/economic/data/monster-by-gold";
 
 // ==================== 领地飞行（管理） ====================
 
@@ -105,6 +109,39 @@ function openLandFlightSettingsForm(player: Player): void {
         title: "设置成功",
         desc: color.green("领地飞行设置已更新。"),
       },
+      () => void openLandManageForm(player)
+    );
+  });
+}
+
+const LAND_PARTICLE_LEVEL_OPTIONS = [
+  { value: "off", label: "关闭", description: "完全关闭领地常显粒子，性能开销最低" },
+  { value: "low", label: "省流", description: "仅显示稀疏地面边界，80 格范围，无扫描光" },
+  { value: "balanced", label: "均衡（推荐）", description: "128 格范围，低频扫描与单层边界墙" },
+  { value: "high", label: "绚丽", description: "192 格范围、双层边界墙与高频扫描，开销最高" },
+] as const;
+
+function openLandParticleSettingsForm(player: Player): void {
+  const current = String(setting.getState("landBoundaryParticleLevel"));
+  const currentIndex = Math.max(0, LAND_PARTICLE_LEVEL_OPTIONS.findIndex((item) => item.value === current));
+  const form = new ModalFormData();
+  form.title("领地粒子效果");
+  form.dropdown(
+    "常显粒子档位",
+    LAND_PARTICLE_LEVEL_OPTIONS.map((item) => `${item.label}：${item.description}`),
+    { defaultValueIndex: currentIndex }
+  );
+  form.submitButton("保存");
+  form.show(player).then((data) => {
+    if (data.canceled || !data.formValues) {
+      void openLandManageForm(player);
+      return;
+    }
+    const selected = LAND_PARTICLE_LEVEL_OPTIONS[Number(data.formValues[0])] ?? LAND_PARTICLE_LEVEL_OPTIONS[2];
+    setting.setState("landBoundaryParticleLevel", selected.value);
+    openDialogForm(
+      player,
+      { title: "设置成功", desc: color.green(`领地常显粒子已切换为「${selected.label}」档。`) },
       () => void openLandManageForm(player)
     );
   });
@@ -1301,6 +1338,7 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
   form.button("所有玩家领地管理", "textures/icons/topraklar");
   form.button("搜索玩家领地", "textures/ui/magnifyingGlass");
   form.button("领地飞行设置", "textures/icons/durbun");
+  form.button("领地粒子效果", "textures/icons/gadgets");
   form.button("快照功能设置", "textures/icons/fotograf");
   form.button("公会领地（管理员）", "textures/icons/island");
   form.button("公会坐标（管理员）", "textures/icons/fast_travel");
@@ -1321,17 +1359,20 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
         openLandFlightSettingsForm(player);
         break;
       case 3:
+        openLandParticleSettingsForm(player);
+        break;
+      case 4:
         openLandSnapshotSettingsForm(player);
         break;
-      case 4: {
+      case 5: {
         const { openAdminGuildLandListForm } = await import("../land");
         openAdminGuildLandListForm(player, 1, () => openLandManageForm(player));
         break;
       }
-      case 5:
+      case 6:
         openAdminGuildWaypointManageForm(player, 1, () => openLandManageForm(player));
         break;
-      case 6:
+      case 7:
         openSystemSettingForm(player);
         break;
     }
@@ -1354,6 +1395,7 @@ export function openEconomyManageForm(player: Player): void {
   form.button("物品出售价格管理", "textures/icons/clock");
   form.button("玩家金币管理", "textures/icons/rewards");
   form.button("功能设置", "textures/icons/gadgets");
+  form.button("怪物金币奖励范围", "textures/icons/zombi");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -1372,6 +1414,9 @@ export function openEconomyManageForm(player: Player): void {
         openEconomyFeatureToggleForm(player);
         break;
       case 4:
+        openMonsterRewardRangeListForm(player);
+        break;
+      case 5:
         openSystemSettingForm(player);
         break;
     }
@@ -1436,6 +1481,97 @@ function openEconomyFeatureToggleForm(player: Player): void {
   });
 }
 
+function openMonsterRewardRangeListForm(player: Player): void {
+  const overrides = getMonsterRewardOverrides(setting.getState("monsterKillRewardRanges"));
+  const monsters = Object.keys(monsterByGold).sort((a, b) => a.localeCompare(b));
+  const form = new ActionFormData();
+  form.title("怪物金币奖励范围");
+  form.body(
+    "§7配置每种怪物击杀后的随机金币范围。最小值与最大值相同时，会固定奖励该数量；设为 0～0 可关闭该怪物奖励。"
+  );
+  monsters.forEach((monster) => {
+    const range = overrides[monster] ?? monsterByGold[monster];
+    const suffix = overrides[monster] ? "§a自定义" : "§7默认";
+    form.button(`${monster}\n§e${range[0]} ～ ${range[1]}  ${suffix}`, "textures/icons/zombi");
+  });
+  if (Object.keys(overrides).length > 0) {
+    form.button("§c恢复全部默认范围", "textures/icons/requeue");
+  }
+  form.button("返回", "textures/icons/back");
+
+  form.show(player).then((data) => {
+    if (data.canceled || data.selection === undefined) return;
+    if (data.selection < monsters.length) {
+      openMonsterRewardRangeEditForm(player, monsters[data.selection]);
+      return;
+    }
+    const resetIndex = Object.keys(overrides).length > 0 ? monsters.length : -1;
+    if (data.selection === resetIndex) {
+      openConfirmDialogForm(
+        player,
+        "恢复默认奖励",
+        "§c确定清除所有怪物的自定义奖励范围吗？",
+        () => {
+          setting.setState("monsterKillRewardRanges", "{}");
+          openMonsterRewardRangeListForm(player);
+        },
+        () => openMonsterRewardRangeListForm(player),
+        { dangerConfirm: true }
+      );
+      return;
+    }
+    openEconomyManageForm(player);
+  });
+}
+
+function openMonsterRewardRangeEditForm(player: Player, monster: string): void {
+  const overrides = getMonsterRewardOverrides(setting.getState("monsterKillRewardRanges"));
+  const defaultRange = monsterByGold[monster];
+  if (!defaultRange) {
+    openMonsterRewardRangeListForm(player);
+    return;
+  }
+  const current = overrides[monster] ?? defaultRange;
+  const form = new ModalFormData();
+  form.title(`奖励范围 · ${monster}`);
+  form.textField("最小奖励金币", "非负整数", { defaultValue: String(current[0]) });
+  form.textField("最大奖励金币", "非负整数；与最小值相同时为固定奖励", { defaultValue: String(current[1]) });
+  form.toggle(`恢复默认范围（${defaultRange[0]} ～ ${defaultRange[1]}）`, { defaultValue: false });
+  form.submitButton("保存");
+  form.show(player).then((data) => {
+    if (data.canceled || !data.formValues) {
+      openMonsterRewardRangeListForm(player);
+      return;
+    }
+    if (data.formValues[2] === true) {
+      delete overrides[monster];
+      setting.setState("monsterKillRewardRanges", JSON.stringify(overrides));
+      openMonsterRewardRangeListForm(player);
+      return;
+    }
+    const min = Math.floor(Number(data.formValues[0]));
+    const max = Math.floor(Number(data.formValues[1]));
+    if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max) || min < 0 || max < 0 || min > max) {
+      openDialogForm(
+        player,
+        { title: "保存失败", desc: color.red("最小值和最大值必须是非负整数，且最小值不能大于最大值。") },
+        () => openMonsterRewardRangeEditForm(player, monster)
+      );
+      return;
+    }
+    overrides[monster] = [min, max];
+    setting.setState("monsterKillRewardRanges", JSON.stringify(overrides));
+    openDialogForm(
+      player,
+      {
+        title: "保存成功",
+        desc: color.green(min === max ? `${monster} 将固定奖励 ${min} 金币。` : `${monster} 将随机奖励 ${min}～${max} 金币。`),
+      },
+      () => openMonsterRewardRangeListForm(player)
+    );
+  });
+}
+
 // ==================== 玩家金币管理 ====================
 
 // 玩家金币管理主菜单
@@ -1444,6 +1580,8 @@ function openPlayerMoneyManageForm(player: Player): void {
   form.title("玩家金币管理");
 
   form.button("设置指定玩家金币", "textures/icons/profile");
+  form.button("增加指定玩家金币", "textures/icons/add");
+  form.button("减少指定玩家金币", "textures/icons/deny");
   form.button("重置所有玩家金币", "textures/icons/requeue");
   form.button("返回", "textures/icons/back");
 
@@ -1451,12 +1589,18 @@ function openPlayerMoneyManageForm(player: Player): void {
     if (data.canceled || data.cancelationReason) return;
     switch (data.selection) {
       case 0:
-        openSetPlayerMoneyForm(player);
+        openSetPlayerMoneyForm(player, "set");
         break;
       case 1:
-        openResetAllPlayerMoneyForm(player);
+        openSetPlayerMoneyForm(player, "add");
         break;
       case 2:
+        openSetPlayerMoneyForm(player, "remove");
+        break;
+      case 3:
+        openResetAllPlayerMoneyForm(player);
+        break;
+      case 4:
         openEconomyManageForm(player);
         break;
     }
@@ -1464,9 +1608,12 @@ function openPlayerMoneyManageForm(player: Player): void {
 }
 
 // 设置指定玩家金币表单
-function openSetPlayerMoneyForm(player: Player): void {
+type PlayerMoneyOperation = "set" | "add" | "remove";
+
+function openSetPlayerMoneyForm(player: Player, operation: PlayerMoneyOperation = "set"): void {
+  const operationLabel = operation === "set" ? "设置" : operation === "add" ? "增加" : "减少";
   const form = new ModalFormData();
-  form.title("设置指定玩家金币");
+  form.title(`${operationLabel}指定玩家金币`);
 
   // 获取所有在线玩家
   const onlinePlayers = getOnlineRealPlayers();
@@ -1474,7 +1621,7 @@ function openSetPlayerMoneyForm(player: Player): void {
 
   form.dropdown("选择在线玩家", playerNames.length > 0 ? playerNames : ["无在线玩家"]);
   form.textField("或输入玩家名称（支持离线玩家）", "玩家名称", { defaultValue: "" });
-  form.textField("设置金币数量", "金额（整数）", { defaultValue: "0" });
+  form.textField(`${operationLabel}金币数量`, operation === "set" ? "非负整数" : "正整数", { defaultValue: "0" });
   form.submitButton("确认");
 
   form.show(player).then((data) => {
@@ -1501,21 +1648,21 @@ function openSetPlayerMoneyForm(player: Player): void {
           title: "设置失败",
           desc: color.red("请选择在线玩家或输入玩家名称！"),
         },
-        () => openSetPlayerMoneyForm(player)
+        () => openSetPlayerMoneyForm(player, operation)
       );
       return;
     }
 
     // 验证金额
-    const amount = parseInt(amountStr);
-    if (isNaN(amount) || amount < 0) {
+    const amount = Number(amountStr);
+    if (!Number.isSafeInteger(amount) || amount < 0 || (operation !== "set" && amount === 0)) {
       openDialogForm(
         player,
         {
           title: "设置失败",
-          desc: color.red("请输入有效的金额（必须为大于等于0的整数）！"),
+          desc: color.red(operation === "set" ? "请输入大于等于 0 的整数！" : "请输入大于 0 的整数！"),
         },
-        () => openSetPlayerMoneyForm(player)
+        () => openSetPlayerMoneyForm(player, operation)
       );
       return;
     }
@@ -1527,7 +1674,7 @@ function openSetPlayerMoneyForm(player: Player): void {
           title: "设置失败",
           desc: color.red(`金额过大，最大值为 ${Number.MAX_SAFE_INTEGER}！`),
         },
-        () => openSetPlayerMoneyForm(player)
+        () => openSetPlayerMoneyForm(player, operation)
       );
       return;
     }
@@ -1542,26 +1689,31 @@ function openSetPlayerMoneyForm(player: Player): void {
             `玩家 ${color.yellow(targetPlayerName)} 从未进入过服务器，无法设置金币！\n\n只能为进入过服务器的玩家设置金币。`
           ),
         },
-        () => openSetPlayerMoneyForm(player)
+        () => openSetPlayerMoneyForm(player, operation)
       );
       return;
     }
 
-    // 设置金币
-    const success = economic.setPlayerGold(targetPlayerName, amount);
+    const oldBalance = economic.getWallet(targetPlayerName).gold;
+    const targetBalance = operation === "set" ? amount : operation === "add" ? oldBalance + amount : oldBalance - amount;
+    const success =
+      Number.isSafeInteger(targetBalance) && targetBalance >= 0 && economic.setPlayerGold(targetPlayerName, targetBalance);
     if (success) {
+      const newBalance = economic.getWallet(targetPlayerName).gold;
       // 如果目标玩家在线，通知他
       const targetPlayer = getOnlineRealPlayerByName(targetPlayerName);
       if (targetPlayer) {
-        targetPlayer.sendMessage(color.yellow(`管理员将您的金币设置为 ${color.gold(amount.toString())}`));
+        targetPlayer.sendMessage(
+          color.yellow(`管理员${operationLabel}了您的金币 ${color.gold(amount.toString())}，当前余额 ${color.gold(newBalance.toString())}`)
+        );
       }
 
       openDialogForm(
         player,
         {
-          title: "设置成功",
+          title: `${operationLabel}成功`,
           desc: color.green(
-            `已将玩家 ${color.yellow(targetPlayerName)} 的金币设置为 ${color.gold(amount.toString())}！`
+            `玩家 ${color.yellow(targetPlayerName)}：${color.gold(oldBalance.toString())} → ${color.gold(newBalance.toString())}`
           ),
         },
         () => openPlayerMoneyManageForm(player)
@@ -1570,10 +1722,16 @@ function openSetPlayerMoneyForm(player: Player): void {
       openDialogForm(
         player,
         {
-          title: "设置失败",
-          desc: color.red("设置金币失败，请检查输入！"),
+          title: `${operationLabel}失败`,
+          desc: color.red(
+            operation === "remove" && oldBalance < amount
+              ? `玩家余额不足，当前只有 ${oldBalance} 金币。`
+              : operation === "add" && !Number.isSafeInteger(targetBalance)
+                ? `增加后余额会超过安全上限 ${Number.MAX_SAFE_INTEGER}。`
+              : `${operationLabel}金币失败，请检查经济系统状态。`
+          ),
         },
-        () => openSetPlayerMoneyForm(player)
+        () => openSetPlayerMoneyForm(player, operation)
       );
     }
   });

@@ -4,10 +4,13 @@ import { eventRegistry } from "./registry";
 import setting from "../features/system/services/setting";
 import guildService from "../features/guild/services/guild-service";
 import identityService from "../features/player/services/identity-service";
+import { isRealPlayerEntity, registerKnownRealPlayer } from "../shared/utils/online-players";
 
 function registerPlayerJoinEvent(): void {
   world.afterEvents.playerSpawn.subscribe(async (event) => {
     const { player } = event;
+    if (!isRealPlayerEntity(player)) return;
+    registerKnownRealPlayer(player);
 
     const isJoin = player.getDynamicProperty("join") as boolean;
     if (isJoin) return;
@@ -43,6 +46,7 @@ function registerPlayerJoinEvent(): void {
 function registerPlayerLeaveEvent(): void {
   world.beforeEvents.playerLeave.subscribe((event) => {
     const { player } = event;
+    if (!isRealPlayerEntity(player)) return;
     player.setDynamicProperty("join", false);
   });
 }

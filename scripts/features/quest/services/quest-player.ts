@@ -5,6 +5,7 @@ import {
   PersistedItemStack,
 } from "../../../shared/utils/item-stack-persist";
 import economic from "../../economic/services/economic";
+import { isRealPlayerEntity } from "../../../shared/utils/online-players";
 import questDefinitionService, {
   QuestDefinition,
   QuestFilter,
@@ -213,6 +214,7 @@ class QuestPlayerService {
   }
 
   recordEvent(player: Player, eventKey: string, payload: QuestEventPayload): QuestProgressChange[] {
+    if (!isRealPlayerEntity(player)) return [];
     if (!this.isReady() || !questDefinitionService.isReady()) return [];
     this.ensureAutoAccepted(player);
 

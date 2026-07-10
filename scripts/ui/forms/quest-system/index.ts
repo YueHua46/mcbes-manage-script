@@ -84,8 +84,26 @@ async function getQuestDduiCapabilities(): Promise<QuestDduiCapabilities | null>
 }
 
 function createCustomForm(ddui: QuestDduiCapabilities, player: Player, title: string): any {
-  if (typeof ddui.CustomForm.create === "function") return ddui.CustomForm.create(player, title);
-  return new ddui.CustomForm(player, title);
+  const form =
+    typeof ddui.CustomForm.create === "function"
+      ? ddui.CustomForm.create(player, title)
+      : new ddui.CustomForm(player, title);
+  const originalShow = form.show.bind(form);
+  form.show = async () => {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      if (!player.isValid) return "ClientClosed";
+      try {
+        const reason = await originalShow();
+        if (reason !== "UserBusy") return reason;
+      } catch (error) {
+        console.warn(`[QuestDDUI] 打开表单失败（${title}）: ${String(error)}`);
+      }
+      await system.waitTicks(4 + attempt * 2);
+    }
+    if (player.isValid) player.sendMessage(color.red("任务界面暂时被其他界面占用，请稍后重试。"));
+    return "UserBusy";
+  };
+  return form;
 }
 
 function writableBoolean(ddui: QuestDduiCapabilities, value: boolean): DduiObservableBoolean {
@@ -109,7 +127,8 @@ function safeCloseForm(form: { close?: () => void }): void {
 }
 
 function deferOpen(callback: () => void): void {
-  system.run(callback);
+  // DDUI 关闭有客户端动画；只等 1 tick 容易让下一张表单以 UserBusy 立即关闭。
+  system.runTimeout(callback, 4);
 }
 
 function cloneDefinition(definition: QuestDefinition): QuestDefinition {

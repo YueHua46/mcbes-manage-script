@@ -38,9 +38,22 @@ function stripLandDisplaySection(s: string): string {
   return s.replace(/§./g, "");
 }
 
-const LAND_BOUNDARY_PARTICLE_REFRESH_TICKS = 80;
-const LAND_BOUNDARY_SCAN_REFRESH_TICKS = 4;
-const LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE = 192;
+type LandBoundaryParticleLevel = "off" | "low" | "balanced" | "high";
+
+const LAND_PARTICLE_LEVELS: Record<
+  LandBoundaryParticleLevel,
+  { renderDistance: number; boundaryRefreshTicks: number; scanRefreshTicks: number; scan: boolean }
+> = {
+  off: { renderDistance: 0, boundaryRefreshTicks: 200, scanRefreshTicks: 200, scan: false },
+  low: { renderDistance: 80, boundaryRefreshTicks: 160, scanRefreshTicks: 80, scan: false },
+  balanced: { renderDistance: 128, boundaryRefreshTicks: 100, scanRefreshTicks: 12, scan: true },
+  high: { renderDistance: 192, boundaryRefreshTicks: 80, scanRefreshTicks: 4, scan: true },
+};
+
+function getLandParticleLevel(): LandBoundaryParticleLevel {
+  const value = String(setting.getState("landBoundaryParticleLevel"));
+  return value === "off" || value === "low" || value === "high" ? value : "balanced";
+}
 
 interface LandArea {
   start?: Vector3;
@@ -66,7 +79,7 @@ const isMoving = (entity: Entity): boolean => {
 // 领地标记区域存储
 export const landAreas = new Map<string, LandArea>();
 
-function isLandNearPlayerForBoundaryDisplay(land: ILand, playerPos: Vector3): boolean {
+function isLandNearPlayerForBoundaryDisplay(land: ILand, playerPos: Vector3, renderDistance: number): boolean {
   const minX = Math.min(land.vectors.start.x, land.vectors.end.x);
   const maxX = Math.max(land.vectors.start.x, land.vectors.end.x);
   const minZ = Math.min(land.vectors.start.z, land.vectors.end.z);
@@ -75,7 +88,7 @@ function isLandNearPlayerForBoundaryDisplay(land: ILand, playerPos: Vector3): bo
   const centerZ = (minZ + maxZ) / 2;
   const dx = playerPos.x - centerX;
   const dz = playerPos.z - centerZ;
-  return dx * dx + dz * dz <= LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE * LAND_BOUNDARY_PARTICLE_RENDER_DISTANCE;
+  return dx * dx + dz * dz <= renderDistance * renderDistance;
 }
 
 function getLandBoundaryVariantForPlayer(
@@ -758,22 +771,27 @@ export function registerLandEvents(): void {
     id: "land.boundaryParticleDisplay",
     label: "领地范围常显",
     category: "land",
-    intervalTicks: LAND_BOUNDARY_PARTICLE_REFRESH_TICKS,
+    intervalTicks: 20,
     when: () => setting.getState("land") === true,
     run: () => {
+      const level = getLandParticleLevel();
+      const config = LAND_PARTICLE_LEVELS[level];
+      if (level === "off" || system.currentTick % config.boundaryRefreshTicks >= 20) return;
       getOnlineRealPlayers().forEach((p) => {
         if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
           return;
         }
 
         const lands = Object.values(landManager.getLandList()).filter(
-          (land) => land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location)
+          (land) =>
+            land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location, config.renderDistance)
         );
         for (const land of lands) {
           try {
             landParticle.createLandAmbientBoundary(p, [land.vectors.start, land.vectors.end], {
               seed: `${land.name}:${land.owner}`,
               variant: getLandBoundaryVariantForPlayer(land, p),
+              detail: level,
             });
           } catch (error) {
             // 忽略粒子生成错误
@@ -787,16 +805,20 @@ export function registerLandEvents(): void {
     id: "land.boundaryScanDisplay",
     label: "领地边界扫描光",
     category: "land",
-    intervalTicks: LAND_BOUNDARY_SCAN_REFRESH_TICKS,
+    intervalTicks: 4,
     when: () => setting.getState("land") === true,
     run: () => {
+      const level = getLandParticleLevel();
+      const config = LAND_PARTICLE_LEVELS[level];
+      if (!config.scan || system.currentTick % config.scanRefreshTicks >= 4) return;
       getOnlineRealPlayers().forEach((p) => {
         if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
           return;
         }
 
         const lands = Object.values(landManager.getLandList()).filter(
-          (land) => land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location)
+          (land) =>
+            land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location, config.renderDistance)
         );
         for (const land of lands) {
           try {

@@ -7,6 +7,7 @@ import { Player, system } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import type { IPvpKillLog } from "../models/pvp-data";
 import pvpManager from "./pvp-manager";
+import { isKnownRealPlayerName } from "../../../shared/utils/online-players";
 import economic from "../../economic/services/economic";
 import { color } from "../../../shared/utils/color";
 import { useNotify } from "../../../shared/hooks";
@@ -136,7 +137,9 @@ class PvpStatsManager {
     type: "kills" | "killStreak" | "seize",
     limit: number = 10
   ): Array<{ name: string; value: number }> {
-    const allData = pvpManager.getAllPlayerData();
+    const allData = Object.fromEntries(
+      Object.entries(pvpManager.getAllPlayerData()).filter(([name]) => isKnownRealPlayerName(name))
+    );
     let sorted: Array<{ name: string; value: number }> = [];
 
     switch (type) {
@@ -165,7 +168,7 @@ class PvpStatsManager {
    * 获取玩家在排行榜中的排名
    */
   getPlayerRank(playerName: string, type: "kills" | "killStreak" | "seize"): number {
-    const leaderboard = Object.entries(pvpManager.getAllPlayerData());
+    const leaderboard = Object.entries(pvpManager.getAllPlayerData()).filter(([name]) => isKnownRealPlayerName(name));
     let sorted: Array<[string, number]> = [];
 
     switch (type) {

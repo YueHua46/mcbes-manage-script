@@ -8,6 +8,7 @@ import playerStats from "../../features/statistics/services/player-stats";
 import { ONLINE_TIME_TICK_INTERVAL } from "../../features/player/services/online-time";
 import { taskScheduler } from "../../features/platform/scheduler";
 import setting from "../../features/system/services/setting";
+import { isRealPlayerEntity } from "../../shared/utils/online-players";
 
 const IGNORE_MOB_KILL_TYPES = new Set(["minecraft:item", "minecraft:xp_orb"]);
 
@@ -16,12 +17,13 @@ export function registerPlayerStatsEvents(): void {
     const { deadEntity, damageSource } = event;
 
     if (deadEntity.typeId === "minecraft:player") {
+      if (!isRealPlayerEntity(deadEntity)) return;
       playerStats.incrementTotalDeath((deadEntity as Player).name);
       return;
     }
 
     const damager = damageSource.damagingEntity;
-    if (damager?.typeId !== "minecraft:player") return;
+    if (!damager || !isRealPlayerEntity(damager)) return;
 
     const deadType = deadEntity.typeId;
     if (IGNORE_MOB_KILL_TYPES.has(deadType)) return;
@@ -30,12 +32,13 @@ export function registerPlayerStatsEvents(): void {
   });
 
   world.afterEvents.playerSpawn.subscribe((event) => {
+    if (!isRealPlayerEntity(event.player)) return;
     playerStats.refreshLevelSnapshot(event.player);
   });
 
   world.beforeEvents.playerLeave.subscribe((event) => {
     const player = event.player as Player | undefined;
-    if (player) {
+    if (player && isRealPlayerEntity(player)) {
       playerStats.refreshLevelSnapshot(player);
     }
   });

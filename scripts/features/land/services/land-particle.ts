@@ -63,6 +63,7 @@ interface AreaParticlePlan {
 interface AmbientBoundaryOptions {
   seed?: string;
   variant?: AmbientBoundaryVariant;
+  detail?: "low" | "balanced" | "high";
 }
 
 interface AmbientPalette {
@@ -163,14 +164,19 @@ class LandParticle {
       const bottomEdges = this.getFootprintEdgesAtY(bounds, bottomY);
       const topEdges = this.getFootprintEdgesAtY(bounds, topY);
       const verticalEdges = this.getVerticalEdges(bounds, bottomY, topY);
-      const frameEdges = [...bottomEdges, ...topEdges, ...verticalEdges];
+      const detail = options.detail ?? "balanced";
+      const visibleTopEdges = detail === "low" ? [] : topEdges;
+      const visibleVerticalEdges = detail === "low" ? [] : verticalEdges;
+      const frameEdges = [...bottomEdges, ...visibleTopEdges, ...visibleVerticalEdges];
       if (frameEdges.length === 0) {
         return;
       }
 
       const palette = this.getAmbientPalette(options.seed ?? `${startPos.x}:${startPos.z}:${endPos.x}:${endPos.z}`, options.variant);
-      this.spawnAmbientCornerMarkers(player, bounds, bottomY, topY, palette);
-      system.runJob(this.ambientBoundaryGenerator(player, bottomEdges, topEdges, verticalEdges, palette));
+      if (detail !== "low") this.spawnAmbientCornerMarkers(player, bounds, bottomY, topY, palette);
+      system.runJob(
+        this.ambientBoundaryGenerator(player, bottomEdges, visibleTopEdges, visibleVerticalEdges, palette, detail)
+      );
     });
   }
 
@@ -433,11 +439,13 @@ class LandParticle {
     bottomEdges: Edge[],
     topEdges: Edge[],
     verticalEdges: Edge[],
-    palette: AmbientPalette
+    palette: AmbientPalette,
+    detail: "low" | "balanced" | "high"
   ): Generator<void, void, void> {
     let spawnedTotal = 0;
     let sliceCount = 0;
 
+    const wallLayers = detail === "high" ? AMBIENT_WALL_LAYERS : detail === "balanced" ? 1 : 0;
     for (const [startPos, endPos] of bottomEdges) {
       let edgeStep = 0;
       for (const particle of this.iterLineParticles(
@@ -493,7 +501,7 @@ class LandParticle {
         AMBIENT_MAX_STEPS_PER_LINE,
         AMBIENT_WALL_SPACING
       )) {
-        for (let layer = 0; layer < AMBIENT_WALL_LAYERS; layer++) {
+        for (let layer = 0; layer < wallLayers; layer++) {
           if (!player.isValid || spawnedTotal >= AMBIENT_MAX_PARTICLES_PER_AREA_CALL) {
             return;
           }
