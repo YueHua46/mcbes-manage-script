@@ -3,6 +3,8 @@
  * 迁移自 Modules/Economic/data/monsterByGold.ts
  */
 
+import { EntityTypes } from "@minecraft/server";
+
 export const monsterByGold: Record<string, [number, number]> = {
   zombie: [1, 10],
   zombie_pigman: [2, 20],
@@ -45,6 +47,11 @@ export const monsterByGold: Record<string, [number, number]> = {
   evocation_fang: [5, 10],
   hoglin: [5, 15],
 };
+
+export function getMonsterLocalizationKey(monsterId: string): string | undefined {
+  const typeId = monsterId.includes(":") ? monsterId : `minecraft:${monsterId}`;
+  return EntityTypes.get(typeId as any)?.localizationKey;
+}
 
 export function normalizeMonsterRewardRange(value: unknown): [number, number] | undefined {
   if (!Array.isArray(value) || value.length < 2) return undefined;

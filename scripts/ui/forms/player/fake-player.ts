@@ -79,8 +79,8 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
       "§e请选择更适合当前用途的版本。",
     ].join("\n")
   );
-  form.button("旧版实体假人\n§7兼容性好 · 支持换肤", "textures/icons/profile");
-  form.button("新版模拟玩家\n§7支持原版刷怪机制", "textures/icons/spectator");
+  form.button("旧版实体假人\n兼容性好 · 支持换肤", "textures/icons/profile");
+  form.button("新版模拟玩家\n支持原版刷怪机制", "textures/icons/spectator");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -162,10 +162,10 @@ function openFakePlayerListForm(player: Player, adminView: boolean, back: () => 
 
   items.forEach((item) => {
     const typeLabel = getFakePlayerType(item) === "entity" ? "旧版" : "新版";
-    form.button(`${item.name}\n§7[${typeLabel}] ${item.ownerName} · ${formatLocation(item)}`, "textures/icons/spectator");
+    form.button(`${item.name}\n[${typeLabel}] ${item.ownerName} · ${formatLocation(item)}`, "textures/icons/spectator");
   });
   if (adminView && items.length > 0) {
-    form.button("§c一键清除全部假人\n§7删除数据并踢出在线假人", "textures/icons/deny");
+    form.button("一键清除全部假人\n删除数据并踢出在线假人", "textures/icons/deny");
   }
   form.button("返回", "textures/icons/back");
 

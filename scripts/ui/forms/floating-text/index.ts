@@ -64,7 +64,7 @@ export function openFloatingTextMenu(player: Player): void {
     ].join("\n")
   );
   form.button("我的悬浮文字", "textures/icons/catalogue");
-  form.button(cost > 0 ? `创建悬浮文字\n§0${costText}` : "创建悬浮文字\n§0免费", "textures/icons/add");
+  form.button(cost > 0 ? `创建悬浮文字\n${costText}` : "创建悬浮文字\n免费", "textures/icons/add");
   if (admin) {
     form.button("管理全部悬浮文字", "textures/icons/gear");
     form.button("系统设置", "textures/icons/settings");
@@ -100,7 +100,7 @@ function openFloatingTextListForm(player: Player, mode: "mine" | "all" | "player
 
   currentItems.forEach((item) => {
     const owner = admin && item.ownerName !== player.name ? ` · ${item.ownerName}` : "";
-    form.button(`${item.name}${owner}\n§0${oneLine(item.text)}`, "textures/icons/chat_bubble_white");
+    form.button(`${item.name}${owner}\n${oneLine(item.text)}`, "textures/icons/chat_bubble_white");
   });
 
   let previousIndex = -1;
@@ -220,7 +220,7 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
   );
   form.button("编辑文字和样式", "textures/icons/edit2");
   form.button("移动到当前位置", "textures/icons/marker_quest");
-  form.button("§c删除", "textures/icons/deny");
+  form.button("删除", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {

@@ -137,6 +137,6 @@ export function showJoinPopupAnnouncements(player: Player): void {
   const form = new ActionFormData();
   form.title("进服公告");
   form.body(renderJoinPopupAnnouncements(announcements));
-  form.button("§a我知道了", "textures/icons/accept");
+  form.button("我知道了", "textures/icons/accept");
   form.show(player).catch(() => undefined);
 }

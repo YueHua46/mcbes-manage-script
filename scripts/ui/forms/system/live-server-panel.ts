@@ -77,7 +77,7 @@ function openFallbackServerPanel(player: Player, returnForm?: () => void): void 
   form.body({ rawtext: [{ text: buildSnapshot() }] });
   form.button("调度详情", "textures/icons/gear");
   if (isDebugUtilitiesAvailable()) {
-    form.button("Debug 诊断", "textures/icons/info");
+    form.button("调试诊断", "textures/icons/info");
   }
   form.button("刷新", "textures/icons/requeue");
   form.button("返回", "textures/icons/back");
@@ -157,7 +157,7 @@ async function buildDebugDiagnosticsSnapshot(): Promise<string> {
 
 async function openDebugDiagnosticsPanel(player: Player, returnForm?: () => void): Promise<void> {
   const form = new ActionFormData();
-  form.title("Debug 诊断");
+  form.title("调试诊断");
   form.body({ rawtext: [{ text: await buildDebugDiagnosticsSnapshot() }] });
   form.button("刷新", "textures/icons/requeue");
   form.button("返回", "textures/icons/back");
@@ -199,7 +199,7 @@ export async function openLiveServerPanel(player: Player, returnForm?: () => voi
     });
 
   if (isDebugUtilitiesAvailable()) {
-    form.button("Debug 诊断", () => {
+    form.button("调试诊断", () => {
       safeClose(form);
       system.run(() => void openDebugDiagnosticsPanel(player, () => openLiveServerPanel(player, returnForm)));
     });

@@ -244,11 +244,7 @@ export function openRedPacketDetailListMenu(player: Player): void {
   list.forEach((it) => {
     const tag = redPacketStatusLine(it);
     const modeShort = it.mode === "total" ? "拼手气" : "固定";
-    const statusColor = it.finished ? "§6" : it.expired ? "§c" : "§a";
-    form.button(
-      `§e§l${it.senderName}§r §3· §6${it.claimedCount}/${it.shareCount}份 §b${modeShort} ${statusColor}${tag}`,
-      "textures/icons/gift"
-    );
+    form.button(`${it.senderName} · ${it.claimedCount}/${it.shareCount}份 · ${modeShort} · ${tag}`, "textures/icons/gift");
   });
   form.button("返回", "textures/icons/back");
 

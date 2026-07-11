@@ -53,7 +53,7 @@ export function openConfirmDialogForm(
   form.title(title);
   form.body(desc);
   form.button("取消", "textures/icons/deny");
-  form.button(options?.dangerConfirm === true ? "§c确认" : "确认", "textures/icons/accept");
+  form.button(options?.dangerConfirm === true ? "确认（危险操作）" : "确认", "textures/icons/accept");
 
   form.show(player).then((res) => {
     if (res.canceled || res.cancelationReason) return;

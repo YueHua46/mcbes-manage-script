@@ -114,10 +114,7 @@ export function openBlacklistListForm(player: Player, page: number = 1): void {
   currentPage.forEach((entry) => {
     const bannedDate = formatDateOnlyBeijing(entry.bannedAt);
     const reason = entry.reason || "未填写理由";
-    form.button(
-      `${color.darkRed(entry.name)}\n${color.darkGray(reason)} §0| §0${bannedDate}`,
-      "textures/icons/profile"
-    );
+    form.button(`${entry.name}\n${reason} | ${bannedDate}`, "textures/icons/profile");
   });
 
   if (page > 1) form.button("上一页", "textures/icons/left_arrow");
@@ -168,7 +165,7 @@ function openBlacklistDetailForm(player: Player, entry: IBlacklistEntry, returnP
       `§e操作管理员：§f${entry.bannedBy}`
   );
 
-  form.button("§c移除黑名单", "textures/icons/deny");
+  form.button("移除黑名单", "textures/icons/deny");
   form.button("返回列表", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -411,7 +408,7 @@ export function openRemoveBlacklistForm(player: Player, page: number = 1): void 
 
   currentPage.forEach((entry) => {
     const reason = entry.reason || "无";
-    form.button(`${entry.name}\n§0理由: ${reason}`, "textures/icons/profile");
+    form.button(`${entry.name}\n理由: ${reason}`, "textures/icons/profile");
   });
 
   if (page > 1) form.button("上一页", "textures/icons/left_arrow");
@@ -456,8 +453,8 @@ function confirmRemoveBlacklist(player: Player, entry: IBlacklistEntry, returnPa
       `§7XUID：${xuidText}\n` +
       `§7理由：${entry.reason || "未填写"}`
   );
-  form.button("§a确认移除", "textures/icons/accept");
-  form.button("§c取消", "textures/icons/back");
+  form.button("确认移除", "textures/icons/accept");
+  form.button("取消", "textures/icons/back");
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason || data.selection === 1) {

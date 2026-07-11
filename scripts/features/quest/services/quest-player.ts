@@ -334,7 +334,13 @@ class QuestPlayerService {
         try {
           const template = deserializeItemStack({ ...itemSnapshot, amount: Math.min(Math.max(itemSnapshot.amount, 1), 255) });
           addItemCopies(container, player, template, amount);
-          player.sendMessage(`§a获得任务奖励：§e${itemSnapshot.typeId} x${amount}`);
+          player.sendMessage({
+            rawtext: [
+              { text: "§a获得任务奖励：§e" },
+              { translate: template.localizationKey },
+              { text: ` §7(${itemSnapshot.typeId}) §ex${amount}` },
+            ],
+          });
           return undefined;
         } catch {
           // 继续尝试旧的 typeId 发放逻辑。
@@ -342,6 +348,7 @@ class QuestPlayerService {
       }
 
       try {
+        const rewardStack = new ItemStack(itemId, 1);
         let remaining = amount;
         while (remaining > 0) {
           const stackAmount = Math.min(64, remaining);
@@ -349,7 +356,13 @@ class QuestPlayerService {
           if (overflow) player.dimension.spawnItem(overflow, player.location);
           remaining -= stackAmount;
         }
-        player.sendMessage(`§a获得任务奖励：§e${itemId} x${amount}`);
+        player.sendMessage({
+          rawtext: [
+            { text: "§a获得任务奖励：§e" },
+            { translate: rewardStack.localizationKey },
+            { text: ` §7(${itemId}) §ex${amount}` },
+          ],
+        });
       } catch {
         return `物品奖励配置无效：${itemId}`;
       }

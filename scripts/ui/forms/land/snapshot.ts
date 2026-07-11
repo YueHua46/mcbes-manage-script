@@ -138,7 +138,7 @@ function openSnapshotDetailForm(player: Player, land: ILand, snapshot: LandSnaps
     ].join("\n")
   );
   form.button("恢复此快照", "textures/icons/requeue");
-  form.button("§c删除此快照", "textures/icons/deny");
+  form.button("删除此快照", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -215,7 +215,7 @@ export function openLandSnapshotForm(player: Player, land: ILand, back: () => vo
   for (const snapshot of snapshots.slice(0, 12)) {
     const sourceLabel = snapshot.source === "auto" ? "自动" : "手动";
     form.button(
-      `${formatDateTime(snapshot.createdAt)}\n§0${sourceLabel} · ${snapshot.chunkCount} 分片 · ${snapshot.createdBy}`,
+      `${formatDateTime(snapshot.createdAt)}\n${sourceLabel} · ${snapshot.chunkCount} 分片 · ${snapshot.createdBy}`,
       "textures/icons/region"
     );
   }

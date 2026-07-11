@@ -156,7 +156,7 @@ function openRemoveSubscribeMenu(player: Player, onDone: () => void): void {
   form.body(`${BODY_HINT}\n§0点一下某项，就不再监控这种物品：\n${formatListLines(player)}`);
 
   for (const id of list) {
-    form.button(`§c不再监控 §r${formatItemWatchSubscriptionLabel(id)}`, "textures/icons/requeue");
+    form.button(`不再监控 ${formatItemWatchSubscriptionLabel(id)}`, "textures/icons/requeue");
   }
   form.button("返回", "textures/icons/back");
 
@@ -430,7 +430,7 @@ export function openItemWatchSubscribeForm(player: Player, onBack: () => void): 
   form.button("新增一种物品监控", "textures/icons/add");
   form.button("取消对某一种物品的监控", "textures/icons/requeue");
   form.button("清空全部物品监控", "textures/icons/deny");
-  form.button("登记全部生成蛋\n§0任意 …_spawn_egg 的物品", "textures/items/spawn_egg");
+  form.button("登记全部生成蛋\n任意 …_spawn_egg 的物品", "textures/items/spawn_egg");
   form.button("查看背包存档记录", "textures/icons/quest_chest");
   form.button("返回", "textures/icons/back");
 

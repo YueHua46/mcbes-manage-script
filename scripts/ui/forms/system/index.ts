@@ -36,6 +36,7 @@ import economic from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
 import floatingTextService from "../../../features/floating-text/services/floating-text";
 import {
+  getMonsterLocalizationKey,
   getMonsterRewardOverrides,
   monsterByGold,
 } from "../../../features/economic/data/monster-by-gold";
@@ -332,7 +333,7 @@ export function openGeneralSettingsForm(player: Player): void {
   settingItems.forEach((item) => {
     const currentValue = setting.getState(item.key as any);
     // 第二行用高对比辅助色，避免表单按钮背景上发灰发蓝看不清。
-    form.button(`${item.name}\n§0当前: ${currentValue}`, "textures/icons/gadgets");
+    form.button(`${item.name}\n当前: ${currentValue}`, "textures/icons/gadgets");
   });
 
   form.button("返回", "textures/icons/back");
@@ -487,7 +488,7 @@ function openGuildNumericSettingsForm(player: Player): void {
 
   settingItems.forEach((item) => {
     const currentValue = setting.getState(item.key as any);
-    form.button(`${item.name}\n§0当前: ${currentValue}`, "textures/icons/gadgets");
+    form.button(`${item.name}\n当前: ${currentValue}`, "textures/icons/gadgets");
   });
 
   form.button("返回", "textures/icons/back");
@@ -1153,7 +1154,7 @@ function openAdminGuildWaypointForGuildForm(
     const wp = wayPoint.getPointByDbKey(dbKey);
     const label = wp ? wp.name : dbKey;
     const sub = wp ? wp.dimension : "?";
-    form.button(`${label}\n§0${sub}`, "textures/icons/fast_travel");
+    form.button(`${label}\n${sub}`, "textures/icons/fast_travel");
     actions.push(() => {
       openConfirmDialogForm(
         player,
@@ -1219,7 +1220,7 @@ function openAdminGuildWaypointManageForm(player: Player, page: number = 1, retu
 
   for (const g of currentPageGuilds) {
     const n = Object.keys(g.members).length;
-    form.button(`[${g.tag}] ${g.name}\n§0会长:${g.ownerName} · ${n}人`, "textures/icons/bina");
+    form.button(`[${g.tag}] ${g.name}\n会长:${g.ownerName} · ${n}人`, "textures/icons/bina");
     actions.push(() => openAdminGuildWaypointForGuildForm(player, g.id, safePage, returnForm));
   }
 
@@ -1491,11 +1492,22 @@ function openMonsterRewardRangeListForm(player: Player): void {
   );
   monsters.forEach((monster) => {
     const range = overrides[monster] ?? monsterByGold[monster];
-    const suffix = overrides[monster] ? "§a自定义" : "§7默认";
-    form.button(`${monster}\n§e${range[0]} ～ ${range[1]}  ${suffix}`, "textures/icons/zombi");
+    const suffix = overrides[monster] ? "自定义" : "默认";
+    const localizationKey = getMonsterLocalizationKey(monster);
+    form.button(
+      localizationKey
+        ? {
+            rawtext: [
+              { translate: localizationKey },
+              { text: `\n${range[0]} ～ ${range[1]}  ${suffix}` },
+            ],
+          }
+        : `${monster}\n${range[0]} ～ ${range[1]}  ${suffix}`,
+      "textures/icons/zombi"
+    );
   });
   if (Object.keys(overrides).length > 0) {
-    form.button("§c恢复全部默认范围", "textures/icons/requeue");
+    form.button("恢复全部默认范围", "textures/icons/requeue");
   }
   form.button("返回", "textures/icons/back");
 
@@ -1533,7 +1545,12 @@ function openMonsterRewardRangeEditForm(player: Player, monster: string): void {
   }
   const current = overrides[monster] ?? defaultRange;
   const form = new ModalFormData();
-  form.title(`奖励范围 · ${monster}`);
+  const localizationKey = getMonsterLocalizationKey(monster);
+  form.title(
+    localizationKey
+      ? { rawtext: [{ text: "奖励范围 · " }, { translate: localizationKey }] }
+      : `奖励范围 · ${monster}`
+  );
   form.textField("最小奖励金币", "非负整数", { defaultValue: String(current[0]) });
   form.textField("最大奖励金币", "非负整数；与最小值相同时为固定奖励", { defaultValue: String(current[1]) });
   form.toggle(`恢复默认范围（${defaultRange[0]} ～ ${defaultRange[1]}）`, { defaultValue: false });
@@ -1927,7 +1944,7 @@ function showItemPricesWithPagination(player: Player, page: number = 1): void {
           translate: itemStack.localizationKey,
         },
         {
-          text: `\n§e${price} 金币`,
+          text: `\n${price} 金币`,
         },
       ],
     };
@@ -2189,7 +2206,7 @@ function showSearchResults(player: Player, searchTerm: string): void {
           translate: itemStack.localizationKey,
         },
         {
-          text: `\n§e${price} 金币`,
+          text: `\n${price} 金币`,
         },
       ],
     };
@@ -2240,8 +2257,8 @@ function openInitializePricesConfirmForm(player: Player): void {
   bodyText += `\n§e是否确认继续？`;
 
   form.body(bodyText);
-  form.button("§a确认初始化", "textures/icons/accept");
-  form.button("§c取消", "textures/icons/back");
+  form.button("确认初始化", "textures/icons/accept");
+  form.button("取消", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled || res.selection === 1) {
@@ -2300,8 +2317,8 @@ function openClearAllPricesConfirmForm(player: Player): void {
     `§c警告：此操作将清空所有已设置的物品价格！\n§c当前有 ${customPricesCount} 个物品价格将被清空！\n§c清空后所有物品价格将恢复为0（不可出售）！\n§e是否确认继续？`
   );
 
-  form.button("§c确认清空", "textures/icons/deny");
-  form.button("§a取消", "textures/icons/back");
+  form.button("确认清空", "textures/icons/deny");
+  form.button("取消", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled || res.selection === 1) {
@@ -2340,8 +2357,8 @@ function openResetPricesConfirmForm(player: Player): void {
     `§c警告：此操作将删除所有自定义物品出售价格！\n§c当前有 ${customPricesCount} 个自定义物品出售价格将被删除！\n§c删除后所有物品将恢复使用默认物品出售价格！\n§e是否确认继续？`
   );
 
-  form.button("§c确认删除", "textures/icons/deny");
-  form.button("§a取消", "textures/icons/back");
+  form.button("确认删除", "textures/icons/deny");
+  form.button("取消", "textures/icons/back");
 
   form.show(player).then((res) => {
     if (res.canceled || res.selection === 1) {

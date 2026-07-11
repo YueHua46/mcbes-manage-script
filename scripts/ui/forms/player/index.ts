@@ -422,8 +422,8 @@ export function openNameColorSettingsForm(player: Player): void {
   });
 
   const colorEntries = Object.entries(nameColors);
-  colorEntries.forEach(([code, name]) => {
-    form.button(`${code}${name}`);
+  colorEntries.forEach(([, name]) => {
+    form.button(name);
   });
 
   form.button("返回", "textures/icons/back");

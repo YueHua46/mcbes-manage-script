@@ -60,7 +60,7 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
   );
 
   if (!forcedMode) {
-    form.button(data.pvpEnabled ? "§c关闭PVP" : "§a开启PVP", "textures/icons/sword");
+    form.button(data.pvpEnabled ? "关闭 PVP" : "开启 PVP", "textures/icons/sword");
   }
   form.button("查看详细统计", "textures/icons/quest_daily_common");
   form.button("排行榜", "textures/icons/winner");

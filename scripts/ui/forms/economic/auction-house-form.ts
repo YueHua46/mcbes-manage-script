@@ -271,14 +271,20 @@ class AuctionHouseForm {
 
     const form = new ActionFormData()
       .title("拍卖行管理")
-      .body(
-        `${colorCodes.gold}商品名称: ${colorCodes.white}${item.data.name}\n` +
-          `${colorCodes.aqua}物品ID: ${colorCodes.white}${item.item.typeId}\n` +
-          `${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}\n` +
-          `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price} 金币\n` +
-          `${colorCodes.gold}数量: ${colorCodes.yellow}${item.data.amount}\n` +
-          `${colorCodes.green}上架时间: ${colorCodes.white}${formatDateTimeBeijing(item.data.createdAt)}`
-      )
+      .body({
+        rawtext: [
+          { text: `${colorCodes.gold}商品名称: ${colorCodes.white}${item.data.name}\n${colorCodes.aqua}本地化名称: ${colorCodes.white}` },
+          { translate: item.item.localizationKey },
+          {
+            text:
+              `\n${colorCodes.aqua}物品ID: ${colorCodes.white}${item.item.typeId}\n` +
+              `${colorCodes.aqua}卖家: ${colorCodes.white}${item.data.playerName}\n` +
+              `${colorCodes.gold}单价: ${colorCodes.yellow}${item.data.price} 金币\n` +
+              `${colorCodes.gold}数量: ${colorCodes.yellow}${item.data.amount}\n` +
+              `${colorCodes.green}上架时间: ${colorCodes.white}${formatDateTimeBeijing(item.data.createdAt)}`,
+          },
+        ],
+      })
       .button("修改价格", "textures/icons/edit2")
       .button("强制下架并返还卖家", "textures/icons/requeue")
       .button("没收到我的背包", "textures/icons/deny")

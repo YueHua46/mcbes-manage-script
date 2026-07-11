@@ -53,7 +53,7 @@ class OfficeShopForm {
     form.body("请选择您要浏览的商品类别");
 
     currentPageCategories.forEach((category) => {
-      const buttonText = `${category.name}\n§e${category.description || "无描述"}`;
+      const buttonText = `${category.name}\n${category.description || "无描述"}`;
       form.button(buttonText, category.icon || officeShop.defaultIcon);
     });
 

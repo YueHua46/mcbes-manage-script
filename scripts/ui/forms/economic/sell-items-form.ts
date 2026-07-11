@@ -529,7 +529,7 @@ class SellItemsForm {
 
     const bodyMessage: RawMessage = { rawtext: bodyRawText };
     form.body(bodyMessage);
-    form.button("§a确定", "textures/icons/accept");
+    form.button("确定", "textures/icons/accept");
 
     form.show(player).then(() => {
       this.openSellItemsMenu(player);

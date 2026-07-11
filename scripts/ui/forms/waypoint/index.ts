@@ -180,7 +180,7 @@ const openSearchResultsForm = (player: Player, wayPoints: IWayPoint[], playerNam
 
   let deleteButtonIndex = -1;
   if (wayPoints.length > 0) {
-    form.button("§c一键删除所有坐标点", "textures/icons/copkutusu");
+    form.button("一键删除所有坐标点", "textures/icons/copkutusu");
     deleteButtonIndex = nextButtonIndex;
     nextButtonIndex++;
   }
@@ -600,7 +600,7 @@ export const openPlayerWayPointListForm = (
 
   let deleteButtonIndex = -1;
   if (isAdmin && allPoints.length > 0) {
-    form.button("§c一键删除所有坐标点", "textures/icons/copkutusu");
+    form.button("一键删除所有坐标点", "textures/icons/copkutusu");
     deleteButtonIndex = nextButtonIndex;
     nextButtonIndex++;
   }

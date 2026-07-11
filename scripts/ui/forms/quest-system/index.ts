@@ -517,7 +517,7 @@ function openQuestAcceptedListForm(player: Player, back: () => void): void {
     const completed = questPlayerService.isCompleted(player, quest);
     const state = questPlayerService.getQuestState(player, quest);
     const status = state?.claimedAt ? "已领取" : canClaim ? "可领取" : completed ? "已完成" : "进行中";
-    form.button(`${getQuestDisplayTitle(quest)}\n§0${status}`, canClaim ? "textures/icons/gift" : "textures/icons/quest_log");
+    form.button(`${getQuestDisplayTitle(quest)}\n${status}`, canClaim ? "textures/icons/gift" : "textures/icons/quest_log");
   });
   form.button("返回", "textures/icons/back");
 
@@ -541,7 +541,7 @@ function openQuestAvailableListForm(player: Player, back: () => void): void {
 
   const form = new ActionFormData().title("可接任务").body("选择任务查看详情。");
   quests.forEach((quest) => {
-    form.button(`${getQuestDisplayTitle(quest)}\n§0${quest.goals.length}目标/${quest.rewards.length}奖励`, "textures/icons/marker_quest");
+    form.button(`${getQuestDisplayTitle(quest)}\n${quest.goals.length}目标/${quest.rewards.length}奖励`, "textures/icons/marker_quest");
   });
   form.button("返回", "textures/icons/back");
 
@@ -1312,7 +1312,13 @@ function openInventoryItemRewardSelector(
         ? "，已保存部分容器内容"
         : "，已保存容器内容"
       : "";
-    player.sendMessage(color.green(`已选择 ${stack.typeId} x${stack.amount}，已保存完整物品数据${nestedNote}。请确认后保存奖励。`));
+    player.sendMessage({
+      rawtext: [
+        { text: "§a已选择 " },
+        { translate: stack.localizationKey },
+        { text: ` §7(${stack.typeId}) §ax${stack.amount}，已保存完整物品数据${nestedNote}。请确认后保存奖励。` },
+      ],
+    });
     openRewardEditor(player, reward, onSave);
   });
 }

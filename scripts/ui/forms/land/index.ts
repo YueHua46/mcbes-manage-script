@@ -1606,7 +1606,7 @@ export const openPlayerLandListForm = (
 
   let deleteButtonIndex = -1;
   if (isAdmin && playerLands.length > 0) {
-    form.button("§c一键删除所有领地", "textures/icons/copkutusu");
+    form.button("一键删除所有领地", "textures/icons/copkutusu");
     deleteButtonIndex = nextButtonIndex;
     nextButtonIndex++;
   }

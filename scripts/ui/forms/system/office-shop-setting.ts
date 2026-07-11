@@ -199,7 +199,7 @@ class OfficeShopSettingForm {
     const form = new ActionFormData()
       .title("§c确认删除")
       .body(`§c您确定要删除类别 §e${categoryName}§c 吗？\n此操作不可撤销，该类别下的所有商品也将被删除。`)
-      .button("§c确认删除", "textures/icons/deny")
+      .button("确认删除", "textures/icons/deny")
       .button("取消", "textures/icons/back");
 
     form.show(player).then((res) => {
@@ -450,7 +450,7 @@ class OfficeShopSettingForm {
     const form = new ActionFormData()
       .title(`§c确认删除`)
       .body(body)
-      .button("§c确认删除", "textures/icons/deny")
+      .button("确认删除", "textures/icons/deny")
       .button("取消", "textures/icons/back");
 
     form.show(player).then((res) => {

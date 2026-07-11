@@ -51,7 +51,7 @@ export function openJoinPopupAnnouncementManageForm(player: Player): void {
   }
 
   announcements.forEach((announcement, index) => {
-    const status = announcement.enabled ? "§a启用" : "§7停用";
+    const status = announcement.enabled ? "启用" : "停用";
     form.button(`${index + 1}. ${announcement.title}\n${status}`, "textures/icons/edit2");
     actions.push(() => openJoinPopupAnnouncementDetailForm(player, announcement.id));
   });
@@ -101,7 +101,7 @@ function openJoinPopupAnnouncementDetailForm(player: Player, id: string): void {
   );
   form.button("编辑公告", "textures/icons/edit2");
   form.button(announcement.enabled ? "停用公告" : "启用公告", "textures/icons/settings");
-  form.button("§c删除公告", "textures/icons/deny");
+  form.button("删除公告", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {

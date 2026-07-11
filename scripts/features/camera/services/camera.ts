@@ -3,7 +3,7 @@
  * 允许玩家以其他实体的视角进行观察（类似附身但没有控制权）
  */
 
-import { Player, Entity, system, world, GameMode, EasingType } from "@minecraft/server";
+import { Player, Entity, system, world, GameMode, EasingType, RawMessage } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { useNotify } from "../../../shared/hooks/use-notify";
 import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
@@ -29,6 +29,26 @@ const THIRD_PERSON_OFFSET = {
   forward: -4.0, // 向前偏移距离（负值表示在实体后方）
   up: 1.0, // 向上偏移距离
 };
+
+function getObservedEntityName(entity: Entity): RawMessage {
+  if (entity instanceof Player) return { text: entity.name };
+  try {
+    if (entity.localizationKey) return { translate: entity.localizationKey };
+  } catch {
+    // 部分附加包实体可能没有可用的本地化键。
+  }
+  return { text: entity.typeId || "未知实体" };
+}
+
+function getObservingActionBar(entity: Entity): RawMessage {
+  return {
+    rawtext: [
+      { text: "§b正在观察: §e" },
+      getObservedEntityName(entity),
+      { text: "§7 | 输入 §e/yuehua:camera stop§7 退出" },
+    ],
+  };
+}
 
 /**
  * 观察者状态信息
@@ -444,39 +464,8 @@ class CameraService {
 
               // 持续显示观察信息（每tick都更新，确保一直显示）
               try {
-                // 获取实体的显示名称
-                let targetDisplayName: string;
-                if (targetEntity instanceof Player) {
-                  // 如果是玩家，使用玩家名称
-                  targetDisplayName = targetEntity.name;
-                } else {
-                  // 如果是其他实体，尝试使用本地化密钥获取名称
-                  try {
-                    const localizationKey = targetEntity.localizationKey;
-                    // localizationKey 格式通常是 "entity.minecraft.zombie" 或类似
-                    // 我们可以提取实体类型，或者直接使用 typeId
-                    // 为了更好的显示，我们使用 typeId 作为后备
-                    targetDisplayName = targetEntity.typeId || localizationKey || "未知实体";
-                    // 如果 typeId 包含 "minecraft:"，去掉前缀
-                    if (targetDisplayName.startsWith("minecraft:")) {
-                      targetDisplayName = targetDisplayName.replace("minecraft:", "");
-                    }
-                  } catch (error) {
-                    // 如果获取失败，使用 typeId
-                    targetDisplayName = targetEntity.typeId || "未知实体";
-                    if (targetDisplayName.startsWith("minecraft:")) {
-                      targetDisplayName = targetDisplayName.replace("minecraft:", "");
-                    }
-                  }
-                }
-
                 // 每tick都更新 actionBar，确保一直显示
-                player.onScreenDisplay.setActionBar(
-                  color.aqua(`正在观察: ${color.yellow(targetDisplayName)}`) +
-                    color.gray(" | 输入 ") +
-                    color.yellow("/yuehua:camera stop") +
-                    color.gray(" 退出")
-                );
+                player.onScreenDisplay.setActionBar(getObservingActionBar(targetEntity));
               } catch (error) {
                 // 如果显示失败，忽略错误
               }
@@ -516,30 +505,10 @@ class CameraService {
           });
 
           // 显示提示信息
-          let targetDisplayName: string;
-          if (targetEntity instanceof Player) {
-            targetDisplayName = targetEntity.name;
-          } else {
-            try {
-              const localizationKey = targetEntity.localizationKey;
-              targetDisplayName = targetEntity.typeId || localizationKey || "未知实体";
-              if (targetDisplayName.startsWith("minecraft:")) {
-                targetDisplayName = targetDisplayName.replace("minecraft:", "");
-              }
-            } catch (error) {
-              targetDisplayName = targetEntity.typeId || "未知实体";
-              if (targetDisplayName.startsWith("minecraft:")) {
-                targetDisplayName = targetDisplayName.replace("minecraft:", "");
-              }
-            }
-          }
-          player.onScreenDisplay.setActionBar(
-            color.aqua(`正在观察: ${color.yellow(targetDisplayName)}`) +
-              color.gray(" | 输入 ") +
-              color.yellow("/yuehua:camera stop") +
-              color.gray(" 退出")
-          );
-          useNotify("chat", player, color.green(`已开始观察 ${color.yellow(targetDisplayName)}`));
+          player.onScreenDisplay.setActionBar(getObservingActionBar(targetEntity));
+          player.sendMessage({
+            rawtext: [{ text: "§a已开始观察 §e" }, getObservedEntityName(targetEntity)],
+          });
         } catch (error) {
           // 如果初始化失败，恢复玩家状态
           try {

@@ -7,7 +7,11 @@ import { world, Player } from "@minecraft/server";
 import economic from "./economic";
 import setting from "../../system/services/setting";
 import { colorCodes } from "../../../shared/utils/color";
-import { getMonsterRewardOverrides, monsterByGold } from "../data/monster-by-gold";
+import {
+  getMonsterLocalizationKey,
+  getMonsterRewardOverrides,
+  monsterByGold,
+} from "../data/monster-by-gold";
 import { isRealPlayerEntity } from "../../../shared/utils/online-players";
 
 // 订阅实体死亡事件
@@ -40,9 +44,16 @@ world.afterEvents.entityDie.subscribe((event) => {
         const actualEarned = economic.addGold(player.name, amount, `击杀怪物 ${monsterName}`);
         // 按实际到账金额显示，避免每日上限截断后提示比到账更多。
         if (actualEarned > 0) {
-          player.runCommand(
-            `title @s actionbar ${colorCodes.yellow}击杀了 ${colorCodes.materialRedstone}${monsterName} ${colorCodes.yellow}获得了 ${colorCodes.materialGold}${actualEarned} ${colorCodes.yellow}金币`
-          );
+          const localizationKey = getMonsterLocalizationKey(monsterName);
+          player.onScreenDisplay.setActionBar({
+            rawtext: [
+              { text: `${colorCodes.yellow}击杀了 ${colorCodes.materialRedstone}` },
+              localizationKey ? { translate: localizationKey } : { text: monsterName },
+              {
+                text: ` ${colorCodes.yellow}获得了 ${colorCodes.materialGold}${actualEarned} ${colorCodes.yellow}金币`,
+              },
+            ],
+          });
         }
       }
     }
