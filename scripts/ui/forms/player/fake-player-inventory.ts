@@ -85,6 +85,21 @@ export function openFakePlayerInteractMenu(viewer: Player, fakeId: string): void
   if (canManage) {
     form.button("管理背包权限", "textures/icons/settings");
     actions.push(() => openFakePlayerInventoryAccessForm(viewer, fakeId));
+    form.button("丢出身上全部物品", "textures/icons/deny");
+    actions.push(() => {
+      const result = fakePlayerService.dropAllItems(viewer, fakeId);
+      openDialogForm(
+        viewer,
+        {
+          title: typeof result === "string" ? "丢出失败" : "已丢出全部物品",
+          desc:
+            typeof result === "string"
+              ? color.red(result)
+              : color.green(`已在假人脚下丢出 ${result.stacks} 堆、共 ${result.items} 个物品。`),
+        },
+        () => openFakePlayerInteractMenu(viewer, fakeId)
+      );
+    });
   }
   form.button("关闭", "textures/icons/back");
   actions.push(() => undefined);

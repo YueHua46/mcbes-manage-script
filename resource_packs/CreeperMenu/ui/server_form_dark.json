@@ -36,8 +36,6 @@
     "$title_text_binding_type": "none",
     "$child_control": "server_form.long_form_panel",
     "layer": 2
-},
-
   },
   
   "long_form_panel" : {
@@ -123,8 +121,6 @@
     "factory":{
       "name": "buttons",
       "control_name": "server_form.dynamic_button"
-    "type": "image",
-    "texture": "textures/ui/paper",
     },
 
     "collection_name": "form_buttons",
@@ -211,7 +207,7 @@
           "$button_text_binding_type": "collection",
           "$button_text_grid_collection_name": "form_buttons",
           "$button_text_max_size": [ "100%", 20 ],
-    "layer": 200
+          "layer": 200,
           "bindings": [
             {
               "binding_type": "collection_details",

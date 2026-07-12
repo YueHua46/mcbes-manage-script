@@ -900,7 +900,6 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
 function handleRtpCommand(origin: CustomCommandOrigin): CustomCommandResult {
   const player = origin.sourceEntity as Player;
   if (!player) return { status: CustomCommandStatus.Failure };
-
   system.run(async () => {
     try {
       const { RandomTp } = await import("../../other/services/random-tp");
@@ -1266,13 +1265,13 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
       const playerCount = allPlayers.length;
       const playerNames = allPlayers.map((p) => p.name).join(", ");
 
-      const overworldEntities = world.getDimension("overworld").getEntities({ excludeTypes: ["item"] }).length;
-      const netherEntities = world.getDimension("nether").getEntities({ excludeTypes: ["item"] }).length;
-      const endEntities = world.getDimension("the_end").getEntities({ excludeTypes: ["item"] }).length;
+      const overworldEntities = world.getDimension("overworld").getEntities({ excludeTypes: ["minecraft:item"] }).length;
+      const netherEntities = world.getDimension("nether").getEntities({ excludeTypes: ["minecraft:item"] }).length;
+      const endEntities = world.getDimension("the_end").getEntities({ excludeTypes: ["minecraft:item"] }).length;
 
-      const overworldItems = world.getDimension("overworld").getEntities({ type: "item" }).length;
-      const netherItems = world.getDimension("nether").getEntities({ type: "item" }).length;
-      const endItems = world.getDimension("the_end").getEntities({ type: "item" }).length;
+      const overworldItems = world.getDimension("overworld").getEntities({ type: "minecraft:item" }).length;
+      const netherItems = world.getDimension("nether").getEntities({ type: "minecraft:item" }).length;
+      const endItems = world.getDimension("the_end").getEntities({ type: "minecraft:item" }).length;
 
       const serverName = (setting.getState("serverName") as string) || "未设置";
       const timeOfDay = world.getTimeOfDay();

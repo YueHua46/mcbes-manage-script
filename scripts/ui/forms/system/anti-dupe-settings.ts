@@ -23,7 +23,7 @@ export function openAntiDupeSettingsForm(player: Player): void {
   const form = new ActionFormData();
   form.title("防刷物品设置");
   form.body(
-    "§e§l总开关§r 在「功能开关管理」中；关闭后本条目不生效\n§b· §f收纳袋防刷 §a默认开§f，可在此页关闭\n§b· §f总开关开且收纳袋防刷开：非常规容器不可放收纳袋，方块白名单除外\n§b· §f容器 §e10 §f格内有玩家时才扫描"
+    "§e§l总开关§r 在「功能开关管理」中；关闭后本条目不生效\n§b· §f收纳袋防刷 §a默认开§f，可在此页关闭\n§b· §f防刷白名单玩家放置的受限容器会登记白名单\n§b· §f收纳袋容器在 §e10 §f格内有玩家时扫描"
   );
   form.button("防刷项开关", "textures/icons/gadgets");
   form.button("防刷白名单（玩家）", "textures/icons/social");

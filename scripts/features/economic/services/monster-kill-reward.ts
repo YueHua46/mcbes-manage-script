@@ -22,6 +22,9 @@ world.afterEvents.entityDie.subscribe((event) => {
   if (!setting.getState("monsterKillGoldReward")) return;
 
   const { deadEntity, damageSource } = event;
+  // Bedrock 1.26 can invalidate a dead entity before later entityDie
+  // subscribers run. Never dereference dimension/type data after invalidation.
+  if (!deadEntity.isValid) return;
 
   // 检查是否是玩家击杀
   if (damageSource.damagingEntity?.typeId === "minecraft:player") {

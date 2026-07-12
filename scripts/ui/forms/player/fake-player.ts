@@ -1,9 +1,12 @@
-import { Player } from "@minecraft/server";
+import { Player, system, world } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import fakePlayerService, {
+  FakePlayerBehavior,
+  FakePlayerProgramStep,
   FakePlayerType,
   getFakePlayerType,
   IFakePlayer,
+  isFakePlayer,
 } from "../../../features/fake-player/services/fake-player";
 import {
   FAKE_PLAYER_SKINS,
@@ -16,6 +19,13 @@ import { openFakePlayerInteractMenu } from "./fake-player-inventory";
 
 function formatLocation(item: IFakePlayer): string {
   return `${item.dimension.replace("minecraft:", "")} ${item.location.x}, ${item.location.y}, ${item.location.z}`;
+}
+
+function formatBehavior(item: IFakePlayer): string {
+  const behavior = fakePlayerService.getBehavior(item);
+  const movement = MOVEMENT_OPTIONS.find((option) => option.value === behavior.movement)?.label ?? behavior.movement;
+  const action = ACTION_OPTIONS.find((option) => option.value === behavior.action)?.label ?? behavior.action;
+  return `${movement} / ${action}`;
 }
 
 export function openFakePlayerMenu(player: Player, back: () => void): void {
@@ -233,6 +243,7 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
     [
       `§a拥有者: §e${item.ownerName}`,
       `§a类型: §e${getFakePlayerType(item) === "entity" ? "旧版实体假人" : "新版模拟玩家"}`,
+      ...(getFakePlayerType(item) === "simulated" ? [`§a当前行为: §e${formatBehavior(item)}`] : []),
       ...(getFakePlayerType(item) === "entity" ? [`§a皮肤: §e${getFakePlayerSkinName(item.skinId)}`] : []),
       `§a位置: §e${formatLocation(item)}`,
       `§a创建时间: §e${item.created}`,
@@ -240,6 +251,7 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
   );
   if (getFakePlayerType(item) === "simulated") {
     form.button("背包与权限", "textures/icons/quest_chest");
+    form.button("行为控制", "textures/icons/settings");
   } else {
     form.button("更换二次元皮肤", "textures/icons/edit2");
   }
@@ -250,7 +262,13 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
-    switch (data.selection) {
+    const simulated = getFakePlayerType(item) === "simulated";
+    if (simulated && data.selection === 1) {
+      openFakePlayerBehaviorForm(player, item, adminView, back);
+      return;
+    }
+    const selection = simulated && Number(data.selection) >= 2 ? Number(data.selection) - 1 : data.selection;
+    switch (selection) {
       case 0: {
         if (getFakePlayerType(item) === "entity") {
           openLegacyFakePlayerSkinForm(player, item, adminView, back);
@@ -307,6 +325,465 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
         openFakePlayerListForm(player, adminView, back);
         break;
     }
+  });
+}
+
+const MOVEMENT_OPTIONS: Array<{ value: FakePlayerBehavior["movement"]; label: string }> = [
+  { value: "idle", label: "原地不动" },
+  { value: "station", label: "固定在设置的位置和朝向" },
+];
+
+const ACTION_OPTIONS: Array<{ value: FakePlayerBehavior["action"]; label: string }> = [
+  { value: "none", label: "不执行操作" },
+  { value: "interact", label: "频繁交互（右键）" },
+  { value: "attack", label: "频繁攻击（左键）" },
+  { value: "use_slot", label: "频繁使用手持物品" },
+  { value: "hold_slot", label: "持续使用手持物品" },
+  { value: "hold_break", label: "持续挖掘所看方块" },
+];
+
+function openFakePlayerControlHub(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {
+  void (async () => {
+    const ui = (await import("@minecraft/server-ui")) as Record<string, any>;
+    const CustomForm = ui.CustomForm;
+    if (!CustomForm) {
+      openFakePlayerBehaviorForm(player, item, adminView, back);
+      return;
+    }
+    const form = typeof CustomForm.create === "function" ? CustomForm.create(player, `行为控制 · ${item.name}`) : new CustomForm(player, `行为控制 · ${item.name}`);
+    const closeThen = (callback: () => void) => {
+      try { form.close(); } catch { /* 已关闭 */ }
+      system.runTimeout(callback, 4);
+    };
+    const program = fakePlayerService.getProgram(item);
+    form.label(`动作脚本: ${program.steps.length} 步 / ${program.enabled ? "运行中" : "已停止"}`);
+    form.button("动作序列编排", () => closeThen(() => openFakePlayerProgramEditor(player, item, adminView, back)));
+    form.button("快捷行为控制", () => closeThen(() => openFakePlayerBehaviorForm(player, item, adminView, back)));
+    form.button("返回", () => closeThen(() => openFakePlayerDetailForm(player, item, adminView, back)));
+    await form.show();
+  })();
+}
+
+const PROGRAM_STEP_OPTIONS: Array<{ type: FakePlayerProgramStep["type"]; label: string }> = [
+  { type: "wait", label: "等待" }, { type: "teleport", label: "瞬移到坐标" },
+  { type: "move_to", label: "寻路到坐标" }, { type: "move_relative", label: "相对方向移动" },
+  { type: "move_stop", label: "停止移动" }, { type: "follow", label: "跟随玩家" },
+  { type: "look_at", label: "看向坐标" }, { type: "select_slot", label: "切换手持快捷栏" },
+  { type: "use_start", label: "开始使用手持物品" }, { type: "use_stop", label: "停止使用物品" },
+  { type: "attack", label: "攻击一次" }, { type: "interact", label: "视线交互一次" },
+  { type: "interact_block", label: "交互指定方块" }, { type: "use_on_block", label: "对方块使用物品" },
+  { type: "break_start", label: "开始挖掘方块" }, { type: "break_stop", label: "停止挖掘" },
+  { type: "jump", label: "跳跃" },
+];
+
+function formatProgramStep(step: FakePlayerProgramStep, index: number): string {
+  const name = PROGRAM_STEP_OPTIONS.find((option) => option.type === step.type)?.label ?? step.type;
+  if (step.type === "wait") return `${index + 1}. ${name} ${(step.ticks / 20).toFixed(2)} 秒`;
+  if ("location" in step) return `${index + 1}. ${name} (${step.location.x}, ${step.location.y}, ${step.location.z})`;
+  if (step.type === "select_slot" || step.type === "use_start") return `${index + 1}. ${name} ${step.slot + 1}`;
+  return `${index + 1}. ${name}`;
+}
+
+function openFakePlayerProgramEditor(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {
+  void (async () => {
+    const ui = (await import("@minecraft/server-ui")) as Record<string, any>;
+    const { CustomForm, ObservableBoolean } = ui;
+    if (!CustomForm || !ObservableBoolean) return;
+    const program = fakePlayerService.getProgram(fakePlayerService.getById(item.id) ?? item);
+    const loop = new ObservableBoolean(program.loop, { clientWritable: true });
+    const form = typeof CustomForm.create === "function" ? CustomForm.create(player, `动作序列 · ${item.name}`) : new CustomForm(player, `动作序列 · ${item.name}`);
+    const reopen = () => system.runTimeout(() => openFakePlayerProgramEditor(player, item, adminView, back), 4);
+    const close = () => { try { form.close(); } catch { /* 已关闭 */ } };
+    form.toggle("循环执行", loop);
+    if (program.steps.length === 0) form.label("尚未添加动作。动作会严格按照列表顺序执行。");
+    program.steps.forEach((step, index) => {
+      form.label(formatProgramStep(step, index));
+      if (index > 0) form.button(`上移第 ${index + 1} 步`, () => {
+        [program.steps[index - 1], program.steps[index]] = [program.steps[index], program.steps[index - 1]];
+        close(); fakePlayerService.setProgram(player, item.id, { ...program, loop: loop.getData(), enabled: false }); reopen();
+      });
+      if (index < program.steps.length - 1) form.button(`下移第 ${index + 1} 步`, () => {
+        [program.steps[index], program.steps[index + 1]] = [program.steps[index + 1], program.steps[index]];
+        close(); fakePlayerService.setProgram(player, item.id, { ...program, loop: loop.getData(), enabled: false }); reopen();
+      });
+      form.button(`删除第 ${index + 1} 步`, () => {
+        program.steps.splice(index, 1); close();
+        fakePlayerService.setProgram(player, item.id, { ...program, loop: loop.getData(), enabled: false }); reopen();
+      });
+    });
+    form.divider();
+    form.button("添加动作", () => { close(); system.runTimeout(() => openAddProgramStepForm(player, item, program, loop.getData(), adminView, back), 4); });
+    form.button(program.enabled ? "停止脚本" : "从头运行", () => {
+      const result = fakePlayerService.setProgram(player, item.id, { ...program, loop: loop.getData(), enabled: !program.enabled });
+      player.sendMessage(typeof result === "string" ? color.red(result) : color.green(program.enabled ? "脚本已停止。" : "脚本已从头开始运行。"));
+      close(); reopen();
+    });
+    form.button("返回", () => { close(); system.runTimeout(() => openFakePlayerControlHub(player, item, adminView, back), 4); });
+    await form.show();
+  })();
+}
+
+function openAddProgramStepForm(
+  player: Player,
+  item: IFakePlayer,
+  program: ReturnType<typeof fakePlayerService.getProgram>,
+  loop: boolean,
+  adminView: boolean,
+  back: () => void
+): void {
+  const form = new ActionFormData().title("添加原子动作");
+  PROGRAM_STEP_OPTIONS.forEach((option) => form.button(option.label));
+  form.button("返回");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined || response.selection >= PROGRAM_STEP_OPTIONS.length) {
+      openFakePlayerProgramEditor(player, item, adminView, back);
+      return;
+    }
+    openProgramStepConfig(player, item, program, loop, PROGRAM_STEP_OPTIONS[response.selection].type, adminView, back);
+  });
+}
+
+function openProgramStepConfig(
+  player: Player,
+  item: IFakePlayer,
+  program: ReturnType<typeof fakePlayerService.getProgram>,
+  loop: boolean,
+  type: FakePlayerProgramStep["type"],
+  adminView: boolean,
+  back: () => void
+): void {
+  const noParam = ["move_stop", "use_stop", "attack", "interact", "break_stop", "jump"];
+  if (noParam.includes(type)) {
+    appendProgramStep(player, item, program, loop, { type } as FakePlayerProgramStep, adminView, back);
+    return;
+  }
+  const form = new ModalFormData().title(PROGRAM_STEP_OPTIONS.find((option) => option.type === type)?.label ?? type);
+  const viewedBlock = player.getBlockFromViewDirection({ maxDistance: 16 })?.block;
+  const location = viewedBlock?.location ?? player.location;
+  const players = world.getAllPlayers().filter((target) => !isFakePlayer(target)).map((target) => target.name);
+  if (type === "wait") form.textField("等待秒数", "例如 1.5", { defaultValue: "1" });
+  if (["teleport", "move_to", "look_at", "interact_block", "use_on_block", "break_start"].includes(type)) {
+    form.textField("X", "坐标", { defaultValue: String(location.x) });
+    form.textField("Y", "坐标", { defaultValue: String(location.y) });
+    form.textField("Z", "坐标", { defaultValue: String(location.z) });
+  }
+  if (type === "move_to") form.slider("速度", 0.1, 1, { defaultValue: 1, valueStep: 0.1 });
+  if (type === "move_relative") {
+    form.slider("左右（负数向左）", -1, 1, { defaultValue: 0, valueStep: 0.1 });
+    form.slider("前后（负数向后）", -1, 1, { defaultValue: 1, valueStep: 0.1 });
+    form.slider("速度", 0.1, 1, { defaultValue: 1, valueStep: 0.1 });
+  }
+  if (type === "follow") {
+    form.dropdown("在线真实玩家", players.length ? players : ["当前无在线玩家"]);
+    form.slider("速度", 0.1, 1, { defaultValue: 1, valueStep: 0.1 });
+  }
+  if (["select_slot", "use_start", "use_on_block"].includes(type)) {
+    form.slider("快捷栏槽位", 1, 9, { defaultValue: 1, valueStep: 1 });
+  }
+  form.submitButton("添加到序列");
+  form.show(player).then((response) => {
+    if (response.canceled || !response.formValues) {
+      openFakePlayerProgramEditor(player, item, adminView, back);
+      return;
+    }
+    const values = response.formValues;
+    let step: FakePlayerProgramStep | undefined;
+    if (type === "wait") step = { type, ticks: Math.max(1, Math.round(Number(values[0]) * 20)) };
+    else if (type === "move_relative") step = { type, leftRight: Number(values[0]), forward: Number(values[1]), speed: Number(values[2]) };
+    else if (type === "follow") {
+      if (!players.length) { player.sendMessage(color.red("当前没有可跟随的真实玩家。")); return; }
+      step = { type, playerName: players[Number(values[0])], speed: Number(values[1]) };
+    } else if (type === "select_slot" || type === "use_start") step = { type, slot: Math.round(Number(values[0])) - 1 };
+    else {
+      const target = { x: Number(values[0]), y: Number(values[1]), z: Number(values[2]) };
+      if (![target.x, target.y, target.z].every(Number.isFinite)) { player.sendMessage(color.red("坐标必须是有效数字。")); return; }
+      if (type === "teleport") step = { type, location: target, dimension: player.dimension.id };
+      else if (type === "move_to") step = { type, location: target, speed: Number(values[3]) };
+      else if (type === "look_at" || type === "interact_block" || type === "break_start") step = { type, location: target };
+      else if (type === "use_on_block") step = { type, location: target, slot: Math.round(Number(values[3])) - 1 };
+    }
+    if (step) appendProgramStep(player, item, program, loop, step, adminView, back);
+  });
+}
+
+function appendProgramStep(
+  player: Player,
+  item: IFakePlayer,
+  program: ReturnType<typeof fakePlayerService.getProgram>,
+  loop: boolean,
+  step: FakePlayerProgramStep,
+  adminView: boolean,
+  back: () => void
+): void {
+  const result = fakePlayerService.setProgram(player, item.id, { enabled: false, loop, steps: [...program.steps, step] });
+  if (typeof result === "string") player.sendMessage(color.red(result));
+  openFakePlayerProgramEditor(player, item, adminView, back);
+}
+
+function openFakePlayerBehaviorForm(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {
+  void openFakePlayerBehaviorDdui(player, item, adminView, back);
+}
+
+async function openFakePlayerBehaviorDdui(
+  player: Player,
+  item: IFakePlayer,
+  adminView: boolean,
+  back: () => void
+): Promise<void> {
+  const ui = (await import("@minecraft/server-ui")) as Record<string, any>;
+  const { CustomForm, ObservableBoolean, ObservableNumber, ObservableString } = ui;
+  if (!CustomForm || !ObservableBoolean || !ObservableNumber || !ObservableString) {
+    openFakePlayerBehaviorFallbackForm(player, item, adminView, back);
+    return;
+  }
+
+  const writable = { clientWritable: true };
+  const current = fakePlayerService.getBehavior(item);
+  const onlinePlayers = world.getAllPlayers().filter((target) => !isFakePlayer(target));
+  const targetNames = onlinePlayers.map((target) => target.name);
+  const selectedTarget = Math.max(0, targetNames.indexOf(current.targetPlayer ?? player.name));
+  const movement = new ObservableNumber(
+    Math.max(0, MOVEMENT_OPTIONS.findIndex((option) => option.value === current.movement)),
+    writable
+  );
+  const target = new ObservableNumber(selectedTarget, writable);
+  const speed = new ObservableNumber(current.speed, writable);
+  const action = new ObservableNumber(
+    Math.max(0, ACTION_OPTIONS.findIndex((option) => option.value === current.action)),
+    writable
+  );
+  const interval = new ObservableString(String(current.intervalTicks / 20), writable);
+  const slot = new ObservableNumber(current.hotbarSlot, writable);
+  const station = current.stationLocation ?? player.location;
+  const fallbackLook = player.getViewDirection();
+  const lookAt = current.lookAtLocation ?? {
+    x: player.location.x + fallbackLook.x * 5,
+    y: player.location.y + 1.62 + fallbackLook.y * 5,
+    z: player.location.z + fallbackLook.z * 5,
+  };
+  const stationX = new ObservableString(String(station.x), writable);
+  const stationY = new ObservableString(String(station.y), writable);
+  const stationZ = new ObservableString(String(station.z), writable);
+  const lookX = new ObservableString(String(lookAt.x), writable);
+  const lookY = new ObservableString(String(lookAt.y), writable);
+  const lookZ = new ObservableString(String(lookAt.z), writable);
+  const followVisible = new ObservableBoolean(current.movement === "follow");
+  const stationVisible = new ObservableBoolean(current.movement === "station");
+  const targetVisible = new ObservableBoolean(
+    current.movement === "station" || current.action === "hold_break"
+  );
+  const speedVisible = new ObservableBoolean(!["idle", "station"].includes(current.movement));
+  const intervalVisible = new ObservableBoolean(!["none", "hold_slot", "hold_break"].includes(current.action));
+  const form = typeof CustomForm.create === "function" ? CustomForm.create(player, `行为控制 · ${item.name}`) : new CustomForm(player, `行为控制 · ${item.name}`);
+  const updateTargetVisibility = () => {
+    const movementMode = MOVEMENT_OPTIONS[movement.getData()]?.value ?? "idle";
+    const actionMode = ACTION_OPTIONS[action.getData()]?.value ?? "none";
+    targetVisible.setData(movementMode === "station" || actionMode === "hold_break");
+  };
+  const closeAndReturn = () => {
+    try {
+      form.close();
+    } catch {
+      // 表单可能已经关闭。
+    }
+    system.runTimeout(() => openFakePlayerDetailForm(player, fakePlayerService.getById(item.id) ?? item, adminView, back), 4);
+  };
+
+  movement.subscribe((index: number) => {
+    const mode = MOVEMENT_OPTIONS[index]?.value ?? "idle";
+    followVisible.setData(mode === "follow");
+    stationVisible.setData(mode === "station");
+    speedVisible.setData(!["idle", "station"].includes(mode));
+    updateTargetVisibility();
+  });
+  action.subscribe((index: number) => {
+    const mode = ACTION_OPTIONS[index]?.value ?? "none";
+    intervalVisible.setData(!["none", "hold_slot", "hold_break"].includes(mode));
+    updateTargetVisibility();
+  });
+
+  form.dropdown("移动方式", movement, MOVEMENT_OPTIONS.map((option, index) => ({ label: option.label, value: index })));
+  if (targetNames.length > 0) {
+    form.dropdown(
+      "跟随玩家",
+      target,
+      targetNames.map((name, index) => ({ label: name, value: index })),
+      { visible: followVisible }
+    );
+  } else {
+    form.label("当前没有可跟随的在线真实玩家。", { visible: followVisible });
+  }
+  form.button(
+    "读取我当前站位与视线目标",
+    () => {
+      const block = player.getBlockFromViewDirection({ maxDistance: 16 })?.block;
+      const direction = player.getViewDirection();
+      const targetLocation = block?.location ?? {
+        x: player.location.x + direction.x * 5,
+        y: player.location.y + 1.62 + direction.y * 5,
+        z: player.location.z + direction.z * 5,
+      };
+      stationX.setData(player.location.x.toFixed(3));
+      stationY.setData(player.location.y.toFixed(3));
+      stationZ.setData(player.location.z.toFixed(3));
+      lookX.setData(String(targetLocation.x));
+      lookY.setData(String(targetLocation.y));
+      lookZ.setData(String(targetLocation.z));
+      player.sendMessage(color.green(block ? "已读取站位和所看方块。" : "视线内没有方块，已记录前方 5 格目标点。"));
+    },
+    { visible: targetVisible }
+  );
+  form.textField("锁定位置 X", stationX, { visible: stationVisible });
+  form.textField("锁定位置 Y", stationY, { visible: stationVisible });
+  form.textField("锁定位置 Z", stationZ, { visible: stationVisible });
+  form.textField("目标 X", lookX, { visible: targetVisible });
+  form.textField("目标 Y", lookY, { visible: targetVisible });
+  form.textField("目标 Z", lookZ, { visible: targetVisible });
+  form.slider("移动速度", speed, 0.1, 1, { step: 0.1, visible: speedVisible });
+  form.divider();
+  form.dropdown("周期动作", action, ACTION_OPTIONS.map((option, index) => ({ label: option.label, value: index })));
+  form.textField("动作间隔（秒）", interval, {
+    description: "请输入 0.05 到 3600，例如 0.5",
+    visible: intervalVisible,
+  });
+  form.dropdown(
+    "假人手持位置",
+    slot,
+    Array.from({ length: 9 }, (_, index) => ({ label: `第 ${index + 1} 个快捷槽`, value: index })),
+    { description: "选择假人当前手持哪个快捷槽中的物品" }
+  );
+  form.divider();
+  form.button("保存并立即执行", () => {
+    const movementValue = MOVEMENT_OPTIONS[movement.getData()]?.value ?? "idle";
+    if (movementValue === "follow" && targetNames.length === 0) {
+      player.sendMessage(color.red("当前没有可跟随的在线真实玩家。"));
+      return;
+    }
+    const stationLocation = { x: Number(stationX.getData()), y: Number(stationY.getData()), z: Number(stationZ.getData()) };
+    const lookAtLocation = { x: Number(lookX.getData()), y: Number(lookY.getData()), z: Number(lookZ.getData()) };
+    const actionValue = ACTION_OPTIONS[action.getData()]?.value ?? "none";
+    const intervalSeconds = Number(interval.getData());
+    if (
+      !["none", "hold_slot", "hold_break"].includes(actionValue) &&
+      (!Number.isFinite(intervalSeconds) || intervalSeconds < 0.05 || intervalSeconds > 3600)
+    ) {
+      player.sendMessage(color.red("动作间隔必须是 0.05 到 3600 之间的秒数。"));
+      return;
+    }
+    if (
+      movementValue === "station" &&
+      (![stationLocation.x, stationLocation.y, stationLocation.z, lookAtLocation.x, lookAtLocation.y, lookAtLocation.z].every(
+        Number.isFinite
+      ) || player.dimension.id !== item.dimension)
+    ) {
+      player.sendMessage(color.red("锁定位置必须是有效坐标，并且你需要与假人在同一维度录入。"));
+      return;
+    }
+    if (
+      actionValue === "hold_break" &&
+      (![lookAtLocation.x, lookAtLocation.y, lookAtLocation.z].every(Number.isFinite) || player.dimension.id !== item.dimension)
+    ) {
+      player.sendMessage(color.red("目标坐标必须有效，并且需要在假人所在维度录入。"));
+      return;
+    }
+    const result = fakePlayerService.setBehavior(player, item.id, {
+      movement: movementValue,
+      targetPlayer: movementValue === "follow" ? targetNames[target.getData()] : undefined,
+      speed: speed.getData(),
+      action: actionValue,
+      intervalTicks: Math.max(1, Math.round(intervalSeconds * 20)),
+      hotbarSlot: Math.max(0, Math.min(8, Math.round(slot.getData()))),
+      stationLocation: movementValue === "station" ? stationLocation : current.stationLocation,
+      stationDimension: movementValue === "station" ? player.dimension.id : current.stationDimension,
+      lookAtLocation:
+        movementValue === "station" || actionValue === "hold_break"
+          ? lookAtLocation
+          : current.lookAtLocation,
+    });
+    if (typeof result === "string") {
+      player.sendMessage(color.red(result));
+      return;
+    }
+    player.sendMessage(color.green("假人行为已保存并开始执行。"));
+    closeAndReturn();
+  });
+  form.button("停止全部行为", () => {
+    const result = fakePlayerService.stopBehavior(player, item.id);
+    player.sendMessage(typeof result === "string" ? color.red(result) : color.green("已停止假人的全部行为。"));
+    if (typeof result !== "string") closeAndReturn();
+  });
+  form.button("返回", closeAndReturn);
+
+  try {
+    await form.show();
+  } catch {
+    openFakePlayerBehaviorFallbackForm(player, item, adminView, back);
+  }
+}
+
+function openFakePlayerBehaviorFallbackForm(
+  player: Player,
+  item: IFakePlayer,
+  adminView: boolean,
+  back: () => void
+): void {
+  const current = fakePlayerService.getBehavior(item);
+  const form = new ModalFormData();
+  form.title(`行为控制 · ${item.name}`);
+  form.dropdown("移动方式", MOVEMENT_OPTIONS.map((option) => option.label), {
+    defaultValueIndex: Math.max(0, MOVEMENT_OPTIONS.findIndex((option) => option.value === current.movement)),
+  });
+  form.textField("跟随的玩家名（仅跟随模式使用）", "必须是当前在线的真实玩家", {
+    defaultValue: current.targetPlayer ?? player.name,
+  });
+  form.slider("移动速度", 0.1, 1, { defaultValue: current.speed, valueStep: 0.1 });
+  form.dropdown("周期动作", ACTION_OPTIONS.map((option) => option.label), {
+    defaultValueIndex: Math.max(0, ACTION_OPTIONS.findIndex((option) => option.value === current.action)),
+  });
+  form.textField("动作间隔（秒）", "例如 1.5", {
+    defaultValue: String(current.intervalTicks / 20),
+  });
+  form.slider("快捷栏槽位", 1, 9, { defaultValue: current.hotbarSlot + 1, valueStep: 1 });
+  form.toggle("停止全部行为", { defaultValue: false });
+  form.submitButton("保存并立即执行");
+  form.show(player).then((data) => {
+    if (data.canceled || !data.formValues) {
+      openFakePlayerDetailForm(player, item, adminView, back);
+      return;
+    }
+
+    const stopAll = Boolean(data.formValues[6]);
+    const intervalSeconds = Number(data.formValues[4]);
+    if (!stopAll && (!Number.isFinite(intervalSeconds) || intervalSeconds < 0.05 || intervalSeconds > 3600)) {
+      openDialogForm(
+        player,
+        { title: "保存失败", desc: color.red("动作间隔必须在 0.05 到 3600 秒之间。") },
+        () => openFakePlayerBehaviorForm(player, item, adminView, back)
+      );
+      return;
+    }
+
+    const result = stopAll
+      ? fakePlayerService.stopBehavior(player, item.id)
+      : fakePlayerService.setBehavior(player, item.id, {
+          movement: MOVEMENT_OPTIONS[Number(data.formValues[0])]?.value ?? "idle",
+          targetPlayer: String(data.formValues[1] ?? "").trim(),
+          speed: Number(data.formValues[2]),
+          action: ACTION_OPTIONS[Number(data.formValues[3])]?.value ?? "none",
+          intervalTicks: Math.max(1, Math.round(intervalSeconds * 20)),
+          hotbarSlot: Math.round(Number(data.formValues[5])) - 1,
+        });
+    openDialogForm(
+      player,
+      {
+        title: typeof result === "string" ? "保存失败" : "行为已生效",
+        desc:
+          typeof result === "string"
+            ? color.red(result)
+            : color.green(stopAll ? "已停止移动、交互、挖掘和物品使用。" : "行为配置已保存并开始执行。"),
+      },
+      () => openFakePlayerDetailForm(player, fakePlayerService.getById(item.id) ?? item, adminView, back)
+    );
   });
 }
 

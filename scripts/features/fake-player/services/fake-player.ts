@@ -1,4 +1,4 @@
-import { Dimension, Entity, GameMode, Player, system, Vector2, Vector3, world } from "@minecraft/server";
+import { Dimension, Entity, EquipmentSlot, GameMode, ItemStack, Player, system, Vector2, Vector3, world } from "@minecraft/server";
 import { spawnSimulatedPlayer, SimulatedPlayer } from "@minecraft/server-gametest";
 import { Database } from "../../../shared/database/database";
 import { generateId, isAdmin, SystemLog } from "../../../shared/utils/common";
@@ -53,6 +53,10 @@ export interface IFakePlayer {
   inventoryViewers?: string[];
   /** 假人背包持久化快照（实体卸载/脚本重载后恢复） */
   inventory?: PersistedFakeInventory;
+  /** 新版模拟玩家的自动化行为；脚本重载或假人重生后会继续执行。 */
+  behavior?: FakePlayerBehavior;
+  /** 由原子动作组成的通用行为脚本。 */
+  program?: FakePlayerProgram;
   /** 旧版本遗留字段：当前不再尝试复制玩家皮肤 */
   ownerSkinJson?: string;
   /** 旧版本遗留字段：当前不再尝试复制玩家皮肤 */
@@ -67,6 +71,63 @@ export interface FakePlayerCreateInput {
 }
 
 export type FakePlayerType = "entity" | "simulated";
+
+export type FakePlayerMovement = "idle" | "station" | "follow" | "forward" | "backward" | "left" | "right";
+export type FakePlayerPeriodicAction =
+  | "none"
+  | "interact"
+  | "interact_block"
+  | "attack"
+  | "jump"
+  | "use_slot"
+  | "use_slot_block"
+  | "hold_slot"
+  | "hold_break";
+
+export interface FakePlayerBehavior {
+  movement: FakePlayerMovement;
+  targetPlayer?: string;
+  speed: number;
+  action: FakePlayerPeriodicAction;
+  intervalTicks: number;
+  hotbarSlot: number;
+  stationLocation?: Vector3;
+  stationDimension?: string;
+  lookAtLocation?: Vector3;
+}
+
+const DEFAULT_BEHAVIOR: FakePlayerBehavior = {
+  movement: "idle",
+  speed: 1,
+  action: "none",
+  intervalTicks: 20,
+  hotbarSlot: 0,
+};
+
+export type FakePlayerProgramStep =
+  | { type: "wait"; ticks: number }
+  | { type: "teleport"; location: Vector3; dimension: string }
+  | { type: "move_to"; location: Vector3; speed: number }
+  | { type: "move_relative"; leftRight: number; forward: number; speed: number }
+  | { type: "move_stop" }
+  | { type: "follow"; playerName: string; speed: number }
+  | { type: "look_at"; location: Vector3 }
+  | { type: "select_slot"; slot: number }
+  | { type: "use_start"; slot: number }
+  | { type: "use_stop" }
+  | { type: "attack" }
+  | { type: "interact" }
+  | { type: "interact_block"; location: Vector3 }
+  | { type: "use_on_block"; location: Vector3; slot: number }
+  | { type: "break_start"; location: Vector3 }
+  | { type: "break_stop" }
+  | { type: "jump" };
+
+export interface FakePlayerProgram {
+  enabled: boolean;
+  loop: boolean;
+  steps: FakePlayerProgramStep[];
+}
 
 export function getFakePlayerType(item: IFakePlayer): FakePlayerType {
   return item.type === "entity" ? "entity" : "simulated";
@@ -105,7 +166,9 @@ function getStoredRotation(item: IFakePlayer): Vector2 {
 }
 
 function isUnloadedChunkError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
+  // Native SAPI errors may put the error class only in String(error), while
+  // Error.message contains just "Trying to access location...".
+  const message = String(error);
   return message.includes("LocationInUnloadedChunkError") || message.includes("Unloaded chunk");
 }
 
@@ -133,12 +196,15 @@ function getDimension(dimensionId: string): Dimension {
 class FakePlayerService {
   private db!: Database<IFakePlayer>;
   private readonly activeById = new Map<string, SimulatedPlayer>();
+  private readonly lastActionTick = new Map<string, number>();
+  private readonly programState = new Map<string, { index: number; resumeTick: number }>();
 
   constructor() {
     system.run(() => {
       this.db = new Database<IFakePlayer>("fake_players");
       for (const item of this.db.values()) registerKnownFakePlayerName(item.name);
       this.ensureAllSpawned();
+      system.runInterval(() => this.tickBehaviors(), 1);
     });
 
     taskScheduler.register({
@@ -199,6 +265,9 @@ class FakePlayerService {
 
     world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
       if (!isFakePlayer(event.target) || isFakePlayer(event.player)) return;
+      // 手持服务器菜单右键时，同一次输入还会命中准星下的假人。
+      // 让 itemUse 独占这次操作，避免假人交互表单排队覆盖服务器菜单。
+      if (event.itemStack?.typeId === "yuehua:sm") return;
 
       event.cancel = true;
       const player = event.player;
@@ -385,7 +454,7 @@ class FakePlayerService {
       skinId: input.type === "entity" ? this.normalizeSkinId(input.skinId) : undefined,
       rotationX: input.player.getRotation().x,
       rotationY: input.player.getRotation().y,
-      gameMode: GameMode.Survival,
+      gameMode: GameMode.Creative,
     };
 
     registerKnownFakePlayerName(item.name);
@@ -418,6 +487,112 @@ class FakePlayerService {
     const item = this.getByName(name);
     if (!item) return `未找到名为 ${name} 的假人`;
     return this.delete(player, item.id);
+  }
+
+  dropAllItems(operator: Player, id: string): { stacks: number; items: number } | string {
+    const item = this.getById(id);
+    if (!item) return "假人不存在";
+    if (!this.canManageInventoryAccess(operator, item)) return "无权让这个假人丢出物品";
+    if (getFakePlayerType(item) !== "simulated") return "旧版实体假人没有玩家背包";
+    const simulated = this.getSimulatedPlayer(item);
+    if (!simulated?.isValid) return "假人当前不在线或所在区块未加载";
+
+    let stacks = 0;
+    let items = 0;
+    const drop = (stack: ItemStack): boolean => {
+      try {
+        simulated.dimension.spawnItem(stack, simulated.location);
+        stacks++;
+        items += stack.amount;
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    simulated.stopUsingItem();
+    simulated.stopBreakingBlock();
+    const container = simulated.getComponent("inventory")?.container;
+    if (container) {
+      for (let slot = 0; slot < container.size; slot++) {
+        const stack = container.getItem(slot);
+        if (stack && drop(stack)) container.setItem(slot, undefined);
+      }
+    }
+
+    const equippable = simulated.getComponent("equippable");
+    for (const slot of [EquipmentSlot.Head, EquipmentSlot.Chest, EquipmentSlot.Legs, EquipmentSlot.Feet, EquipmentSlot.Offhand]) {
+      const stack = equippable?.getEquipment(slot);
+      if (stack && drop(stack)) equippable?.setEquipment(slot, undefined);
+    }
+
+    item.inventory = {};
+    this.db.set(item.id, item);
+    this.db.save();
+    return { stacks, items };
+  }
+
+  getBehavior(item: IFakePlayer): FakePlayerBehavior {
+    return this.normalizeBehavior(item.behavior);
+  }
+
+  setBehavior(operator: Player, id: string, behavior: FakePlayerBehavior): IFakePlayer | string {
+    const item = this.getById(id);
+    if (!item) return "假人不存在";
+    if (item.ownerName !== operator.name && !isAdmin(operator)) return "无权控制该假人";
+    if (getFakePlayerType(item) !== "simulated") return "只有新版模拟玩家支持行为控制";
+
+    const normalized = this.normalizeBehavior(behavior);
+    if (normalized.movement === "follow") {
+      const target = this.findRealPlayer(normalized.targetPlayer ?? "");
+      if (!target) return "跟随目标当前不在线或名称不正确";
+      if (target.dimension.id !== item.dimension) return "跟随目标与假人不在同一维度";
+      normalized.targetPlayer = target.name;
+    }
+    if (normalized.movement === "station") {
+      if (!normalized.stationLocation || !normalized.lookAtLocation || !normalized.stationDimension) {
+        return "位置锁定需要站位坐标、维度和注视目标";
+      }
+      if (normalized.stationDimension !== item.dimension) return "锁定位置与假人必须在同一维度";
+    }
+    if (["interact_block", "use_slot_block"].includes(normalized.action) && !normalized.lookAtLocation) {
+      return "指定方块动作需要目标方块坐标";
+    }
+    if (normalized.action === "hold_break" && !normalized.lookAtLocation) return "持续挖掘需要目标方块坐标";
+
+    item.behavior = normalized;
+    delete item.program;
+    this.db.set(item.id, item);
+    this.db.save();
+    this.lastActionTick.delete(item.id);
+    this.applyBehavior(item, true);
+    return item;
+  }
+
+  stopBehavior(operator: Player, id: string): IFakePlayer | string {
+    return this.setBehavior(operator, id, { ...DEFAULT_BEHAVIOR });
+  }
+
+  getProgram(item: IFakePlayer): FakePlayerProgram {
+    return {
+      enabled: item.program?.enabled === true,
+      loop: item.program?.loop !== false,
+      steps: Array.isArray(item.program?.steps) ? item.program.steps : [],
+    };
+  }
+
+  setProgram(operator: Player, id: string, program: FakePlayerProgram): IFakePlayer | string {
+    const item = this.getById(id);
+    if (!item) return "假人不存在";
+    if (item.ownerName !== operator.name && !isAdmin(operator)) return "无权控制该假人";
+    if (getFakePlayerType(item) !== "simulated") return "只有新版模拟玩家支持行为编排";
+    if (program.steps.length > 128) return "一个行为脚本最多包含 128 个步骤";
+    item.program = { enabled: program.enabled, loop: program.loop, steps: program.steps };
+    this.db.set(item.id, item);
+    this.db.save();
+    this.programState.set(item.id, { index: 0, resumeTick: system.currentTick });
+    if (!program.enabled) this.stopAllSimulatedActions(item);
+    return item;
   }
 
   deleteAll(player: Player): { deleted: number; kicked: number } | string {
@@ -605,6 +780,10 @@ class FakePlayerService {
       this.prepareLegacyEntity(entity, item);
       return entity;
     } catch (error) {
+      // The chunk can unload between the probe above and spawnEntity. This is a
+      // normal deferred-spawn condition; the periodic self-heal will retry when
+      // a real player loads the area, so do not report it as an add-on failure.
+      if (isUnloadedChunkError(error)) return undefined;
       SystemLog.warn(`[FakePlayer] 生成旧版实体假人失败: ${item.id} ${item.name} ${String(error)}`);
       return undefined;
     }
@@ -663,10 +842,10 @@ class FakePlayerService {
           z: item.location.z,
         },
         item.name,
-        item.gameMode ?? GameMode.Survival
+        GameMode.Creative
       );
-      this.prepareSimulatedPlayer(simulated, item, true);
       this.activeById.set(item.id, simulated);
+      this.prepareSimulatedPlayer(simulated, item, true);
       return simulated;
     } catch (error) {
       SystemLog.warn(`[FakePlayer] 生成模拟玩家失败: ${item.id} ${item.name} ${String(error)}`);
@@ -682,11 +861,14 @@ class FakePlayerService {
       simulated.setDynamicProperty(FAKE_PLAYER_ID_PROPERTY, item.id);
       simulated.setDynamicProperty("fakePlayerOwner", item.ownerName);
       simulated.nameTag = buildFakePlayerNameTag(item);
+      // 创造模式可避免敌对生物持续锁定假人，也降低玩家借怪物干扰假人的风险。
+      simulated.setGameMode(GameMode.Creative);
+      item.gameMode = GameMode.Creative;
       this.applyStoredRotation(simulated, item);
       if (restoreInventory && hasPersistedInventory(item.inventory)) {
         restorePlayerInventory(simulated, item.inventory);
       }
-      simulated.stopMoving();
+      this.applyBehavior(item, true);
     } catch (error) {
       SystemLog.warn(`[FakePlayer] 绑定模拟玩家失败: ${item.id} ${String(error)}`);
     }
@@ -702,6 +884,7 @@ class FakePlayerService {
   }
 
   private guardPosition(simulated: SimulatedPlayer, item: IFakePlayer): void {
+    if (this.getBehavior(item).movement !== "idle") return;
     if (distanceSquared(simulated.location, item.location) <= POSITION_GUARD_DISTANCE_SQ) {
       simulated.stopMoving();
       return;
@@ -760,6 +943,253 @@ class FakePlayerService {
       simulated.disconnect();
     } catch (error) {
       SystemLog.warn(`[FakePlayer] 移除模拟玩家失败: ${item.id} ${item.name} ${String(error)}`);
+    }
+  }
+
+  private normalizeBehavior(value?: Partial<FakePlayerBehavior>): FakePlayerBehavior {
+    const movements: FakePlayerMovement[] = ["idle", "station"];
+    const actions: FakePlayerPeriodicAction[] = [
+      "none",
+      "interact",
+      "interact_block",
+      "attack",
+      "jump",
+      "use_slot",
+      "use_slot_block",
+      "hold_slot",
+      "hold_break",
+    ];
+    const movement = movements.includes(value?.movement as FakePlayerMovement)
+      ? (value?.movement as FakePlayerMovement)
+      : DEFAULT_BEHAVIOR.movement;
+    const action = actions.includes(value?.action as FakePlayerPeriodicAction)
+      ? (value?.action as FakePlayerPeriodicAction)
+      : DEFAULT_BEHAVIOR.action;
+    return {
+      movement,
+      targetPlayer: String(value?.targetPlayer ?? "").trim() || undefined,
+      speed: Math.max(0.1, Math.min(1, Number(value?.speed) || DEFAULT_BEHAVIOR.speed)),
+      action,
+      intervalTicks: Math.max(1, Math.min(20 * 60 * 60, Math.floor(Number(value?.intervalTicks) || 20))),
+      hotbarSlot: Math.max(0, Math.min(8, Math.floor(Number(value?.hotbarSlot) || 0))),
+      stationLocation: this.normalizeVector(value?.stationLocation),
+      stationDimension: String(value?.stationDimension ?? "").trim() || undefined,
+      lookAtLocation: this.normalizeVector(value?.lookAtLocation),
+    };
+  }
+
+  private normalizeVector(value?: Vector3): Vector3 | undefined {
+    if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y) || !Number.isFinite(value.z)) return undefined;
+    return formatLocation(value);
+  }
+
+  private findRealPlayer(name: string): Player | undefined {
+    return world.getAllPlayers().find((player) => !isFakePlayer(player) && player.name === name.trim());
+  }
+
+  private tickBehaviors(): void {
+    if (!this.db || setting.getState("fakePlayer") !== true) return;
+    let positionChanged = false;
+    for (const item of this.db.values()) {
+      if (getFakePlayerType(item) !== "simulated") continue;
+      const behavior = this.getBehavior(item);
+      if (behavior.movement === "idle" && behavior.action === "none") continue;
+      try {
+        this.applyBehavior(item, false);
+        if (system.currentTick % 100 === 0) {
+          const simulated = this.getSimulatedPlayer(item);
+          if (simulated?.isValid) {
+            item.location = formatLocation(simulated.location);
+            item.dimension = simulated.dimension.id;
+            const rotation = simulated.getRotation();
+            item.rotationX = rotation.x;
+            item.rotationY = rotation.y;
+            this.db.set(item.id, item);
+            positionChanged = true;
+          }
+        }
+      } catch (error) {
+        SystemLog.warn(`[FakePlayer] 执行行为失败: ${item.id} ${item.name} ${String(error)}`);
+      }
+    }
+    if (positionChanged) this.db.save();
+  }
+
+  private tickProgram(item: IFakePlayer): void {
+    const program = this.getProgram(item);
+    const simulated = this.getSimulatedPlayer(item);
+    if (!simulated?.isValid || program.steps.length === 0) return;
+    const state = this.programState.get(item.id) ?? { index: 0, resumeTick: system.currentTick };
+    if (system.currentTick < state.resumeTick) return;
+    if (state.index >= program.steps.length) {
+      if (!program.loop) {
+        item.program = { ...program, enabled: false };
+        this.db.set(item.id, item);
+        this.db.save();
+        this.stopAllSimulatedActions(item);
+        return;
+      }
+      state.index = 0;
+    }
+    const step = program.steps[state.index++];
+    this.executeProgramStep(simulated, step, state);
+    this.programState.set(item.id, state);
+  }
+
+  private executeProgramStep(
+    simulated: SimulatedPlayer,
+    step: FakePlayerProgramStep,
+    state: { index: number; resumeTick: number }
+  ): void {
+    switch (step.type) {
+      case "wait":
+        state.resumeTick = system.currentTick + Math.max(1, Math.floor(step.ticks));
+        break;
+      case "teleport":
+        simulated.teleport(step.location, { dimension: getDimension(step.dimension) });
+        break;
+      case "move_to":
+        simulated.navigateToLocation(step.location, Math.max(0.1, Math.min(1, step.speed)));
+        break;
+      case "move_relative":
+        simulated.moveRelative(step.leftRight, step.forward, Math.max(0.1, Math.min(1, step.speed)));
+        break;
+      case "move_stop":
+        simulated.stopMoving();
+        break;
+      case "follow": {
+        const target = this.findRealPlayer(step.playerName);
+        if (target?.dimension.id === simulated.dimension.id) simulated.navigateToEntity(target, step.speed);
+        break;
+      }
+      case "look_at":
+        simulated.lookAtLocation(step.location);
+        break;
+      case "select_slot":
+        simulated.selectedSlotIndex = Math.max(0, Math.min(8, Math.floor(step.slot)));
+        break;
+      case "use_start":
+        simulated.useItemInSlot(Math.max(0, Math.min(8, Math.floor(step.slot))));
+        break;
+      case "use_stop":
+        simulated.stopUsingItem();
+        break;
+      case "attack":
+        simulated.attack();
+        break;
+      case "interact":
+        simulated.interact();
+        break;
+      case "interact_block":
+        simulated.interactWithBlock(step.location);
+        break;
+      case "use_on_block":
+        simulated.useItemInSlotOnBlock(step.slot, step.location);
+        break;
+      case "break_start":
+        simulated.breakBlock(step.location);
+        break;
+      case "break_stop":
+        simulated.stopBreakingBlock();
+        break;
+      case "jump":
+        simulated.jump();
+        break;
+    }
+  }
+
+  private stopAllSimulatedActions(item: IFakePlayer): void {
+    const simulated = this.getSimulatedPlayer(item);
+    if (!simulated?.isValid) return;
+    simulated.stopMoving();
+    simulated.stopInteracting();
+    simulated.stopBreakingBlock();
+    simulated.stopUsingItem();
+  }
+
+  private applyBehavior(item: IFakePlayer, force: boolean): void {
+    const simulated = this.getSimulatedPlayer(item);
+    if (!simulated?.isValid) return;
+    const behavior = this.getBehavior(item);
+    simulated.selectedSlotIndex = behavior.hotbarSlot;
+
+    if (force) {
+      simulated.stopMoving();
+      simulated.stopInteracting();
+      simulated.stopBreakingBlock();
+      simulated.stopUsingItem();
+    }
+
+    if (force || system.currentTick % 10 === 0) switch (behavior.movement) {
+      case "station":
+        if (behavior.stationLocation && behavior.stationDimension && behavior.lookAtLocation) {
+          if (
+            simulated.dimension.id !== behavior.stationDimension ||
+            distanceSquared(simulated.location, behavior.stationLocation) > 0.0025
+          ) {
+            simulated.teleport(behavior.stationLocation, { dimension: getDimension(behavior.stationDimension) });
+          }
+          simulated.stopMoving();
+          simulated.lookAtLocation(behavior.lookAtLocation);
+        }
+        break;
+      case "follow": {
+        const target = this.findRealPlayer(behavior.targetPlayer ?? "");
+        if (target?.dimension.id === simulated.dimension.id) simulated.navigateToEntity(target, behavior.speed);
+        else simulated.stopMoving();
+        break;
+      }
+      case "forward":
+        simulated.moveRelative(0, 1, behavior.speed);
+        break;
+      case "backward":
+        simulated.moveRelative(0, -1, behavior.speed);
+        break;
+      case "left":
+        simulated.moveRelative(-1, 0, behavior.speed);
+        break;
+      case "right":
+        simulated.moveRelative(1, 0, behavior.speed);
+        break;
+      default:
+        if (force) simulated.stopMoving();
+    }
+
+    if (behavior.action === "none") return;
+    if (behavior.action === "hold_slot") {
+      if (force) simulated.useItemInSlot(behavior.hotbarSlot);
+      return;
+    }
+    if (behavior.action === "hold_break") {
+      if (force && behavior.lookAtLocation) simulated.breakBlock(behavior.lookAtLocation);
+      return;
+    }
+
+    const lastTick = this.lastActionTick.get(item.id) ?? -behavior.intervalTicks;
+    if (!force && system.currentTick - lastTick < behavior.intervalTicks) return;
+    this.lastActionTick.set(item.id, system.currentTick);
+    switch (behavior.action) {
+      case "interact":
+        simulated.interact();
+        break;
+      case "interact_block":
+        if (behavior.lookAtLocation) simulated.interactWithBlock(behavior.lookAtLocation);
+        break;
+      case "attack":
+        simulated.attack();
+        break;
+      case "jump":
+        simulated.jump();
+        break;
+      case "use_slot":
+        simulated.useItemInSlot(behavior.hotbarSlot);
+        system.runTimeout(() => {
+          if (simulated.isValid) simulated.stopUsingItem();
+        }, 1);
+        break;
+      case "use_slot_block":
+        if (behavior.lookAtLocation) simulated.useItemInSlotOnBlock(behavior.hotbarSlot, behavior.lookAtLocation);
+        break;
     }
   }
 

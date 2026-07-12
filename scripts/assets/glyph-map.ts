@@ -45,7 +45,6 @@ export const glyphMap: Record<string, string> = {
   dinazor: "",
   discord: "",
   dragon: "",
-  dungeon: "",
   dunya: "",
   durbun: "",
   duyuru: "",

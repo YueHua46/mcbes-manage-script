@@ -24,7 +24,7 @@ import "./events/handlers/index.bds";
 
 function initializeApp(): void {
   SystemLog.info("========================================");
-  SystemLog.info("苦力怕菜单 v2.2.0 启动中...");
+  SystemLog.info("苦力怕菜单 v3.0.1 启动中...");
   SystemLog.info("当前构建：BDS 增强版（仅 BDS 服务器）");
   SystemLog.info("========================================");
 

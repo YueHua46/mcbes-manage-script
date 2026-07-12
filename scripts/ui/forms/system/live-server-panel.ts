@@ -1,4 +1,4 @@
-import { Player, system, world } from "@minecraft/server";
+import { Player, system } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 import serverInfo from "../../../features/system/services/server-info";
 import setting from "../../../features/system/services/setting";
@@ -32,33 +32,18 @@ function formatBytes(value: number | undefined): string {
   return `${(value / 1024 / 1024).toFixed(1)}MB`;
 }
 
-function countDimensionEntities(type?: string): number {
-  const dimensions = ["overworld", "nether", "the_end"];
-  let total = 0;
-
-  for (const dimensionId of dimensions) {
-    try {
-      total += world.getDimension(dimensionId).getEntities(type ? { type } : undefined).length;
-    } catch {
-      // 维度未加载或查询失败时跳过，避免面板本身影响服务器。
-    }
-  }
-
-  return total;
-}
-
 function buildSnapshot(): string {
   const onlinePlayers = getOnlineRealPlayers();
-  const totalEntities = countDimensionEntities();
   const tps = serverInfo.TPS || 0;
-  const mobs = serverInfo.organismLength || 0;
+  const otherEntities = serverInfo.organismLength || 0;
   const items = serverInfo.itemsLength || 0;
+  const totalEntities = otherEntities + items;
   const taskCount = taskScheduler.getSnapshots().length;
   const runningTasks = taskScheduler.getSnapshots().filter((task) => task.isRunning).length;
 
   return [
     `${stat("TPS", tps, color.gold)}  ${color.darkGray("|")}  ${stat("在线", onlinePlayers.length)}`,
-    `${stat("实体", totalEntities)}  ${color.gray("(")}${color.green("生物")} ${color.white(String(mobs))}${color.gray(" / ")}${color.gold("掉落")} ${color.white(String(items))}${color.gray(")")}`,
+    `${stat("实体", totalEntities)}  ${color.gray("(")}${color.green("其他实体")} ${color.white(String(otherEntities))}${color.gray(" / ")}${color.gold("掉落物")} ${color.white(String(items))}${color.gray(")")}`,
     "",
     `${switchStat("经济", setting.getState("economy"))}  ${switchStat("领地", setting.getState("land"))}`,
     `${switchStat("日志", setting.getState("behaviorLogEnabled"))}  ${switchStat("防刷", setting.getState("antiDupeEnabled"))}`,

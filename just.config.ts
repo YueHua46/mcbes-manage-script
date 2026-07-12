@@ -5,8 +5,8 @@ import {
   bundleTask,
   cleanTask,
   cleanCollateralTask,
-  copyTask,
   coreLint,
+  getGameDeploymentRootPaths,
   mcaddonTask,
   setupEnvironment,
   ZipTaskParameters,
@@ -104,6 +104,56 @@ const copyTaskOptions: CopyTaskParameters = {
   copyToResourcePacks: [`./resource_packs/${projectName}`],
 };
 
+const RETRYABLE_COPY_ERRORS = new Set(["EBUSY", "EPERM", "EACCES"]);
+
+async function copyFileWithRetry(source: string, destination: string): Promise<void> {
+  const maxAttempts = 8;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await fs.promises.copyFile(source, destination);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!code || !RETRYABLE_COPY_ERRORS.has(code) || attempt === maxAttempts) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, attempt * 100));
+    }
+  }
+}
+
+async function copyDirectoryContents(source: string, destination: string): Promise<void> {
+  await fs.promises.mkdir(destination, { recursive: true });
+  const entries = await fs.promises.readdir(source, { withFileTypes: true });
+  await Promise.all(
+    entries.map(async (entry) => {
+      const sourcePath = path.join(source, entry.name);
+      const destinationPath = path.join(destination, entry.name);
+      if (entry.isDirectory()) {
+        await copyDirectoryContents(sourcePath, destinationPath);
+      } else if (entry.isFile()) {
+        await copyFileWithRetry(sourcePath, destinationPath);
+      }
+    })
+  );
+}
+
+async function copyArtifacts(): Promise<void> {
+  const product = getOrThrowFromProcess("MINECRAFT_PRODUCT");
+  const deploymentPath = getGameDeploymentRootPaths()[product as keyof ReturnType<typeof getGameDeploymentRootPaths>];
+  if (!deploymentPath) {
+    throw new Error(`无法确定 ${product} 的部署路径，请检查 .env 配置。`);
+  }
+
+  const behaviorPackTarget = path.join(deploymentPath, "development_behavior_packs", projectName);
+  const resourcePackTarget = path.join(deploymentPath, "development_resource_packs", projectName);
+  await copyDirectoryContents(path.resolve(__dirname, copyTaskOptions.copyToBehaviorPacks[0]), behaviorPackTarget);
+  await copyDirectoryContents(path.resolve(__dirname, copyTaskOptions.copyToScripts[0]), path.join(behaviorPackTarget, "scripts"));
+  if (copyTaskOptions.copyToResourcePacks?.[0]) {
+    await copyDirectoryContents(path.resolve(__dirname, copyTaskOptions.copyToResourcePacks[0]), resourcePackTarget);
+  }
+}
+
 const mcaddonTaskOptionsStandard: ZipTaskParameters = {
   ...copyTaskOptions,
   outputFile: `./dist/packages/${projectName}_普通兼容版（适用本地、BDS、Realms领域服）.mcaddon`,
@@ -187,7 +237,7 @@ task("clean-collateral", cleanCollateralTask(STANDARD_CLEAN_PATHS));
 task("clean", parallel("clean-local", "clean-collateral"));
 
 // Package
-task("copyArtifacts", copyTask(copyTaskOptions));
+task("copyArtifacts", copyArtifacts);
 task("package", series("clean-collateral", "copyArtifacts"));
 
 // Local Deploy used for deploying local changes directly to output via the bundler. It does a full build and package first just in case.
@@ -200,21 +250,21 @@ task("setBdsServerDeployEnv", () => {
 task(
   "local-deploy",
   watchTask(
-    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
+    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg}", "resource_packs/**/*.{json,lang,png,ogg}"],
     series("setDefaultDeployEnv", "clean-local", "build:standard", "package")
   )
 );
 task(
   "local-deploy:debug",
   watchTask(
-    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
+    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg}", "resource_packs/**/*.{json,lang,png,ogg}"],
     series("setDefaultDeployEnv", "clean-local", "build:debug", "package")
   )
 );
 task(
   "local-deploy:bds-admin",
   watchTask(
-    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png}", "resource_packs/**/*.{json,lang,png}"],
+    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg}", "resource_packs/**/*.{json,lang,png,ogg}"],
     series("setBdsServerDeployEnv", "clean-local", "build:bds-admin", "package")
   )
 );

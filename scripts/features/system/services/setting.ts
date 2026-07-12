@@ -297,25 +297,30 @@ export const defaultSetting = {
 };
 
 export class ServerSetting {
-  private db!: Database<IValueType>;
+  private db?: Database<IValueType>;
+  private readonly pending = new Map<IModules, IValueType>();
 
   constructor() {
     system.run(() => {
       this.db = new Database<IValueType>("setting");
+      for (const [module,state] of this.pending) this.db.set(module,state);
+      this.pending.clear();
     });
   }
 
   turnOn(module: IModules): void {
     console.log(`Turn on ${module}`);
-    this.db.set(module, true);
+    this.setState(module, true);
   }
 
   turnOff(module: IModules): void {
     console.log(`Turn off ${module}`);
-    this.db.set(module, false);
+    this.setState(module, false);
   }
 
   getState(module: IModules): IValueType {
+    if (this.pending.has(module)) return this.pending.get(module)!;
+    if (!this.db) return defaultSetting[module];
     if (this.db.get(module) === undefined) {
       this.setState(module, defaultSetting[module]);
     }
@@ -324,6 +329,7 @@ export class ServerSetting {
 
   setState(module: IModules, state: IValueType): void {
     SystemLog.info(`setState: ${module} = ${state}`);
+    if (!this.db) { this.pending.set(module,state); return; }
     this.db.set(module, state);
   }
 }

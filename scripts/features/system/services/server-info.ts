@@ -7,6 +7,25 @@ import { world } from "@minecraft/server";
 import { getTPS } from "../../../shared/utils/tps";
 import { taskScheduler } from "../../platform/scheduler";
 
+const ITEM_ENTITY_TYPE_ID = "minecraft:item";
+const TRACKED_DIMENSIONS = [
+  "overworld",
+  "nether",
+  "the_end",
+];
+
+function countEntities(query: { type?: string; excludeTypes?: string[] }): number {
+  let total = 0;
+  for (const dimensionId of TRACKED_DIMENSIONS) {
+    try {
+      total += world.getDimension(dimensionId).getEntities(query).length;
+    } catch {
+      // 维度不存在或尚未加载时跳过，避免统计任务中断。
+    }
+  }
+  return total;
+}
+
 class Server {
   TPS: number = 0;
   organismLength: number = 0;
@@ -29,14 +48,11 @@ class Server {
 
     taskScheduler.register({
       id: "server.entityCount",
-      label: "生物实体统计",
+      label: "其他实体统计",
       category: "core",
       intervalTicks: 20,
       run: () => {
-        const owLength = world.getDimension("overworld").getEntities({ excludeTypes: ["item"] }).length;
-        const netherLength = world.getDimension("nether").getEntities({ excludeTypes: ["item"] }).length;
-        const endLength = world.getDimension("the_end").getEntities({ excludeTypes: ["item"] }).length;
-        this.organismLength = owLength + netherLength + endLength;
+        this.organismLength = countEntities({ excludeTypes: [ITEM_ENTITY_TYPE_ID] });
       },
     });
 
@@ -46,10 +62,7 @@ class Server {
       category: "core",
       intervalTicks: 20,
       run: () => {
-        const owLength = world.getDimension("overworld").getEntities({ type: "item" }).length;
-        const netherLength = world.getDimension("nether").getEntities({ type: "item" }).length;
-        const endLength = world.getDimension("the_end").getEntities({ type: "item" }).length;
-        this.itemsLength = owLength + netherLength + endLength;
+        this.itemsLength = countEntities({ type: ITEM_ENTITY_TYPE_ID });
       },
     });
   }
