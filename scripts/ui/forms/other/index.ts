@@ -4,10 +4,9 @@
  */
 
 import { Dimension, Player, Vector3, world } from "@minecraft/server";
-import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/server-ui";
+import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { openServerMenuForm } from "../server";
 import { RandomTp } from "../../../features/other/services/random-tp";
-import serverInfo from "../../../features/system/services/server-info";
 import { openDialogForm } from "../../../ui/components/dialog";
 import { color, colorCodes } from "../../../shared/utils/color";
 import leaveMessage from "../../../features/other/services/leave-message";
@@ -16,43 +15,7 @@ import setting from "../../../features/system/services/setting";
 import { isAdmin } from "../../../shared/utils/common";
 import { openMyEnderChestForm } from "../system/player-inventory-admin";
 import { chargeTeleportCost, refundTeleportCost } from "../../../features/economic/services/teleport-cost";
-
-// ==================== 服务器信息 ====================
-
-function createServerInfoForm(): MessageFormData {
-  const form = new MessageFormData();
-  form.title("服务器信息");
-  form.body({
-    rawtext: [
-      { text: `§a---------------------------------\n` },
-      { text: `§eTPS: §c${serverInfo.TPS}\n` },
-      { text: `§e实体数量: §c${serverInfo.organismLength}\n` },
-      { text: `§e掉落物数量: §c${serverInfo.itemsLength}\n` },
-      { text: `§a---------------------------------\n` },
-      { text: `§c腐竹留言\n` },
-      { text: `§a---------------------------------\n` },
-    ],
-  });
-  form.button1("刷新");
-  form.button2("返回");
-  return form;
-}
-
-function openServerInfoForm(player: Player): void {
-  let form = createServerInfoForm();
-
-  form.show(player).then((data) => {
-    switch (data.selection) {
-      case 0:
-        form = createServerInfoForm();
-        openServerInfoForm(player);
-        break;
-      case 1:
-        openServerMenuForm(player);
-        break;
-    }
-  });
-}
+import { openLiveServerPanel } from "../system/live-server-panel";
 
 function openAuthorListForm(player: Player): void {
   const authors = [{ name: "月花zzZ", icon: "textures/authors/yuehua" }];
@@ -139,7 +102,11 @@ export function openBaseFunctionForm(player: Player): void {
     });
   }
 
-  buttons.push({ text: "服务器状态", icon: "textures/icons/fotograf", action: () => openServerInfoForm(player) });
+  buttons.push({
+    text: "服务器状态",
+    icon: "textures/icons/fotograf",
+    action: () => void openLiveServerPanel(player, () => openBaseFunctionForm(player)),
+  });
 
   buttons.push({
     text: "我的末影箱",

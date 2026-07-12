@@ -19,6 +19,7 @@ import {
   CustomCommandRegistry,
   EntityEquippableComponent,
   EquipmentSlot,
+  Vector3,
 } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { isAdmin, SystemLog } from "../../../shared/utils/common";
@@ -40,6 +41,8 @@ import {
   listSubscriptions,
   removeSubscription,
 } from "../../item-watch/item-watch-subscription";
+import dimensionRegistry from "../../dimension/services/dimension-registry";
+import { getPoolDimensionByAlias } from "../../dimension/services/custom-dimension-pool";
 
 // 防止重复注册的标志
 let commandsRegistered = false;
@@ -56,6 +59,17 @@ const CAMERA_PERSPECTIVE_VALUES = ["first", "third", "first_person", "third_pers
 const GET_ITEM_TYPE_ID_MODE_VALUES = ["hand", "all", "inventory"];
 const SUBSCRIBE_ITEM_HOLD_OPERATION_VALUES = ["add", "remove", "list", "clear"];
 const FAKE_PLAYER_OPERATION_VALUES = ["list", "add", "remove", "remove_all"];
+const DIMENSION_OPERATION_VALUES = [
+  "list",
+  "add",
+  "add_here",
+  "remove",
+  "rename",
+  "reset",
+  "info",
+  "current",
+  "test",
+];
 const SETTING_KEY_VALUES = ["list", ...Object.keys(defaultSetting)];
 const TELEPORT_COST_SETTING_KEYS = new Set([
   "randomTeleportCost",
@@ -245,6 +259,7 @@ system.beforeEvents.startup.subscribe((init) => {
   registerEnumIgnoreReloadLock(registry, "yuehua:GetItemTypeIdModeType", GET_ITEM_TYPE_ID_MODE_VALUES);
   registerEnumIgnoreReloadLock(registry, "yuehua:SubscribeItemHoldOperationType", SUBSCRIBE_ITEM_HOLD_OPERATION_VALUES);
   registerEnumIgnoreReloadLock(registry, "yuehua:FakePlayerOperationType", FAKE_PLAYER_OPERATION_VALUES);
+  registerEnumIgnoreReloadLock(registry, "yuehua:DimensionOperationType", DIMENSION_OPERATION_VALUES);
 
   // 1. 注册 waypoint 指令
   const waypointCommand: CustomCommand = {
@@ -525,6 +540,58 @@ system.beforeEvents.startup.subscribe((init) => {
     permissionLevel: CommandPermissionLevel.Any,
   };
   registerCommandIgnoreReloadLock(registry, tprejectCommand, handleTprejectCommand);
+
+  // 15. 自定义维度登记与跨维度传送
+  const dimensionCommand: CustomCommand = {
+    name: "yuehua:dimension",
+    description:
+      "维度管理。预置 custom1 至 custom5；支持 list/rename/reset/info/current/test，也可接入外部维度。",
+    permissionLevel: CommandPermissionLevel.Admin,
+    mandatoryParameters: [
+      {
+        type: CustomCommandParamType.Enum,
+        name: "操作(list/add/add_here/remove/rename/reset/info/current/test)",
+        enumName: "yuehua:DimensionOperationType",
+      },
+    ],
+    optionalParameters: [
+      { type: CustomCommandParamType.String, name: "维度别名" },
+      { type: CustomCommandParamType.String, name: "维度ID或显示名称" },
+      { type: CustomCommandParamType.String, name: "显示名称(add时可选)" },
+    ],
+  };
+  registerCommandIgnoreReloadLock(registry, dimensionCommand, handleDimensionCommand);
+
+  const dimensionSetSpawnCommand: CustomCommand = {
+    name: "yuehua:dimension_setspawn",
+    description: "设置已登记维度的默认传送坐标。只有管理员可执行。",
+    permissionLevel: CommandPermissionLevel.Admin,
+    mandatoryParameters: [
+      { type: CustomCommandParamType.String, name: "维度别名" },
+      { type: CustomCommandParamType.Location, name: "默认传送坐标" },
+    ],
+  };
+  registerCommandIgnoreReloadLock(registry, dimensionSetSpawnCommand, handleDimensionSetSpawnCommand);
+
+  const dimensionSetSpawnHereCommand: CustomCommand = {
+    name: "yuehua:dimension_setspawn_here",
+    description: "把管理员在对应维度内的当前位置与朝向设为默认传送点。",
+    permissionLevel: CommandPermissionLevel.Admin,
+    mandatoryParameters: [{ type: CustomCommandParamType.String, name: "维度别名" }],
+  };
+  registerCommandIgnoreReloadLock(registry, dimensionSetSpawnHereCommand, handleDimensionSetSpawnHereCommand);
+
+  const dimensionTeleportCommand: CustomCommand = {
+    name: "yuehua:dimension_tp",
+    description: "把选择器匹配的在线玩家传送到已登记维度；可填写固定别名或显示名称，省略坐标时使用默认点。",
+    permissionLevel: CommandPermissionLevel.GameDirectors,
+    mandatoryParameters: [
+      { type: CustomCommandParamType.PlayerSelector, name: "在线玩家选择器" },
+      { type: CustomCommandParamType.String, name: "维度别名" },
+    ],
+    optionalParameters: [{ type: CustomCommandParamType.Location, name: "目标坐标(省略时使用默认点)" }],
+  };
+  registerCommandIgnoreReloadLock(registry, dimensionTeleportCommand, handleDimensionTeleportCommand);
 
   commandsRegistered = true;
   console.warn("所有自定义指令已通过官方 API 注册完成");
@@ -2161,6 +2228,212 @@ function handleCameraCommand(
   });
 
   return { status: CustomCommandStatus.Success };
+}
+
+function formatDimensionLocation(location: Vector3 | undefined): string {
+  if (!location) return "未设置";
+  return `${location.x.toFixed(1)}, ${location.y.toFixed(1)}, ${location.z.toFixed(1)}`;
+}
+
+function handleDimensionCommand(
+  origin: CustomCommandOrigin,
+  operation: string,
+  alias?: string,
+  value?: string,
+  displayName?: string
+): CustomCommandResult {
+  const player = origin.sourceEntity;
+  if (!(player instanceof Player) || !isAdmin(player)) {
+    return { status: CustomCommandStatus.Failure, message: "只有管理员可以管理维度登记" };
+  }
+
+  system.run(() => {
+    try {
+      switch (operation.toLowerCase()) {
+        case "list": {
+          const records = dimensionRegistry.listRegisteredDimensions();
+          if (records.length === 0) {
+            player.sendMessage(color.yellow("尚未登记任何维度。"));
+            player.sendMessage(color.gray("用法: /yuehua:dimension add <别名> <维度ID> [显示名称]"));
+            return;
+          }
+          player.sendMessage(color.green(`=== 已登记维度 (${records.length}) ===`));
+          for (const record of records) {
+            const poolLabel = getPoolDimensionByAlias(record.alias) ? color.aqua(" [预置]") : "";
+            player.sendMessage(
+              `${color.yellow(record.alias)}${poolLabel} ${color.white(record.displayName)} ${color.gray(record.dimensionId)}\n` +
+                color.gray(`默认点: ${formatDimensionLocation(record.spawn)}`)
+            );
+          }
+          return;
+        }
+        case "add": {
+          if (!alias || !value) throw new Error("用法: /yuehua:dimension add <别名> <维度ID> [显示名称]");
+          // 先验证行为包确实提供了这个维度，避免保存永远无法使用的登记。
+          world.getDimension(value);
+          const record = dimensionRegistry.addRegisteredDimension(alias, value, displayName, player.name);
+          player.sendMessage(color.green(`已登记维度 ${record.displayName}。`));
+          player.sendMessage(color.gray(`别名: ${record.alias}；真实 ID: ${record.dimensionId}`));
+          player.sendMessage(color.gray(`命令方块示例: /yuehua:dimension_tp @p ${record.alias}`));
+          return;
+        }
+        case "add_here": {
+          if (!alias) throw new Error("用法: /yuehua:dimension add_here <别名> [显示名称]");
+          const record = dimensionRegistry.addRegisteredDimensionFromPlayer(alias, player, value, player.name);
+          player.sendMessage(color.green(`已登记当前维度 ${record.displayName}，并保存当前位置和朝向。`));
+          player.sendMessage(color.gray(`别名: ${record.alias}；真实 ID: ${record.dimensionId}`));
+          return;
+        }
+        case "remove": {
+          if (!alias) throw new Error("用法: /yuehua:dimension remove <别名>");
+          if (getPoolDimensionByAlias(alias)) {
+            throw new Error("预置维度不能删除；如需清除名称和传送点，请使用 reset");
+          }
+          const record = dimensionRegistry.getRegisteredDimension(alias);
+          if (!record || !dimensionRegistry.removeRegisteredDimension(alias)) throw new Error(`未找到维度别名: ${alias}`);
+          player.sendMessage(color.green(`已移除维度登记: ${record.alias} (${record.displayName})`));
+          return;
+        }
+        case "rename": {
+          if (!alias || !value) throw new Error("用法: /yuehua:dimension rename <别名> <新显示名称>");
+          const record = dimensionRegistry.updateRegisteredDimensionDisplayName(alias, value);
+          player.sendMessage(color.green(`已将 ${record.alias} 的显示名称修改为 ${record.displayName}。`));
+          return;
+        }
+        case "reset": {
+          if (!alias) throw new Error("用法: /yuehua:dimension reset <别名>");
+          const poolItem = getPoolDimensionByAlias(alias);
+          if (!poolItem) throw new Error("reset 仅用于 custom1 至 custom5 预置维度");
+          const record = dimensionRegistry.resetRegisteredDimensionConfiguration(alias, poolItem.displayName);
+          player.sendMessage(color.green(`已恢复 ${record.alias} 的默认名称，并清除默认传送点。`));
+          return;
+        }
+        case "info": {
+          if (!alias) throw new Error("用法: /yuehua:dimension info <别名>");
+          const record = dimensionRegistry.getRegisteredDimension(alias);
+          if (!record) throw new Error(`未找到维度别名: ${alias}`);
+          player.sendMessage(color.green(`=== 维度 ${record.displayName} ===`));
+          player.sendMessage(`别名: ${record.alias}`);
+          player.sendMessage(`真实 ID: ${record.dimensionId}`);
+          player.sendMessage(`默认点: ${formatDimensionLocation(record.spawn)}`);
+          player.sendMessage(`创建者: ${record.createdBy || "未知"}`);
+          return;
+        }
+        case "current": {
+          const record = dimensionRegistry.getCurrentDimensionRegistration(player);
+          player.sendMessage(color.green("=== 当前维度 ==="));
+          player.sendMessage(`真实 ID: ${player.dimension.id}`);
+          player.sendMessage(`当前位置: ${formatDimensionLocation(player.location)}`);
+          player.sendMessage(record ? `已登记为: ${record.alias} (${record.displayName})` : "尚未登记");
+          return;
+        }
+        case "test": {
+          if (!alias) throw new Error("用法: /yuehua:dimension test <别名>");
+          const record = dimensionRegistry.getRegisteredDimension(alias);
+          if (!record) throw new Error(`未找到维度别名: ${alias}`);
+          if (!record.spawn) throw new Error(`维度 ${record.alias} 尚未设置默认传送点`);
+          const dimension = world.getDimension(record.dimensionId);
+          player.teleport(record.spawn, {
+            dimension,
+            rotation: record.rotation,
+            keepVelocity: false,
+          });
+          player.sendMessage(color.green(`已传送到 ${record.displayName}。`));
+          return;
+        }
+        default:
+          throw new Error("未知操作。可用操作: list/add/add_here/remove/rename/reset/info/current/test");
+      }
+    } catch (error) {
+      player.sendMessage(color.red((error as Error).message));
+    }
+  });
+
+  return { status: CustomCommandStatus.Success, message: "维度管理请求已提交" };
+}
+
+function handleDimensionSetSpawnCommand(
+  origin: CustomCommandOrigin,
+  alias: string,
+  location: Vector3
+): CustomCommandResult {
+  const player = origin.sourceEntity;
+  if (!(player instanceof Player) || !isAdmin(player)) {
+    return { status: CustomCommandStatus.Failure, message: "只有管理员可以设置维度传送点" };
+  }
+  system.run(() => {
+    try {
+      const record = dimensionRegistry.setRegisteredDimensionSpawn(alias, location);
+      player.sendMessage(color.green(`已将 ${record.displayName} 的默认点设为 ${formatDimensionLocation(record.spawn)}。`));
+    } catch (error) {
+      player.sendMessage(color.red((error as Error).message));
+    }
+  });
+  return { status: CustomCommandStatus.Success, message: "设置请求已提交" };
+}
+
+function handleDimensionSetSpawnHereCommand(origin: CustomCommandOrigin, alias: string): CustomCommandResult {
+  const player = origin.sourceEntity;
+  if (!(player instanceof Player) || !isAdmin(player)) {
+    return { status: CustomCommandStatus.Failure, message: "只有管理员可以设置维度传送点" };
+  }
+  system.run(() => {
+    try {
+      const record = dimensionRegistry.setRegisteredDimensionSpawnFromPlayer(alias, player);
+      player.sendMessage(color.green(`已保存 ${record.displayName} 的默认点与当前朝向。`));
+    } catch (error) {
+      player.sendMessage(color.red((error as Error).message));
+    }
+  });
+  return { status: CustomCommandStatus.Success, message: "设置请求已提交" };
+}
+
+function handleDimensionTeleportCommand(
+  origin: CustomCommandOrigin,
+  targetPlayers: Player[],
+  alias: string,
+  location?: Vector3
+): CustomCommandResult {
+  if (!Array.isArray(targetPlayers) || targetPlayers.length === 0) {
+    return { status: CustomCommandStatus.Failure, message: "选择器没有匹配到在线玩家" };
+  }
+
+  const operator = origin.sourceEntity instanceof Player ? origin.sourceEntity : undefined;
+  system.run(() => {
+    try {
+      const record = dimensionRegistry.resolveRegisteredDimension(alias);
+      if (!record) throw new Error(`未找到维度别名或显示名称: ${alias}`);
+      const destination = location ?? record.spawn;
+      if (!destination) throw new Error(`维度 ${record.alias} 尚未设置默认传送点，请在指令中填写坐标`);
+      const dimension = world.getDimension(record.dimensionId);
+      let successCount = 0;
+      let failureCount = 0;
+
+      for (const target of targetPlayers) {
+        try {
+          target.teleport(destination, {
+            dimension,
+            rotation: location ? undefined : record.rotation,
+            keepVelocity: false,
+          });
+          successCount++;
+        } catch (error) {
+          failureCount++;
+          console.warn(`传送玩家 ${target.name} 到 ${record.dimensionId} 失败: ${(error as Error).message}`);
+        }
+      }
+
+      const summary = `维度传送完成：成功 ${successCount}，失败 ${failureCount}，目标 ${record.displayName} (${record.dimensionId})`;
+      if (operator) operator.sendMessage(failureCount ? color.yellow(summary) : color.green(summary));
+      console.warn(`[DimensionTeleport] ${operator?.name ?? "命令方块/服务器"}: ${summary}`);
+    } catch (error) {
+      const message = `维度传送失败: ${(error as Error).message}`;
+      if (operator) operator.sendMessage(color.red(message));
+      console.error(`[DimensionTeleport] ${message}`);
+    }
+  });
+
+  return { status: CustomCommandStatus.Success, message: `已提交 ${targetPlayers.length} 名玩家的维度传送请求` };
 }
 
 export {};

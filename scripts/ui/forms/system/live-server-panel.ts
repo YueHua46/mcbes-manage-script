@@ -56,38 +56,6 @@ function buildSnapshot(): string {
   ].join("\n");
 }
 
-function openFallbackServerPanel(player: Player, returnForm?: () => void): void {
-  const form = new ActionFormData();
-  form.title("服务器实时面板");
-  form.body({ rawtext: [{ text: buildSnapshot() }] });
-  form.button("调度详情", "textures/icons/gear");
-  if (isDebugUtilitiesAvailable()) {
-    form.button("调试诊断", "textures/icons/info");
-  }
-  form.button("刷新", "textures/icons/requeue");
-  form.button("返回", "textures/icons/back");
-  form.show(player).then((response) => {
-    if (response.canceled || response.cancelationReason) return;
-    if (response.selection === 0) {
-      openSchedulerDetailForm(player, () => openFallbackServerPanel(player, returnForm));
-      return;
-    }
-    let nextSelection = 1;
-    if (isDebugUtilitiesAvailable()) {
-      if (response.selection === nextSelection) {
-        void openDebugDiagnosticsPanel(player, () => openFallbackServerPanel(player, returnForm));
-        return;
-      }
-      nextSelection++;
-    }
-    if (response.selection === nextSelection) {
-      openFallbackServerPanel(player, returnForm);
-      return;
-    }
-    returnForm?.();
-  });
-}
-
 async function buildDebugDiagnosticsSnapshot(): Promise<string> {
   const [runtime, plugins] = await Promise.all([collectDebugRuntimeStats(), collectDebugPluginStats()]);
 
@@ -167,7 +135,8 @@ function safeClose(form: { close?: () => void }): void {
 export async function openLiveServerPanel(player: Player, returnForm?: () => void): Promise<void> {
   const liveForm = await getLiveFormCapabilities();
   if (!liveForm) {
-    openFallbackServerPanel(player, returnForm);
+    player.sendMessage(color.red("当前运行时不支持 DDUI，无法打开服务器实时面板。"));
+    system.run(() => returnForm?.());
     return;
   }
 
@@ -190,11 +159,7 @@ export async function openLiveServerPanel(player: Player, returnForm?: () => voi
     });
   }
 
-  form
-    .button("刷新", () => {
-      snapshot.setData(buildSnapshot());
-    })
-    .button("返回", () => {
+  form.button("返回", () => {
       safeClose(form);
       system.run(() => returnForm?.());
     });
@@ -211,7 +176,7 @@ export async function openLiveServerPanel(player: Player, returnForm?: () => voi
   try {
     await form.show();
   } catch {
-    openFallbackServerPanel(player, returnForm);
+    player.sendMessage(color.red("DDUI 实时面板打开失败，请稍后重试。"));
     return;
   } finally {
     system.clearRun(refreshRun);

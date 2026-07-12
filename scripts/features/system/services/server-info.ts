@@ -27,25 +27,18 @@ function countEntities(query: { type?: string; excludeTypes?: string[] }): numbe
 }
 
 class Server {
-  TPS: number = 0;
   organismLength: number = 0;
   itemsLength: number = 0;
+
+  get TPS(): number {
+    return getTPS();
+  }
 
   constructor() {
     this.registerScheduledTasks();
   }
 
   private registerScheduledTasks(): void {
-    taskScheduler.register({
-      id: "server.tps",
-      label: "TPS 采样",
-      category: "core",
-      intervalTicks: 20,
-      run: () => {
-        this.TPS = getTPS();
-      },
-    });
-
     taskScheduler.register({
       id: "server.entityCount",
       label: "其他实体统计",

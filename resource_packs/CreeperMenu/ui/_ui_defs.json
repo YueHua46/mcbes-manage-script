@@ -1,5 +1,6 @@
 {
   "ui_defs": [
+    "ui/hud_screen.json",
     "ui/chest_server_form.json",
     "ui/chest_inventory_system.json",
     "ui/furnace_server_form.json"

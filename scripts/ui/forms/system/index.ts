@@ -22,6 +22,7 @@ import { openOfflineDurationQueryMenu } from "./offline-duration-query";
 import { openAntiDupeSettingsForm } from "./anti-dupe-settings";
 import { openJoinPopupAnnouncementManageForm } from "./join-popup-announcement";
 import { openLiveServerPanel } from "./live-server-panel";
+import { openCustomDimensionManageForm } from "./custom-dimensions";
 import { openFloatingTextMenu } from "../floating-text";
 import { openQuestSystemManageForm } from "../quest-system";
 import {
@@ -218,6 +219,11 @@ export function openSystemSettingForm(player: Player): void {
       text: "经济系统管理",
       icon: "textures/icons/shop_bank",
       action: () => openEconomyManageForm(player),
+    },
+    {
+      text: "自定义维度管理",
+      icon: "textures/icons/checkpoint",
+      action: () => openCustomDimensionManageForm(player, () => openSystemSettingForm(player)),
     },
     {
       text: "任务系统",

@@ -25,23 +25,40 @@ export interface ObservableFactory {
   create: (initial: string) => ObservableHandle;
 }
 
+interface CustomFormConstructor {
+  new (player: Player, title: string): CustomFormHandle;
+  create?: (player: Player, title: string) => CustomFormHandle;
+}
+
+interface ObservableStringConstructor {
+  new (initial: string): ObservableHandle;
+}
+
 export interface LiveFormCapabilities {
   CustomForm: CustomFormFactory;
   Observable: ObservableFactory;
 }
 
 /**
- * 检测当前运行时是否支持 CustomForm + Observable 实时表单。
+ * 检测当前运行时是否支持 CustomForm + ObservableString 实时表单。
  * 不支持时调用方应降级为 ActionFormData 等稳定 API。
  */
 export async function getLiveFormCapabilities(): Promise<LiveFormCapabilities | null> {
   try {
     const ui = await import("@minecraft/server-ui");
-    const CustomForm = (ui as Record<string, unknown>).CustomForm as CustomFormFactory | undefined;
-    const Observable = (ui as Record<string, unknown>).Observable as ObservableFactory | undefined;
+    const CustomForm = (ui as Record<string, unknown>).CustomForm as CustomFormConstructor | undefined;
+    const ObservableString = (ui as Record<string, unknown>).ObservableString as ObservableStringConstructor | undefined;
 
-    if (!CustomForm?.create || !Observable?.create) return null;
-    return { CustomForm, Observable };
+    if (!CustomForm || !ObservableString) return null;
+    return {
+      CustomForm: {
+        create: (player, title) =>
+          typeof CustomForm.create === "function" ? CustomForm.create(player, title) : new CustomForm(player, title),
+      },
+      Observable: {
+        create: (initial) => new ObservableString(initial),
+      },
+    };
   } catch {
     return null;
   }

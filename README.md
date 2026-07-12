@@ -24,6 +24,7 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 |------|------|:------:|:----------:|
 | 自定义命令 | SAPI `CustomCommandRegistry`，权限与参数校验 | ✓ | ✓ |
 | 玩家传送 / TPA | 玩家互传、坐标传送、随机传送 | ✓ | ✓ |
+| 自定义维度传送 | 维度登记、默认点、选择器批量跨维度传送 | ✓ | ✓ |
 | 领地系统 | 创建/管理/权限/粒子边界/快照分片 | ✓ | ✓ |
 | PVP 系统 | 竞技场、统计、效果管理 | ✓ | ✓ |
 | 经济系统 | 金币、官方商店、拍卖行、红包、怪物击杀奖励 | ✓ | ✓ |
@@ -39,6 +40,34 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 | Chest UI 图标修复 | 启动时自动偏移修复 | ✓ | ✓ |
 
 平台能力检测与 BDS 专属 API 封装见 `scripts/features/platform/sapi-capabilities/`。
+
+## 自定义维度传送
+
+插件启动时会注册 5 个虚空生成器维度，并自动登记为 `custom1` 至 `custom5`。首次安装或升级后须完整重启世界/服务器，不要只使用 `/reload`。管理员可以修改显示名称、设置默认点并交给命令方块传送；插件也保留接入其他行为包维度的能力。
+
+```text
+/yuehua:dimension add <别名> <维度ID> [显示名称]
+/yuehua:dimension add_here <别名> [显示名称]
+/yuehua:dimension list
+/yuehua:dimension info <别名>
+/yuehua:dimension current
+/yuehua:dimension remove <别名>
+/yuehua:dimension rename <别名> <新显示名称>
+/yuehua:dimension reset <custom1至custom5>
+/yuehua:dimension_setspawn <别名> <x> <y> <z>
+/yuehua:dimension_setspawn_here <别名>
+/yuehua:dimension test <别名>
+/yuehua:dimension_tp <玩家选择器> <别名> [x y z]
+```
+
+预置维度的真实 ID 为 `yuehua:custom_1` 至 `yuehua:custom_5`，不能真正删除；`reset` 会恢复默认名称并清除默认传送点。`dimension`、`dimension_setspawn` 和 `dimension_setspawn_here` 仅管理员可用；`dimension_tp` 可由管理员或命令方块执行。省略目标坐标时使用已保存的默认点，例如：
+
+`dimension_tp` 的维度参数既可以填写固定别名（如 `custom1`），也可以填写管理员修改后的显示名称（如 `天界`）。相对坐标需要写成 `~ ~ ~`，三个坐标之间必须有空格。
+
+```mcfunction
+/yuehua:dimension_tp @a[tag=enter_mine] mine
+/yuehua:dimension_tp @p[r=3] dungeon 0 80 0
+```
 
 ## 开发
 

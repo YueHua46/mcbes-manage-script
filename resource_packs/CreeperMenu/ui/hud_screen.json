@@ -1,0 +1,79 @@
+{
+  "namespace": "hud",
+  "cm_player_status_panel": {
+    "type": "image",
+    "anchor_from": "top_right",
+    "anchor_to": "top_right",
+    "offset": [-10, 10],
+    "size": ["100%c + 14px", 23],
+    "texture": "textures/ui/dialog_background_opaque",
+    "nineslice_size": 9,
+    "alpha": 0.58,
+    "layer": 20,
+    "$cm_font_scale": 0.78,
+    "$cm_hud_text": "$actionbar_text",
+    "visible": "((not (($cm_hud_text - '[CMHUD]') = $cm_hud_text)) and (not $pocket_screen))",
+    "controls": [
+      {
+        "status_text": {
+          "type": "label",
+          "anchor_from": "center",
+          "anchor_to": "center",
+          "layer": 21,
+          "text": "($cm_hud_text - '[CMHUD]')",
+          "font_scale_factor": "$cm_font_scale",
+          "color": [1.0, 1.0, 1.0],
+          "shadow": true,
+          "localize": false
+        }
+      }
+    ]
+  },
+  "cm_player_status_panel_pocket@hud.cm_player_status_panel": {
+    "offset": [0, 14],
+    "size": ["100%c + 10px", 21],
+    "nineslice_size": 8,
+    "$cm_font_scale": 0.7,
+    "visible": "((not (($cm_hud_text - '[CMHUD]') = $cm_hud_text)) and $pocket_screen)"
+  },
+  "cm_player_status_factory": {
+    "type": "panel",
+    "factory": {
+      "name": "hud_actionbar_text_factory",
+      "control_ids": {
+        "hud_actionbar_text": "@hud.cm_player_status_panel"
+      }
+    }
+  },
+  "cm_player_status_factory_pocket": {
+    "type": "panel",
+    "factory": {
+      "name": "hud_actionbar_text_factory",
+      "control_ids": {
+        "hud_actionbar_text": "@hud.cm_player_status_panel_pocket"
+      }
+    }
+  },
+  "hud_actionbar_text": {
+    "$cm_actionbar_text": "$actionbar_text",
+    "visible": "(($cm_actionbar_text - '[CMHUD]') = $cm_actionbar_text)"
+  },
+  "root_panel": {
+    "modifications": [
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": {
+          "cm_player_status_factory@hud.cm_player_status_factory": {}
+        }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": {
+          "cm_player_status_factory_pocket@hud.cm_player_status_factory_pocket": {}
+        }
+      }
+    ]
+  }
+}

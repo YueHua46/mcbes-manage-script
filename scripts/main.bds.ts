@@ -6,6 +6,7 @@ import { SystemLog } from "./shared/utils/common";
 import "./shared/database/database";
 import serverInfo from "./features/system/services/server-info";
 import setting from "./features/system/services/setting";
+import "./features/system/services/player-hud";
 import "./features/system/services/trial-mode";
 import "./features/one-click/dig-ore";
 import "./features/one-click/tree";
