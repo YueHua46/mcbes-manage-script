@@ -1012,7 +1012,7 @@ export function registerLandEvents(): void {
 
     // @ts-ignore
     const itemTypeId = source?.getComponent("minecraft:equippable")?.getEquipment("Mainhand")?.typeId;
-    if (!itemTypeId?.includes("minecraft:stick")) return;
+    if (itemTypeId !== "minecraft:stick") return;
 
     debounce(
       () => {
@@ -1059,7 +1059,7 @@ export function registerLandEvents(): void {
   world.afterEvents.itemUse.subscribe((event) => {
     const { source, itemStack } = event;
     if (!source || source.typeId !== "minecraft:player") return;
-    if (!itemStack?.typeId?.includes("minecraft:stick")) return;
+    if (itemStack?.typeId !== "minecraft:stick") return;
     const player = source as Player;
     if (!player.isSneaking) return;
     cancelLandSelection(player);

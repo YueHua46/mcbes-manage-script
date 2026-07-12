@@ -122,6 +122,7 @@ function createPlayerActionForm(): ActionFormData {
   form.button("假人管理", "textures/icons/spectator");
   form.button("聊天栏配置", "textures/icons/chat_bubble_white");
   form.button("名字显示设置", "textures/icons/profile");
+  form.button("状态栏显示设置", "textures/icons/info");
   form.button("返回", "textures/icons/back");
   return form;
 }
@@ -148,6 +149,9 @@ export function openPlayerActionForm(player: Player): void {
         openPlayerDisplaySettingsForm(player);
         break;
       case 5:
+        openPlayerHudSettingsForm(player);
+        break;
+      case 6:
         openServerMenuForm(player);
         break;
     }
@@ -175,6 +179,27 @@ export function openTpaSettingsForm(player: Player): void {
         enabled ? "§a已开启 §bTPA勿扰模式§a，传送请求将通过聊天提示。" : "§a已关闭 §bTPA勿扰模式§a。"
       );
     }
+    openPlayerActionForm(player);
+  });
+}
+
+/** 玩家个人右上角状态栏开关。 */
+function openPlayerHudSettingsForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("状态栏显示设置");
+  form.toggle("显示金币、TPS 和在线人数", {
+    defaultValue: PlayerSetting.getPlayerHudEnabled(player),
+    tooltip: "关闭后只会隐藏你自己的右上角状态栏，不影响其他玩家。",
+  });
+  form.submitButton("保存");
+  form.show(player).then((data) => {
+    if (data.cancelationReason || data.canceled || !data.formValues) {
+      openPlayerActionForm(player);
+      return;
+    }
+    const enabled = data.formValues[0] as boolean;
+    PlayerSetting.setPlayerHudEnabled(player, enabled);
+    player.sendMessage(enabled ? "§a已开启右上角玩家状态栏。" : "§e已关闭右上角玩家状态栏。");
     openPlayerActionForm(player);
   });
 }

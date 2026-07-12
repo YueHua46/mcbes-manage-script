@@ -3,8 +3,8 @@ import { economic } from "../../economic";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { getTPS } from "../../../shared/utils/tps";
 import { glyphMap } from "../../../assets/glyph-map";
+import PlayerSetting, { PLAYER_HUD_MARKER } from "../../player/services/player-settings";
 
-const HUD_MARKER = "[CMHUD]";
 const HUD_REFRESH_TICKS = 40;
 
 function formatGold(value: number): string {
@@ -29,9 +29,10 @@ system.runInterval(() => {
 
   for (const player of players) {
     try {
+      if (!PlayerSetting.getPlayerHudEnabled(player)) continue;
       const gold = economic.getWallet(player.name).gold;
       player.onScreenDisplay.setActionBar(
-        `${HUD_MARKER}§r${glyphMap.coins} §7金币 §6${formatGold(gold)}` +
+        `${PLAYER_HUD_MARKER}§r${glyphMap.coins} §7金币 §6${formatGold(gold)}` +
           `   §8•   §r${glyphMap.clock} §7TPS ${getTpsColor(tps)}${tpsText}` +
           `   §8•   §r${glyphMap.friends} §7在线 §a${players.length}`
       );

@@ -6,6 +6,9 @@
 import { Player } from '@minecraft/server';
 import { namePrefixMap } from '../../../assets/glyph-map';
 
+export const PLAYER_HUD_MARKER = '[CMHUD]';
+export const PLAYER_HUD_HIDE_MARKER = '[CMHUD_HIDE]';
+
 export enum EFunNames {
   TPA = 'TPA',
   TPADoNotDisturb = 'TPADoNotDisturb',
@@ -87,6 +90,18 @@ class PlayerSetting {
     const enabled = !this.getLandBoundaryParticlesEnabled(player);
     this.setLandBoundaryParticlesEnabled(player, enabled);
     return enabled;
+  }
+
+  /** 获取右上角玩家状态栏是否显示（默认开启）。 */
+  getPlayerHudEnabled(player: Player): boolean {
+    const value = player.getDynamicProperty('PlayerHudEnabled');
+    return value === undefined || value === true || value === 'true';
+  }
+
+  /** 设置右上角玩家状态栏显示状态。 */
+  setPlayerHudEnabled(player: Player, enabled: boolean): void {
+    player.setDynamicProperty('PlayerHudEnabled', enabled);
+    if (!enabled) player.onScreenDisplay.setActionBar(PLAYER_HUD_HIDE_MARKER);
   }
 
   /**

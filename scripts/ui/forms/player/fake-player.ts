@@ -373,7 +373,8 @@ const PROGRAM_STEP_OPTIONS: Array<{ type: FakePlayerProgramStep["type"]; label: 
   { type: "attack", label: "攻击一次" }, { type: "interact", label: "视线交互一次" },
   { type: "interact_block", label: "交互指定方块" }, { type: "use_on_block", label: "对方块使用物品" },
   { type: "break_start", label: "开始挖掘方块" }, { type: "break_stop", label: "停止挖掘" },
-  { type: "jump", label: "跳跃" },
+  { type: "jump", label: "跳跃" }, { type: "sneak_start", label: "开始蹲下" },
+  { type: "sneak_stop", label: "停止蹲下" },
 ];
 
 function formatProgramStep(step: FakePlayerProgramStep, index: number): string {
@@ -452,7 +453,7 @@ function openProgramStepConfig(
   adminView: boolean,
   back: () => void
 ): void {
-  const noParam = ["move_stop", "use_stop", "attack", "interact", "break_stop", "jump"];
+  const noParam = ["move_stop", "use_stop", "attack", "interact", "break_stop", "jump", "sneak_start", "sneak_stop"];
   if (noParam.includes(type)) {
     appendProgramStep(player, item, program, loop, { type } as FakePlayerProgramStep, adminView, back);
     return;
@@ -554,6 +555,7 @@ async function openFakePlayerBehaviorDdui(
   );
   const interval = new ObservableString(String(current.intervalTicks / 20), writable);
   const slot = new ObservableNumber(current.hotbarSlot, writable);
+  const sneaking = new ObservableBoolean(current.sneaking, writable);
   const station = current.stationLocation ?? player.location;
   const fallbackLook = player.getViewDirection();
   const lookAt = current.lookAtLocation ?? {
@@ -652,6 +654,7 @@ async function openFakePlayerBehaviorDdui(
     Array.from({ length: 9 }, (_, index) => ({ label: `第 ${index + 1} 个快捷槽`, value: index })),
     { description: "选择假人当前手持哪个快捷槽中的物品" }
   );
+  form.toggle("保持蹲下", sneaking, { description: "开启后，假人会持续保持潜行姿势" });
   form.divider();
   form.button("保存并立即执行", () => {
     const movementValue = MOVEMENT_OPTIONS[movement.getData()]?.value ?? "idle";
@@ -693,6 +696,7 @@ async function openFakePlayerBehaviorDdui(
       action: actionValue,
       intervalTicks: Math.max(1, Math.round(intervalSeconds * 20)),
       hotbarSlot: Math.max(0, Math.min(8, Math.round(slot.getData()))),
+      sneaking: sneaking.getData(),
       stationLocation: movementValue === "station" ? stationLocation : current.stationLocation,
       stationDimension: movementValue === "station" ? player.dimension.id : current.stationDimension,
       lookAtLocation:
@@ -744,6 +748,7 @@ function openFakePlayerBehaviorFallbackForm(
     defaultValue: String(current.intervalTicks / 20),
   });
   form.slider("快捷栏槽位", 1, 9, { defaultValue: current.hotbarSlot + 1, valueStep: 1 });
+  form.toggle("保持蹲下", { defaultValue: current.sneaking });
   form.toggle("停止全部行为", { defaultValue: false });
   form.submitButton("保存并立即执行");
   form.show(player).then((data) => {
@@ -752,7 +757,7 @@ function openFakePlayerBehaviorFallbackForm(
       return;
     }
 
-    const stopAll = Boolean(data.formValues[6]);
+    const stopAll = Boolean(data.formValues[7]);
     const intervalSeconds = Number(data.formValues[4]);
     if (!stopAll && (!Number.isFinite(intervalSeconds) || intervalSeconds < 0.05 || intervalSeconds > 3600)) {
       openDialogForm(
@@ -772,6 +777,7 @@ function openFakePlayerBehaviorFallbackForm(
           action: ACTION_OPTIONS[Number(data.formValues[3])]?.value ?? "none",
           intervalTicks: Math.max(1, Math.round(intervalSeconds * 20)),
           hotbarSlot: Math.round(Number(data.formValues[5])) - 1,
+          sneaking: Boolean(data.formValues[6]),
         });
     openDialogForm(
       player,

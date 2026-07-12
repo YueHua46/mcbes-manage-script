@@ -94,6 +94,8 @@ export interface FakePlayerBehavior {
   stationLocation?: Vector3;
   stationDimension?: string;
   lookAtLocation?: Vector3;
+  /** 是否持续保持蹲下。 */
+  sneaking: boolean;
 }
 
 const DEFAULT_BEHAVIOR: FakePlayerBehavior = {
@@ -102,6 +104,7 @@ const DEFAULT_BEHAVIOR: FakePlayerBehavior = {
   action: "none",
   intervalTicks: 20,
   hotbarSlot: 0,
+  sneaking: false,
 };
 
 export type FakePlayerProgramStep =
@@ -121,7 +124,9 @@ export type FakePlayerProgramStep =
   | { type: "use_on_block"; location: Vector3; slot: number }
   | { type: "break_start"; location: Vector3 }
   | { type: "break_stop" }
-  | { type: "jump" };
+  | { type: "jump" }
+  | { type: "sneak_start" }
+  | { type: "sneak_stop" };
 
 export interface FakePlayerProgram {
   enabled: boolean;
@@ -972,6 +977,7 @@ class FakePlayerService {
       action,
       intervalTicks: Math.max(1, Math.min(20 * 60 * 60, Math.floor(Number(value?.intervalTicks) || 20))),
       hotbarSlot: Math.max(0, Math.min(8, Math.floor(Number(value?.hotbarSlot) || 0))),
+      sneaking: value?.sneaking === true,
       stationLocation: this.normalizeVector(value?.stationLocation),
       stationDimension: String(value?.stationDimension ?? "").trim() || undefined,
       lookAtLocation: this.normalizeVector(value?.lookAtLocation),
@@ -992,8 +998,16 @@ class FakePlayerService {
     let positionChanged = false;
     for (const item of this.db.values()) {
       if (getFakePlayerType(item) !== "simulated") continue;
+      if (this.getProgram(item).enabled) {
+        try {
+          this.tickProgram(item);
+        } catch (error) {
+          SystemLog.warn(`[FakePlayer] 执行动作序列失败: ${item.id} ${item.name} ${String(error)}`);
+        }
+        continue;
+      }
       const behavior = this.getBehavior(item);
-      if (behavior.movement === "idle" && behavior.action === "none") continue;
+      if (behavior.movement === "idle" && behavior.action === "none" && !behavior.sneaking) continue;
       try {
         this.applyBehavior(item, false);
         if (system.currentTick % 100 === 0) {
@@ -1095,6 +1109,12 @@ class FakePlayerService {
       case "jump":
         simulated.jump();
         break;
+      case "sneak_start":
+        simulated.isSneaking = true;
+        break;
+      case "sneak_stop":
+        simulated.isSneaking = false;
+        break;
     }
   }
 
@@ -1105,6 +1125,7 @@ class FakePlayerService {
     simulated.stopInteracting();
     simulated.stopBreakingBlock();
     simulated.stopUsingItem();
+    simulated.isSneaking = false;
   }
 
   private applyBehavior(item: IFakePlayer, force: boolean): void {
@@ -1112,6 +1133,7 @@ class FakePlayerService {
     if (!simulated?.isValid) return;
     const behavior = this.getBehavior(item);
     simulated.selectedSlotIndex = behavior.hotbarSlot;
+    simulated.isSneaking = behavior.sneaking;
 
     if (force) {
       simulated.stopMoving();

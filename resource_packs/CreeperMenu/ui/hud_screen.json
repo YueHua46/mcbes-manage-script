@@ -56,7 +56,7 @@
   },
   "hud_actionbar_text": {
     "$cm_actionbar_text": "$actionbar_text",
-    "visible": "(($cm_actionbar_text - '[CMHUD]') = $cm_actionbar_text)"
+    "visible": "((($cm_actionbar_text - '[CMHUD]') = $cm_actionbar_text) and (($cm_actionbar_text - '[CMHUD_HIDE]') = $cm_actionbar_text))"
   },
   "root_panel": {
     "modifications": [
