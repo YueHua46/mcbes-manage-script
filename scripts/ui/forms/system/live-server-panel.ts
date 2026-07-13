@@ -1,4 +1,4 @@
-import { Player, system } from "@minecraft/server";
+import { Player, system, world } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 import serverInfo from "../../../features/system/services/server-info";
 import setting from "../../../features/system/services/setting";
@@ -38,12 +38,15 @@ function buildSnapshot(): string {
   const otherEntities = serverInfo.organismLength || 0;
   const items = serverInfo.itemsLength || 0;
   const totalEntities = otherEntities + items;
+  const dynamicPropertyBytes = world.getDynamicPropertyTotalByteCount();
+  const dynamicPropertyCount = world.getDynamicPropertyIds().length;
   const taskCount = taskScheduler.getSnapshots().length;
   const runningTasks = taskScheduler.getSnapshots().filter((task) => task.isRunning).length;
 
   return [
     `${stat("TPS", tps, color.gold)}  ${color.darkGray("|")}  ${stat("在线", onlinePlayers.length)}`,
     `${stat("实体", totalEntities)}  ${color.gray("(")}${color.green("其他实体")} ${color.white(String(otherEntities))}${color.gray(" / ")}${color.gold("掉落物")} ${color.white(String(items))}${color.gray(")")}`,
+    `${stat("模组存档占用", formatBytes(dynamicPropertyBytes))}  ${color.gray(`动态属性 ${dynamicPropertyCount} 项`)}`,
     "",
     `${switchStat("经济", setting.getState("economy"))}  ${switchStat("领地", setting.getState("land"))}`,
     `${switchStat("日志", setting.getState("behaviorLogEnabled"))}  ${switchStat("防刷", setting.getState("antiDupeEnabled"))}`,
