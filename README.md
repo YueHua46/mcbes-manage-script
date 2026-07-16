@@ -1,49 +1,81 @@
 # 苦力怕菜单
 
-Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI）构建。支持 **1.26.x** 引擎（manifest `min_engine_version: [1, 26, 0]`）。
+Minecraft 基岩版综合生存服管理 Addon，面向服主提供可视化菜单与一体化服务器功能。
 
-## 构建变体
+当前版本：**v3.0.1**  
+支持引擎：**Minecraft Bedrock 1.26.x**（`min_engine_version: [1, 26, 0]`）
 
-项目提供两种 `.mcaddon` 产物，按需选用：
+> 项目目前处于公开测试准备阶段。正式部署前，请先备份世界与动态属性数据。
 
-| 变体 | 构建命令 | 适用环境 | 额外依赖 |
-|------|----------|----------|----------|
-| **普通兼容版** | `npm run mcaddon` / `npm run build:standard` | 本地存档、BDS、Realms 领域服 | `@minecraft/server`、`@minecraft/server-ui` |
-| **BDS 增强版** | `npm run mcaddon:bds` / `npm run build:bds-admin` | 仅 BDS 专用服务器 | 额外 `@minecraft/server-admin`、`@minecraft/server-net` |
+## 主要功能
 
-**差异摘要：**
+- 自定义命令、玩家传送、TPA、随机传送
+- 自定义维度登记、默认点与跨维度传送
+- 领地、PVP 竞技场、路点、公会与金库
+- 金币、官方商店、拍卖行、红包与怪物击杀奖励
+- 玩家行为日志、试玩模式、在线时长与数据统计
+- 假人、悬浮文字、玩家 HUD 与服务器实时面板
+- 一键挖矿、一键砍树、连锁收割与连锁播种
+- 防刷物品、库存访问防护与黑名单管理
 
-- 普通兼容版：不含 BDS 专属模块，可在 Realms / 本地世界运行；黑名单进服前拦截、XUID 查询、HTTP 出站不可用。
-- BDS 增强版：支持黑名单进服前拦截（`asyncPlayerJoin`）、XUID 解析（`server-net` HTTP）、完整黑名单管理 UI。
+## 下载哪个版本
 
-同时产出两个包：`npm run mcaddon:all`
+项目提供两种 `.mcaddon` 构建产物：
+
+| 版本 | 适用环境 | 能力 |
+|---|---|---|
+| **普通兼容版** | 本地世界、Realms、BDS | 包含绝大多数功能，不依赖 BDS 专属模块 |
+| **BDS 增强版** | 仅 BDS 专用服务器 | 额外支持进服前黑名单拦截、XUID 解析和 HTTP 出站能力 |
+
+普通兼容版不包含 `@minecraft/server-admin` 和 `@minecraft/server-net`。BDS 增强版额外启用这些模块，因此不能用于 Realms 或普通本地世界。
+
+## 安装
+
+### 普通兼容版
+
+1. 从 GitHub Releases 下载名称中带有 `standard` 的 `.mcaddon`。
+2. 导入 Minecraft，或将行为包与资源包上传到服务器。
+3. 在世界设置中启用对应行为包与资源包。
+4. 首次安装或升级后完整重启世界或服务器，不要只执行 `/reload`。
+
+### BDS 增强版
+
+1. 从 GitHub Releases 下载名称中带有 `bds` 的 `.mcaddon`。
+2. 将行为包和资源包部署到 BDS 世界。
+3. 确认服务器环境允许使用 `@minecraft/server-admin` 与 `@minecraft/server-net`。
+4. 完整重启 BDS。
+
+> Release 安装包尚未发布时，可按照下方“开发与构建”章节自行构建。
 
 ## 功能矩阵
 
-| 模块 | 说明 | 普通版 | BDS 增强版 |
-|------|------|:------:|:----------:|
-| 自定义命令 | SAPI `CustomCommandRegistry`，权限与参数校验 | ✓ | ✓ |
-| 玩家传送 / TPA | 玩家互传、坐标传送、随机传送 | ✓ | ✓ |
-| 自定义维度传送 | 维度登记、默认点、选择器批量跨维度传送 | ✓ | ✓ |
-| 领地系统 | 创建/管理/权限/粒子边界/快照分片 | ✓ | ✓ |
-| PVP 系统 | 竞技场、统计、效果管理 | ✓ | ✓ |
-| 经济系统 | 金币、官方商店、拍卖行、红包、怪物击杀奖励 | ✓ | ✓ |
-| 公会系统 | 创建/成员/金库/权限 facade 缓存 | ✓ | ✓ |
-| 路点系统 | 个人/公共路点、传送倒计时 | ✓ | ✓ |
-| 玩家行为日志 | 聊天/交互/伤害/物品监控、日志检视器 | ✓ | ✓ |
-| 防刷物品 | Bundle 守卫、方块白名单、库存访问拦截 | ✓ | ✓ |
-| 黑名单 | 名字 / persistentId / xuid 三层匹配 | — | ✓ |
-| 进服前拦截 | `asyncPlayerJoin` 拒绝封禁玩家 | — | ✓ |
-| 服务器实时面板 | CustomForm + Observable，不支持时降级 ActionForm | ✓ | ✓ |
-| 试玩模式 / 在线时长 / 数据统计 | 服主管理面板子模块 | ✓ | ✓ |
-| 一键挖矿 / 一键砍树 | 可配置开关 | ✓ | ✓ |
-| Chest UI 图标修复 | 启动时自动偏移修复 | ✓ | ✓ |
+| 模块 | 普通版 | BDS 增强版 |
+|---|:---:|:---:|
+| 自定义命令 | ✓ | ✓ |
+| 玩家传送 / TPA / 随机传送 | ✓ | ✓ |
+| 自定义维度传送 | ✓ | ✓ |
+| 领地系统 | ✓ | ✓ |
+| PVP 系统 | ✓ | ✓ |
+| 经济、商店、拍卖行、红包 | ✓ | ✓ |
+| 公会系统 | ✓ | ✓ |
+| 路点系统 | ✓ | ✓ |
+| 玩家行为日志 | ✓ | ✓ |
+| 防刷物品 | ✓ | ✓ |
+| 假人、悬浮文字、HUD | ✓ | ✓ |
+| 服务器实时面板 | ✓ | ✓ |
+| 名字 / persistentId / XUID 黑名单 | — | ✓ |
+| 进服前拦截 `asyncPlayerJoin` | — | ✓ |
+| HTTP 出站与 XUID 解析 | — | ✓ |
 
-平台能力检测与 BDS 专属 API 封装见 `scripts/features/platform/sapi-capabilities/`。
+平台能力检测与 BDS 专属 API 封装位于：
+
+```text
+scripts/features/platform/sapi-capabilities/
+```
 
 ## 自定义维度传送
 
-插件启动时会注册 5 个虚空生成器维度，并自动登记为 `custom1` 至 `custom5`。首次安装或升级后须完整重启世界/服务器，不要只使用 `/reload`。管理员可以修改显示名称、设置默认点并交给命令方块传送；插件也保留接入其他行为包维度的能力。
+插件启动时会注册 5 个虚空生成器维度，并登记为 `custom1` 至 `custom5`。管理员可以修改显示名称、设置默认传送点，也可以登记其他行为包提供的维度。
 
 ```text
 /yuehua:dimension add <别名> <维度ID> [显示名称]
@@ -60,16 +92,24 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 /yuehua:dimension_tp <玩家选择器> <别名> [x y z]
 ```
 
-预置维度的真实 ID 为 `yuehua:custom_1` 至 `yuehua:custom_5`，不能真正删除；`reset` 会恢复默认名称并清除默认传送点。`dimension`、`dimension_setspawn` 和 `dimension_setspawn_here` 仅管理员可用；`dimension_tp` 可由管理员或命令方块执行。省略目标坐标时使用已保存的默认点，例如：
+预置维度真实 ID 为 `yuehua:custom_1` 至 `yuehua:custom_5`。它们不能真正删除；`reset` 会恢复默认名称并清除默认传送点。
 
-`dimension_tp` 的维度参数既可以填写固定别名（如 `custom1`），也可以填写管理员修改后的显示名称（如 `天界`）。相对坐标需要写成 `~ ~ ~`，三个坐标之间必须有空格。
+示例：
 
 ```mcfunction
 /yuehua:dimension_tp @a[tag=enter_mine] mine
 /yuehua:dimension_tp @p[r=3] dungeon 0 80 0
 ```
 
-## 开发
+## 升级与数据安全
+
+- 升级前备份整个世界。
+- 不要在未备份的生产服务器上直接测试预览版。
+- 安装或升级行为包、资源包后完整重启服务器。
+- 遇到资源包仍显示旧内容时，先确认服务器实际部署目录、包 UUID 与版本号是否已更新。
+- 提交 Bug 时请说明 Minecraft 版本、运行环境、使用的构建变体和复现步骤。
+
+## 开发与构建
 
 ### 环境要求
 
@@ -79,32 +119,45 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 ### 常用命令
 
 ```bash
-npm install              # 安装依赖
-npm run lint             # ESLint 检查
-npx tsc --noEmit         # TypeScript 类型检查
-npm run build            # 构建普通兼容版
-npm run build:bds-admin  # 构建 BDS 增强版
-npm run mcaddon          # 打包普通兼容版 .mcaddon
-npm run mcaddon:bds      # 打包 BDS 增强版 .mcaddon
-npm run mcaddon:all      # 同时产出两个 .mcaddon
-npm run local-deploy     # 监听变更并部署普通版
-npm run local-deploy:bds # 监听变更并部署 BDS 版
+npm install
+npm run lint
+npx tsc --noEmit
+npm run build
+npm run build:bds-admin
+npm run mcaddon
+npm run mcaddon:bds
+npm run mcaddon:all
+npm run local-deploy
+npm run local-deploy:bds
 ```
 
-### 贡献
+构建产物说明：
 
-fork 后修改并提交 PR，请在描述中说明改动内容与测试方式。需具备基础 JavaScript/TypeScript 知识。
+- `npm run mcaddon`：普通兼容版
+- `npm run mcaddon:bds`：BDS 增强版
+- `npm run mcaddon:all`：同时生成两个版本
 
 ### 更新 Chest UI 原版物品贴图映射
 
-商店、拍卖行等界面使用 **`textures/...` 贴图路径**显示物品图标（不再依赖 runtime 数字 id）。
+商店和拍卖行等界面使用 `textures/...` 贴图路径显示物品图标。
 
-- 映射数据：`scripts/assets/vanilla-item-icon-paths.ts`（自动生成）
-- 游戏版本升级后执行：`npm run build:vanilla-icon-map`，再 `npm run build`
-- 附加包自定义物品默认尝试 `textures/items/物品名`
+```bash
+npm run build:vanilla-icon-map
+npm run build
+```
 
-## 版权
+映射文件：
 
-本插件遵循 MIT 协议，你可以在遵守协议的前提下自由使用本插件的代码。  
-本插件的版权归作者所有，作者保留对本插件的所有权和最终解释权。  
-请不要将本插件应用于商业用途，否则后果自负。
+```text
+scripts/assets/vanilla-item-icon-paths.ts
+```
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request。请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，并在 PR 中说明改动内容、测试环境与验证方式。
+
+## 许可证
+
+本项目使用 [MIT License](LICENSE)。
+
+MIT License 允许使用、复制、修改、分发和商业使用代码，但必须保留版权声明与许可证文本。“苦力怕菜单”名称、Logo 和官方发布身份不因代码许可证而自动授权。
