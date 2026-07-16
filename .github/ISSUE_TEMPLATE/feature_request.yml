@@ -1,0 +1,36 @@
+name: 功能建议
+description: 提议新的服主管理能力或改进现有体验
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景
+      description: 说明服主或玩家遇到的实际问题。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 当前替代方案
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 影响范围
+      options: [现有功能增强, 新功能模块, UI 与易用性, 性能与稳定性, 文档]
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 Issue，并确认没有相同建议
+          required: true
