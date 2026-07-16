@@ -1,0 +1,44 @@
+name: 兼容性问题
+description: 报告 Minecraft、Realms、BDS 或其他 Addon 的兼容异常
+title: "[Compatibility]: "
+labels: ["compatibility"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 苦力怕菜单版本
+    validations:
+      required: true
+  - type: input
+    id: minecraft
+    attributes:
+      label: Minecraft 精确版本
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: 运行环境
+      options: [本地世界, Realms, BDS]
+    validations:
+      required: true
+  - type: dropdown
+    id: variant
+    attributes:
+      label: 构建变体
+      options: [普通兼容版, BDS 增强版]
+    validations:
+      required: true
+  - type: textarea
+    id: conflict
+    attributes:
+      label: 冲突对象与表现
+      description: 列出其他 Addon、面板、资源包或服务端环境。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤与日志
+    validations:
+      required: true
