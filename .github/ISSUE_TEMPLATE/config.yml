@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用与安装文档
+    url: https://github.com/YueHua46/mcbes-manage-script/tree/main/docs
+    about: 提交问题前请先查看安装、兼容性与故障排查文档
+  - name: 安全漏洞报告
+    url: https://github.com/YueHua46/mcbes-manage-script/security/advisories/new
+    about: 权限绕过、复制漏洞、经济刷取和数据破坏风险请私下报告
