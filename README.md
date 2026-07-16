@@ -1,5 +1,9 @@
 # 苦力怕菜单
 
+<p align="center">
+  <img src="docs/assets/creeper-menu-banner.png" alt="苦力怕菜单" />
+</p>
+
 Minecraft 基岩版综合生存服管理 Addon，面向服主提供可视化菜单与一体化服务器功能。
 
 当前版本：**v3.0.1**  
