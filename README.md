@@ -1,4 +1,6 @@
-# 苦力怕菜单
+<h1 align="center">
+  苦力怕菜单 - Addon
+</h1>
 
 <p align="center">
   <img src="docs/assets/creeper-menu-banner.png" alt="苦力怕菜单" />
