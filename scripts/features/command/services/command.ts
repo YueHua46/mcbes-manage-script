@@ -71,12 +71,14 @@ const DIMENSION_OPERATION_VALUES = [
   "test",
 ];
 const SETTING_KEY_VALUES = ["list", ...Object.keys(defaultSetting)];
-const TELEPORT_COST_SETTING_KEYS = new Set([
+const NON_NEGATIVE_COST_SETTING_KEYS = new Set([
   "randomTeleportCost",
   "backToDeathCost",
   "tpaTeleportCost",
   "waypointTeleportCost",
   "landTeleportCost",
+  "fakePlayerCreateCost",
+  "fakePlayerReviveCost",
 ]);
 
 const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
@@ -187,6 +189,7 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   fakePlayer: "假人模拟玩家系统总开关。true 允许玩家创建假人参与原版模拟，false 关闭入口和自愈。",
   fakePlayerMaxPerPlayer: "普通玩家最多可创建的假人数量。管理员不受此上限限制。",
   fakePlayerCreateCost: "每次创建假人消耗金币。0 表示免费；经济系统关闭时需设为 0 才能创建。",
+  fakePlayerReviveCost: "复活已死亡的新版模拟玩家所需金币。0 表示免费，默认 100。",
   onlineTime: "旧版在线时长入口兼容键。在线时长数据入口优先使用 stats。",
   stats: "服务器主菜单数据统计入口。true 显示数据统计，false 隐藏。",
   redPacketExpiryHours: "红包有效时长，单位小时。过期未领会按红包逻辑退回。",
@@ -945,10 +948,10 @@ function handleSettingCommand(origin: CustomCommandOrigin, key?: string, value?:
       let finalValue: boolean | string = value;
       if (value === "true") finalValue = true;
       if (value === "false") finalValue = false;
-      if (TELEPORT_COST_SETTING_KEYS.has(key)) {
+      if (NON_NEGATIVE_COST_SETTING_KEYS.has(key)) {
         const cost = Math.floor(Number(value));
         if (!Number.isFinite(cost) || cost < 0) {
-          player.sendMessage(color.red("传送费用须为 0 或正整数。"));
+          player.sendMessage(color.red("费用须为 0 或正整数。"));
           return;
         }
         finalValue = String(cost);

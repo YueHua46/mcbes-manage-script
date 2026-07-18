@@ -1,4 +1,4 @@
-import { Dimension, Entity, EquipmentSlot, GameMode, ItemStack, Player, system, Vector2, Vector3, world } from "@minecraft/server";
+import { Dimension, Entity, EntityDamageSource, EquipmentSlot, GameMode, ItemStack, Player, RawMessage, system, Vector2, Vector3, world } from "@minecraft/server";
 import { spawnSimulatedPlayer, SimulatedPlayer } from "@minecraft/server-gametest";
 import { Database } from "../../../shared/database/database";
 import { generateId, isAdmin, SystemLog } from "../../../shared/utils/common";
@@ -49,6 +49,16 @@ export interface IFakePlayer {
   rotationY?: number;
   entityId?: string;
   gameMode?: GameMode;
+  /** 新版模拟玩家是否已经死亡并等待付费复活。 */
+  isDead?: boolean;
+  diedAt?: string;
+  /** 面向玩家展示的最近一次死亡原因。 */
+  deathReason?: string;
+  /** 击杀实体的原版本地化键，例如 entity.zombie.name。 */
+  deathSourceLocalizationKey?: string;
+  /** 击杀实体的自定义名称；存在时优先于原版本地化名称。 */
+  deathSourceName?: string;
+  deathCause?: string;
   /** 可额外打开假人背包的玩家名列表；创建者与管理员始终可访问 */
   inventoryViewers?: string[];
   /** 假人背包持久化快照（实体卸载/脚本重载后恢复） */
@@ -68,6 +78,39 @@ export interface FakePlayerCreateInput {
   name: string;
   type?: FakePlayerType;
   skinId?: number;
+}
+
+/** 按查看者的客户端语言显示假人的死亡原因。 */
+export function buildFakePlayerDeathReason(item: IFakePlayer): RawMessage {
+  let localizationKey = item.deathSourceLocalizationKey;
+  let cause = item.deathCause;
+
+  // 兼容本功能上线初期已保存的“被 zombie 通过近战攻击击杀”记录。
+  if (!localizationKey && item.deathReason) {
+    const legacy = /^被 ([a-z0-9_]+) 通过(.+)击杀$/i.exec(item.deathReason);
+    if (legacy) {
+      localizationKey = `entity.${legacy[1]}.name`;
+      cause ??= legacy[2];
+    }
+  }
+
+  if (item.deathSourceName || localizationKey) {
+    return {
+      rawtext: [
+        { text: "被 " },
+        item.deathSourceName ? { text: item.deathSourceName } : { translate: localizationKey! },
+        { text: ` 通过${cause ?? "攻击"}击杀` },
+      ],
+    };
+  }
+  return { text: item.deathReason ?? cause ?? "未知" };
+}
+
+interface FakePlayerDeathDetails {
+  fallbackReason: string;
+  cause: string;
+  sourceLocalizationKey?: string;
+  sourceName?: string;
 }
 
 export type FakePlayerType = "entity" | "simulated";
@@ -203,6 +246,7 @@ class FakePlayerService {
   private readonly activeById = new Map<string, SimulatedPlayer>();
   private readonly lastActionTick = new Map<string, number>();
   private readonly programState = new Map<string, { index: number; resumeTick: number }>();
+  private readonly breakingTargetById = new Map<string, string>();
 
   constructor() {
     system.run(() => {
@@ -226,16 +270,26 @@ class FakePlayerService {
       if (event.deadEntity.typeId !== "minecraft:player") return;
       const fakeId = event.deadEntity.getDynamicProperty(FAKE_PLAYER_ID_PROPERTY) as string | undefined;
       if (!fakeId) return;
-      system.run(() => {
-        this.handleFakePlayerDeath(fakeId);
-      });
+      const deathDetails = this.getDeathDetails(event.damageSource);
+      system.run(() => this.handleFakePlayerDeath(fakeId, deathDetails));
     });
 
     world.beforeEvents.entityHurt.subscribe((event) => {
       if (!isFakePlayer(event.hurtEntity)) return;
 
-      event.cancel = true;
       const hurtEntity = event.hurtEntity;
+      const item = this.getByEntity(hurtEntity);
+      const attacker = event.damageSource.damagingEntity;
+      // 旧版实体保持完全免伤；新版只允许 monster 家族造成伤害。
+      // 因此玩家的近战、弹射物、宠物以及所有环境伤害都无法扣血。
+      const allowHostileMobDamage =
+        item !== undefined &&
+        getFakePlayerType(item) === "simulated" &&
+        attacker !== undefined &&
+        !isFakePlayer(attacker) &&
+        attacker.typeId !== "minecraft:player" &&
+        this.isHostileMob(attacker);
+      event.cancel = !allowHostileMobDamage;
       system.run(() => {
         try {
           if (hurtEntity.typeId === "minecraft:player") {
@@ -315,6 +369,10 @@ class FakePlayerService {
 
   getCreateCost(): number {
     return parseNonNegativeInteger(setting.getState("fakePlayerCreateCost"), 0);
+  }
+
+  getReviveCost(): number {
+    return parseNonNegativeInteger(setting.getState("fakePlayerReviveCost"), 100);
   }
 
   listAllForAdmin(): IFakePlayer[] {
@@ -459,7 +517,7 @@ class FakePlayerService {
       skinId: input.type === "entity" ? this.normalizeSkinId(input.skinId) : undefined,
       rotationX: input.player.getRotation().x,
       rotationY: input.player.getRotation().y,
-      gameMode: GameMode.Creative,
+      gameMode: input.type === "simulated" ? GameMode.Survival : undefined,
     };
 
     registerKnownFakePlayerName(item.name);
@@ -563,8 +621,6 @@ class FakePlayerService {
     if (["interact_block", "use_slot_block"].includes(normalized.action) && !normalized.lookAtLocation) {
       return "指定方块动作需要目标方块坐标";
     }
-    if (normalized.action === "hold_break" && !normalized.lookAtLocation) return "持续挖掘需要目标方块坐标";
-
     item.behavior = normalized;
     delete item.program;
     this.db.set(item.id, item);
@@ -636,6 +692,7 @@ class FakePlayerService {
     }
 
     this.activeById.clear();
+    this.breakingTargetById.clear();
     this.db.save(true);
     return { deleted: items.length, kicked };
   }
@@ -643,6 +700,7 @@ class FakePlayerService {
   refresh(id: string): IFakePlayer | string {
     const item = this.getById(id);
     if (!item) return "假人不存在";
+    if (getFakePlayerType(item) === "simulated" && item.isDead) return "假人已死亡，请先复活";
 
     const dimension = getDimension(item.dimension);
     if (!isLocationLoaded(dimension, item.location)) {
@@ -684,10 +742,43 @@ class FakePlayerService {
     item.rotationY = operator.getRotation().y;
     delete item.entityId;
     this.db.set(item.id, item);
+    if (getFakePlayerType(item) === "simulated" && item.isDead) return item;
     const spawned = this.spawnForType(item);
     if (!spawned) return "新位置所在区块未加载，数据已保存，稍后会自动生成";
     item.entityId = spawned.id;
     this.db.set(item.id, item);
+    return item;
+  }
+
+  revive(operator: Player, id: string): IFakePlayer | string {
+    const item = this.getById(id);
+    if (!item) return "假人不存在";
+    if (getFakePlayerType(item) !== "simulated") return "旧版实体假人无需复活";
+    if (item.ownerName !== operator.name && !isAdmin(operator)) return "无权复活该假人";
+    if (!item.isDead) return "假人当前未死亡";
+
+    const cost = this.getReviveCost();
+    if (cost > 0 && !economic.removeGold(operator.name, cost, `复活假人 ${item.name}`)) {
+      return `金币不足，复活假人需要 ${cost} 金币`;
+    }
+
+    delete item.entityId;
+    item.isDead = false;
+    const spawned = this.spawnSimulatedPlayer(item);
+    if (!spawned) {
+      item.isDead = true;
+      if (cost > 0) economic.addGold(operator.name, cost, `复活假人 ${item.name} 失败退款`, true);
+      return "复活失败，请确认假人所在区块已加载；金币已退回";
+    }
+
+    item.entityId = spawned.id;
+    delete item.diedAt;
+    delete item.deathReason;
+    delete item.deathSourceLocalizationKey;
+    delete item.deathSourceName;
+    delete item.deathCause;
+    this.db.set(item.id, item);
+    this.db.save();
     return item;
   }
 
@@ -709,6 +800,7 @@ class FakePlayerService {
     for (const item of this.db.values()) {
       try {
         registerKnownFakePlayerName(item.name);
+        if (getFakePlayerType(item) === "simulated" && item.isDead) continue;
         const simulated = getFakePlayerType(item) === "simulated" ? this.getSimulatedPlayer(item) : undefined;
         if (simulated?.isValid) {
           this.persistInventory(item.id);
@@ -752,25 +844,80 @@ class FakePlayerService {
     return undefined;
   }
 
-  private handleFakePlayerDeath(fakeId: string): void {
+  private handleFakePlayerDeath(fakeId: string, details: FakePlayerDeathDetails): void {
     const item = this.getById(fakeId);
-    if (!item) return;
+    if (!item || getFakePlayerType(item) !== "simulated") return;
 
     const simulated = this.getSimulatedPlayer(item);
     if (simulated?.isValid) {
       try {
-        simulated.respawn();
+        item.location = formatLocation(simulated.location);
+        item.dimension = simulated.dimension.id;
+        const rotation = simulated.getRotation();
+        item.rotationX = rotation.x;
+        item.rotationY = rotation.y;
       } catch {
-        // respawn 失败时走完整 refresh
+        // 死亡实体可能已失效，保留最后一次持久化的位置。
       }
     }
+    item.isDead = true;
+    item.diedAt = formatDateTimeBeijing(Date.now());
+    item.deathReason = details.fallbackReason;
+    item.deathCause = details.cause;
+    item.deathSourceLocalizationKey = details.sourceLocalizationKey;
+    item.deathSourceName = details.sourceName;
+    delete item.entityId;
+    this.activeById.delete(item.id);
+    this.programState.delete(item.id);
+    this.lastActionTick.delete(item.id);
+    this.breakingTargetById.delete(item.id);
+    this.db.set(item.id, item);
+    this.db.save();
 
-    system.runTimeout(() => {
-      const refreshed = this.refresh(fakeId);
-      if (typeof refreshed === "string" && refreshed !== fakeId) {
-        SystemLog.warn(`[FakePlayer] 假人死亡后恢复失败: ${fakeId}`);
-      }
-    }, 5);
+    const owner = this.findRealPlayer(item.ownerName);
+    owner?.sendMessage({
+      rawtext: [
+        { text: `§c你的假人 §e${item.name} §c已死亡：§f` },
+        buildFakePlayerDeathReason(item),
+        { text: "§c。可在假人管理中付费复活。" },
+      ],
+    });
+    if (simulated?.isValid) this.removeLiveFakePlayer(simulated);
+  }
+
+  private isHostileMob(entity: Entity): boolean {
+    try {
+      return entity.matches({ families: ["monster"] });
+    } catch {
+      return false;
+    }
+  }
+
+  private getDeathDetails(source: EntityDamageSource): FakePlayerDeathDetails {
+    const causeNames: Record<string, string> = {
+      entityAttack: "近战攻击",
+      entityExplosion: "爆炸",
+      projectile: "弹射物攻击",
+      magic: "魔法攻击",
+      contact: "接触伤害",
+      thorns: "反伤",
+    };
+    const cause = causeNames[source.cause] ?? String(source.cause);
+    const attacker = source.damagingEntity;
+    if (!attacker) return { fallbackReason: cause, cause };
+
+    try {
+      const customName = attacker.nameTag?.trim();
+      const sourceName = customName || attacker.typeId.replace("minecraft:", "");
+      return {
+        fallbackReason: `被 ${sourceName} 通过${cause}击杀`,
+        cause,
+        sourceLocalizationKey: customName ? undefined : attacker.localizationKey,
+        sourceName: customName || undefined,
+      };
+    } catch {
+      return { fallbackReason: `被敌对生物通过${cause}击杀`, cause, sourceName: "敌对生物" };
+    }
   }
 
   private spawnForType(item: IFakePlayer): Entity | undefined {
@@ -847,7 +994,7 @@ class FakePlayerService {
           z: item.location.z,
         },
         item.name,
-        GameMode.Creative
+        GameMode.Survival
       );
       this.activeById.set(item.id, simulated);
       this.prepareSimulatedPlayer(simulated, item, true);
@@ -866,9 +1013,8 @@ class FakePlayerService {
       simulated.setDynamicProperty(FAKE_PLAYER_ID_PROPERTY, item.id);
       simulated.setDynamicProperty("fakePlayerOwner", item.ownerName);
       simulated.nameTag = buildFakePlayerNameTag(item);
-      // 创造模式可避免敌对生物持续锁定假人，也降低玩家借怪物干扰假人的风险。
-      simulated.setGameMode(GameMode.Creative);
-      item.gameMode = GameMode.Creative;
+      simulated.setGameMode(GameMode.Survival);
+      item.gameMode = GameMode.Survival;
       this.applyStoredRotation(simulated, item);
       if (restoreInventory && hasPersistedInventory(item.inventory)) {
         restorePlayerInventory(simulated, item.inventory);
@@ -935,6 +1081,7 @@ class FakePlayerService {
       this.persistInventoryFromEntity(item.id, simulated);
     }
     this.activeById.delete(item.id);
+    this.breakingTargetById.delete(item.id);
     if (!simulated?.isValid) return;
 
     try {
@@ -998,6 +1145,7 @@ class FakePlayerService {
     let positionChanged = false;
     for (const item of this.db.values()) {
       if (getFakePlayerType(item) !== "simulated") continue;
+      if (item.isDead) continue;
       if (this.getProgram(item).enabled) {
         try {
           this.tickProgram(item);
@@ -1126,6 +1274,7 @@ class FakePlayerService {
     simulated.stopBreakingBlock();
     simulated.stopUsingItem();
     simulated.isSneaking = false;
+    this.breakingTargetById.delete(item.id);
   }
 
   private applyBehavior(item: IFakePlayer, force: boolean): void {
@@ -1140,6 +1289,7 @@ class FakePlayerService {
       simulated.stopInteracting();
       simulated.stopBreakingBlock();
       simulated.stopUsingItem();
+      this.breakingTargetById.delete(item.id);
     }
 
     if (force || system.currentTick % 10 === 0) switch (behavior.movement) {
@@ -1183,7 +1333,22 @@ class FakePlayerService {
       return;
     }
     if (behavior.action === "hold_break") {
-      if (force && behavior.lookAtLocation) simulated.breakBlock(behavior.lookAtLocation);
+      const hit = simulated.getBlockFromViewDirection({ maxDistance: 6 });
+      const previousTarget = this.breakingTargetById.get(item.id);
+      if (!hit) {
+        if (previousTarget) simulated.stopBreakingBlock();
+        this.breakingTargetById.delete(item.id);
+        return;
+      }
+
+      const { x, y, z } = hit.block.location;
+      const targetKey = `${simulated.dimension.id}:${x},${y},${z}:${hit.block.typeId}`;
+      if (previousTarget !== targetKey) {
+        if (previousTarget) simulated.stopBreakingBlock();
+        if (simulated.breakBlock(hit.block.location)) {
+          this.breakingTargetById.set(item.id, targetKey);
+        }
+      }
       return;
     }
 

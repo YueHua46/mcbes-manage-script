@@ -43,8 +43,8 @@ export function openDialogForm(
  */
 export function openConfirmDialogForm(
   player: Player,
-  title: string,
-  desc: string,
+  title: string | RawMessage,
+  desc: string | RawMessage,
   acceptCb: () => void,
   cancelCb?: () => void,
   options?: { dangerConfirm?: boolean }

@@ -1,9 +1,10 @@
-import { Player, system, world } from "@minecraft/server";
+import { Player, RawMessage, system, world } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import fakePlayerService, {
   FakePlayerBehavior,
   FakePlayerProgramStep,
   FakePlayerType,
+  buildFakePlayerDeathReason,
   getFakePlayerType,
   IFakePlayer,
   isFakePlayer,
@@ -37,6 +38,7 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
   const own = fakePlayerService.listForPlayer(player.name);
   const max = fakePlayerService.getMaxPerPlayer();
   const cost = fakePlayerService.getCreateCost();
+  const reviveCost = fakePlayerService.getReviveCost();
 
   const form = new ActionFormData();
   form.title("假人管理");
@@ -44,6 +46,7 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
     [
       `§a我的假人: §e${own.length}/${isAdmin(player) ? "不限" : max}`,
       `§a创建费用: §e${cost} 金币`,
+      `§a新版假人复活费用: §e${reviveCost} 金币`,
       `§7创建时可选择兼容性更好的旧版实体，或可参与原版刷怪判定的新版模拟玩家。`,
     ].join("\n")
   );
@@ -172,7 +175,8 @@ function openFakePlayerListForm(player: Player, adminView: boolean, back: () => 
 
   items.forEach((item) => {
     const typeLabel = getFakePlayerType(item) === "entity" ? "旧版" : "新版";
-    form.button(`${item.name}\n[${typeLabel}] ${item.ownerName} · ${formatLocation(item)}`, "textures/icons/spectator");
+    const status = item.isDead ? "§c[已死亡]§r " : "";
+    form.button(`${status}${item.name}\n[${typeLabel}] ${item.ownerName} · ${formatLocation(item)}`, item.isDead ? "textures/icons/dead" : "textures/icons/spectator");
   });
   if (adminView && items.length > 0) {
     form.button("一键清除全部假人\n删除数据并踢出在线假人", "textures/icons/deny");
@@ -239,92 +243,123 @@ function openClearAllFakePlayersConfirmForm(player: Player, back: () => void): v
 function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {
   const form = new ActionFormData();
   form.title(`${item.name}`);
-  form.body(
-    [
+  const simulated = getFakePlayerType(item) === "simulated";
+  const dead = simulated && item.isDead === true;
+  const detailLines = [
       `§a拥有者: §e${item.ownerName}`,
-      `§a类型: §e${getFakePlayerType(item) === "entity" ? "旧版实体假人" : "新版模拟玩家"}`,
-      ...(getFakePlayerType(item) === "simulated" ? [`§a当前行为: §e${formatBehavior(item)}`] : []),
+      `§a类型: §e${simulated ? "新版模拟玩家" : "旧版实体假人"}`,
+      ...(simulated ? [`§a状态: ${dead ? "§c已死亡" : "§a存活（生存模式）"}`] : []),
+      ...(simulated && !dead ? [`§a当前行为: §e${formatBehavior(item)}`] : []),
       ...(getFakePlayerType(item) === "entity" ? [`§a皮肤: §e${getFakePlayerSkinName(item.skinId)}`] : []),
       `§a位置: §e${formatLocation(item)}`,
       `§a创建时间: §e${item.created}`,
-    ].join("\n")
-  );
-  if (getFakePlayerType(item) === "simulated") {
-    form.button("背包与权限", "textures/icons/quest_chest");
-    form.button("行为控制", "textures/icons/settings");
-  } else {
-    form.button("更换二次元皮肤", "textures/icons/edit2");
+  ];
+  const detailBody: RawMessage | string = dead
+    ? {
+        rawtext: [
+          { text: `${detailLines.slice(0, 3).join("\n")}\n§c死亡原因: §f` },
+          buildFakePlayerDeathReason(item),
+          {
+            text: `\n§c死亡时间: §f${item.diedAt ?? "未知"}\n§e复活费用: ${fakePlayerService.getReviveCost()} 金币\n${detailLines.slice(3).join("\n")}`,
+          },
+        ],
+      }
+    : detailLines.join("\n");
+  form.body(detailBody);
+
+  const actions: Array<() => void> = [];
+  const addAction = (label: string, icon: string, action: () => void) => {
+    form.button(label, icon);
+    actions.push(action);
+  };
+
+  if (simulated && !dead) {
+    addAction("背包与权限", "textures/icons/quest_chest", () => openFakePlayerInteractMenu(player, item.id));
+    addAction("行为控制", "textures/icons/settings", () => openFakePlayerBehaviorForm(player, item, adminView, back));
+  } else if (!simulated) {
+    addAction("更换二次元皮肤", "textures/icons/edit2", () => openLegacyFakePlayerSkinForm(player, item, adminView, back));
   }
-  form.button("移动到我的当前位置", "textures/icons/fast_travel");
-  form.button("重新生成", "textures/icons/requeue");
-  form.button("删除假人", "textures/icons/deny");
-  form.button("返回", "textures/icons/back");
+
+  if (dead) {
+    addAction(`复活假人\n消耗 ${fakePlayerService.getReviveCost()} 金币`, "textures/icons/heart", () => {
+      const cost = fakePlayerService.getReviveCost();
+      const confirmBody: RawMessage = {
+        rawtext: [
+          { text: `§e确定复活假人 §b${item.name}§e 吗？\n§7将从你的钱包扣除 §6${cost} §7金币。\n§7死亡原因：` },
+          buildFakePlayerDeathReason(item),
+        ],
+      };
+      openConfirmDialogForm(
+        player,
+        "复活假人",
+        confirmBody,
+        () => {
+          const result = fakePlayerService.revive(player, item.id);
+          openDialogForm(
+            player,
+            {
+              title: typeof result === "string" ? "复活失败" : "复活成功",
+              desc: typeof result === "string" ? color.red(result) : color.green(`假人已复活，并扣除 ${cost} 金币。`),
+            },
+            () => openFakePlayerListForm(player, adminView, back)
+          );
+        },
+        () => openFakePlayerDetailForm(player, item, adminView, back)
+      );
+    });
+  }
+
+  addAction("移动到我的当前位置", "textures/icons/fast_travel", () => {
+    const result = fakePlayerService.moveToOperator(player, item.id);
+    openDialogForm(
+      player,
+      {
+        title: typeof result === "string" ? "移动结果" : "移动成功",
+        desc: typeof result === "string" ? color.yellow(result) : color.green(dead ? "假人的复活位置已移动到你的当前位置。" : "假人已移动到你的当前位置。"),
+      },
+      () => openFakePlayerListForm(player, adminView, back)
+    );
+  });
+
+  if (!dead) {
+    addAction("重新生成", "textures/icons/requeue", () => {
+      const result = fakePlayerService.refresh(item.id);
+      openDialogForm(
+        player,
+        {
+          title: typeof result === "string" ? "重新生成失败" : "重新生成成功",
+          desc: typeof result === "string" ? color.red(result) : color.green("假人已重新生成。"),
+        },
+        () => openFakePlayerListForm(player, adminView, back)
+      );
+    });
+  }
+
+  addAction("删除假人", "textures/icons/deny", () => {
+    openConfirmDialogForm(
+      player,
+      "删除假人",
+      `§c确定删除假人 §e${item.name}§c 吗？\n§7创建费用不会退回。`,
+      () => {
+        const result = fakePlayerService.delete(player, item.id);
+        openDialogForm(
+          player,
+          {
+            title: result === true ? "删除成功" : "删除失败",
+            desc: result === true ? color.green("假人已删除。") : color.red(String(result)),
+          },
+          () => openFakePlayerListForm(player, adminView, back)
+        );
+      },
+      () => openFakePlayerDetailForm(player, item, adminView, back),
+      { dangerConfirm: true }
+    );
+  });
+  addAction("返回", "textures/icons/back", () => openFakePlayerListForm(player, adminView, back));
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
-    const simulated = getFakePlayerType(item) === "simulated";
-    if (simulated && data.selection === 1) {
-      openFakePlayerBehaviorForm(player, item, adminView, back);
-      return;
-    }
-    const selection = simulated && Number(data.selection) >= 2 ? Number(data.selection) - 1 : data.selection;
-    switch (selection) {
-      case 0: {
-        if (getFakePlayerType(item) === "entity") {
-          openLegacyFakePlayerSkinForm(player, item, adminView, back);
-        } else {
-          openFakePlayerInteractMenu(player, item.id);
-        }
-        break;
-      }
-      case 1: {
-        const result = fakePlayerService.moveToOperator(player, item.id);
-        openDialogForm(
-          player,
-          {
-            title: typeof result === "string" ? "移动结果" : "移动成功",
-            desc: typeof result === "string" ? color.yellow(result) : color.green("假人已移动到你的当前位置。"),
-          },
-          () => openFakePlayerListForm(player, adminView, back)
-        );
-        break;
-      }
-      case 2: {
-        const result = fakePlayerService.refresh(item.id);
-        openDialogForm(
-          player,
-          {
-            title: typeof result === "string" ? "重新生成失败" : "重新生成成功",
-            desc: typeof result === "string" ? color.red(result) : color.green("假人已重新生成。"),
-          },
-          () => openFakePlayerListForm(player, adminView, back)
-        );
-        break;
-      }
-      case 3:
-        openConfirmDialogForm(
-          player,
-          "删除假人",
-          `§c确定删除假人 §e${item.name}§c 吗？\n§7创建费用不会退回。`,
-          () => {
-            const result = fakePlayerService.delete(player, item.id);
-            openDialogForm(
-              player,
-              {
-                title: result === true ? "删除成功" : "删除失败",
-                desc: result === true ? color.green("假人已删除。") : color.red(String(result)),
-              },
-              () => openFakePlayerListForm(player, adminView, back)
-            );
-          },
-          () => openFakePlayerDetailForm(player, item, adminView, back),
-          { dangerConfirm: true }
-        );
-        break;
-      case 4:
-        openFakePlayerListForm(player, adminView, back);
-        break;
-    }
+    if (typeof data.selection === "number") actions[data.selection]?.();
   });
 }
 
@@ -339,7 +374,7 @@ const ACTION_OPTIONS: Array<{ value: FakePlayerBehavior["action"]; label: string
   { value: "attack", label: "频繁攻击（左键）" },
   { value: "use_slot", label: "频繁使用手持物品" },
   { value: "hold_slot", label: "持续使用手持物品" },
-  { value: "hold_break", label: "持续挖掘所看方块" },
+  { value: "hold_break", label: "持续挖掘假人所看方块" },
 ];
 
 function openFakePlayerControlHub(player: Player, item: IFakePlayer, adminView: boolean, back: () => void): void {
@@ -571,16 +606,13 @@ async function openFakePlayerBehaviorDdui(
   const lookZ = new ObservableString(String(lookAt.z), writable);
   const followVisible = new ObservableBoolean(current.movement === "follow");
   const stationVisible = new ObservableBoolean(current.movement === "station");
-  const targetVisible = new ObservableBoolean(
-    current.movement === "station" || current.action === "hold_break"
-  );
+  const targetVisible = new ObservableBoolean(current.movement === "station");
   const speedVisible = new ObservableBoolean(!["idle", "station"].includes(current.movement));
   const intervalVisible = new ObservableBoolean(!["none", "hold_slot", "hold_break"].includes(current.action));
   const form = typeof CustomForm.create === "function" ? CustomForm.create(player, `行为控制 · ${item.name}`) : new CustomForm(player, `行为控制 · ${item.name}`);
   const updateTargetVisibility = () => {
     const movementMode = MOVEMENT_OPTIONS[movement.getData()]?.value ?? "idle";
-    const actionMode = ACTION_OPTIONS[action.getData()]?.value ?? "none";
-    targetVisible.setData(movementMode === "station" || actionMode === "hold_break");
+    targetVisible.setData(movementMode === "station");
   };
   const closeAndReturn = () => {
     try {
@@ -682,13 +714,6 @@ async function openFakePlayerBehaviorDdui(
       player.sendMessage(color.red("锁定位置必须是有效坐标，并且你需要与假人在同一维度录入。"));
       return;
     }
-    if (
-      actionValue === "hold_break" &&
-      (![lookAtLocation.x, lookAtLocation.y, lookAtLocation.z].every(Number.isFinite) || player.dimension.id !== item.dimension)
-    ) {
-      player.sendMessage(color.red("目标坐标必须有效，并且需要在假人所在维度录入。"));
-      return;
-    }
     const result = fakePlayerService.setBehavior(player, item.id, {
       movement: movementValue,
       targetPlayer: movementValue === "follow" ? targetNames[target.getData()] : undefined,
@@ -699,10 +724,7 @@ async function openFakePlayerBehaviorDdui(
       sneaking: sneaking.getData(),
       stationLocation: movementValue === "station" ? stationLocation : current.stationLocation,
       stationDimension: movementValue === "station" ? player.dimension.id : current.stationDimension,
-      lookAtLocation:
-        movementValue === "station" || actionValue === "hold_break"
-          ? lookAtLocation
-          : current.lookAtLocation,
+      lookAtLocation: movementValue === "station" ? lookAtLocation : current.lookAtLocation,
     });
     if (typeof result === "string") {
       player.sendMessage(color.red(result));

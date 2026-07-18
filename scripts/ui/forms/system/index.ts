@@ -330,6 +330,7 @@ export function openGeneralSettingsForm(player: Player): void {
     { key: "startingGold", name: "新玩家初始金币", type: "number" },
     { key: "fakePlayerMaxPerPlayer", name: "每玩家最大假人数", type: "number" },
     { key: "fakePlayerCreateCost", name: "创建假人费用", type: "number" },
+    { key: "fakePlayerReviveCost", name: "新版假人复活费用", type: "number" },
     { key: "redPacketExpiryHours", name: "全服红包有效时长(小时，过期未领退回)", type: "number" },
     { key: "behaviorLogMaxEntries", name: "行为日志最大保留条数", type: "number" },
     { key: "itemWatchSnapshotMaxEntries", name: "物品监控背包快照最大保留条数", type: "number" },
@@ -400,13 +401,15 @@ function openEditSettingForm(
             "tpaTeleportCost",
             "waypointTeleportCost",
             "landTeleportCost",
+            "fakePlayerCreateCost",
+            "fakePlayerReviveCost",
           ].includes(key)
         ) {
           const cost = Math.floor(numValue);
           if (!Number.isFinite(cost) || cost < 0) {
             openDialogForm(player, {
               title: "设置失败",
-              desc: color.red("传送费用须为 0 或正整数"),
+              desc: color.red("费用须为 0 或正整数"),
             });
             return;
           }

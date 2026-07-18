@@ -131,6 +131,8 @@ export type IModules =
   | "fakePlayerMaxPerPlayer"
   /** 每次创建假人消耗金币；0 表示免费 */
   | "fakePlayerCreateCost"
+  /** 复活已死亡的新版模拟玩家消耗金币；0 表示免费 */
+  | "fakePlayerReviveCost"
   /** 保留键（兼容旧库）；在线时长不由本键控制，仅「stats」控制数据统计入口 */
   | "onlineTime"
   /** 服务器主菜单「数据统计」入口；子榜单不再单独设开关 */
@@ -272,6 +274,7 @@ export const defaultSetting = {
   fakePlayer: true,
   fakePlayerMaxPerPlayer: "3",
   fakePlayerCreateCost: "0",
+  fakePlayerReviveCost: "100",
   onlineTime: true,
   stats: true,
   /** 红包从发放到过期的小时数（默认 24 小时即 1 天） */
