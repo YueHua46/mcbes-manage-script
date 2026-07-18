@@ -5,10 +5,18 @@
 
 import { world, system } from "@minecraft/server";
 
+// 自动保存只负责兜底持久化。将同一数据库一分钟内的修改合并，并把不同
+// 数据库拆到不同调度轮次，避免在一个 tick 内连续序列化、写入所有脏库。
+const AUTO_SAVE_INTERVAL_TICKS = 100;
+const AUTO_SAVE_DIRTY_AGE_MS = 60_000;
+const AUTO_SAVE_RETRY_DELAY_MS = 60_000;
+
 export class Database<V = any> {
   static readonly databases = new Array<Database<any>>();
   private cache!: Record<string, V>;
   private isDirty = false; // 标记数据库是否被修改
+  private dirtySinceMs?: number;
+  private nextAutoSaveAttemptAtMs = 0;
 
   public constructor(
     readonly name: string,
@@ -20,13 +28,13 @@ export class Database<V = any> {
 
   /**
    * 设置键值
-   * @remarks 不会立即保存，调用 .save() 或等待1分钟自动保存
+   * @remarks 不会立即保存，调用 .save() 或等待约 1 分钟后排队自动保存
    * @param property 键名
    * @param value 值
    */
   public set(property: string, value: V): void {
     this.cache[property] = value;
-    this.isDirty = true; // 标记为已修改
+    this.markDirty();
   }
 
   /**
@@ -49,14 +57,18 @@ export class Database<V = any> {
 
   /**
    * 从数据库删除键
-   * @remarks 不会立即保存，调用 .save() 或等待1分钟自动保存
+   * @remarks 不会立即保存，调用 .save() 或等待约 1 分钟后排队自动保存
    * @param property 要删除的键名
    * @returns 数据库是否原本包含该键
    */
   public delete(property: string): boolean {
+    if (!(property in this.cache)) {
+      return false;
+    }
+
     const result = delete this.cache[property];
     if (result) {
-      this.isDirty = true; // 标记为已修改
+      this.markDirty();
     }
     return result;
   }
@@ -83,7 +95,7 @@ export class Database<V = any> {
    */
   public clear() {
     this.cache = {};
-    this.isDirty = true;
+    this.markDirty();
     this.save(true); // 强制保存
   }
 
@@ -175,6 +187,8 @@ export class Database<V = any> {
 
             // 保存成功后，清除修改标记
             this.isDirty = false;
+            this.dirtySinceMs = undefined;
+            this.nextAutoSaveAttemptAtMs = 0;
             return; // 保存成功，退出
           }
         }
@@ -195,16 +209,43 @@ export class Database<V = any> {
     }
   }
 
-  protected static save() {
-    // 只保存被修改的数据库，提高效率
-    this.databases.forEach((database) => {
-      try {
-        database.save(); // 默认只保存被修改的数据库
-      } catch (error) {
-        // 如果某个数据库保存失败，记录错误但继续保存其他数据库
-        console.error(`[Database] 自动保存数据库 "${database.name}" 失败:`, error);
+  private markDirty(): void {
+    if (!this.isDirty) {
+      this.dirtySinceMs = Date.now();
+    }
+    this.isDirty = true;
+  }
+
+  public static saveNextDirty(): void {
+    const now = Date.now();
+    let candidate: Database<any> | undefined;
+
+    // 优先保存最早变脏的数据库。一次调度最多写一个库，避免多个大库的
+    // JSON.stringify 和动态属性写入叠加在同一个游戏 tick 中。
+    for (const database of this.databases) {
+      if (
+        !database.isDirty ||
+        database.dirtySinceMs === undefined ||
+        now - database.dirtySinceMs < AUTO_SAVE_DIRTY_AGE_MS ||
+        now < database.nextAutoSaveAttemptAtMs
+      ) {
+        continue;
       }
-    });
+
+      if (!candidate || database.dirtySinceMs < candidate.dirtySinceMs!) {
+        candidate = database;
+      }
+    }
+
+    if (!candidate) return;
+
+    try {
+      candidate.save();
+    } catch (error) {
+      // 保存失败时保留 dirty 状态，但延迟重试，避免坏库每轮反复阻塞主线程。
+      candidate.nextAutoSaveAttemptAtMs = now + AUTO_SAVE_RETRY_DELAY_MS;
+      console.error(`[Database] 自动保存数据库 "${candidate.name}" 失败:`, error);
+    }
   }
 
   protected static getAll(name: string, defaultValue: string): Record<string, any> {
@@ -476,15 +517,16 @@ export class Database<V = any> {
 
 import { taskScheduler } from "../../features/platform/scheduler";
 
-// 每秒自动保存所有数据库
+// 每 5 秒检查一次队列；每个库的修改至少合并 1 分钟，且每轮只保存一个库。
 taskScheduler.register({
   id: "database.autoSave",
   label: "数据库自动保存",
   category: "core",
-  intervalTicks: 20,
+  intervalTicks: AUTO_SAVE_INTERVAL_TICKS,
   skipIfRunning: true,
+  // 仍以半个 tick（25ms）作为慢写入标准；慢任务会由调度器额外退避一轮。
+  slowThresholdRatio: 0.005,
   run: () => {
-    //@ts-ignore
-    Database.save();
+    Database.saveNextDirty();
   },
 });
