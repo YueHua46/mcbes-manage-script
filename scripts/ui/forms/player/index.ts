@@ -187,9 +187,12 @@ export function openTpaSettingsForm(player: Player): void {
 function openPlayerHudSettingsForm(player: Player): void {
   const form = new ModalFormData();
   form.title("状态栏显示设置");
-  form.toggle("显示金币、TPS 和在线人数", {
+  const economyEnabled = setting.getState("economy") === true;
+  form.toggle(economyEnabled ? "显示金币、TPS 和在线人数" : "显示 TPS 和在线人数", {
     defaultValue: PlayerSetting.getPlayerHudEnabled(player),
-    tooltip: "关闭后只会隐藏你自己的右上角状态栏，不影响其他玩家。",
+    tooltip: economyEnabled
+      ? "经济系统开启时状态栏会包含金币。关闭后只会隐藏你自己的右上角状态栏，不影响其他玩家。"
+      : "经济系统当前已关闭，因此不显示金币。关闭此项只会隐藏你自己的右上角状态栏。",
   });
   form.submitButton("保存");
   form.show(player).then((data) => {

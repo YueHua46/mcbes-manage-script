@@ -111,6 +111,7 @@ class FloatingTextService {
   }
 
   getCreateCost(_player?: Player): number {
+    if (setting.getState("economy") !== true) return 0;
     return parseNonNegativeInteger(setting.getState("floatingTextCreateCost"), 0);
   }
 
@@ -211,9 +212,6 @@ class FloatingTextService {
     }
 
     const cost = this.getCreateCost(input.player);
-    if (cost > 0 && !economic.isEconomyEnabled()) {
-      return "经济系统未启用，无法扣除创建费用。请将悬浮文字创建费用设为 0，或开启经济系统。";
-    }
     if (cost > 0 && !economic.removeGold(input.player.name, cost, "创建悬浮文字")) {
       return `金币不足，创建悬浮文字需要 ${cost} 金币`;
     }

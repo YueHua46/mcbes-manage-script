@@ -294,6 +294,7 @@ function buildLandSelectionGuide(player: Player, landArea: LandArea): LandSelect
   }
   if (economyOn) hints.push(cannotAfford ? `金币不足 ${cost}/${balance}` : `费用 ${cost} 金币`);
   hints.push(complete ? "打开领地申请确认创建" : "移动预览，潜行点击锁定终点");
+  hints.push("取消：潜行手持木棍长按空气");
 
   player.onScreenDisplay.setActionBar(
     [
@@ -1206,6 +1207,7 @@ export function registerLandEvents(): void {
           };
           source.sendMessage(color.yellow(`已设置领地起始点：${startPos.x} ${startPos.y} ${startPos.z}`));
           source.sendMessage(color.gray("移动时会实时预览范围；潜行并用木棍点击方块设置终点。"));
+          source.sendMessage(color.aqua("取消圈地：潜行并手持木棍长按空气（不要对着方块）。"));
           landArea.start = startPos;
           landArea.lastChangeTime = Date.now();
         }

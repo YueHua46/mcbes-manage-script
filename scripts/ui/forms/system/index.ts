@@ -149,6 +149,34 @@ function openLandParticleSettingsForm(player: Player): void {
   });
 }
 
+function openLandTeleportSettingsForm(player: Player): void {
+  const form = new ModalFormData();
+  form.title("领地传送设置");
+  form.toggle("允许普通玩家使用领地传送", {
+    defaultValue: setting.getState("landTeleportEnabled") === true,
+    tooltip: "关闭后，普通玩家将看不到领地传送与传送点设置入口，也无法调用传送；管理员仍可使用，已有传送点数据会保留。",
+  });
+  form.submitButton("保存");
+  form.show(player).then((data) => {
+    if (data.canceled || !data.formValues) {
+      void openLandManageForm(player);
+      return;
+    }
+    const enabled = data.formValues[0] === true;
+    setting.setState("landTeleportEnabled", enabled);
+    openDialogForm(
+      player,
+      {
+        title: "设置成功",
+        desc: enabled
+          ? color.green("普通玩家领地传送功能已开启。")
+          : color.yellow("普通玩家领地传送功能已关闭；已有传送点会保留，管理员仍可使用。"),
+      },
+      () => void openLandManageForm(player)
+    );
+  });
+}
+
 // ==================== 系统设置主菜单 ====================
 
 export function openSystemSettingForm(player: Player): void {
@@ -1349,6 +1377,7 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
   form.button("搜索玩家领地", "textures/ui/magnifyingGlass");
   form.button("领地飞行设置", "textures/icons/fast_travel");
   form.button("领地粒子效果", "textures/icons/gadgets");
+  form.button("领地传送设置", "textures/icons/fast_travel");
   form.button("快照功能设置", "textures/icons/fotograf");
   form.button("公会领地（管理员）", "textures/icons/menu_land");
   form.button("公会坐标（管理员）", "textures/icons/fast_travel");
@@ -1372,17 +1401,20 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
         openLandParticleSettingsForm(player);
         break;
       case 4:
+        openLandTeleportSettingsForm(player);
+        break;
+      case 5:
         openLandSnapshotSettingsForm(player);
         break;
-      case 5: {
+      case 6: {
         const { openAdminGuildLandListForm } = await import("../land");
         openAdminGuildLandListForm(player, 1, () => openLandManageForm(player));
         break;
       }
-      case 6:
+      case 7:
         openAdminGuildWaypointManageForm(player, 1, () => openLandManageForm(player));
         break;
-      case 7:
+      case 8:
         openSystemSettingForm(player);
         break;
     }

@@ -53,7 +53,12 @@ export function openFloatingTextMenu(player: Player): void {
   const admin = isAdmin(player);
   const myTexts = floatingTextService.listForPlayer(player.name);
   const cost = floatingTextService.getCreateCost(player);
-  const costText = cost > 0 ? `创建每次消耗 ${cost} 金币` : "创建免费（当前费用为 0，不扣金币）";
+  const economyEnabled = setting.getState("economy") === true;
+  const costText = cost > 0
+    ? `创建每次消耗 ${cost} 金币`
+    : economyEnabled
+      ? "创建免费（当前费用为 0，不扣金币）"
+      : "创建免费（经济系统已关闭）";
 
   const form = new ActionFormData();
   form.title("悬浮文字");
@@ -159,12 +164,18 @@ function openFloatingTextSearchPlayerForm(player: Player): void {
 
 function openFloatingTextCreateForm(player: Player): void {
   const cost = floatingTextService.getCreateCost(player);
+  const economyEnabled = setting.getState("economy") === true;
   const form = new ModalFormData();
   form.title("创建悬浮文字");
   form.textField("名称", "最多 24 个字符", { defaultValue: "" });
   form.textField("显示文本", "支持输入 \\n 换行，最多 240 字符", {
     defaultValue: "",
-    tooltip: cost > 0 ? `提交后将扣除 ${cost} 金币。` : "当前费用为 0，创建不会扣金币。",
+    tooltip:
+      cost > 0
+        ? `提交后将扣除 ${cost} 金币。`
+        : economyEnabled
+          ? "当前费用为 0，创建不会扣金币。"
+          : "经济系统已关闭，创建不会扣金币。",
   });
   form.textField("显示缩放", "0.3～4，默认 1", { defaultValue: "1" });
   form.textField("可见距离", "8～256，默认 64", { defaultValue: "64" });
@@ -353,7 +364,12 @@ export function openFloatingTextSettingsForm(player: Player): void {
       player,
       {
         title: "设置成功",
-        desc: cost === 0 ? color.green("悬浮文字设置已保存。创建费用为 0，创建时不会扣金币。") : color.green(`悬浮文字设置已保存。所有玩家每次创建消耗 ${cost} 金币。`),
+        desc:
+          cost === 0
+            ? color.green("悬浮文字设置已保存。创建费用为 0，创建时不会扣金币。")
+            : color.green(
+                `悬浮文字设置已保存。配置费用为 ${cost} 金币；${setting.getState("economy") === true ? "创建时生效。" : "经济系统关闭期间不扣费，重新开启后生效。"}`
+              ),
       },
       () => openFloatingTextMenu(player)
     );

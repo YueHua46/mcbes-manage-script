@@ -17,6 +17,12 @@ import { color } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
 import { openFakePlayerInteractMenu } from "./fake-player-inventory";
+import setting from "../../../features/system/services/setting";
+
+function formatEconomyCost(cost: number): string {
+  if (setting.getState("economy") !== true) return "免费（经济系统已关闭）";
+  return cost > 0 ? `${cost} 金币` : "免费";
+}
 
 function formatLocation(item: IFakePlayer): string {
   return `${item.dimension.replace("minecraft:", "")} ${item.location.x}, ${item.location.y}, ${item.location.z}`;
@@ -45,8 +51,8 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
   form.body(
     [
       `§a我的假人: §e${own.length}/${isAdmin(player) ? "不限" : max}`,
-      `§a创建费用: §e${cost} 金币`,
-      `§a新版假人复活费用: §e${reviveCost} 金币`,
+      `§a创建费用: §e${formatEconomyCost(cost)}`,
+      `§a新版假人复活费用: §e${formatEconomyCost(reviveCost)}`,
       `§7创建时可选择兼容性更好的旧版实体，或可参与原版刷怪判定的新版模拟玩家。`,
     ].join("\n")
   );
@@ -260,7 +266,7 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
           { text: `${detailLines.slice(0, 3).join("\n")}\n§c死亡原因: §f` },
           buildFakePlayerDeathReason(item),
           {
-            text: `\n§c死亡时间: §f${item.diedAt ?? "未知"}\n§e复活费用: ${fakePlayerService.getReviveCost()} 金币\n${detailLines.slice(3).join("\n")}`,
+            text: `\n§c死亡时间: §f${item.diedAt ?? "未知"}\n§e复活费用: ${formatEconomyCost(fakePlayerService.getReviveCost())}\n${detailLines.slice(3).join("\n")}`,
           },
         ],
       }
@@ -281,11 +287,13 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
   }
 
   if (dead) {
-    addAction(`复活假人\n消耗 ${fakePlayerService.getReviveCost()} 金币`, "textures/icons/heart", () => {
+    addAction(`复活假人\n${formatEconomyCost(fakePlayerService.getReviveCost())}`, "textures/icons/heart", () => {
       const cost = fakePlayerService.getReviveCost();
+      const costDescription =
+        cost > 0 ? `将从你的钱包扣除 §6${cost} §7金币。` : "本次复活免费，不会扣除金币。";
       const confirmBody: RawMessage = {
         rawtext: [
-          { text: `§e确定复活假人 §b${item.name}§e 吗？\n§7将从你的钱包扣除 §6${cost} §7金币。\n§7死亡原因：` },
+          { text: `§e确定复活假人 §b${item.name}§e 吗？\n§7${costDescription}\n§7死亡原因：` },
           buildFakePlayerDeathReason(item),
         ],
       };
@@ -299,7 +307,10 @@ function openFakePlayerDetailForm(player: Player, item: IFakePlayer, adminView: 
             player,
             {
               title: typeof result === "string" ? "复活失败" : "复活成功",
-              desc: typeof result === "string" ? color.red(result) : color.green(`假人已复活，并扣除 ${cost} 金币。`),
+              desc:
+                typeof result === "string"
+                  ? color.red(result)
+                  : color.green(cost > 0 ? `假人已复活，并扣除 ${cost} 金币。` : "假人已免费复活。"),
             },
             () => openFakePlayerListForm(player, adminView, back)
           );

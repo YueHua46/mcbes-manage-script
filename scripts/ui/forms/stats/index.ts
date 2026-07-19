@@ -8,6 +8,7 @@ import economic from "../../../features/economic/services/economic";
 import onlineTimeService, { formatOnlineDuration } from "../../../features/player/services/online-time";
 import playerStats from "../../../features/statistics/services/player-stats";
 import { openPvpLeaderboardForm } from "../pvp";
+import setting from "../../../features/system/services/setting";
 
 const TOP_N = 20;
 
@@ -78,57 +79,60 @@ export function openStatsHubForm(player: Player, options?: OpenStatsHubOptions):
     rawtext: [{ text: "§b查看全服排行榜（含离线玩家数据）\n§0请选择榜单类型" }],
   });
 
-  form.button("财富排行榜", "textures/icons/trophy");
-  form.button("击杀排行榜（非玩家生物）", "textures/icons/game_survival_games");
-  form.button("死亡次数排行榜", "textures/icons/dead");
-  form.button("击杀排行榜（玩家）", "textures/icons/kilic");
-  form.button("等级排行榜", "textures/icons/star");
-  form.button("在线时长排行榜", "textures/icons/saat");
-  form.button("返回", "textures/icons/back");
+  const entries: Array<{ text: string; icon: string; action: () => void }> = [];
+  if (setting.getState("economy") === true) {
+    entries.push({
+      text: "财富排行榜",
+      icon: "textures/icons/trophy",
+      action: () => openStatsSubForm(player, "wealth", () => openStatsHubForm(player, { back })),
+    });
+  }
+  entries.push(
+    {
+      text: "击杀排行榜（非玩家生物）",
+      icon: "textures/icons/game_survival_games",
+      action: () => openStatsSubForm(player, "mobKills", () => openStatsHubForm(player, { back })),
+    },
+    {
+      text: "死亡次数排行榜",
+      icon: "textures/icons/dead",
+      action: () => openStatsSubForm(player, "totalDeaths", () => openStatsHubForm(player, { back })),
+    },
+    {
+      text: "击杀排行榜（玩家）",
+      icon: "textures/icons/kilic",
+      action: () => openStatsSubForm(player, "pvpKills", () => openStatsHubForm(player, { back })),
+    },
+    {
+      text: "等级排行榜",
+      icon: "textures/icons/star",
+      action: () => openStatsSubForm(player, "level", () => openStatsHubForm(player, { back })),
+    },
+    {
+      text: "在线时长排行榜",
+      icon: "textures/icons/saat",
+      action: () => openStatsSubForm(player, "onlineTime", () => openStatsHubForm(player, { back })),
+    },
+    { text: "返回", icon: "textures/icons/back", action: back }
+  );
+  entries.forEach((entry) => form.button(entry.text, entry.icon));
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) return;
     const sel = data.selection;
     if (sel === undefined) return;
 
-    const goWealth = () => openStatsSubForm(player, "wealth", () => openStatsHubForm(player, { back }));
-    const goMob = () => openStatsSubForm(player, "mobKills", () => openStatsHubForm(player, { back }));
-    const goDeath = () => openStatsSubForm(player, "totalDeaths", () => openStatsHubForm(player, { back }));
-    const goPvp = () => openStatsSubForm(player, "pvpKills", () => openStatsHubForm(player, { back }));
-    const goLevel = () => openStatsSubForm(player, "level", () => openStatsHubForm(player, { back }));
-    const goOnline = () => openStatsSubForm(player, "onlineTime", () => openStatsHubForm(player, { back }));
-
-    switch (sel) {
-      case 0:
-        goWealth();
-        return;
-      case 1:
-        goMob();
-        return;
-      case 2:
-        goDeath();
-        return;
-      case 3:
-        goPvp();
-        return;
-      case 4:
-        goLevel();
-        return;
-      case 5:
-        goOnline();
-        return;
-      case 6:
-        back();
-        return;
-      default:
-        return;
-    }
+    entries[sel]?.action();
   });
 }
 
 function openStatsSubForm(player: Player, focus: StatsFocus, navigateBack: () => void): void {
   switch (focus) {
     case "wealth":
+      if (setting.getState("economy") !== true) {
+        showStatsActionForm(player, "财富排行榜", "§7经济系统已关闭，财富排行榜暂不显示。", navigateBack);
+        break;
+      }
       openWealthLeaderboardForm(player, navigateBack);
       break;
     case "mobKills":

@@ -151,6 +151,8 @@ export type IModules =
   | "landFlightLeaveGraceSec"
   /** 领地常显粒子档位：off / low / balanced / high */
   | "landBoundaryParticleLevel"
+  /** 普通玩家是否可以使用领地传送；管理员不受此开关限制 */
+  | "landTeleportEnabled"
   /** 防刷物品：总开关（功能开关管理；关则所有防刷逻辑与白名单登记不运行） */
   | "antiDupeEnabled"
   /** 防刷物品：禁止收纳袋放入非常规容器（子项，受总开关约束） */
@@ -291,6 +293,8 @@ export const defaultSetting = {
   landFlightLeaveGraceSec: "5",
   /** 默认使用均衡档，保留清晰边界的同时降低扫描频率与渲染距离 */
   landBoundaryParticleLevel: "balanced",
+  /** 默认允许普通玩家使用领地传送；关闭后仅管理员可用 */
+  landTeleportEnabled: true,
   /** 防刷物品总开关（默认开；仅「功能开关管理」中切换） */
   antiDupeEnabled: true,
   /** 收纳袋防刷：不得放入漏斗/投掷器等（默认开；总开关关则不生效） */

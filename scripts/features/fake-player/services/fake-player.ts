@@ -368,10 +368,12 @@ class FakePlayerService {
   }
 
   getCreateCost(): number {
+    if (setting.getState("economy") !== true) return 0;
     return parseNonNegativeInteger(setting.getState("fakePlayerCreateCost"), 0);
   }
 
   getReviveCost(): number {
+    if (setting.getState("economy") !== true) return 0;
     return parseNonNegativeInteger(setting.getState("fakePlayerReviveCost"), 100);
   }
 

@@ -4,6 +4,7 @@ import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { getTPS } from "../../../shared/utils/tps";
 import { glyphMap } from "../../../assets/glyph-map";
 import PlayerSetting, { PLAYER_HUD_MARKER } from "../../player/services/player-settings";
+import setting from "./setting";
 
 const HUD_REFRESH_TICKS = 40;
 
@@ -26,16 +27,20 @@ system.runInterval(() => {
   if (players.length === 0) return;
   const tps = Math.max(0, Math.min(20, getTPS()));
   const tpsText = tps.toFixed(1);
+  const economyEnabled = setting.getState("economy") === true;
 
   for (const player of players) {
     try {
       if (!PlayerSetting.getPlayerHudEnabled(player)) continue;
-      const gold = economic.getWallet(player.name).gold;
-      player.onScreenDisplay.setActionBar(
-        `${PLAYER_HUD_MARKER}§r${glyphMap.coins} §7金币 §6${formatGold(gold)}` +
-          `   §8•   §r${glyphMap.clock} §7TPS ${getTpsColor(tps)}${tpsText}` +
-          `   §8•   §r${glyphMap.friends} §7在线 §a${players.length}`
-      );
+      const segments = [
+        `§r${glyphMap.clock} §7TPS ${getTpsColor(tps)}${tpsText}`,
+        `§r${glyphMap.friends} §7在线 §a${players.length}`,
+      ];
+      if (economyEnabled) {
+        const gold = economic.getWallet(player.name).gold;
+        segments.unshift(`§r${glyphMap.coins} §7金币 §6${formatGold(gold)}`);
+      }
+      player.onScreenDisplay.setActionBar(`${PLAYER_HUD_MARKER}${segments.join("   §8•   ")}`);
     } catch (error) {
       console.warn(`[PlayerHud] 刷新 ${player.name} 的 HUD 失败: ${(error as Error).message}`);
     }

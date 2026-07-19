@@ -8,6 +8,7 @@ import pvpManager from "../../../features/pvp/services/pvp-manager";
 import statsManager from "../../../features/pvp/services/pvp-stats";
 import { color } from "../../../shared/utils/color";
 import { openServerMenuForm } from "../server";
+import setting from "../../../features/system/services/setting";
 
 /**
  * 打开PVP主菜单
@@ -54,9 +55,13 @@ export async function openPvpSystemForm(player: Player): Promise<void> {
     ? `\n§e大乱斗模式下个人不能关闭PVP，管理员也会参与战斗。\n§e领地保护：${config.forcedIgnoreLandProtection ? "§c已被无视" : "§a仍然生效"}\n`
     : "";
   const pluginModeHint = config.mode === "plugin" ? "\n§e领地保护：§a仍然生效，领地内禁止PVP\n" : "";
+  const economyStats =
+    setting.getState("economy") === true
+      ? `\n§e总夺取金币：§f${data.totalSeized}\n§e总被夺取金币：§f${data.totalLost}`
+      : "";
 
   form.body(
-    `当前模式：§a${pvpManager.getModeDisplay(config.mode)}\n当前PVP状态：${status}\n战斗状态：${combatStatus}\n${forcedModeHint}${pluginModeHint}\n§e击杀数：§f${data.kills}\n§e死亡数：§f${data.deaths}\n§e当前连杀：§f${data.killStreak}\n§e最佳连杀：§f${data.bestKillStreak}\n§e总夺取金币：§f${data.totalSeized}\n§e总被夺取金币：§f${data.totalLost}`
+    `当前模式：§a${pvpManager.getModeDisplay(config.mode)}\n当前PVP状态：${status}\n战斗状态：${combatStatus}\n${forcedModeHint}${pluginModeHint}\n§e击杀数：§f${data.kills}\n§e死亡数：§f${data.deaths}\n§e当前连杀：§f${data.killStreak}\n§e最佳连杀：§f${data.bestKillStreak}${economyStats}`
   );
 
   if (!forcedMode) {
@@ -120,6 +125,13 @@ function openPvpStatsForm(player: Player): void {
   const killRank = statsManager.getPlayerRank(player.name, "kills");
   const streakRank = statsManager.getPlayerRank(player.name, "killStreak");
   const seizeRank = statsManager.getPlayerRank(player.name, "seize");
+  const economyStats =
+    setting.getState("economy") === true
+      ? `\n\n§e=== 金币统计 ===\n` +
+        `§e总夺取金币：§f${data.totalSeized} §7(排名: ${seizeRank === -1 ? "未上榜" : `#${seizeRank}`})\n` +
+        `§e总被夺取金币：§f${data.totalLost}\n` +
+        `§e净收益：§f${data.totalSeized - data.totalLost}`
+      : "";
 
   const form = new ActionFormData();
   form.title("PVP统计");
@@ -131,11 +143,8 @@ function openPvpStatsForm(player: Player): void {
       `§eK/D比：§f${kd}\n\n` +
       `§e=== 连杀统计 ===\n` +
       `§e当前连杀：§f${data.killStreak}\n` +
-      `§e最佳连杀：§f${data.bestKillStreak} §7(排名: ${streakRank === -1 ? "未上榜" : `#${streakRank}`})\n\n` +
-      `§e=== 金币统计 ===\n` +
-      `§e总夺取金币：§f${data.totalSeized} §7(排名: ${seizeRank === -1 ? "未上榜" : `#${seizeRank}`})\n` +
-      `§e总被夺取金币：§f${data.totalLost}\n` +
-      `§e净收益：§f${data.totalSeized - data.totalLost}`
+      `§e最佳连杀：§f${data.bestKillStreak} §7(排名: ${streakRank === -1 ? "未上榜" : `#${streakRank}`})` +
+      economyStats
   );
 
   form.button("返回", "textures/icons/back");
@@ -158,12 +167,13 @@ export type OpenPvpLeaderboardOptions = {
  * 打开排行榜菜单
  */
 function openPvpLeaderboardMenu(player: Player): void {
+  const economyEnabled = setting.getState("economy") === true;
   const form = new ActionFormData();
   form.title("PVP排行榜");
 
   form.button("击杀排行榜", "textures/icons/game_survival_games");
   form.button("最佳连杀排行榜", "textures/icons/kilic");
-  form.button("夺取金币排行榜", "textures/icons/coins");
+  if (economyEnabled) form.button("夺取金币排行榜", "textures/icons/coins");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((response) => {
@@ -176,11 +186,12 @@ function openPvpLeaderboardMenu(player: Player): void {
       case 1: // 连杀排行
         openPvpLeaderboardForm(player, "killStreak", {});
         break;
-      case 2: // 夺取金币排行
-        openPvpLeaderboardForm(player, "seize", {});
+      case 2:
+        if (economyEnabled) openPvpLeaderboardForm(player, "seize", {});
+        else openPvpSystemForm(player);
         break;
-      case 3: // 返回
-        openPvpSystemForm(player);
+      case 3:
+        if (economyEnabled) openPvpSystemForm(player);
         break;
     }
   });
@@ -194,6 +205,10 @@ export function openPvpLeaderboardForm(
   type: "kills" | "killStreak" | "seize",
   options?: OpenPvpLeaderboardOptions
 ): void {
+  if (type === "seize" && setting.getState("economy") !== true) {
+    openPvpLeaderboardMenu(player);
+    return;
+  }
   const limit = options?.limit ?? 10;
   const leaderboard = statsManager.getLeaderboard(type, limit);
 

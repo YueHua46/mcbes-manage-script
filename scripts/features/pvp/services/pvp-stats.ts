@@ -113,13 +113,20 @@ class PvpStatsManager {
     seizeAmount: number,
     killStreak: number
   ): void {
+    const economyEnabled = economic.isEconomyEnabled();
     // 击杀者通知
-    const killerMessage = `${color.green("[PVP]")} ${color.yellow("你击杀了")} ${color.red(victim.name)}${color.yellow("！")}\n${color.gold("夺取金币：")}${color.yellow(seizeAmount.toString())} ${color.gold("连杀数：")}${color.aqua(killStreak.toString())}`;
+    const killerMessage = economyEnabled
+      ? `${color.green("[PVP]")} ${color.yellow("你击杀了")} ${color.red(victim.name)}${color.yellow("！")}\n${color.gold("夺取金币：")}${color.yellow(seizeAmount.toString())} ${color.gold("连杀数：")}${color.aqua(killStreak.toString())}`
+      : `${color.green("[PVP]")} ${color.yellow("你击杀了")} ${color.red(victim.name)}${color.yellow("！")}\n${color.gold("连杀数：")}${color.aqua(killStreak.toString())}`;
     useNotify("chat", killer, killerMessage);
 
     // 被击杀者通知
-    const victimWallet = economic.getWallet(victim.name);
-    const victimMessage = `${color.red("[PVP]")} ${color.yellow("你被")} ${color.green(killer.name)} ${color.yellow("击杀了！")}\n${color.gold("被夺取：")}${color.red(seizeAmount.toString())} ${color.gold("剩余金币：")}${color.yellow(victimWallet.gold.toString())}`;
+    const victimMessage = economyEnabled
+      ? (() => {
+          const victimWallet = economic.getWallet(victim.name);
+          return `${color.red("[PVP]")} ${color.yellow("你被")} ${color.green(killer.name)} ${color.yellow("击杀了！")}\n${color.gold("被夺取：")}${color.red(seizeAmount.toString())} ${color.gold("剩余金币：")}${color.yellow(victimWallet.gold.toString())}`;
+        })()
+      : `${color.red("[PVP]")} ${color.yellow("你被")} ${color.green(killer.name)} ${color.yellow("击杀了！")}`;
     useNotify("chat", victim, victimMessage);
 
     // 连杀广播（3连杀以上）

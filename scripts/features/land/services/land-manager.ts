@@ -489,6 +489,9 @@ class LandManager {
     const land = this.getLand(landName);
     if (typeof land === "string") return land;
     if (!land.teleportPoint) return "该领地未设置传送点";
+    if (setting.getState("landTeleportEnabled") !== true && !isAdmin(player)) {
+      return "服务器未开放普通玩家领地传送功能";
+    }
 
     // 检查权限：领地主人、信任成员、公会领地同公会成员、或管理员
     if (!isAdmin(player) && !this.isPlayerTrustedOnLand(land, player.name)) {
@@ -548,46 +551,109 @@ class LandManager {
       }
     };
 
+    const finishTeleport = (): void => {
+      const chargeError = chargeTeleportCost(player, "landTeleportCost", "领地传送");
+      if (chargeError) {
+        player.onScreenDisplay.setTitle("");
+        try {
+          player.playSound("random.pop");
+        } catch {
+          // ignore sound errors
+        }
+        player.onScreenDisplay.setActionBar(color.red(chargeError));
+        return;
+      }
+
+      try {
+        player.teleport(targetLocation, {
+          dimension: targetDimension,
+        });
+
+        system.runTimeout(() => {
+          try {
+            if (!player || !player.location) return;
+
+            createProgressiveParticles(player, targetLocation, 1.0, true);
+            try {
+              player.playSound("mob.endermen.portal");
+            } catch (error) {
+              try {
+                player.playSound("mob.endermen.teleport");
+              } catch (fallbackError) {
+                // 静默处理
+              }
+            }
+            player.runCommand(`title @s times 5 40 5`);
+            player.runCommand(`title @s title §a传送成功！`);
+
+            let fadeIntensity = 1.0;
+            const fadeInterval = system.runInterval(() => {
+              try {
+                if (!player || !player.location) {
+                  system.clearRun(fadeInterval);
+                  return;
+                }
+
+                createProgressiveParticles(player, targetLocation, fadeIntensity, true);
+                fadeIntensity -= 0.1;
+
+                if (fadeIntensity <= 0) system.clearRun(fadeInterval);
+              } catch (error) {
+                system.clearRun(fadeInterval);
+              }
+            }, 10);
+
+            player.onScreenDisplay.setActionBar(color.green(`已传送到领地 ${color.yellow(landName)}`));
+            useNotify("chat", player, color.green(`已传送到领地 ${color.yellow(landName)}`));
+          } catch (error) {
+            // 静默处理错误
+          }
+        }, 1);
+      } catch (error) {
+        refundTeleportCost(player, "landTeleportCost", "领地传送失败退款");
+        player.onScreenDisplay.setTitle("");
+        try {
+          player.playSound("random.break");
+        } catch (soundError) {
+          // 忽略音效错误
+        }
+        player.onScreenDisplay.setActionBar(color.red("传送失败！"));
+      }
+    };
+
     // 粒子效果渐进系统
     let particleIntensity = 0.0;
     const particleStep = 0.03;
     let countdownInterval: number | undefined;
-    const particleInterval = system.runInterval(() => {
-      try {
-        if (!player || !player.location) {
-          system.clearRun(particleInterval);
-          if (countdownInterval !== undefined) {
-            system.clearRun(countdownInterval);
+    let particleInterval: number | undefined;
+    particleInterval = system.runInterval(() => {
+        try {
+          if (!player || !player.location) {
+            if (particleInterval !== undefined) system.clearRun(particleInterval);
+            if (countdownInterval !== undefined) system.clearRun(countdownInterval);
+            return;
           }
-          return;
-        }
 
-        const currentLocation = player.location;
-        const moved =
-          Math.abs(currentLocation.x - startLocation.x) > 0.5 ||
-          Math.abs(currentLocation.y - startLocation.y) > 0.5 ||
-          Math.abs(currentLocation.z - startLocation.z) > 0.5;
+          const currentLocation = player.location;
+          const moved =
+            Math.abs(currentLocation.x - startLocation.x) > 0.5 ||
+            Math.abs(currentLocation.y - startLocation.y) > 0.5 ||
+            Math.abs(currentLocation.z - startLocation.z) > 0.5;
 
-        if (moved && particleIntensity > 0.1) {
-          system.clearRun(particleInterval);
-          if (countdownInterval !== undefined) {
-            system.clearRun(countdownInterval);
+          if (moved && particleIntensity > 0.1) {
+            if (particleInterval !== undefined) system.clearRun(particleInterval);
+            if (countdownInterval !== undefined) system.clearRun(countdownInterval);
+            player.onScreenDisplay.setTitle("");
+            player.onScreenDisplay.setActionBar(color.red("传送已取消：检测到移动"));
+            player.playSound("random.pop");
+            return;
           }
-          player.onScreenDisplay.setTitle("");
-          player.onScreenDisplay.setActionBar(color.red("传送已取消：检测到移动"));
-          player.playSound("random.pop");
-          return;
-        }
 
-        if (particleIntensity < 1.0) {
           particleIntensity = Math.min(1.0, particleIntensity + particleStep);
           createProgressiveParticles(player, currentLocation, particleIntensity, false);
-        } else {
-          createProgressiveParticles(player, currentLocation, 1.0, false);
+        } catch (error) {
+          if (particleInterval !== undefined) system.clearRun(particleInterval);
         }
-      } catch (error) {
-        system.clearRun(particleInterval);
-      }
     }, 2);
 
     // 传送倒计时（3秒）
@@ -596,12 +662,12 @@ class LandManager {
       try {
         if (!player || !player.location) {
           system.clearRun(countdownInterval!);
-          system.clearRun(particleInterval);
+          if (particleInterval !== undefined) system.clearRun(particleInterval);
           return;
         }
       } catch (error) {
         system.clearRun(countdownInterval!);
-        system.clearRun(particleInterval);
+        if (particleInterval !== undefined) system.clearRun(particleInterval);
         return;
       }
 
@@ -614,7 +680,7 @@ class LandManager {
 
         if (moved && countdown < 3) {
           system.clearRun(countdownInterval!);
-          system.clearRun(particleInterval);
+          if (particleInterval !== undefined) system.clearRun(particleInterval);
           player.onScreenDisplay.setTitle("");
           player.onScreenDisplay.setActionBar(color.red("传送已取消：检测到移动"));
           player.playSound("random.pop");
@@ -627,93 +693,15 @@ class LandManager {
       if (countdown > 0) {
         player.runCommand(`title @s times 5 20 5`);
         player.runCommand(`title @s title §e${countdown}`);
-        player.onScreenDisplay.setActionBar(`§b正在传送到 §e${landName} §b... §7(请不要移动)`);
         player.playSound("random.click");
+        player.onScreenDisplay.setActionBar(`§b正在传送到 §e${landName} §b... §7(请不要移动)`);
         countdown--;
       } else {
         system.clearRun(countdownInterval!);
-        system.clearRun(particleInterval);
+        if (particleInterval !== undefined) system.clearRun(particleInterval);
 
         createProgressiveParticles(player, startLocation, 1.0, false);
-
-        system.run(() => {
-          const chargeError = chargeTeleportCost(player, "landTeleportCost", "领地传送");
-          if (chargeError) {
-            player.onScreenDisplay.setTitle("");
-            player.onScreenDisplay.setActionBar(color.red(chargeError));
-            try {
-              player.playSound("random.pop");
-            } catch {
-              // ignore sound errors
-            }
-            return;
-          }
-
-          try {
-            player.teleport(targetLocation, {
-              dimension: targetDimension,
-            });
-
-            system.runTimeout(() => {
-              try {
-                if (!player || !player.location) return;
-
-                // 传送后的效果
-                createProgressiveParticles(player, targetLocation, 1.0, true);
-
-                try {
-                  player.playSound("mob.endermen.portal");
-                } catch (error) {
-                  try {
-                    player.playSound("mob.endermen.teleport");
-                  } catch (fallbackError) {
-                    // 静默处理
-                  }
-                }
-
-                try {
-                  player.runCommand(`title @s times 5 40 5`);
-                  player.runCommand(`title @s title §a传送成功！`);
-                  player.onScreenDisplay.setActionBar(color.green(`已传送到领地 ${color.yellow(landName)}`));
-                  useNotify("chat", player, color.green(`已传送到领地 ${color.yellow(landName)}`));
-                } catch (error) {
-                  // 忽略UI更新错误
-                }
-
-                // 渐进式减少粒子效果
-                let fadeIntensity = 1.0;
-                const fadeInterval = system.runInterval(() => {
-                  try {
-                    if (!player || !player.location) {
-                      system.clearRun(fadeInterval);
-                      return;
-                    }
-
-                    createProgressiveParticles(player, targetLocation, fadeIntensity, true);
-                    fadeIntensity -= 0.1;
-
-                    if (fadeIntensity <= 0) {
-                      system.clearRun(fadeInterval);
-                    }
-                  } catch (error) {
-                    system.clearRun(fadeInterval);
-                  }
-                }, 10);
-              } catch (error) {
-                // 静默处理错误
-              }
-            }, 1);
-          } catch (error) {
-            refundTeleportCost(player, "landTeleportCost", "领地传送失败退款");
-            player.onScreenDisplay.setTitle("");
-            player.onScreenDisplay.setActionBar(color.red("传送失败！"));
-            try {
-              player.playSound("random.break");
-            } catch (soundError) {
-              // 忽略音效错误
-            }
-          }
-        });
+        system.run(finishTeleport);
       }
     }, 20);
 

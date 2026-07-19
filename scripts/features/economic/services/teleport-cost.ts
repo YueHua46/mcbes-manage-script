@@ -10,6 +10,7 @@ export type TeleportCostSettingKey =
   | "landTeleportCost";
 
 export function getTeleportCost(settingKey: TeleportCostSettingKey): number {
+  if (setting.getState("economy") !== true) return 0;
   const raw = Number(setting.getState(settingKey as IModules));
   if (!Number.isFinite(raw) || raw <= 0) return 0;
   return Math.floor(raw);

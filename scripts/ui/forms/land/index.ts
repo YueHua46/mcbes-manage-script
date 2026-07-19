@@ -33,6 +33,10 @@ import PlayerSetting from "../../../features/player/services/player-settings";
 
 const LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE = 192;
 
+function canUseLandTeleport(player: Player): boolean {
+  return setting.getState("landTeleportEnabled") === true || isAdmin(player);
+}
+
 /** 从公会菜单「纯公会圈地」创建时传入，写入 ILand.guildId */
 export type GuildLandApplyContext = {
   guildId: string;
@@ -107,10 +111,12 @@ function createLandApplyForm(player: Player, guildApply?: GuildLandApplyContext)
     defaultValue: `${defaultLandEndPos.x} ${defaultLandEndPos.y} ${defaultLandEndPos.z}`,
     tooltip: "请输入领地结束点",
   });
-  form.toggle(color.white("设置传送点（使用当前位置）"), {
-    defaultValue: false,
-    tooltip: "是否将当前位置设置为领地传送点，可在领地详细界面传送回领地",
-  });
+  if (canUseLandTeleport(player)) {
+    form.toggle(color.white("设置传送点（使用当前位置）"), {
+      defaultValue: false,
+      tooltip: "是否将当前位置设置为领地传送点，可在领地详细界面传送回领地",
+    });
+  }
   form.submitButton("确认");
 
   return form;
@@ -888,6 +894,17 @@ export function openLandAuthConfigForm(player: Player, _land: ILand): void {
 // ==================== 领地传送点设置 ====================
 
 export function openLandTeleportPointForm(player: Player, _land: ILand, returnToDetail?: () => void): void {
+  if (!canUseLandTeleport(player)) {
+    openDialogForm(
+      player,
+      { title: "领地传送未开放", desc: color.yellow("服务器管理员已关闭普通玩家领地传送功能。") },
+      () => {
+        if (returnToDetail) returnToDetail();
+        else openLandDetailForm(player, _land);
+      }
+    );
+    return;
+  }
   const form = new ActionFormData();
   form.title("领地传送点设置");
 
@@ -1024,7 +1041,7 @@ export const openLandDetailForm = (
   const buttons: Btn[] = [];
 
   if (isGuildLand) {
-    if (landData.teleportPoint && canAccess) {
+    if (landData.teleportPoint && canAccess && canUseLandTeleport(player)) {
       buttons.push({
         text: "传送回领地",
         icon: "textures/icons/menu_waypoint",
@@ -1071,11 +1088,13 @@ export const openLandDetailForm = (
           action: () => openLandSnapshotForm(player, landData, reopenDetail),
         });
       }
-      buttons.push({
-        text: landData.teleportPoint ? "修改传送点" : "设置传送点",
-        icon: "textures/icons/menu_waypoint",
-        action: () => openLandTeleportPointForm(player, landData, reopenDetail),
-      });
+      if (canUseLandTeleport(player)) {
+        buttons.push({
+          text: landData.teleportPoint ? "修改传送点" : "设置传送点",
+          icon: "textures/icons/menu_waypoint",
+          action: () => openLandTeleportPointForm(player, landData, reopenDetail),
+        });
+      }
       buttons.push({
         text: "删除领地",
         icon: "textures/icons/copkutusu",
@@ -1125,13 +1144,15 @@ export const openLandDetailForm = (
         ),
     ];
 
-    if (landData.teleportPoint) {
-      infoList.push(
-        "传送点: " +
-          color.yellow(`${landData.teleportPoint.x}, ${landData.teleportPoint.y}, ${landData.teleportPoint.z}`)
-      );
-    } else {
-      infoList.push("传送点: " + color.gray("未设置"));
+    if (canUseLandTeleport(player)) {
+      if (landData.teleportPoint) {
+        infoList.push(
+          "传送点: " +
+            color.yellow(`${landData.teleportPoint.x}, ${landData.teleportPoint.y}, ${landData.teleportPoint.z}`)
+        );
+      } else {
+        infoList.push("传送点: " + color.gray("未设置"));
+      }
     }
 
     infoList.push("所属公会: " + (g ? color.green(`[${g.tag}] ${g.name}`) : color.gray("（公会数据异常）")));
@@ -1169,7 +1190,7 @@ export const openLandDetailForm = (
     action: () => openLandAuthForm(player, landData, reopenDetailAfterAuth),
   });
 
-  if (landData.teleportPoint && canAccess) {
+  if (landData.teleportPoint && canAccess && canUseLandTeleport(player)) {
     buttons.push({
       text: "传送回领地",
       icon: "textures/icons/menu_waypoint",
@@ -1233,11 +1254,15 @@ export const openLandDetailForm = (
         icon: "textures/icons/party_invites",
         action: () => openLandAuthConfigForm(player, landData),
       },
-      {
-        text: landData.teleportPoint ? "修改传送点" : "设置传送点",
-        icon: "textures/icons/menu_waypoint",
-        action: () => openLandTeleportPointForm(player, landData, reopenDetail),
-      },
+      ...(canUseLandTeleport(player)
+        ? [
+            {
+              text: landData.teleportPoint ? "修改传送点" : "设置传送点",
+              icon: "textures/icons/menu_waypoint",
+              action: () => openLandTeleportPointForm(player, landData, reopenDetail),
+            },
+          ]
+        : []),
       {
         text: "删除领地",
         icon: "textures/icons/copkutusu",
@@ -1279,12 +1304,15 @@ export const openLandDetailForm = (
       ),
   ];
 
-  if (landData.teleportPoint) {
-    infoList.push(
-      "传送点: " + color.yellow(`${landData.teleportPoint.x}, ${landData.teleportPoint.y}, ${landData.teleportPoint.z}`)
-    );
-  } else {
-    infoList.push("传送点: " + color.gray("未设置"));
+  if (canUseLandTeleport(player)) {
+    if (landData.teleportPoint) {
+      infoList.push(
+        "传送点: " +
+          color.yellow(`${landData.teleportPoint.x}, ${landData.teleportPoint.y}, ${landData.teleportPoint.z}`)
+      );
+    } else {
+      infoList.push("传送点: " + color.gray("未设置"));
+    }
   }
 
   if (setting.getState("guild") === true) {

@@ -370,6 +370,10 @@ class QuestPlayerService {
     }
 
     if (reward.action === "add_money") {
+      if (!economic.isEconomyEnabled()) {
+        player.sendMessage("§7经济系统已关闭，本次任务金币奖励不发放。");
+        return undefined;
+      }
       const amount = Math.max(1, Math.floor(Number(reward.params.amount ?? 0)));
       const added = economic.addGold(player.name, amount, "任务奖励", true);
       if (added <= 0) return "金币奖励发放失败。";
