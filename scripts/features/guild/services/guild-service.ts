@@ -1051,9 +1051,10 @@ class GuildService {
   }
 
   /**
-   * 会长/副会长从公会菜单解除某块领地的公会绑定（不要求操作者是领主）
+   * 会长从公会菜单解除某块领地的公会绑定（不要求操作者是领主）。
+   * 解除后领地恢复为创建者的个人领地，因此必须先校验创建者的个人领地配额。
    */
-  unbindGuildLandByOfficer(player: Player, landName: string): string {
+  unbindGuildLandByOwner(player: Player, landName: string): string {
     if (!this.ensureDbs()) return "公会系统未就绪";
     const ln = stripSection(landName.trim());
     if (!ln) return "请指定领地名";
@@ -1070,10 +1071,23 @@ class GuildService {
     if (!g) return "公会不存在";
 
     const role = this.getRole(g, player.name);
-    if (role !== "owner" && role !== "officer") return "只有会长或副会长可解除公会领地绑定";
+    if (role !== "owner") return "只有会长可解除公会领地归属";
+
+    const maxLandPerPlayerRaw = Number(setting.getState("maxLandPerPlayer"));
+    const maxLandPerPlayer =
+      Number.isFinite(maxLandPerPlayerRaw) && maxLandPerPlayerRaw >= 0 ? Math.floor(maxLandPerPlayerRaw) : 5;
+    if (landManager.getPlayerLandCount(landRaw.owner) >= maxLandPerPlayer) {
+      return `创建者 ${landRaw.owner} 的个人领地已达上限(${maxLandPerPlayer})，无法解除公会归属`;
+    }
 
     this.releaseLandGuildBindingCore(ln, g);
+    this.logGuild(player.name, "guildPromote", this.guildMeta(g, `landUnbind ${ln}`));
     return "";
+  }
+
+  /** @deprecated 使用 unbindGuildLandByOwner；保留旧调用兼容，但权限已收紧为仅会长。 */
+  unbindGuildLandByOfficer(player: Player, landName: string): string {
+    return this.unbindGuildLandByOwner(player, landName);
   }
 
   /**
@@ -1182,6 +1196,14 @@ class GuildService {
     if (!g || g.id !== land.guildId) return false;
     const role = this.getMemberRole(player);
     return role === "owner" || role === "officer";
+  }
+
+  /** 仅本会会长可执行删除、解除归属等高风险公会领地操作。 */
+  canOwnerManageGuildLand(player: Player, land: ILand): boolean {
+    if (!land.guildId) return false;
+    const g = this.getGuildForPlayer(player);
+    if (!g || g.id !== land.guildId) return false;
+    return this.getMemberRole(player) === "owner";
   }
 
   /** 菜单/UI：待处理邀请摘要（无邀请或已过期返回 undefined） */

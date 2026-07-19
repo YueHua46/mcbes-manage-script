@@ -1,20 +1,45 @@
 {
   "format_version": "1.14.0",
   "sound_definitions": {
-    "yuehua.welcome": {
+    "yuehua.welcome_0": {
       "category": "music",
-      "sounds": [
-        "sounds/welcome",
-        "sounds/1",
-        "sounds/2",
-        "sounds/3",
-        "sounds/4",
-        "sounds/5",
-        "sounds/6",
-        "sounds/7",
-        "sounds/8",
-        "sounds/9"
-      ]
+      "sounds": [{ "name": "sounds/welcome", "is3D": false }]
+    },
+    "yuehua.welcome_1": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/1", "is3D": false }]
+    },
+    "yuehua.welcome_2": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/2", "is3D": false }]
+    },
+    "yuehua.welcome_3": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/3", "is3D": false }]
+    },
+    "yuehua.welcome_4": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/4", "is3D": false }]
+    },
+    "yuehua.welcome_5": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/5", "is3D": false }]
+    },
+    "yuehua.welcome_6": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/6", "is3D": false }]
+    },
+    "yuehua.welcome_7": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/7", "is3D": false }]
+    },
+    "yuehua.welcome_8": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/8", "is3D": false }]
+    },
+    "yuehua.welcome_9": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/9", "is3D": false }]
     }
   }
 }

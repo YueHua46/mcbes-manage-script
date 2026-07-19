@@ -12,6 +12,32 @@ import economic from "../../features/economic/services/economic";
 import { BRANDING } from "../../core/constants";
 import { isFakePlayer } from "../../features/fake-player/services/fake-player";
 
+const WELCOME_SOUNDS = [
+  { id: "yuehua.welcome_0", title: "トーン高めのオープニング" },
+  { id: "yuehua.welcome_1", title: "アコーディオンのかわいいジングル" },
+  { id: "yuehua.welcome_2", title: "陽気なジングル" },
+  { id: "yuehua.welcome_3", title: "少年は自転車に乗って！" },
+  { id: "yuehua.welcome_4", title: "Cats Survival" },
+  { id: "yuehua.welcome_5", title: "Child Play" },
+  { id: "yuehua.welcome_6", title: "お気楽ジングル" },
+  { id: "yuehua.welcome_7", title: "Clear Sky" },
+  { id: "yuehua.welcome_8", title: "pop step!!" },
+  { id: "yuehua.welcome_9", title: "Green Stage" },
+] as const;
+
+// 保留原有欢迎画面的节奏；声音使用独立的音乐通道，不再靠延迟标题等待音频。
+const WELCOME_PRESENTATION_DELAY_TICKS = 70;
+
+function playRandomWelcomeSound(player: Player): void {
+  const index = Math.floor(Math.random() * WELCOME_SOUNDS.length);
+  const sound = WELCOME_SOUNDS[index];
+  try {
+    player.playMusic(sound.id, { volume: 0.4, fade: 0, loop: false });
+  } catch (error) {
+    console.warn(`播放进服欢迎音乐失败：${sound.id}`, error);
+  }
+}
+
 /**
  * 注册玩家事件处理器
  */
@@ -20,12 +46,8 @@ export function registerPlayerEvents(): void {
   world.afterEvents.playerSpawn.subscribe(async (event) => {
     const { player } = event;
     if (isFakePlayer(player)) return;
-
-    const isJoin = player.getDynamicProperty("join") as boolean;
-    if (isJoin) return;
-
-    player.setDynamicProperty("join", true);
-    await system.waitTicks(70);
+    if (!event.initialSpawn) return;
+    await system.waitTicks(WELCOME_PRESENTATION_DELAY_TICKS);
 
     system.run(() => {
       const left = `${welcomeGlyphs[1]}${welcomeGlyphs[8]}${welcomeGlyphs[6]}${welcomeGlyphs[7]}${welcomeGlyphs[4]}${welcomeGlyphs[2]}`;
@@ -37,10 +59,10 @@ export function registerPlayerEvents(): void {
       player.runCommand(
         `titleraw @s subtitle {"rawtext":[{"text":"${welcomeCharacter}\\n\\n\\n\\n${left} §d欢迎来到 ${right}\\n§s${serverName}"}]}`
       );
-      // 副标题不会自行触发播放。先写入副标题，再用单个空格标题触发动画；
+      // 副标题此时尚不可见。先发出预加载音乐，再触发标题动画，保证两者来自同一进服时点。
+      playRandomWelcomeSound(player);
       // 空格只保留最小标题行高，避免旧版 "\n\n" 把可见内容大幅向下推。
       player.onScreenDisplay.setTitle({ text: " " });
-      player.playSound("yuehua.welcome");
 
       // 获取自定义的欢迎消息并处理换行符
       const welcomeMessageRaw = (setting.getState("welcomeMessage") as string) || "";
@@ -85,13 +107,6 @@ export function registerPlayerEvents(): void {
     } else {
       player.nameTag = `${nameColor}${player.name}`;
     }
-  });
-
-  // 玩家离开事件
-  world.beforeEvents.playerLeave.subscribe((event) => {
-    const { player } = event;
-    if (isFakePlayer(player)) return;
-    player.setDynamicProperty("join", false);
   });
 
   // 玩家死亡事件

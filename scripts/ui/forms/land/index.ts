@@ -27,14 +27,14 @@ import {
 } from "../../../features/land/services/land-flight";
 import { openSystemSettingForm } from "../system";
 import { formatDateTime } from "../../../shared/utils/format";
-import { isAdmin } from "../../../shared/utils/common";
+import { isAdmin as playerIsAdmin } from "../../../shared/utils/common";
 import { openLandSnapshotForm } from "./snapshot";
 import PlayerSetting from "../../../features/player/services/player-settings";
 
 const LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE = 192;
 
 function canUseLandTeleport(player: Player): boolean {
-  return setting.getState("landTeleportEnabled") === true || isAdmin(player);
+  return setting.getState("landTeleportEnabled") === true || playerIsAdmin(player);
 }
 
 /** 从公会菜单「纯公会圈地」创建时传入，写入 ILand.guildId */
@@ -385,8 +385,22 @@ export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyCon
 // ==================== 领地权限设置 ====================
 
 export function openLandAuthForm(player: Player, myLand: ILand, reopenDetail?: () => void): void {
+  const latest = landManager.getLand(myLand.name);
+  if (typeof latest === "string") {
+    openDialogForm(player, { title: "领地公开权限", desc: color.red(latest) }, reopenDetail);
+    return;
+  }
+  if (latest.guildId && !playerIsAdmin(player) && !guildService.canOfficerManageGuildLand(player, latest)) {
+    openDialogForm(
+      player,
+      { title: "领地公开权限", desc: color.red("只有本公会会长或副会长可以配置公会领地公开权限。") },
+      reopenDetail
+    );
+    return;
+  }
+
   const form = new ModalFormData();
-  const _myLand = landManager.db.get(myLand.name);
+  const _myLand = latest;
 
   form.title("领地公开权限");
   form.toggle(color.white("破坏权限"), {
@@ -455,6 +469,20 @@ export function openLandAuthForm(player: Player, myLand: ILand, reopenDetail?: (
   form.show(player).then((data) => {
     const { formValues, cancelationReason } = data;
     if (cancelationReason === "UserClosed") return;
+
+    const current = landManager.getLand(_myLand.name);
+    if (typeof current === "string") {
+      openDialogForm(player, { title: "领地公开权限", desc: color.red(current) }, reopenDetail);
+      return;
+    }
+    if (current.guildId && !playerIsAdmin(player) && !guildService.canOfficerManageGuildLand(player, current)) {
+      openDialogForm(
+        player,
+        { title: "领地公开权限", desc: color.red("你的职位已变化，无法继续配置该公会领地。") },
+        reopenDetail
+      );
+      return;
+    }
 
     const public_auth = {
       break: formValues?.[0] as boolean,
@@ -682,6 +710,20 @@ export function openLandDeleteForm(
   isAdmin: boolean = false,
   opts?: { afterSuccess?: () => void; reopenDetail?: () => void }
 ): void {
+  const latest = landManager.getLand(_land.name);
+  if (typeof latest === "string") {
+    openDialogForm(player, { title: "删除领地", desc: color.red(latest) }, opts?.reopenDetail);
+    return;
+  }
+  if (latest.guildId && !playerIsAdmin(player) && !guildService.canOwnerManageGuildLand(player, latest)) {
+    openDialogForm(
+      player,
+      { title: "删除领地", desc: color.red("只有本公会会长可以删除公会领地。") },
+      opts?.reopenDetail
+    );
+    return;
+  }
+
   const form = new ActionFormData();
   form.title("删除领地");
   form.body(color.red("删除领地后不可恢复，请谨慎操作！"));
@@ -693,6 +735,21 @@ export function openLandDeleteForm(
     if (cancelationReason === "UserClosed") return;
 
     if (selection === 0) {
+      const current = landManager.getLand(_land.name);
+      if (
+        typeof current === "string" ||
+        (current.guildId && !playerIsAdmin(player) && !guildService.canOwnerManageGuildLand(player, current))
+      ) {
+        openDialogForm(
+          player,
+          {
+            title: "删除领地",
+            desc: color.red(typeof current === "string" ? current : "你的职位已变化，无法删除该公会领地。"),
+          },
+          opts?.reopenDetail
+        );
+        return;
+      }
       const res = landManager.removeLand(_land.name);
       if (typeof res === "string") {
         openDialogForm(
@@ -905,6 +962,19 @@ export function openLandTeleportPointForm(player: Player, _land: ILand, returnTo
     );
     return;
   }
+  const latest = landManager.getLand(_land.name);
+  if (typeof latest === "string") {
+    openDialogForm(player, { title: "领地传送点", desc: color.red(latest) }, returnToDetail);
+    return;
+  }
+  if (latest.guildId && !playerIsAdmin(player) && !guildService.canOfficerManageGuildLand(player, latest)) {
+    openDialogForm(
+      player,
+      { title: "领地传送点", desc: color.red("只有本公会会长或副会长可以设置公会领地传送点。") },
+      returnToDetail
+    );
+    return;
+  }
   const form = new ActionFormData();
   form.title("领地传送点设置");
 
@@ -921,6 +991,21 @@ export function openLandTeleportPointForm(player: Player, _land: ILand, returnTo
       text: "使用当前位置设置传送点",
       icon: "textures/icons/menu_waypoint",
       action: () => {
+        const current = landManager.getLand(_land.name);
+        if (
+          typeof current === "string" ||
+          (current.guildId && !playerIsAdmin(player) && !guildService.canOfficerManageGuildLand(player, current))
+        ) {
+          openDialogForm(
+            player,
+            {
+              title: "设置传送点",
+              desc: color.red(typeof current === "string" ? current : "你的职位已变化，无法设置该公会领地传送点。"),
+            },
+            returnToDetail
+          );
+          return;
+        }
         const res = landManager.setTeleportPoint(_land.name, player.location);
         if (typeof res === "string") {
           openDialogForm(
@@ -952,6 +1037,21 @@ export function openLandTeleportPointForm(player: Player, _land: ILand, returnTo
       text: "删除传送点",
       icon: "textures/icons/copkutusu",
       action: () => {
+        const current = landManager.getLand(_land.name);
+        if (
+          typeof current === "string" ||
+          (current.guildId && !playerIsAdmin(player) && !guildService.canOfficerManageGuildLand(player, current))
+        ) {
+          openDialogForm(
+            player,
+            {
+              title: "删除传送点",
+              desc: color.red(typeof current === "string" ? current : "你的职位已变化，无法删除该公会领地传送点。"),
+            },
+            returnToDetail
+          );
+          return;
+        }
         const res = landManager.removeTeleportPoint(_land.name);
         if (typeof res === "string") {
           openDialogForm(
@@ -1034,8 +1134,11 @@ export const openLandDetailForm = (
     if (typeof fresh !== "string") openLandDetailForm(player, fresh, isAdmin, returnForm);
   };
 
-  /** 公会领地：会长/副会长或管理员可管理传送点与删除 */
-  const canManageGuildLand = isGuildLand && (guildService.canOfficerManageGuildLand(player, landData) || isAdmin);
+  /** 公会领地：会长/副会长管理日常设置；删除、解除归属仅限会长或管理员。 */
+  const canManageGuildLand =
+    isGuildLand && (guildService.canOfficerManageGuildLand(player, landData) || playerIsAdmin(player));
+  const canManageGuildLandDangerously =
+    isGuildLand && (guildService.canOwnerManageGuildLand(player, landData) || playerIsAdmin(player));
 
   type Btn = { text: string; icon: string; action: () => void };
   const buttons: Btn[] = [];
@@ -1081,18 +1184,49 @@ export const openLandDetailForm = (
     }
 
     if (canManageGuildLand) {
-      if (isAdmin) {
-        buttons.push({
-          text: "领地快照",
-          icon: "textures/icons/fotograf",
-          action: () => openLandSnapshotForm(player, landData, reopenDetail),
-        });
-      }
+      buttons.push({
+        text: "领地公开权限",
+        icon: "textures/icons/party_remove",
+        action: () => openLandAuthForm(player, landData, reopenDetail),
+      });
+      buttons.push({
+        text: "领地快照",
+        icon: "textures/icons/fotograf",
+        action: () => openLandSnapshotForm(player, landData, reopenDetail),
+      });
       if (canUseLandTeleport(player)) {
         buttons.push({
           text: landData.teleportPoint ? "修改传送点" : "设置传送点",
           icon: "textures/icons/menu_waypoint",
           action: () => openLandTeleportPointForm(player, landData, reopenDetail),
+        });
+      }
+    }
+
+    if (canManageGuildLandDangerously) {
+      if (!isAdmin) {
+        buttons.push({
+          text: "解除公会归属",
+          icon: "textures/icons/party_remove",
+          action: () =>
+            openConfirmDialogForm(
+              player,
+              "解除公会领地归属",
+              `§e解除后，「${landData.name}」将恢复为创建者 §f${landData.owner} §e的个人领地，并占用其个人领地配额。确定继续吗？`,
+              () => {
+                const err = guildService.unbindGuildLandByOwner(player, landData.name);
+                openDialogForm(
+                  player,
+                  {
+                    title: err ? "解除失败" : "已解除归属",
+                    desc: err ? color.red(err) : color.green("该领地已恢复为创建者的个人领地。"),
+                  },
+                  err ? reopenDetail : returnForm
+                );
+              },
+              reopenDetail,
+              { dangerConfirm: true }
+            ),
         });
       }
       buttons.push({
@@ -1773,7 +1907,7 @@ export const openSearchLandForm = (player: Player, returnForm?: () => void): voi
 
 /** 仅管理员：列出所有带 guildId 的领地，进入详情后可删改传送点等 */
 export function openAdminGuildLandListForm(player: Player, page: number = 1, returnForm?: () => void): void {
-  if (!isAdmin(player)) {
+  if (!playerIsAdmin(player)) {
     openDialogForm(player, { title: "提示", desc: color.red("只有管理员可操作") }, () => {
       if (returnForm) returnForm();
       else openSystemSettingForm(player);

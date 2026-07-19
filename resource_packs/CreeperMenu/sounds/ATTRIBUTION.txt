@@ -1,0 +1,59 @@
+进服欢迎音乐来源记录
+====================
+
+以下音乐下载自 DOVA-SYNDROME，仅用于本项目的个人自用版本。
+音频已转换为 OGG Vorbis，并统一为 44.1 kHz、双声道及约 -17 LUFS。
+
+welcome.ogg
+  曲名：トーン高めのオープニング
+  作者：Kyaai
+  来源：https://dova-s.jp/bgm/play9226.html
+
+1.ogg
+  曲名：アコーディオンのかわいいジングル / cute Accordion jingle
+  作者：いまたく
+  来源：https://dova-s.jp/en/bgm/detail/11681
+
+2.ogg
+  曲名：陽気なジングル / Cheerful jingle
+  作者：いまたく
+  来源：https://dova-s.jp/en/bgm/detail/11636
+
+3.ogg
+  曲名：少年は自転車に乗って！
+  作者：KK
+  来源：https://dova-s.jp/bgm/play10093.html
+
+4.ogg
+  曲名：Cats Survival（Track 2 Jingle）
+  作者：Anonyment
+  来源：https://dova-s.jp/bgm/play13091.html
+
+5.ogg
+  曲名：Child Play
+  作者：Anonyment
+  来源：https://dova-s.jp/bgm/detail/13114
+
+6.ogg
+  曲名：お気楽ジングル
+  作者：shimtone
+  来源：https://dova-s.jp/bgm/detail/16089
+
+7.ogg
+  曲名：Clear Sky
+  作者：FLASH☆BEAT
+  来源：https://dova-s.jp/bgm/play11058.html
+
+8.ogg
+  曲名：pop step!!（Track 3 Jingle）
+  作者：しんさんわーくす
+  来源：https://dova-s.jp/bgm/play4848.html
+
+9.ogg
+  曲名：Green Stage（Track 2 Jingle）
+  作者：Anonyment
+  来源：https://dova-s.jp/bgm/play1964.html
+
+DOVA-SYNDROME 音源利用许可：
+https://dova-s.jp/en/contents/license
+

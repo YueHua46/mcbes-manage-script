@@ -3,8 +3,8 @@
  * 完整迁移自 Modules/Player/Forms.ts (497行)
  */
 
-import { Player } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { Player, system } from "@minecraft/server";
+import { ActionFormData, FormCancelationReason, ModalFormData } from "@minecraft/server-ui";
 import { openServerMenuForm } from "../server";
 import { useAllPlayers } from "../../../shared/hooks/use-player";
 import { color } from "../../../shared/utils/color";
@@ -17,6 +17,7 @@ import { isAdmin } from "../../../shared/utils/common";
 import { teleportPlayer as doTpaTeleport, notifyReject } from "../../../features/player/services/tpa-logic";
 import * as tpaRequest from "../../../features/player/services/tpa-request";
 import { openFakePlayerMenu } from "./fake-player";
+import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
 
 // ==================== TPA传送系统 ====================
 
@@ -46,23 +47,64 @@ function createRequestTpaForm(
   return form;
 }
 
-export function openRequestTpaForm(requestPlayer: Player, targetPlayer: Player, type: "to" | "come"): void {
-  const title = `${"玩家传送请求"}`;
-  const form = createRequestTpaForm(title, requestPlayer, targetPlayer, type);
+function waitTpaFormRetry(): Promise<void> {
+  return new Promise((resolve) => system.runTimeout(resolve, 5));
+}
 
-  form.show(targetPlayer).then((data) => {
-    if (data.cancelationReason) {
-      return requestPlayer.sendMessage(color.red("用户正处于其他UI界面！传送失败"));
+export async function openRequestTpaForm(
+  requestPlayerName: string,
+  targetPlayerName: string,
+  type: "to" | "come",
+  requestId: number
+): Promise<void> {
+  const title = `${"玩家传送请求"}`;
+  while (tpaRequest.isPendingRequest(targetPlayerName, requestId)) {
+    const requestPlayer = getOnlineRealPlayerByName(requestPlayerName);
+    const targetPlayer = getOnlineRealPlayerByName(targetPlayerName);
+    if (!requestPlayer || !targetPlayer) {
+      if (tpaRequest.cancelPendingRequest(targetPlayerName, requestId)) {
+        if (requestPlayer) {
+          requestPlayer.sendMessage(color.red("目标玩家已离线，传送请求已取消。"));
+        } else if (targetPlayer) {
+          targetPlayer.sendMessage(color.gray("请求方已离线，传送请求已取消。"));
+        }
+      }
+      return;
     }
-    switch (data.selection) {
-      case 0:
-        doTpaTeleport(requestPlayer, targetPlayer, type);
-        break;
-      case 1:
-        notifyReject(requestPlayer, targetPlayer);
-        break;
+
+    const form = createRequestTpaForm(title, requestPlayer, targetPlayer, type);
+    try {
+      const data = await form.show(targetPlayer);
+      if (data.cancelationReason === FormCancelationReason.UserBusy) {
+        await waitTpaFormRetry();
+        continue;
+      }
+
+      const pending = tpaRequest.takePendingRequest(targetPlayerName, requestId);
+      if (!pending) return;
+
+      const currentRequestPlayer = getOnlineRealPlayerByName(pending.requestPlayerName);
+      const currentTargetPlayer = getOnlineRealPlayerByName(targetPlayerName);
+      if (!currentRequestPlayer) {
+        currentTargetPlayer?.sendMessage(color.gray("请求方已离线，传送请求已取消。"));
+        return;
+      }
+      if (!currentTargetPlayer) {
+        currentRequestPlayer.sendMessage(color.red("目标玩家已离线，传送请求已取消。"));
+        return;
+      }
+
+      if (!data.canceled && data.selection === 0) {
+        doTpaTeleport(currentRequestPlayer, currentTargetPlayer, pending.type);
+      } else {
+        notifyReject(currentRequestPlayer, currentTargetPlayer);
+      }
+      return;
+    } catch {
+      // 客户端切换界面时 show 偶尔会抛错；请求仍有效就稍后继续尝试。
+      await waitTpaFormRetry();
     }
-  });
+  }
 }
 
 function createPlayerTpaForm(allPlayer: Player[]): ModalFormData {
@@ -93,19 +135,29 @@ export function openPlayerTpaForm(player: Player): void {
       }
       const type = Number(formValues[1]) === 0 ? "to" : "come";
 
-      if (PlayerSetting.getTPADoNotDisturb(targetPlayer)) {
-        tpaRequest.addPendingRequest(targetPlayer, player, type);
-        const typeDesc = type === "to" ? "请求传送到你旁边" : "请求你传送到他旁边";
-        targetPlayer.sendMessage(
-          `${color.yellow("【TPA】")} ${color.yellow(player.name)} ${color.green(typeDesc)}。` +
-            `${color.gray(` 在聊天输入 tpaccept 接受 或 tpreject 拒绝，${tpaRequest.TPA_TIMEOUT_SECONDS}秒内有效。`)}`
-        );
+      const latestTarget = getOnlineRealPlayerByName(targetPlayer.name);
+      if (!latestTarget) {
+        return player.sendMessage(color.red("目标玩家已离线，传送请求未发送。"));
+      }
+
+      const pending = tpaRequest.addPendingRequest(latestTarget, player, type);
+      if (!pending.ok) {
+        return player.sendMessage(color.yellow("对方已有一条待处理的传送请求，请稍后再试。"));
+      }
+
+      const typeDesc = type === "to" ? "请求传送到你旁边" : "请求你传送到他旁边";
+      latestTarget.sendMessage(
+        `${color.yellow("【TPA】")} ${color.yellow(player.name)} ${color.green(typeDesc)}。` +
+          `${color.gray(` 可输入 tpaccept 接受或 tpreject 拒绝，${tpaRequest.TPA_TIMEOUT_SECONDS}秒内有效。`)}`
+      );
+
+      if (PlayerSetting.getTPADoNotDisturb(latestTarget)) {
         player.sendMessage(color.green("对方开启了勿扰模式，已通过聊天提示对方，请等待回复。"));
         return;
       }
 
-      player.sendMessage(color.green("已发送传送请求"));
-      openRequestTpaForm(player, targetPlayer, type);
+      player.sendMessage(color.green("已发送传送请求，请等待对方处理。"));
+      void openRequestTpaForm(player.name, latestTarget.name, type, pending.requestId);
     } else {
       player.sendMessage(color.red("传送请求失败"));
     }

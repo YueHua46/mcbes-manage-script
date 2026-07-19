@@ -4,7 +4,19 @@ import type { ILand } from "../../../core/types";
 import landSnapshotService, { LandSnapshotRecord } from "../../../features/land/services/land-snapshot";
 import { color } from "../../../shared/utils/color";
 import { formatDateTime } from "../../../shared/utils/format";
-import { openConfirmDialogForm } from "../../components/dialog";
+import { isAdmin } from "../../../shared/utils/common";
+import guildService from "../../../features/guild/services/guild-service";
+import landManager from "../../../features/land/services/land-manager";
+import { openConfirmDialogForm, openDialogForm } from "../../components/dialog";
+
+function canManageLandSnapshots(player: Player, landName: string): ILand | undefined {
+  const current = landManager.getLand(landName);
+  if (typeof current === "string") return undefined;
+  const allowed = current.guildId
+    ? isAdmin(player) || guildService.canOfficerManageGuildLand(player, current)
+    : isAdmin(player) || current.owner === player.name;
+  return allowed ? current : undefined;
+}
 
 function openSnapshotDialog(
   player: Player,
@@ -109,6 +121,10 @@ function openCreateSnapshotOptionsForm(player: Player, land: ILand, back: () => 
         "保存过程中可能出现短暂卡顿，确定继续吗？",
       ].join("\n"),
       () => {
+        if (!canManageLandSnapshots(player, land.name)) {
+          openSnapshotDialog(player, "保存未启动", color.red("你的权限已变化，无法保存该领地快照。"), back);
+          return;
+        }
         const result = landSnapshotService.createSnapshot(player, land.name, { includeEntities });
         openSnapshotDialog(
           player,
@@ -159,6 +175,10 @@ function openSnapshotDetailForm(player: Player, land: ILand, snapshot: LandSnaps
           "§c这会覆盖对应区域内的方块，确定继续吗？",
         ].join("\n"),
         () => {
+          if (!canManageLandSnapshots(player, land.name)) {
+            openSnapshotDialog(player, "恢复未启动", color.red("你的权限已变化，无法恢复该领地快照。"), back);
+            return;
+          }
           const result = landSnapshotService.restoreSnapshot(player, snapshot.id);
           openSnapshotDialog(
             player,
@@ -180,6 +200,10 @@ function openSnapshotDetailForm(player: Player, land: ILand, snapshot: LandSnaps
         "删除领地快照",
         `将删除该快照和它保存的 ${snapshot.chunkCount} 个结构分片。\n\n删除后不可恢复，确定继续吗？`,
         () => {
+          if (!canManageLandSnapshots(player, land.name)) {
+            openSnapshotDialog(player, "删除失败", color.red("你的权限已变化，无法删除该领地快照。"), back);
+            return;
+          }
           const result = landSnapshotService.deleteSnapshot(snapshot.id);
           openSnapshotDialog(
             player,
@@ -198,14 +222,20 @@ function openSnapshotDetailForm(player: Player, land: ILand, snapshot: LandSnaps
 }
 
 export function openLandSnapshotForm(player: Player, land: ILand, back: () => void): void {
-  const snapshots = landSnapshotService.listByLand(land.name);
+  const currentLand = canManageLandSnapshots(player, land.name);
+  if (!currentLand) {
+    openDialogForm(player, { title: "领地快照", desc: color.red("你没有管理该领地快照的权限。") }, back);
+    return;
+  }
+
+  const snapshots = landSnapshotService.listByLand(currentLand.name);
   const form = new ActionFormData();
   form.title("领地快照");
   form.body(
     [
-      `${color.gold("领地：")}${color.yellow(land.name)}`,
+      `${color.gold("领地：")}${color.yellow(currentLand.name)}`,
       "",
-      landSnapshotService.describePlan(land),
+      landSnapshotService.describePlan(currentLand),
       "",
       color.gray("保存快照时可选择是否包含实体。保存和恢复会按分片逐 tick 执行。"),
     ].join("\n")
@@ -219,7 +249,9 @@ export function openLandSnapshotForm(player: Player, land: ILand, back: () => vo
       "textures/icons/region"
     );
   }
-  form.button("切块上限设置", "textures/icons/settings");
+  if (isAdmin(player)) {
+    form.button("切块上限设置", "textures/icons/settings");
+  }
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -230,19 +262,21 @@ export function openLandSnapshotForm(player: Player, land: ILand, back: () => vo
     if (selection === undefined || selection === null) return;
 
     if (selection === 0) {
-      openCreateSnapshotOptionsForm(player, land, () => openLandSnapshotForm(player, land, back));
+      openCreateSnapshotOptionsForm(player, currentLand, () => openLandSnapshotForm(player, currentLand, back));
       return;
     }
 
     const snapshotIndex = selection - 1;
     if (snapshotIndex >= 0 && snapshotIndex < Math.min(snapshots.length, 12)) {
-      openSnapshotDetailForm(player, land, snapshots[snapshotIndex], () => openLandSnapshotForm(player, land, back));
+      openSnapshotDetailForm(player, currentLand, snapshots[snapshotIndex], () =>
+        openLandSnapshotForm(player, currentLand, back)
+      );
       return;
     }
 
     const limitButtonIndex = Math.min(snapshots.length, 12) + 1;
-    if (selection === limitButtonIndex) {
-      openChunkLimitSettingsForm(player, land, () => openLandSnapshotForm(player, land, back));
+    if (isAdmin(player) && selection === limitButtonIndex) {
+      openChunkLimitSettingsForm(player, currentLand, () => openLandSnapshotForm(player, currentLand, back));
       return;
     }
 
