@@ -33,10 +33,10 @@ export function openEconomyMenuForm(player: Player): void {
   form.body({ rawtext });
 
   form.button("钱包", "textures/icons/rewards");
-  form.button("商店", "textures/icons/shop");
-  form.button("拍卖行", "textures/icons/sandik");
+  form.button("商店", "textures/icons/menu_shop");
+  form.button("拍卖行", "textures/icons/menu_auction");
   form.button("出售物品", "textures/icons/coins");
-  form.button("转账", "textures/icons/trade");
+  form.button("转账", "textures/icons/menu_transfer");
   form.button("红包", "textures/icons/gift");
   form.button("排行榜", "textures/icons/trophy");
   form.button("返回", "textures/icons/back");

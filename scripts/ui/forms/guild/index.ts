@@ -242,7 +242,7 @@ async function openGuildBrowseListForm(player: Player, page: number = 1): Promis
     const tagPlain = stripSectionForUi(row.tag);
     const namePlain = stripSectionForUi(row.name);
     const line2 = `[${tagPlain}] ${namePlain} · 贡献 ${formatNumber(row.totalContribution)} · 人数 ${row.memberCount}/${memberCap}`;
-    form.button(`${namePlain}\n${line2}`, "textures/icons/island");
+    form.button(`${namePlain}\n${line2}`, "textures/icons/menu_guild");
     rowActions.push(() => openGuildPublicDetailMenu(player, row.id, snap.page));
   }
 
@@ -682,7 +682,7 @@ async function openGuildMemberListForm(player: Player, page: number = 1): Promis
   for (const row of slice) {
     const nm = stripSectionForUi(row.playerName);
     const prefix = row.role === "owner" ? "[会长] " : row.role === "officer" ? "[副会] " : "";
-    form.button(`${prefix}${nm}\n贡献 ${formatNumber(row.contribution)} 金币`, "textures/icons/amongus");
+    form.button(`${prefix}${nm}\n贡献 ${formatNumber(row.contribution)} 金币`, "textures/icons/profile");
     rowActions.push(() => openGuildMemberDetailForm(player, row, pageClamped));
   }
 
@@ -812,7 +812,7 @@ async function openGuildCoordWaypointDetail(player: Player, dbKey: string, role:
     }
   });
 
-  form.button("更新为当前位置", "textures/icons/ada");
+  form.button("更新为当前位置", "textures/icons/menu_waypoint");
   actions.push(() => {
     const err = guildService.relocateGuildWaypointToHere(player, dbKey);
     openDialogForm(
@@ -949,7 +949,7 @@ async function openGuildLandListSubmenu(player: Player): Promise<void> {
 
   for (const land of bound) {
     const ln = stripSectionForUi(land.name);
-    form.button(`${ln}\n${getDimensionName(land.dimension)}`, "textures/icons/island");
+    form.button(`${ln}\n${getDimensionName(land.dimension)}`, "textures/icons/menu_land");
     actions.push(() => openLandDetailForm(player, land, false, () => void openGuildLandListSubmenu(player)));
   }
 
@@ -996,11 +996,11 @@ async function openGuildLandsMenu(player: Player): Promise<void> {
 
   const actions: Array<() => void | Promise<void>> = [];
 
-  form.button(`公会领地列表\n查看本会领地`, "textures/icons/island");
+  form.button(`公会领地列表\n查看本会领地`, "textures/icons/menu_land");
   actions.push(() => void openGuildLandListSubmenu(player));
 
   if (role === "owner" || role === "officer") {
-    form.button("新建公会领地（木棍圈地）", "textures/icons/ada");
+    form.button("新建公会领地（木棍圈地）", "textures/icons/menu_land");
     actions.push(() => {
       openLandApplyForm(player, {
         guildId: g.id,
@@ -1040,8 +1040,8 @@ export async function openGuildMenuForm(player: Player): Promise<void> {
     body += "§e你有待处理的公会邀请，请进入「我的公会」处理。\n";
   }
   form.body(body);
-  form.button("公会列表", "textures/icons/island");
-  form.button("我的公会", "textures/icons/bina");
+  form.button("公会列表", "textures/icons/menu_guild");
+  form.button("我的公会", "textures/icons/menu_guild");
   form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
@@ -1097,7 +1097,7 @@ async function openGuildMyGuildMenu(player: Player): Promise<void> {
     });
     form.button("公会坐标", "textures/icons/fast_travel");
     actions.push(() => void openGuildCoordMenu(player));
-    form.button("公会领地", "textures/icons/bina");
+    form.button("公会领地", "textures/icons/menu_land");
     actions.push(() => void openGuildLandsMenu(player));
     form.button("公会历史", "textures/icons/saat");
     actions.push(() => void openGuildHistoryForm(player, guild.id, 0, []));
@@ -1109,7 +1109,7 @@ async function openGuildMyGuildMenu(player: Player): Promise<void> {
       form.button("申请加入列表", "textures/icons/social");
       actions.push(() => openGuildJoinRequestListForm(player, 1));
     }
-    form.button("公会金库", "textures/icons/sandik");
+    form.button("公会金库", "textures/icons/menu_economy");
     actions.push(() => openGuildBankMenu(player));
     form.button("每日红包", "textures/icons/gift");
     actions.push(() => void openGuildDailyRedPacketMenu(player));
@@ -1217,7 +1217,7 @@ async function openCreateGuildForm(player: Player): Promise<void> {
   const info = new ActionFormData();
   info.title("创建公会");
   info.body(buildCreateGuildBody(player));
-  info.button("继续填写名称与标签", "textures/icons/island");
+  info.button("继续填写名称与标签", "textures/icons/menu_guild");
   info.button("返回", "textures/icons/back");
 
   const step1 = await info.show(player);
@@ -1341,8 +1341,8 @@ async function openGuildBankMenu(player: Player): Promise<void> {
   const form = new ActionFormData();
   form.title("公会金库");
   form.body(`§7个人余额: §6${wallet}\n§0金库余额: §6${treasury}`);
-  form.button("存入金币", "textures/icons/shop_bank");
-  form.button("取出金币", "textures/icons/shop_bank");
+  form.button("存入金币", "textures/icons/menu_transfer");
+  form.button("取出金币", "textures/icons/menu_transfer");
   form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
@@ -1657,7 +1657,7 @@ async function openMemberManageMenu(player: Player): Promise<void> {
     actions.push(() =>
       openMemberTargetModal(player, "降为成员", buildDemoteTargetNames, (name) => guildService.demote(player, name))
     );
-    form.button("转让会长", "textures/icons/shop_bank");
+    form.button("转让会长", "textures/icons/party_invites");
     actions.push(() =>
       openMemberTargetModal(
         player,

@@ -82,7 +82,7 @@ export function openStatsHubForm(player: Player, options?: OpenStatsHubOptions):
   form.button("击杀排行榜（非玩家生物）", "textures/icons/game_survival_games");
   form.button("死亡次数排行榜", "textures/icons/dead");
   form.button("击杀排行榜（玩家）", "textures/icons/kilic");
-  form.button("等级排行榜", "textures/icons/gem");
+  form.button("等级排行榜", "textures/icons/star");
   form.button("在线时长排行榜", "textures/icons/saat");
   form.button("返回", "textures/icons/back");
 

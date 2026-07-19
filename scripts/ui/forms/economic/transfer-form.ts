@@ -26,7 +26,7 @@ class TransferForm {
           economic.getWallet(player.name).gold
         } ${colorCodes.yellow}金币`
       )
-      .button("开始转账", "textures/icons/shop_bank")
+      .button("开始转账", "textures/icons/menu_transfer")
       .button("返回", "textures/icons/back");
 
     form.show(player).then((response) => {

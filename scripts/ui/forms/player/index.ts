@@ -406,7 +406,7 @@ export function openPlayerDisplaySettingsForm(player: Player): void {
   });
 
   form.button("设置名字颜色", "textures/icons/asker");
-  form.button("设置别名", "textures/icons/dragon");
+  form.button("设置别名", "textures/icons/edit2");
   form.button("重置设置", "textures/icons/leave_queue");
   form.button("返回", "textures/icons/back");
 

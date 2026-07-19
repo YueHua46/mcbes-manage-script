@@ -359,7 +359,7 @@ export function openLandApplyForm(player: Player, guildApply?: GuildLandApplyCon
     const info = new ActionFormData();
     info.title("创建公会领地");
     info.body(buildGuildLandApplyInfoBody(guildApply.guildId));
-    info.button("继续填写", "textures/icons/ada");
+    info.button("继续填写", "textures/icons/menu_land");
     info.button("返回", "textures/icons/back");
     info.show(player).then((data) => {
       if (data.canceled || data.cancelationReason) {
@@ -902,7 +902,7 @@ export function openLandTeleportPointForm(player: Player, _land: ILand, returnTo
   const buttons = [
     {
       text: "使用当前位置设置传送点",
-      icon: "textures/icons/uye",
+      icon: "textures/icons/menu_waypoint",
       action: () => {
         const res = landManager.setTeleportPoint(_land.name, player.location);
         if (typeof res === "string") {
@@ -1027,7 +1027,7 @@ export const openLandDetailForm = (
     if (landData.teleportPoint && canAccess) {
       buttons.push({
         text: "传送回领地",
-        icon: "textures/icons/durbun",
+        icon: "textures/icons/menu_waypoint",
         action: () => {
           const res = landManager.teleportToLand(player, landData.name);
           if (typeof res === "string") {
@@ -1047,7 +1047,7 @@ export const openLandDetailForm = (
     if (!isAdmin && canAccess && canShowLandFlightEntry(player) && isPlayerStandingOnLand(player, landData.name)) {
       buttons.push({
         text: "领地飞行（限时）",
-        icon: "textures/icons/ada",
+        icon: "textures/icons/fast_travel",
         action: () => {
           const err = tryStartLandFlightSession(player);
           if (typeof err === "string") {
@@ -1073,7 +1073,7 @@ export const openLandDetailForm = (
       }
       buttons.push({
         text: landData.teleportPoint ? "修改传送点" : "设置传送点",
-        icon: "textures/icons/ada",
+        icon: "textures/icons/menu_waypoint",
         action: () => openLandTeleportPointForm(player, landData, reopenDetail),
       });
       buttons.push({
@@ -1172,7 +1172,7 @@ export const openLandDetailForm = (
   if (landData.teleportPoint && canAccess) {
     buttons.push({
       text: "传送回领地",
-      icon: "textures/icons/durbun",
+      icon: "textures/icons/menu_waypoint",
       action: () => {
         const res = landManager.teleportToLand(player, landData.name);
         if (typeof res === "string") {
@@ -1191,7 +1191,7 @@ export const openLandDetailForm = (
   if (canAccess && canShowLandFlightEntry(player) && isPlayerStandingOnLand(player, landData.name)) {
     buttons.push({
       text: "领地飞行（限时）",
-      icon: "textures/icons/ada",
+      icon: "textures/icons/fast_travel",
       action: () => {
         const err = tryStartLandFlightSession(player);
         if (typeof err === "string") {
@@ -1220,7 +1220,7 @@ export const openLandDetailForm = (
         : []),
       {
         text: "领地成员管理",
-        icon: "textures/icons/party_unavailable",
+        icon: "textures/icons/social",
         action: () => openLandMemberForm(player, landData),
       },
       {
@@ -1235,7 +1235,7 @@ export const openLandDetailForm = (
       },
       {
         text: landData.teleportPoint ? "修改传送点" : "设置传送点",
-        icon: "textures/icons/ada",
+        icon: "textures/icons/menu_waypoint",
         action: () => openLandTeleportPointForm(player, landData, reopenDetail),
       },
       {
@@ -1372,7 +1372,7 @@ export function openLandListForm(player: Player, isAdmin: boolean = false, page:
         `${landData.name} ${
           isAdmin ? landData.owner : landData.owner === player.name ? "（个人领地）" : "（他人领地）"
         }`,
-        "textures/icons/island"
+        "textures/icons/menu_land"
       );
     });
     form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
@@ -1512,7 +1512,7 @@ export function openLandManageForms(player: Player): void {
   if (canShowLandFlightEntry(player)) {
     buttons.push({
       text: buildLandFlightButtonLabel(player),
-      icon: "textures/icons/durbun",
+      icon: "textures/icons/fast_travel",
       action: () => {
         const err = tryStartLandFlightSession(player);
         if (typeof err === "string") {
@@ -1540,7 +1540,7 @@ export function openLandManageForms(player: Player): void {
     },
     {
       text: "领地申请",
-      icon: "textures/icons/ada",
+      icon: "textures/icons/menu_land",
       action: () => openLandApplyForm(player),
     },
     {
@@ -1791,7 +1791,7 @@ export function openAdminGuildLandListForm(player: Player, page: number = 1, ret
     const tag = g ? `[${g.tag}]` : "[?]";
     form.button(
       `${landData.name}\n${tag} ${landData.owner} · ${getDimensionName(landData.dimension)}`,
-      "textures/icons/island"
+      "textures/icons/menu_land"
     );
   });
 
@@ -1849,7 +1849,7 @@ export const openAllPlayerLandManageForm = (player: Player, page: number = 1, re
     const playerLands = Object.values(landManager.getLandList()).filter((l) => l.owner === playerName && !l.guildId);
     form.button(
       `${color.blue(playerName)} 的所有领地\n${color.darkPurple("领地数量:")} ${playerLands.length}`,
-      "textures/icons/uye"
+      "textures/icons/menu_player"
     );
   });
 

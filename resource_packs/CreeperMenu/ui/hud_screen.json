@@ -58,6 +58,12 @@
     "$cm_actionbar_text": "$actionbar_text",
     "visible": "((($cm_actionbar_text - '[CMHUD]') = $cm_actionbar_text) and (($cm_actionbar_text - '[CMHUD_HIDE]') = $cm_actionbar_text))"
   },
+  "hud_title_text/title_frame/title_background": {
+    "ignored": true
+  },
+  "hud_title_text/subtitle_frame/subtitle_background": {
+    "ignored": true
+  },
   "root_panel": {
     "modifications": [
       {

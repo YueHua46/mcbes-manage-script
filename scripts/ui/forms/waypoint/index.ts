@@ -328,7 +328,7 @@ export const openWayPointDetailForm = (
   const buttons = [
     {
       text: "传送至此",
-      icon: "textures/icons/durbun",
+      icon: "textures/icons/menu_waypoint",
       action: () => {
         // 使用坐标点所有者的名称进行传送
         const ownerName = playerName || point.playerName;

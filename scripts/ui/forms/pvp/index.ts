@@ -163,7 +163,7 @@ function openPvpLeaderboardMenu(player: Player): void {
 
   form.button("击杀排行榜", "textures/icons/game_survival_games");
   form.button("最佳连杀排行榜", "textures/icons/kilic");
-  form.button("夺取金币排行榜", "textures/icons/clock");
+  form.button("夺取金币排行榜", "textures/icons/coins");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((response) => {

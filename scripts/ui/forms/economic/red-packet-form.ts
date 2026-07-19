@@ -31,7 +31,7 @@ export function openRedPacketMenu(player: Player): void {
     .title("红包")
     .body(body)
     .button("发红包", "textures/icons/gift")
-    .button("待领红包", "textures/icons/shop_bank")
+    .button("待领红包", "textures/icons/gift")
     .button("领取详细", "textures/icons/quest_daily_common")
     .button("返回", "textures/icons/back");
 

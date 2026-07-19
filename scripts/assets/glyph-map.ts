@@ -237,6 +237,26 @@ export const officeShopCategoryIcons: [string[], string[]] = [
 // welcome fox
 export const welcomeFoxGlyphs: string[] = [""];
 
+// 进服欢迎角色（glyph_E8.png 第一行）
+export const welcomeCharacterGlyphs: string[] = [
+  "\uE800",
+  "\uE801",
+  "\uE802",
+  "\uE803",
+  "\uE804",
+  "\uE805",
+  "\uE806",
+  "\uE807",
+  "\uE808",
+  "\uE809",
+  "\uE80A",
+  "\uE80B",
+  "\uE80C",
+  "\uE80D",
+  "\uE80E",
+  "\uE80F",
+];
+
 export const glyphKeys = Object.keys(glyphMap) as GlyphKey[];
 
 export const glyphList = Object.values(glyphMap);

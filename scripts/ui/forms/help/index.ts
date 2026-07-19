@@ -95,7 +95,7 @@ export const openHelpMenuForm = (player: Player): void => {
     },
     {
       text: `${BRANDING.MENU_ITEM_LABEL}丢失了怎么办？`,
-      icon: "textures/icons/uye",
+      icon: "textures/icons/menu_item",
     },
   ];
 

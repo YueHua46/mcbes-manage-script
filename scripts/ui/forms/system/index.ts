@@ -178,24 +178,24 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "领地系统管理",
-      icon: "textures/icons/home",
+      icon: "textures/icons/menu_land",
       action: async () => {
         openLandManageForm(player);
       },
     },
     {
       text: "坐标点管理",
-      icon: "textures/icons/checkpoint",
+      icon: "textures/icons/menu_waypoint",
       action: () => openWayPointManageMenu(player),
     },
     {
       text: "公会系统管理",
-      icon: "textures/icons/bina",
+      icon: "textures/icons/menu_guild",
       action: () => openGuildSystemSettingsMenu(player),
     },
     {
       text: "悬浮文字管理",
-      icon: "textures/icons/chat_bubble_white",
+      icon: "textures/icons/menu_floating_text",
       action: () => openFloatingTextMenu(player),
     },
     {
@@ -217,7 +217,7 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "经济系统管理",
-      icon: "textures/icons/shop_bank",
+      icon: "textures/icons/menu_economy",
       action: () => openEconomyManageForm(player),
     },
     {
@@ -227,12 +227,12 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "任务系统",
-      icon: "textures/icons/quest_log",
+      icon: "textures/icons/menu_quest",
       action: () => openQuestSystemManageForm(player, () => openSystemSettingForm(player)),
     },
     {
       text: "PVP管理",
-      icon: "textures/icons/sword",
+      icon: "textures/icons/menu_pvp",
       action: async () => {
         const { openPvpManagementForm } = await import("../pvp/admin");
         openPvpManagementForm(player);
@@ -274,7 +274,7 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "离线玩家时长查询",
-      icon: "textures/icons/party_unavailable",
+      icon: "textures/icons/saat",
       action: () => openOfflineDurationQueryMenu(player, () => openSystemSettingForm(player)),
     },
     {
@@ -1024,7 +1024,7 @@ export const openWayPointManageMenu = (player: Player): void => {
   const form = new ActionFormData();
   form.title("坐标点管理");
 
-  form.button("所有玩家坐标点管理", "textures/icons/game_parkour_tag");
+  form.button("所有玩家坐标点管理", "textures/icons/menu_waypoint");
   form.button("搜索玩家坐标点", "textures/ui/magnifyingGlass");
   form.button("返回", "textures/icons/back");
 
@@ -1065,7 +1065,7 @@ function openPlayerWayPointManageForm(player: Player, page: number = 1, returnFo
     // 使用亮色系在淡灰色背景下更清晰：蓝色玩家名 + 清晰的标签颜色
     form.button(
       `${color.blue(playerName)} 的所有坐标点\n${color.green("公共:")} ${color.yellow(publicCount.toString())} ${color.white("|")} ${color.aqua("私有:")} ${color.yellow(privateCount.toString())}`,
-      "textures/icons/dinazor"
+      "textures/icons/menu_player"
     );
   });
 
@@ -1347,10 +1347,10 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
 
   form.button("所有玩家领地管理", "textures/icons/topraklar");
   form.button("搜索玩家领地", "textures/ui/magnifyingGlass");
-  form.button("领地飞行设置", "textures/icons/durbun");
+  form.button("领地飞行设置", "textures/icons/fast_travel");
   form.button("领地粒子效果", "textures/icons/gadgets");
   form.button("快照功能设置", "textures/icons/fotograf");
-  form.button("公会领地（管理员）", "textures/icons/island");
+  form.button("公会领地（管理员）", "textures/icons/menu_land");
   form.button("公会坐标（管理员）", "textures/icons/fast_travel");
   form.button("返回", "textures/icons/back");
 
@@ -1402,7 +1402,7 @@ export function openEconomyManageForm(player: Player): void {
   form.title("经济系统管理");
 
   form.button("官方商店管理", "textures/icons/shop");
-  form.button("物品出售价格管理", "textures/icons/clock");
+  form.button("物品出售价格管理", "textures/icons/coins");
   form.button("玩家金币管理", "textures/icons/rewards");
   form.button("功能设置", "textures/icons/gadgets");
   form.button("怪物金币奖励范围", "textures/icons/zombi");

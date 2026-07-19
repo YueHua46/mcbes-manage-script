@@ -219,7 +219,7 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
     ].join("\n")
   );
   form.button("编辑文字和样式", "textures/icons/edit2");
-  form.button("移动到当前位置", "textures/icons/marker_quest");
+  form.button("移动到当前位置", "textures/icons/menu_waypoint");
   form.button("删除", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
 

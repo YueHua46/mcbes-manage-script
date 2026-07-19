@@ -67,7 +67,7 @@ export function openBaseFunctionForm(player: Player): void {
   if (backToDeath) {
     buttons.push({
       text: "回到上次死亡地点",
-      icon: "textures/icons/game_battle_box",
+      icon: "textures/icons/dead",
       action: () => {
         let charged = false;
         try {
@@ -104,7 +104,7 @@ export function openBaseFunctionForm(player: Player): void {
 
   buttons.push({
     text: "服务器状态",
-    icon: "textures/icons/fotograf",
+    icon: "textures/icons/menu_stats",
     action: () => void openLiveServerPanel(player, () => openBaseFunctionForm(player)),
   });
 

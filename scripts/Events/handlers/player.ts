@@ -4,7 +4,7 @@
 
 import { Player, RawMessage, system, world } from "@minecraft/server";
 import { eventRegistry } from "../registry";
-import { welcomeFoxGlyphs, welcomeGlyphs } from "../../assets/glyph-map";
+import { welcomeCharacterGlyphs, welcomeGlyphs } from "../../assets/glyph-map";
 import playerSettings from "../../features/player/services/player-settings";
 import setting from "../../features/system/services/setting";
 import { showJoinPopupAnnouncements } from "../../features/system/services/join-popup-announcement";
@@ -32,11 +32,12 @@ export function registerPlayerEvents(): void {
 
       const left = `${welcomeGlyphs[1]}${welcomeGlyphs[8]}${welcomeGlyphs[6]}${welcomeGlyphs[7]}${welcomeGlyphs[4]}${welcomeGlyphs[2]}`;
       const right = `${welcomeGlyphs[3]}${welcomeGlyphs[4]}${welcomeGlyphs[7]}${welcomeGlyphs[6]}${welcomeGlyphs[8]}${welcomeGlyphs[0]}`;
-      const fox = `${welcomeFoxGlyphs[0]}`;
+      const welcomeCharacter =
+        welcomeCharacterGlyphs[Math.floor(Math.random() * welcomeCharacterGlyphs.length)];
       const serverName = (setting.getState("serverName") as string) || "服务器";
 
       player.runCommand(
-        `titleraw @s subtitle {"rawtext":[{"text":"${fox}\\n\\n${left} §d欢迎来到 ${right}\\n§s${serverName}"}]}`
+        `titleraw @s subtitle {"rawtext":[{"text":"${welcomeCharacter}\\n\\n\\n${left} §d欢迎来到 ${right}\\n§s${serverName}"}]}`
       );
       player.playSound("yuehua.welcome");
 

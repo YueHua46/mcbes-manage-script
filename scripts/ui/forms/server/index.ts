@@ -60,7 +60,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "player",
       text: "玩家操作",
-      icon: "textures/icons/faces",
+      icon: "textures/icons/menu_player",
       action: async (player: Player) => {
         openPlayerActionForm(player);
       },
@@ -68,7 +68,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "wayPoint",
       text: "坐标点管理",
-      icon: "textures/icons/fast_travel",
+      icon: "textures/icons/menu_waypoint",
       action: async (player: Player) => {
         openWayPointMenuForms(player);
       },
@@ -76,7 +76,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "land",
       text: "领地管理",
-      icon: "textures/icons/bina",
+      icon: "textures/icons/menu_land",
       action: async (player: Player) => {
         openLandManageForms(player);
       },
@@ -84,7 +84,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "economy",
       text: "经济系统",
-      icon: "textures/icons/clock",
+      icon: "textures/icons/menu_economy",
       action: async (player: Player) => {
         openEconomyMenuForm(player);
       },
@@ -92,7 +92,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "guild",
       text: "公会",
-      icon: "textures/icons/discord",
+      icon: "textures/icons/menu_guild",
       action: async (player: Player) => {
         await openGuildMenuForm(player);
       },
@@ -100,7 +100,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "floatingText",
       text: "悬浮文字",
-      icon: "textures/icons/chat_bubble_white",
+      icon: "textures/icons/menu_floating_text",
       action: async (player: Player) => {
         openFloatingTextMenu(player);
       },
@@ -109,7 +109,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "pvp",
       text: "PVP系统",
-      icon: "textures/icons/kilic",
+      icon: "textures/icons/menu_pvp",
       action: async (player: Player) => {
         const { openPvpSystemForm } = await import("../pvp");
         openPvpSystemForm(player);
@@ -118,7 +118,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "stats",
       text: "数据统计",
-      icon: "textures/icons/trophy",
+      icon: "textures/icons/menu_stats",
       action: async (player: Player) => {
         const { openStatsHubForm } = await import("../stats");
         openStatsHubForm(player);
@@ -127,7 +127,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "quest",
       text: "任务系统",
-      icon: "textures/icons/quest_log",
+      icon: "textures/icons/menu_quest",
       action: async (player: Player) => {
         openQuestPlayerForm(player, () => void openServerMenuForm(player));
       },
@@ -136,7 +136,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "other",
       text: "其他功能",
-      icon: "textures/icons/accessories",
+      icon: "textures/icons/menu_other",
       action: async (player: Player) => {
         openBaseFunctionForm(player);
       },
@@ -144,7 +144,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "help",
       text: "获取帮助",
-      icon: "textures/icons/marker_quest",
+      icon: "textures/icons/menu_help",
       action: async (player: Player) => {
         openHelpMenuForm(player);
       },
@@ -152,7 +152,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "sm",
       text: `给予我${BRANDING.MENU_ITEM_LABEL}道具`,
-      icon: "textures/icons/uye",
+      icon: "textures/icons/menu_item",
       action: (player: Player) => {
         player.runCommand("give @s yuehua:sm");
       },
@@ -160,7 +160,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     {
       id: "setting",
       text: "服务器设置",
-      icon: "textures/icons/gear",
+      icon: "textures/icons/menu_server_settings",
       action: async (player: Player) => {
         openSystemSettingForm(player);
       },

@@ -23,7 +23,7 @@ class SellItemsForm {
       .body(
         `${colorCodes.green}您可以在这里出售背包中的物品来获取金币。\n${colorCodes.yellow}系统会根据物品的价值给予您相应的金币。`
       )
-      .button("出售单个物品", "textures/icons/gem")
+      .button("出售单个物品", "textures/icons/coins")
       .button("一键出售所有物品", "textures/icons/sandik")
       .button("返回", "textures/icons/back");
 
