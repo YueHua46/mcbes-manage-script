@@ -12,6 +12,8 @@ import {
   EntityEquippableComponent,
   EquipmentSlot,
   EntityDamageCause,
+  StructureSaveMode,
+  type Dimension,
 } from "@minecraft/server";
 import { eventRegistry } from "../registry";
 import { color } from "../../shared/utils/color";
@@ -32,6 +34,10 @@ import setting from "../../features/system/services/setting";
 import economic from "../../features/economic/services/economic";
 import PlayerSetting from "../../features/player/services/player-settings";
 import { getOnlineRealPlayers } from "../../shared/utils/online-players";
+import {
+  findDeniedPistonMove,
+  type PistonBlockMove,
+} from "../../features/land/services/piston-boundary-policy";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
@@ -122,6 +128,8 @@ const LAND_FIRE_SOURCE_TIMEOUT_MS = 15_000;
 const landBreakWarningState = new Map<string, string>();
 const recentLandBreakAttemptLog = new Map<string, number>();
 const LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS = 1500;
+const LAND_PISTON_ROLLBACK_DELAY_TICKS = 2;
+const LAND_PISTON_EVENT_COOLDOWN_TICKS = 6;
 const WITHER_BOSS_TYPE_ID = "minecraft:wither";
 const WITHER_BOSS_EJECT_MARGIN = 4;
 const WITHER_BOSS_CHECK_INTERVAL_TICKS = 10;
@@ -161,6 +169,16 @@ const LAND_SENSITIVE_FLUID_ITEMS = new Map<string, string[]>([
 ]);
 const CONTAINER_BLOCK_KEYWORDS = ["chest", "barrel", "shulker_box", "dispenser", "dropper", "hopper", "crafter"];
 const DOOR_BLOCK_KEYWORDS = ["door", "trapdoor", "fence_gate"];
+const PISTON_FACING_DIRECTIONS: Record<number, Vector3> = {
+  0: { x: 0, y: -1, z: 0 },
+  1: { x: 0, y: 1, z: 0 },
+  2: { x: 0, y: 0, z: -1 },
+  3: { x: 0, y: 0, z: 1 },
+  4: { x: -1, y: 0, z: 0 },
+  5: { x: 1, y: 0, z: 0 },
+};
+const recentDeniedPistonEvents = new Map<string, number>();
+let pistonRollbackSequence = 0;
 
 interface SensitiveEntitySpawnRecord {
   id: string;
@@ -325,6 +343,155 @@ function isLandBreakAllowed(player: Player, land: ILand): boolean {
   if (land.public_auth.break) return true;
   if (landManager.isPlayerTrustedOnLand(land, player.name)) return true;
   return false;
+}
+
+interface PistonRollbackBlock {
+  structureId: string;
+  location: Vector3;
+}
+
+function addVector(location: Vector3, direction: Vector3): Vector3 {
+  return {
+    x: Math.floor(location.x + direction.x),
+    y: Math.floor(location.y + direction.y),
+    z: Math.floor(location.z + direction.z),
+  };
+}
+
+function blockLocationKey(location: Vector3): string {
+  return `${Math.floor(location.x)},${Math.floor(location.y)},${Math.floor(location.z)}`;
+}
+
+function landProtectionKey(land: ILand): string {
+  return land.id || `${land.dimension}:${land.owner}:${land.name}`;
+}
+
+/** 开放公共破坏权限的领地不参与活塞边界保护。 */
+function getPistonProtectedLand(location: Vector3, dimensionId: string): ILand | null {
+  const { isInside, insideLand } = landManager.testLand(location, dimensionId);
+  if (!isInside || !insideLand || insideLand.public_auth.break === true) return null;
+  return insideLand;
+}
+
+function collectRollbackLocations(moves: readonly PistonBlockMove[]): Vector3[] {
+  const locations = new Map<string, Vector3>();
+  for (const move of moves) {
+    locations.set(blockLocationKey(move.source), move.source);
+    locations.set(blockLocationKey(move.destination), move.destination);
+  }
+  return [...locations.values()];
+}
+
+function collectNearbyItemEntityIds(dimension: Dimension, locations: readonly Vector3[]): Set<string> {
+  const ids = new Set<string>();
+  for (const location of locations) {
+    try {
+      const center = { x: location.x + 0.5, y: location.y + 0.5, z: location.z + 0.5 };
+      for (const entity of dimension.getEntities({ type: "minecraft:item", location: center, maxDistance: 2 })) {
+        ids.add(entity.id);
+      }
+    } catch {
+      /* ignore unloaded/invalid positions */
+    }
+  }
+  return ids;
+}
+
+function removeNewPistonDrops(
+  dimension: Dimension,
+  locations: readonly Vector3[],
+  existingItemIds: ReadonlySet<string>
+): void {
+  const handled = new Set<string>();
+  for (const location of locations) {
+    try {
+      const center = { x: location.x + 0.5, y: location.y + 0.5, z: location.z + 0.5 };
+      for (const entity of dimension.getEntities({ type: "minecraft:item", location: center, maxDistance: 2 })) {
+        if (handled.has(entity.id) || existingItemIds.has(entity.id)) continue;
+        handled.add(entity.id);
+        try {
+          entity.remove();
+        } catch {
+          /* ignore entities removed by another handler */
+        }
+      }
+    } catch {
+      /* ignore unloaded/invalid positions */
+    }
+  }
+}
+
+function deletePistonRollbackStructures(snapshots: readonly PistonRollbackBlock[]): void {
+  for (const snapshot of snapshots) {
+    try {
+      world.structureManager.delete(snapshot.structureId);
+    } catch {
+      /* ignore cleanup errors */
+    }
+  }
+}
+
+function rollbackDeniedPistonMovement(
+  dimension: Dimension,
+  pistonLocation: Vector3,
+  facingDirection: Vector3,
+  isExpanding: boolean,
+  moves: readonly PistonBlockMove[],
+  protectedLand: ILand
+): void {
+  const rollbackLocations = collectRollbackLocations(moves);
+  const existingItemIds = collectNearbyItemEntityIds(dimension, rollbackLocations);
+  const snapshots: PistonRollbackBlock[] = [];
+  const rollbackId = `${system.currentTick}_${++pistonRollbackSequence}`;
+
+  try {
+    for (let index = 0; index < rollbackLocations.length; index++) {
+      const location = rollbackLocations[index];
+      const structureId = `creeper_menu:piston_rollback_${rollbackId}_${index}`;
+      world.structureManager.createFromWorld(structureId, dimension, location, location, {
+        includeBlocks: true,
+        includeEntities: false,
+        saveMode: StructureSaveMode.Memory,
+      });
+      snapshots.push({ structureId, location });
+    }
+  } catch (error) {
+    deletePistonRollbackStructures(snapshots);
+    snapshots.length = 0;
+    SystemLog.error("[Land] 无法保存非法活塞移动的临时回滚结构", error);
+  }
+
+  // 先移除动力源活塞，避免恢复方块后在持续红石信号下立刻再次触发。
+  try {
+    dimension.getBlock(pistonLocation)?.setType("minecraft:air");
+  } catch {
+    /* restore pass below will retry */
+  }
+
+  system.runTimeout(() => {
+    try {
+      for (const snapshot of snapshots) {
+        world.structureManager.place(snapshot.structureId, dimension, snapshot.location, {
+          includeBlocks: true,
+          includeEntities: false,
+        });
+      }
+
+      // 非法活塞会被移除；收回事件还需要清除已经伸出的孤立活塞头。
+      dimension.getBlock(pistonLocation)?.setType("minecraft:air");
+      if (!isExpanding) {
+        dimension.getBlock(addVector(pistonLocation, facingDirection))?.setType("minecraft:air");
+      }
+      removeNewPistonDrops(dimension, rollbackLocations, existingItemIds);
+      SystemLog.warn(
+        `[Land] 已阻止跨领地活塞移动：${protectedLand.name} (${protectedLand.owner}) @ ${blockLocationKey(pistonLocation)}`
+      );
+    } catch (error) {
+      SystemLog.error("[Land] 非法活塞移动回滚失败", error);
+    } finally {
+      deletePistonRollbackStructures(snapshots);
+    }
+  }, LAND_PISTON_ROLLBACK_DELAY_TICKS);
 }
 
 function landBreakAttemptKey(player: Player, block: { location: Vector3; dimension: { id: string } }): string {
@@ -1406,6 +1573,71 @@ export function registerLandEvents(): void {
         useNotify("chat", p, color.red(`这里是 ${color.yellow(ownerName)} ${color.red("的领地，你没有权限这么做！")}`));
       }
     });
+  });
+
+  /**
+   * 活塞跨领地保护。
+   * Script API 目前没有可取消的 piston before-event，因此在活塞开始移动时保存实际附着方块，
+   * 对非法跨边界移动移除活塞并在短延迟后恢复原方块（结构快照会保留容器等方块实体数据）。
+   */
+  world.afterEvents.pistonActivate.subscribe((event) => {
+    const pistonBlock = event.block;
+    const pistonLocation = {
+      x: Math.floor(pistonBlock.location.x),
+      y: Math.floor(pistonBlock.location.y),
+      z: Math.floor(pistonBlock.location.z),
+    };
+    const dimension = pistonBlock.dimension;
+    const dimensionId = dimension.id;
+
+    let facingDirection: Vector3 | undefined;
+    let attachedLocations: Vector3[];
+    try {
+      const facingState = pistonBlock.permutation.getState("facing_direction");
+      if (typeof facingState !== "number") return;
+      facingDirection = PISTON_FACING_DIRECTIONS[facingState];
+      if (!facingDirection) return;
+      attachedLocations = event.piston.getAttachedBlocksLocations();
+    } catch (error) {
+      SystemLog.error("[Land] 读取活塞附着方块失败", error);
+      return;
+    }
+    if (attachedLocations.length === 0) return;
+
+    const movementDirection = event.isExpanding
+      ? facingDirection
+      : { x: -facingDirection.x, y: -facingDirection.y, z: -facingDirection.z };
+    const moves: PistonBlockMove[] = attachedLocations.map((location) => {
+      const source = { x: Math.floor(location.x), y: Math.floor(location.y), z: Math.floor(location.z) };
+      return { source, destination: addVector(source, movementDirection) };
+    });
+    const denied = findDeniedPistonMove(
+      pistonLocation,
+      moves,
+      (location) => getPistonProtectedLand(location, dimensionId),
+      landProtectionKey
+    );
+    if (!denied) return;
+
+    const eventKey = `${dimensionId}:${blockLocationKey(pistonLocation)}`;
+    const previousTick = recentDeniedPistonEvents.get(eventKey);
+    if (previousTick !== undefined && system.currentTick - previousTick <= LAND_PISTON_EVENT_COOLDOWN_TICKS) return;
+    recentDeniedPistonEvents.set(eventKey, system.currentTick);
+    if (recentDeniedPistonEvents.size > 256) {
+      const expiryTick = system.currentTick - LAND_PISTON_EVENT_COOLDOWN_TICKS;
+      for (const [key, tick] of recentDeniedPistonEvents) {
+        if (tick < expiryTick) recentDeniedPistonEvents.delete(key);
+      }
+    }
+
+    rollbackDeniedPistonMovement(
+      dimension,
+      pistonLocation,
+      facingDirection,
+      event.isExpanding,
+      moves,
+      denied.protectedLand
+    );
   });
 
   /**

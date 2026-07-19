@@ -28,8 +28,6 @@ export function registerPlayerEvents(): void {
     await system.waitTicks(70);
 
     system.run(() => {
-      player.onScreenDisplay.setTitle({ text: "\n\n" });
-
       const left = `${welcomeGlyphs[1]}${welcomeGlyphs[8]}${welcomeGlyphs[6]}${welcomeGlyphs[7]}${welcomeGlyphs[4]}${welcomeGlyphs[2]}`;
       const right = `${welcomeGlyphs[3]}${welcomeGlyphs[4]}${welcomeGlyphs[7]}${welcomeGlyphs[6]}${welcomeGlyphs[8]}${welcomeGlyphs[0]}`;
       const welcomeCharacter =
@@ -37,8 +35,11 @@ export function registerPlayerEvents(): void {
       const serverName = (setting.getState("serverName") as string) || "服务器";
 
       player.runCommand(
-        `titleraw @s subtitle {"rawtext":[{"text":"${welcomeCharacter}\\n\\n\\n${left} §d欢迎来到 ${right}\\n§s${serverName}"}]}`
+        `titleraw @s subtitle {"rawtext":[{"text":"${welcomeCharacter}\\n\\n\\n\\n${left} §d欢迎来到 ${right}\\n§s${serverName}"}]}`
       );
+      // 副标题不会自行触发播放。先写入副标题，再用单个空格标题触发动画；
+      // 空格只保留最小标题行高，避免旧版 "\n\n" 把可见内容大幅向下推。
+      player.onScreenDisplay.setTitle({ text: " " });
       player.playSound("yuehua.welcome");
 
       // 获取自定义的欢迎消息并处理换行符

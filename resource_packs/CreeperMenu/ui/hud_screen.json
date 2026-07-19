@@ -64,6 +64,9 @@
   "hud_title_text/subtitle_frame/subtitle_background": {
     "ignored": true
   },
+  "hud_title_text/subtitle_frame/subtitle": {
+    "line_padding": -2
+  },
   "root_panel": {
     "modifications": [
       {
