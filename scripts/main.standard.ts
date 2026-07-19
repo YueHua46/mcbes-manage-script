@@ -25,7 +25,7 @@ import "./events/handlers/index.standard";
 
 function initializeApp(): void {
   SystemLog.info("========================================");
-  SystemLog.info("苦力怕菜单 v3.0.1 启动中...");
+  SystemLog.info("苦力怕菜单 v3.1.0 启动中...");
   SystemLog.info("当前构建：标准兼容版（本地 / BDS / Realms）");
   SystemLog.info("========================================");
 

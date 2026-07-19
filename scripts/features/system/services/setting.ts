@@ -92,6 +92,7 @@ export type IModules =
   | "logEnterLand"
   | "logLeaveLand"
   | "logLandBreakAttempt"
+  | "logLandPistonAttempt"
   | "logAttackMobInLand"
   | "logOpenChest"
   | "logOpenBarrel"
@@ -240,6 +241,7 @@ export const defaultSetting = {
   logEnterLand: true,
   logLeaveLand: true,
   logLandBreakAttempt: true,
+  logLandPistonAttempt: true,
   logAttackMobInLand: true,
   logOpenChest: true,
   logOpenBarrel: true,

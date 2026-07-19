@@ -38,6 +38,9 @@ import {
   findDeniedPistonMove,
   type PistonBlockMove,
 } from "../../features/land/services/piston-boundary-policy";
+import fragileBlockCache, {
+  isFragilePistonAffectedBlock,
+} from "../../features/land/services/fragile-block-cache";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
@@ -129,7 +132,10 @@ const landBreakWarningState = new Map<string, string>();
 const recentLandBreakAttemptLog = new Map<string, number>();
 const LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS = 1500;
 const LAND_PISTON_ROLLBACK_DELAY_TICKS = 2;
+const LAND_PISTON_ROLLBACK_MAX_WAIT_TICKS = 4;
 const LAND_PISTON_EVENT_COOLDOWN_TICKS = 6;
+const LAND_PISTON_ATTRIBUTION_RETENTION_TICKS = 400;
+const LAND_PISTON_ATTRIBUTION_MAX_RECORDS = 512;
 const WITHER_BOSS_TYPE_ID = "minecraft:wither";
 const WITHER_BOSS_EJECT_MARGIN = 4;
 const WITHER_BOSS_CHECK_INTERVAL_TICKS = 10;
@@ -179,6 +185,29 @@ const PISTON_FACING_DIRECTIONS: Record<number, Vector3> = {
 };
 const recentDeniedPistonEvents = new Map<string, number>();
 let pistonRollbackSequence = 0;
+
+type PistonAttributionAction = "placePiston" | "useLever" | "useButton" | "placeRedstone" | "breakRedstone";
+
+interface PistonAttributionRecord {
+  playerName: string;
+  dimensionId: string;
+  location: Vector3;
+  blockTypeId: string;
+  localizationKey?: string;
+  action: PistonAttributionAction;
+  tick: number;
+}
+
+interface PistonAttributionResult {
+  playerName?: string;
+  confidence: "高" | "中" | "低" | "未知";
+  meta: string;
+  evidenceLocalizationKey?: string;
+}
+
+const recentPistonAttributionRecords: PistonAttributionRecord[] = [];
+const warmedFragileCacheLandKeys = new Set<string>();
+let fragileCacheWarmupActive = false;
 
 interface SensitiveEntitySpawnRecord {
   id: string;
@@ -351,6 +380,10 @@ interface PistonRollbackBlock {
   location: Vector3;
 }
 
+interface PistonMovedBlockSnapshot extends PistonRollbackBlock {
+  source: Vector3;
+}
+
 function addVector(location: Vector3, direction: Vector3): Vector3 {
   return {
     x: Math.floor(location.x + direction.x),
@@ -367,11 +400,258 @@ function landProtectionKey(land: ILand): string {
   return land.id || `${land.dimension}:${land.owner}:${land.name}`;
 }
 
-/** 开放公共破坏权限的领地不参与活塞边界保护。 */
-function getPistonProtectedLand(location: Vector3, dimensionId: string): ILand | null {
+function isPistonBlockType(typeId: string): boolean {
+  return typeId === "minecraft:piston" || typeId === "minecraft:sticky_piston";
+}
+
+function isDirectPistonActivator(typeId: string): "useLever" | "useButton" | null {
+  if (typeId === "minecraft:lever") return "useLever";
+  if (typeId.endsWith("_button") || typeId === "minecraft:stone_button" || typeId === "minecraft:wooden_button") {
+    return "useButton";
+  }
+  return null;
+}
+
+function isPistonRedstoneComponent(typeId: string): boolean {
+  return (
+    typeId.includes("redstone") ||
+    typeId.includes("repeater") ||
+    typeId.includes("comparator") ||
+    typeId.includes("observer") ||
+    typeId.includes("daylight_detector") ||
+    typeId.includes("pressure_plate") ||
+    typeId.includes("tripwire") ||
+    typeId === "minecraft:lever" ||
+    typeId.endsWith("_button") ||
+    typeId === "minecraft:stone_button" ||
+    typeId === "minecraft:wooden_button"
+  );
+}
+
+function cleanupPistonAttributionRecords(): void {
+  const minTick = system.currentTick - LAND_PISTON_ATTRIBUTION_RETENTION_TICKS;
+  while (recentPistonAttributionRecords.length > 0 && recentPistonAttributionRecords[0].tick < minTick) {
+    recentPistonAttributionRecords.shift();
+  }
+  if (recentPistonAttributionRecords.length > LAND_PISTON_ATTRIBUTION_MAX_RECORDS) {
+    recentPistonAttributionRecords.splice(
+      0,
+      recentPistonAttributionRecords.length - LAND_PISTON_ATTRIBUTION_MAX_RECORDS
+    );
+  }
+}
+
+function recordPistonAttributionAction(
+  player: Player,
+  location: Vector3,
+  dimensionId: string,
+  blockTypeId: string,
+  action: PistonAttributionAction,
+  localizationKey?: string
+): void {
+  cleanupPistonAttributionRecords();
+  recentPistonAttributionRecords.push({
+    playerName: player.name,
+    dimensionId,
+    location: { x: Math.floor(location.x), y: Math.floor(location.y), z: Math.floor(location.z) },
+    blockTypeId,
+    localizationKey,
+    action,
+    tick: system.currentTick,
+  });
+  cleanupPistonAttributionRecords();
+}
+
+function pistonAttributionEvidenceLabel(record: PistonAttributionRecord): string {
+  switch (record.action) {
+    case "placePiston":
+      return "放置";
+    case "useLever":
+      return "操作";
+    case "useButton":
+      return "操作";
+    case "placeRedstone":
+      return "放置";
+    case "breakRedstone":
+      return "破坏";
+  }
+}
+
+function scorePistonAttributionRecord(
+  record: PistonAttributionRecord,
+  pistonLocation: Vector3,
+  dimensionId: string
+): { score: number; age: number; distance: number } | null {
+  if (record.dimensionId !== dimensionId) return null;
+  const age = system.currentTick - record.tick;
+  if (age < 0 || age > LAND_PISTON_ATTRIBUTION_RETENTION_TICKS) return null;
+  const distance = Math.sqrt(locationDistanceSq(record.location, pistonLocation));
+
+  if (record.action === "placePiston") {
+    if (blockLocationKey(record.location) !== blockLocationKey(pistonLocation) || age > 200) return null;
+    // 只有放下后立即自激活才把“放置者”视为高置信证据；稍后由别人接线启动时应优先归因给操作者。
+    return { score: age <= 2 ? 100 : Math.max(55, 78 - age * 0.12), age, distance: 0 };
+  }
+  if (record.action === "useLever" || record.action === "useButton") {
+    if (age > 40 || distance > 24) return null;
+    return { score: 98 - distance * 2.2 - age * 0.55, age, distance };
+  }
+  if (age > 60 || distance > 24) return null;
+  return { score: 92 - distance * 2.4 - age * 0.65, age, distance };
+}
+
+function resolvePistonAttribution(pistonLocation: Vector3, dimensionId: string): PistonAttributionResult {
+  cleanupPistonAttributionRecords();
+  const bestByPlayer = new Map<
+    string,
+    { record: PistonAttributionRecord; score: number; age: number; distance: number }
+  >();
+  for (const record of recentPistonAttributionRecords) {
+    const scored = scorePistonAttributionRecord(record, pistonLocation, dimensionId);
+    if (!scored) continue;
+    const previous = bestByPlayer.get(record.playerName);
+    if (!previous || scored.score > previous.score) {
+      bestByPlayer.set(record.playerName, { record, ...scored });
+    }
+  }
+
+  const candidates = [...bestByPlayer.values()].sort((a, b) => b.score - a.score || a.age - b.age);
+  const best = candidates[0];
+  if (!best || best.score < 35) {
+    return { confidence: "未知", meta: "置信=未知 证据=自动红石或无近期玩家操作" };
+  }
+
+  const second = candidates[1];
+  const ambiguous = Boolean(second && best.score - second.score < 8);
+  let confidence: PistonAttributionResult["confidence"];
+  if (ambiguous) confidence = "低";
+  else if (best.score >= 82) confidence = "高";
+  else if (best.score >= 55) confidence = "中";
+  else confidence = "低";
+
+  const evidence = pistonAttributionEvidenceLabel(best.record);
+  const distance = best.distance.toFixed(1);
+  const competing = ambiguous && second ? ` 竞争候选=${second.record.playerName}` : "";
+  return {
+    playerName: best.record.playerName,
+    confidence,
+    meta: `置信=${confidence} 证据=${evidence} 间隔=${best.age}tick 距离=${distance}${competing}`,
+    evidenceLocalizationKey: best.record.localizationKey,
+  };
+}
+
+/**
+ * 每次活塞事件只遍历一次领地表，按本次实际移动的包围盒筛选候选领地。
+ * 避免为最多 12 个附着方块的来源/目标坐标重复全表查找。
+ */
+function getPistonCandidateLands(
+  pistonLocation: Vector3,
+  moves: readonly PistonBlockMove[],
+  dimensionId: string
+): ILand[] {
+  let minX = pistonLocation.x;
+  let maxX = pistonLocation.x;
+  let minY = pistonLocation.y;
+  let maxY = pistonLocation.y;
+  let minZ = pistonLocation.z;
+  let maxZ = pistonLocation.z;
+  for (const move of moves) {
+    for (const location of [move.source, move.destination]) {
+      minX = Math.min(minX, location.x);
+      maxX = Math.max(maxX, location.x);
+      minY = Math.min(minY, location.y);
+      maxY = Math.max(maxY, location.y);
+      minZ = Math.min(minZ, location.z);
+      maxZ = Math.max(maxZ, location.z);
+    }
+  }
+
+  return Object.values(landManager.getLandList()).filter((land) => {
+    if (land.dimension !== dimensionId || land.public_auth.break === true) return false;
+    const landMinX = Math.min(land.vectors.start.x, land.vectors.end.x);
+    const landMaxX = Math.max(land.vectors.start.x, land.vectors.end.x);
+    const landMinY = Math.min(land.vectors.start.y, land.vectors.end.y) - 1;
+    const landMaxY = Math.max(land.vectors.start.y, land.vectors.end.y);
+    const landMinZ = Math.min(land.vectors.start.z, land.vectors.end.z);
+    const landMaxZ = Math.max(land.vectors.start.z, land.vectors.end.z);
+    return !(
+      landMaxX < minX ||
+      landMinX > maxX ||
+      landMaxY < minY ||
+      landMinY > maxY ||
+      landMaxZ < minZ ||
+      landMinZ > maxZ
+    );
+  });
+}
+
+function getPistonProtectedLandFromCandidates(location: Vector3, candidates: readonly ILand[]): ILand | null {
+  return candidates.find((land) => landManager.isInsideLand(location, land).isInside) ?? null;
+}
+
+function shouldCacheFragileBlockAt(location: Vector3, dimensionId: string): boolean {
   const { isInside, insideLand } = landManager.testLand(location, dimensionId);
-  if (!isInside || !insideLand || insideLand.public_auth.break === true) return null;
-  return insideLand;
+  return Boolean(isInside && insideLand && insideLand.public_auth.break !== true);
+}
+
+function* warmFragileBlockCacheJob(lands: readonly ILand[]): Generator<void, void, void> {
+  let capturedBefore = fragileBlockCache.size;
+  try {
+    for (const land of lands) {
+      const landKey = landProtectionKey(land);
+      if (land.public_auth.break === true) {
+        warmedFragileCacheLandKeys.add(landKey);
+        continue;
+      }
+      let dimension: Dimension;
+      try {
+        dimension = world.getDimension(normalizeDimensionId(land.dimension) as any);
+      } catch {
+        warmedFragileCacheLandKeys.add(landKey);
+        continue;
+      }
+
+      const minX = Math.floor(Math.min(land.vectors.start.x, land.vectors.end.x));
+      const maxX = Math.floor(Math.max(land.vectors.start.x, land.vectors.end.x));
+      const minY = Math.floor(Math.min(land.vectors.start.y, land.vectors.end.y) - 1);
+      const maxY = Math.floor(Math.max(land.vectors.start.y, land.vectors.end.y));
+      const minZ = Math.floor(Math.min(land.vectors.start.z, land.vectors.end.z));
+      const maxZ = Math.floor(Math.max(land.vectors.start.z, land.vectors.end.z));
+
+      for (let x = minX; x <= maxX; x++) {
+        for (let y = minY; y <= maxY; y++) {
+          for (let z = minZ; z <= maxZ; z++) {
+            // 外部活塞最多影响 12 个方块，只预热领地内侧 12 格边界带。
+            const boundaryDepth = Math.min(x - minX, maxX - x, y - minY, maxY - y, z - minZ, maxZ - z);
+            if (boundaryDepth <= 12) {
+              try {
+                const block = dimension.getBlock({ x, y, z });
+                if (block && isFragilePistonAffectedBlock(block.typeId)) fragileBlockCache.captureBlock(block);
+              } catch {
+                /* unloaded chunks are refreshed later by placement/corridor events */
+              }
+            }
+            yield;
+          }
+        }
+      }
+      warmedFragileCacheLandKeys.add(landKey);
+    }
+    const captured = fragileBlockCache.size - capturedBefore;
+    if (captured > 0) SystemLog.info(`[Land] 脆弱方块缓存预热完成，新增 ${captured} 条`);
+  } finally {
+    fragileCacheWarmupActive = false;
+  }
+}
+
+function scheduleFragileBlockCacheWarmup(): void {
+  if (fragileCacheWarmupActive || !landManager.db) return;
+  const pending = Object.values(landManager.getLandList()).filter(
+    (land) => !warmedFragileCacheLandKeys.has(landProtectionKey(land))
+  );
+  if (pending.length === 0) return;
+  fragileCacheWarmupActive = true;
+  system.runJob(warmFragileBlockCacheJob(pending));
 }
 
 function collectRollbackLocations(moves: readonly PistonBlockMove[]): Vector3[] {
@@ -432,67 +712,133 @@ function deletePistonRollbackStructures(snapshots: readonly PistonRollbackBlock[
   }
 }
 
+function isPistonTransientBlock(typeId: string): boolean {
+  return typeId.includes("moving_block") || typeId.includes("piston_arm_collision");
+}
+
+function createPistonRollbackStructure(
+  structureId: string,
+  dimension: Dimension,
+  location: Vector3
+): PistonRollbackBlock {
+  world.structureManager.createFromWorld(structureId, dimension, location, location, {
+    includeBlocks: true,
+    includeEntities: false,
+    saveMode: StructureSaveMode.Memory,
+  });
+  return { structureId, location };
+}
+
 function rollbackDeniedPistonMovement(
   dimension: Dimension,
   pistonLocation: Vector3,
   facingDirection: Vector3,
   isExpanding: boolean,
+  pistonWasMoving: boolean,
   moves: readonly PistonBlockMove[],
   protectedLand: ILand
 ): void {
   const rollbackLocations = collectRollbackLocations(moves);
   const existingItemIds = collectNearbyItemEntityIds(dimension, rollbackLocations);
-  const snapshots: PistonRollbackBlock[] = [];
   const rollbackId = `${system.currentTick}_${++pistonRollbackSequence}`;
+  const sourceKeys = new Set(moves.map((move) => blockLocationKey(move.source)));
+  const pistonHeadKey = blockLocationKey(addVector(pistonLocation, facingDirection));
+  const terminalSnapshots: PistonRollbackBlock[] = [];
 
+  // 只预存推动链末端原有方块。移动方块本身要等活塞结束后从目标位置反向搬回，
+  // 否则 after-event 触发瞬间保存到的可能是 moving_block 临时状态。
   try {
-    for (let index = 0; index < rollbackLocations.length; index++) {
-      const location = rollbackLocations[index];
-      const structureId = `creeper_menu:piston_rollback_${rollbackId}_${index}`;
-      world.structureManager.createFromWorld(structureId, dimension, location, location, {
-        includeBlocks: true,
-        includeEntities: false,
-        saveMode: StructureSaveMode.Memory,
-      });
-      snapshots.push({ structureId, location });
+    const savedTerminalKeys = new Set<string>();
+    for (let index = 0; pistonWasMoving && index < moves.length; index++) {
+      const location = moves[index].destination;
+      const key = blockLocationKey(location);
+      if (sourceKeys.has(key) || savedTerminalKeys.has(key)) continue;
+      // 收回前这里是活塞头；非法活塞被移除后应恢复为空气，而不是恢复孤立活塞头。
+      if (!isExpanding && key === pistonHeadKey) continue;
+      const blockTypeId = dimension.getBlock(location)?.typeId;
+      if (blockTypeId && isPistonTransientBlock(blockTypeId)) continue;
+      savedTerminalKeys.add(key);
+      terminalSnapshots.push(
+        createPistonRollbackStructure(`creeper_menu:piston_terminal_${rollbackId}_${index}`, dimension, location)
+      );
     }
   } catch (error) {
-    deletePistonRollbackStructures(snapshots);
-    snapshots.length = 0;
-    SystemLog.error("[Land] 无法保存非法活塞移动的临时回滚结构", error);
+    deletePistonRollbackStructures(terminalSnapshots);
+    terminalSnapshots.length = 0;
+    SystemLog.error("[Land] 无法保存非法活塞移动的末端方块", error);
   }
 
-  // 先移除动力源活塞，避免恢复方块后在持续红石信号下立刻再次触发。
-  try {
-    dimension.getBlock(pistonLocation)?.setType("minecraft:air");
-  } catch {
-    /* restore pass below will retry */
-  }
+  const finishRollback = (waitedTicks: number): void => {
+    const destinationsReady = moves.every((move) => {
+      try {
+        const typeId = dimension.getBlock(move.destination)?.typeId;
+        return Boolean(typeId && typeId !== "minecraft:air" && !isPistonTransientBlock(typeId));
+      } catch {
+        return false;
+      }
+    });
+    if (!destinationsReady && waitedTicks < LAND_PISTON_ROLLBACK_MAX_WAIT_TICKS) {
+      system.runTimeout(() => finishRollback(waitedTicks + 1), 1);
+      return;
+    }
 
-  system.runTimeout(() => {
+    const movedSnapshots: PistonMovedBlockSnapshot[] = [];
     try {
-      for (const snapshot of snapshots) {
+      if (!destinationsReady) {
+        throw new Error("等待活塞移动完成超时，目标位置仍包含空气或活塞临时方块");
+      }
+
+      for (let index = 0; index < moves.length; index++) {
+        const move = moves[index];
+        const snapshot = createPistonRollbackStructure(
+          `creeper_menu:piston_moved_${rollbackId}_${index}`,
+          dimension,
+          move.destination
+        );
+        movedSnapshots.push({ ...snapshot, source: move.source });
+      }
+
+      // 目标方块已经安全保存后才移除活塞，避免中途打断动画留下 moving_block。
+      dimension.getBlock(pistonLocation)?.setType("minecraft:air");
+      dimension.getBlock(addVector(pistonLocation, facingDirection))?.setType("minecraft:air");
+      for (const location of rollbackLocations) {
+        dimension.getBlock(location)?.setType("minecraft:air");
+      }
+
+      for (const snapshot of movedSnapshots) {
+        world.structureManager.place(snapshot.structureId, dimension, snapshot.source, {
+          includeBlocks: true,
+          includeEntities: false,
+        });
+      }
+      for (const snapshot of terminalSnapshots) {
         world.structureManager.place(snapshot.structureId, dimension, snapshot.location, {
           includeBlocks: true,
           includeEntities: false,
         });
       }
 
-      // 非法活塞会被移除；收回事件还需要清除已经伸出的孤立活塞头。
-      dimension.getBlock(pistonLocation)?.setType("minecraft:air");
-      if (!isExpanding) {
-        dimension.getBlock(addVector(pistonLocation, facingDirection))?.setType("minecraft:air");
-      }
+      const restoredFragileBlocks = fragileBlockCache.restoreAffected(dimension, rollbackLocations);
       removeNewPistonDrops(dimension, rollbackLocations, existingItemIds);
       SystemLog.warn(
-        `[Land] 已阻止跨领地活塞移动：${protectedLand.name} (${protectedLand.owner}) @ ${blockLocationKey(pistonLocation)}`
+        `[Land] 已阻止跨领地活塞移动：${protectedLand.name} (${protectedLand.owner}) @ ${blockLocationKey(pistonLocation)}` +
+          `，恢复脆弱方块 ${restoredFragileBlocks} 个`
       );
     } catch (error) {
+      // 即使反向恢复失败也移除攻击用活塞，防止装置持续破坏。
+      try {
+        dimension.getBlock(pistonLocation)?.setType("minecraft:air");
+      } catch {
+        /* ignore fallback cleanup errors */
+      }
       SystemLog.error("[Land] 非法活塞移动回滚失败", error);
     } finally {
-      deletePistonRollbackStructures(snapshots);
+      deletePistonRollbackStructures(movedSnapshots);
+      deletePistonRollbackStructures(terminalSnapshots);
     }
-  }, LAND_PISTON_ROLLBACK_DELAY_TICKS);
+  };
+
+  system.runTimeout(() => finishRollback(LAND_PISTON_ROLLBACK_DELAY_TICKS), LAND_PISTON_ROLLBACK_DELAY_TICKS);
 }
 
 function landBreakAttemptKey(player: Player, block: { location: Vector3; dimension: { id: string } }): string {
@@ -861,8 +1207,19 @@ function clearLandWaterByGetBlocks(landData: ILand): void {
  */
 export function registerLandEvents(): void {
   registerLandBreakingPreviewEvents();
+  system.runTimeout(scheduleFragileBlockCacheWarmup, 40);
 
   // ==================== 定时任务 ====================
+
+  taskScheduler.register({
+    id: "land.fragileBlockCacheWarmup",
+    label: "领地脆弱方块缓存预热",
+    category: "land",
+    intervalTicks: 1200,
+    skipIfRunning: true,
+    when: () => setting.getState("land") === true,
+    run: scheduleFragileBlockCacheWarmup,
+  });
 
   /**
    * 领地标记点管理和燃烧方块清理
@@ -1258,6 +1615,105 @@ export function registerLandEvents(): void {
     handleSensitiveEntitySpawn(event.entity);
   });
 
+  // 仅记录成功发生的红石相关操作，用于非法活塞事件的“疑似操作者”审计归因。
+  world.afterEvents.playerPlaceBlock.subscribe((event) => {
+    const typeId = event.block.typeId;
+    if (shouldCacheFragileBlockAt(event.block.location, event.block.dimension.id)) {
+      fragileBlockCache.captureBlock(event.block);
+    } else {
+      fragileBlockCache.remove(event.block.dimension.id, event.block.location);
+    }
+    if (isPistonBlockType(typeId)) {
+      recordPistonAttributionAction(
+        event.player,
+        event.block.location,
+        event.block.dimension.id,
+        typeId,
+        "placePiston",
+        event.block.localizationKey
+      );
+      try {
+        const facingState = event.block.permutation.getState("facing_direction");
+        const direction = typeof facingState === "number" ? PISTON_FACING_DIRECTIONS[facingState] : undefined;
+        if (direction) {
+          const corridorEnd = {
+            x: event.block.location.x + direction.x * 13,
+            y: event.block.location.y + direction.y * 13,
+            z: event.block.location.z + direction.z * 13,
+          };
+          const corridorCandidates = getPistonCandidateLands(
+            event.block.location,
+            [
+              {
+                source: { x: corridorEnd.x - 1, y: corridorEnd.y - 1, z: corridorEnd.z - 1 },
+                destination: { x: corridorEnd.x + 1, y: corridorEnd.y + 1, z: corridorEnd.z + 1 },
+              },
+            ],
+            event.block.dimension.id
+          );
+          fragileBlockCache.refreshPistonCorridor(
+            event.block.dimension,
+            event.block.location,
+            direction,
+            (location) => getPistonProtectedLandFromCandidates(location, corridorCandidates) !== null
+          );
+        }
+      } catch {
+        /* piston activation fallback still uses the warmed land cache */
+      }
+    } else if (isPistonRedstoneComponent(typeId)) {
+      recordPistonAttributionAction(
+        event.player,
+        event.block.location,
+        event.block.dimension.id,
+        typeId,
+        "placeRedstone",
+        event.block.localizationKey
+      );
+    }
+  });
+
+  world.afterEvents.playerBreakBlock.subscribe((event) => {
+    const typeId = event.brokenBlockPermutation.type.id;
+    fragileBlockCache.remove(event.block.dimension.id, event.block.location);
+    if (!isPistonRedstoneComponent(typeId)) return;
+    recordPistonAttributionAction(
+      event.player,
+      event.block.location,
+      event.block.dimension.id,
+      typeId,
+      "breakRedstone",
+      event.brokenBlockPermutation.localizationKey
+    );
+  });
+
+  world.afterEvents.playerInteractWithBlock.subscribe((event) => {
+    if (isFragilePistonAffectedBlock(event.block.typeId)) {
+      const dimension = event.block.dimension;
+      const location = { ...event.block.location };
+      // 告示牌编辑界面会晚于交互事件提交；延迟刷新可取得最终文字。
+      system.runTimeout(() => {
+        try {
+          const block = dimension.getBlock(location);
+          if (block && shouldCacheFragileBlockAt(location, dimension.id)) fragileBlockCache.captureBlock(block);
+          else fragileBlockCache.remove(dimension.id, location);
+        } catch {
+          /* ignore unloaded blocks */
+        }
+      }, event.block.typeId.includes("sign") ? 20 : 1);
+    }
+    const action = isDirectPistonActivator(event.block.typeId);
+    if (!action) return;
+    recordPistonAttributionAction(
+      event.player,
+      event.block.location,
+      event.block.dimension.id,
+      event.block.typeId,
+      action,
+      event.block.localizationKey
+    );
+  });
+
   // ==================== 领地保护事件 ====================
 
   /**
@@ -1594,11 +2050,13 @@ export function registerLandEvents(): void {
 
     let facingDirection: Vector3 | undefined;
     let attachedLocations: Vector3[];
+    let pistonWasMoving = false;
     try {
       const facingState = pistonBlock.permutation.getState("facing_direction");
       if (typeof facingState !== "number") return;
       facingDirection = PISTON_FACING_DIRECTIONS[facingState];
       if (!facingDirection) return;
+      pistonWasMoving = event.piston.isMoving;
       attachedLocations = event.piston.getAttachedBlocksLocations();
     } catch (error) {
       SystemLog.error("[Land] 读取活塞附着方块失败", error);
@@ -1613,10 +2071,12 @@ export function registerLandEvents(): void {
       const source = { x: Math.floor(location.x), y: Math.floor(location.y), z: Math.floor(location.z) };
       return { source, destination: addVector(source, movementDirection) };
     });
+    const candidateLands = getPistonCandidateLands(pistonLocation, moves, dimensionId);
+    if (candidateLands.length === 0) return;
     const denied = findDeniedPistonMove(
       pistonLocation,
       moves,
-      (location) => getPistonProtectedLand(location, dimensionId),
+      (location) => getPistonProtectedLandFromCandidates(location, candidateLands),
       landProtectionKey
     );
     if (!denied) return;
@@ -1632,11 +2092,30 @@ export function registerLandEvents(): void {
       }
     }
 
+    const attribution = resolvePistonAttribution(pistonLocation, dimensionId);
+    behaviorLog.logLandPistonAttempt(
+      attribution.playerName,
+      pistonLocation,
+      dimensionId,
+      {
+        name: denied.protectedLand.name,
+        owner: denied.protectedLand.owner,
+      },
+      attribution.meta,
+      pistonBlock.typeId,
+      pistonBlock.localizationKey,
+      attribution.evidenceLocalizationKey
+    );
+    SystemLog.warn(
+      `[Land] 非法活塞疑似操作者：${attribution.playerName ?? "未知"}，置信度=${attribution.confidence}，${attribution.meta}`
+    );
+
     rollbackDeniedPistonMovement(
       dimension,
       pistonLocation,
       facingDirection,
       event.isExpanding,
+      pistonWasMoving,
       moves,
       denied.protectedLand
     );

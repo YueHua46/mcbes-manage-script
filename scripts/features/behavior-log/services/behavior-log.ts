@@ -1,4 +1,4 @@
-import { Entity, Player, Vector3, system, world } from "@minecraft/server";
+import { Entity, Player, Vector3, system, world, type RawMessage } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import { taskScheduler } from "../../platform/scheduler";
 import { color } from "../../../shared/utils/color";
@@ -6,6 +6,7 @@ import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import setting from "../../system/services/setting";
 import itemWatchSnapshotStore, { type ItemWatchSnapshotPayload } from "./item-watch-snapshot-store";
+import { resolveTypeLocalizationKey, typeNameRawMessage } from "../../../shared/utils/type-localization";
 
 const DATABASE_NAME = "behaviorLog";
 const STORE_KEY = "state";
@@ -31,6 +32,7 @@ export type BehaviorEventType =
   | "enterLand"
   | "leaveLand"
   | "landBreakAttempt"
+  | "landPistonAttempt"
   | "attackMobInLand"
   | "openChest"
   | "openBarrel"
@@ -68,6 +70,10 @@ export interface BehaviorLogEntry {
   m?: string;
   l?: string;
   v?: string;
+  /** v 对应对象的客户端本地化键。 */
+  k?: string;
+  /** 活塞归因证据方块的客户端本地化键。 */
+  a?: string;
 }
 
 export interface BehaviorLogState {
@@ -147,6 +153,13 @@ export const behaviorEventDefinitions: Array<{
   { type: "enterLand", label: "进入领地", settingKey: "logEnterLand", group: "land" },
   { type: "leaveLand", label: "离开领地", settingKey: "logLeaveLand", group: "land" },
   { type: "landBreakAttempt", label: "领地破坏尝试", settingKey: "logLandBreakAttempt", group: "land" },
+  {
+    type: "landPistonAttempt",
+    label: "领地活塞破坏尝试",
+    settingKey: "logLandPistonAttempt",
+    group: "land",
+    isDangerous: true,
+  },
   { type: "attackMobInLand", label: "领地内攻击生物", settingKey: "logAttackMobInLand", group: "land" },
   { type: "openChest", label: "打开箱子", settingKey: "logOpenChest", group: "container" },
   { type: "openBarrel", label: "打开木桶", settingKey: "logOpenBarrel", group: "container" },
@@ -428,45 +441,86 @@ export function formatBehaviorListEntry(entry: BehaviorLogEntry, index?: number)
   return `${line1}\n${color.darkGray("   ")}${color.gray(extraParts.join(` ${color.darkGray("·")} `))}`;
 }
 
-function formatBehaviorMessageBoxEntry(entry: BehaviorLogEntry, index: number): string {
+function appendBehaviorDetailSeparator(rawtext: RawMessage[], hasPrevious: boolean): void {
+  if (hasPrevious) rawtext.push({ text: ` ${color.darkGray("·")} ` });
+}
+
+function appendPistonAttributionMeta(rawtext: RawMessage[], entry: BehaviorLogEntry): void {
+  const meta = entry.m ?? "";
+  if (!entry.a) {
+    // 兼容旧日志：早期版本把红石方块 typeId 直接拼进了证据文本。
+    const legacyMatched = meta.match(/^(置信=[^ ]+ 证据=(?:放置|破坏))([a-z0-9_:.-]+)(.*)$/);
+    if (legacyMatched) {
+      rawtext.push(
+        { text: `${legacyMatched[1]} ` },
+        typeNameRawMessage(legacyMatched[2]),
+        { text: legacyMatched[3] }
+      );
+      return;
+    }
+    rawtext.push({ text: meta });
+    return;
+  }
+  const matched = meta.match(/^(置信=[^ ]+ 证据=[^ ]+)(.*)$/);
+  if (!matched) {
+    rawtext.push({ text: meta });
+    return;
+  }
+  rawtext.push({ text: `${matched[1]} ` }, { translate: entry.a }, { text: matched[2] });
+}
+
+function formatBehaviorMessageBoxEntry(entry: BehaviorLogEntry, index: number): RawMessage[] {
   const dimensionText = typeof entry.d === "number" ? getBehaviorDimensionLabel(entry.d) : "未知维度";
   const playerLabel = entry.e === "summonWither" ? "召唤人" : "玩家";
-  const lines = [
-    `${color.darkGray(`#${index + 1}`)} ${color.gray(`[${formatBehaviorShortTimestamp(entry.t)}]`)} ${color.yellow(`[${entry.p}]`)} ${color.darkGray(`(${playerLabel})`)} ${color.lightPurple(`[${dimensionText}]`)} ${color.aqua(getBehaviorEventLabel(entry.e))}`,
+  const rawtext: RawMessage[] = [
+    {
+      text:
+        `${color.darkGray(`#${index + 1}`)} ${color.gray(`[${formatBehaviorShortTimestamp(entry.t)}]`)} ` +
+        `${color.yellow(`[${entry.p}]`)} ${color.darkGray(`(${playerLabel})`)} ` +
+        `${color.lightPurple(`[${dimensionText}]`)} ${color.aqua(getBehaviorEventLabel(entry.e))}\n`,
+    },
   ];
-
-  const detailParts: string[] = [];
+  let hasDetail = false;
 
   if (entry.e === "summonWither") {
-    detailParts.push(`${color.gray("召唤人")} ${color.yellow(entry.p)}`);
+    rawtext.push({ text: `${color.gray("召唤人")} ${color.yellow(entry.p)}` });
+    hasDetail = true;
   }
   if (typeof entry.x === "number" && typeof entry.y === "number" && typeof entry.z === "number") {
-    detailParts.push(`${color.gray("坐标")} ${color.white(`${entry.x}, ${entry.y}, ${entry.z}`)}`);
+    appendBehaviorDetailSeparator(rawtext, hasDetail);
+    rawtext.push({ text: `${color.gray("坐标")} ${color.white(`${entry.x}, ${entry.y}, ${entry.z}`)}` });
+    hasDetail = true;
   }
   if (entry.l) {
-    detailParts.push(`${color.gray("领地")} ${color.lightPurple(entry.l)}`);
+    appendBehaviorDetailSeparator(rawtext, hasDetail);
+    rawtext.push({ text: `${color.gray("领地")} ${color.lightPurple(entry.l)}` });
+    hasDetail = true;
   }
   if (entry.e === "itemWatchSnapshot") {
     if (entry.v) {
-      detailParts.push(`${color.gray("物品")} ${color.green(entry.v)}`);
+      appendBehaviorDetailSeparator(rawtext, hasDetail);
+      rawtext.push({ text: `${color.gray("物品")} §a` }, typeNameRawMessage(entry.v, entry.k));
+      hasDetail = true;
     }
     // sid= 存档编号不在通用日志正文中展示，在专属背包存档查看功能中使用
   } else {
     if (entry.v) {
-      detailParts.push(`${color.gray("对象")} ${color.green(entry.v)}`);
+      appendBehaviorDetailSeparator(rawtext, hasDetail);
+      rawtext.push({ text: `${color.gray("对象")} §a` }, typeNameRawMessage(entry.v, entry.k));
+      hasDetail = true;
     }
     if (entry.m) {
-      detailParts.push(`${color.gray("备注")} ${color.white(entry.m)}`);
+      appendBehaviorDetailSeparator(rawtext, hasDetail);
+      rawtext.push({ text: `${color.gray("备注")} §f` });
+      if (entry.e === "landPistonAttempt") appendPistonAttributionMeta(rawtext, entry);
+      else rawtext.push({ text: entry.m });
+      hasDetail = true;
     }
   }
 
-  if (detailParts.length > 0) {
-    lines.push(detailParts.join(` ${color.darkGray("·")} `));
-  }
-
-  lines.push(color.darkGray("--------------------------------"));
-
-  return lines.join("\n");
+  if (hasDetail) rawtext.push({ text: "\n" });
+  rawtext.push({ text: `${color.darkGray("--------------------------------")}\n` });
+  return rawtext;
 }
 
 export function formatBehaviorMessageBoxPage(
@@ -475,29 +529,30 @@ export function formatBehaviorMessageBoxPage(
   page: number,
   totalPages: number,
   total: number
-): string {
+): RawMessage {
   const summaryContent = summary.replace(/^筛选条件：/, "");
   const summaryParts = summaryContent.split(" / ");
   const playerPart = summaryParts[0] ?? "全部玩家";
   const timePart = summaryParts[1] ?? "全部时间";
   const eventPart = summaryParts.slice(2).join(" / ") || "全部事件";
 
-  const lines = [
-    `${color.yellow(playerPart)} ${color.darkGray("·")} ${color.white(timePart)} ${color.darkGray("·")} ${color.aqua(eventPart)}`,
-    `${color.darkGray(`第 ${page + 1} / ${Math.max(1, totalPages)} 页 · 共 ${total} 条`)}`,
-    `${color.darkGray("================================")}`,
-    "",
+  const rawtext: RawMessage[] = [
+    {
+      text:
+        `${color.yellow(playerPart)} ${color.darkGray("·")} ${color.white(timePart)} ${color.darkGray("·")} ` +
+        `${color.aqua(eventPart)}\n${color.darkGray(`第 ${page + 1} / ${Math.max(1, totalPages)} 页 · 共 ${total} 条`)}\n` +
+        `${color.darkGray("================================")}\n\n`,
+    },
   ];
 
   if (entries.length === 0) {
-    lines.push(color.gray("当前条件下没有匹配到日志。"));
+    rawtext.push({ text: `${color.gray("当前条件下没有匹配到日志。")}\n` });
   } else {
-    lines.push(entries.map((entry, index) => formatBehaviorMessageBoxEntry(entry, index)).join("\n"));
+    entries.forEach((entry, index) => rawtext.push(...formatBehaviorMessageBoxEntry(entry, index)));
   }
 
-  lines.push(color.darkGray("使用底部按钮翻页或返回筛选。"));
-
-  return lines.join("\n");
+  rawtext.push({ text: color.darkGray("使用底部按钮翻页或返回筛选。") });
+  return { rawtext };
 }
 
 export function describeBehaviorEntry(entry: BehaviorLogEntry): string {
@@ -812,6 +867,7 @@ class BehaviorLogService {
       d: toDimensionCode(dimensionId),
       ...toLocation(location),
       v: shortTypeId(targetTypeId),
+      k: resolveTypeLocalizationKey(targetTypeId),
     });
   }
 
@@ -877,6 +933,7 @@ class BehaviorLogService {
       ...toLocation(location),
       l: formatLandLabel(land),
       v: shortTypeId(targetTypeId),
+      k: resolveTypeLocalizationKey(targetTypeId),
     });
   }
 
@@ -894,7 +951,31 @@ class BehaviorLogService {
       ...toLocation(location),
       l: formatLandLabel(land),
       v: shortTypeId(targetTypeId),
+      k: resolveTypeLocalizationKey(targetTypeId),
       m: "startBreaking",
+    });
+  }
+
+  logLandPistonAttempt(
+    suspectedPlayerName: string | undefined,
+    location: Vector3,
+    dimensionId: string,
+    land: LandLogInfo,
+    meta: string,
+    pistonTypeId: string,
+    pistonLocalizationKey?: string,
+    evidenceLocalizationKey?: string
+  ): void {
+    this.append({
+      p: suspectedPlayerName || "未知操作者",
+      e: "landPistonAttempt",
+      d: toDimensionCode(dimensionId),
+      ...toLocation(location),
+      l: formatLandLabel(land),
+      v: shortTypeId(pistonTypeId),
+      k: pistonLocalizationKey || resolveTypeLocalizationKey(pistonTypeId),
+      a: evidenceLocalizationKey,
+      m: normalizeText(meta, MAX_META_LENGTH),
     });
   }
 
@@ -913,6 +994,7 @@ class BehaviorLogService {
       ...toLocation(location),
       l: formatLandLabel(land),
       v: shortTypeId(typeId),
+      k: resolveTypeLocalizationKey(typeId),
     });
   }
 
@@ -938,6 +1020,7 @@ class BehaviorLogService {
       d: toDimensionCode(player.dimension.id),
       ...toLocation(player.location),
       v: normalizeText(acquiredTypeId, MAX_META_LENGTH),
+      k: payload.acquiredLocalizationKey || resolveTypeLocalizationKey(acquiredTypeId),
       m: normalizeText(`sid=${sid}`, MAX_META_LENGTH),
     });
   }
@@ -979,6 +1062,8 @@ class BehaviorLogService {
       m: entry.m ? normalizeText(entry.m, MAX_META_LENGTH) : undefined,
       l: entry.l ? normalizeText(entry.l, MAX_META_LENGTH) : undefined,
       v: entry.v ? normalizeText(entry.v, MAX_META_LENGTH) : undefined,
+      k: entry.k ? normalizeText(entry.k, MAX_META_LENGTH) : undefined,
+      a: entry.a ? normalizeText(entry.a, MAX_META_LENGTH) : undefined,
     });
 
     if (this.queue.length + this.locationQueue.length >= 12) {

@@ -158,6 +158,7 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   logEnterLand: "是否记录进入领地事件。",
   logLeaveLand: "是否记录离开领地事件。",
   logLandBreakAttempt: "是否记录领地内破坏尝试事件。",
+  logLandPistonAttempt: "是否记录领地活塞破坏尝试及疑似操作者归因。",
   logAttackMobInLand: "是否记录领地内攻击生物事件。",
   logOpenChest: "是否记录打开箱子事件。",
   logOpenBarrel: "是否记录打开木桶事件。",
