@@ -100,7 +100,10 @@ fork 后修改并提交 PR，请在描述中说明改动内容与测试方式。
 商店、拍卖行等界面使用 **`textures/...` 贴图路径**显示物品图标（不再依赖 runtime 数字 id）。
 
 - 映射数据：`scripts/assets/vanilla-item-icon-paths.ts`（自动生成）
-- 游戏版本升级后执行：`npm run build:vanilla-icon-map`，再 `npm run build`
+- 生成器源码已包含在本仓库：`tools/build-vanilla-icon-map.ts`，不依赖其他相邻项目
+- 当前版本重新生成：`npm run build:vanilla-icon-map`
+- 指定新版本标签：`npm run build:vanilla-icon-map -- 1.26.30`，再执行 `npm run build`
+- 生成器会从 Mojang 官方 `bedrock-samples` 下载物品和贴图元数据；诊断报告写入 `out/vanilla-icon-map/`
 - 附加包自定义物品默认尝试 `textures/items/物品名`
 
 ## 版权

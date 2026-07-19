@@ -1,10 +1,10 @@
 /**
  * 原版物品 Chest UI 贴图路径（自动生成，请勿手改）
- * 游戏版本: 1.26.30
+ * 游戏版本: 1.26.33
  * 数据源: Mojang/bedrock-samples @ main
- * 生成命令: bun run build-vanilla-icon-map.ts 1.26.30
+ * 生成命令: npm run build:vanilla-icon-map -- 1.26.33
  */
-export const VANILLA_ITEM_ICON_PATHS_VERSION = "1.26.30";
+export const VANILLA_ITEM_ICON_PATHS_VERSION = "1.26.33";
 
 export const vanillaItemIconPaths: Record<string, string> = {
   "minecraft:acacia_boat": "textures/items/boat_acacia",
@@ -1234,7 +1234,7 @@ export const vanillaItemIconPaths: Record<string, string> = {
   "minecraft:sulfur_brick_slab": "textures/blocks/sulfur_bricks",
   "minecraft:sulfur_brick_wall": "textures/blocks/sulfur_bricks",
   "minecraft:sulfur_bricks": "textures/blocks/sulfur_bricks",
-  "minecraft:sulfur_cube_bucket": "textures/items/sulfur_cube_bucket",
+  "minecraft:sulfur_cube_bucket": "textures/items/bucket_sulfur_cube",
   "minecraft:sulfur_cube_spawn_egg": "textures/items/spawn_eggs/spawn_egg_sulfur_cube",
   "minecraft:sulfur_slab": "textures/blocks/sulfur",
   "minecraft:sulfur_spike": "textures/blocks/sulfur_spike_down_base",
