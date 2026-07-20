@@ -234,6 +234,7 @@ class FloatingTextService {
     };
 
     this.db.set(id, item);
+    this.db.save();
     this.render(item);
     return item;
   }
@@ -269,6 +270,7 @@ class FloatingTextService {
     item.modified = nowText();
 
     this.db.set(item.id, item);
+    this.db.save();
     this.render(item);
     return item;
   }
@@ -282,7 +284,9 @@ class FloatingTextService {
     if (!this.canManage(player, item)) return "您只能删除自己创建的悬浮文字";
 
     this.removeRendered(id);
-    return this.db.delete(id);
+    const deleted = this.db.delete(id);
+    if (deleted) this.db.save();
+    return deleted;
   }
 
   refreshFromSettings(): void {

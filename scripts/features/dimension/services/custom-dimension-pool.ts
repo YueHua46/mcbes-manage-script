@@ -8,7 +8,13 @@ export const CUSTOM_DIMENSION_POOL = Array.from({ length: 5 }, (_, index) => {
     dimensionId: `yuehua:custom_${number}`,
     displayName: `自定义维度 ${number}`,
   };
-});
+}).concat([
+  {
+    alias: "backrooms",
+    dimensionId: "yuehua:backrooms",
+    displayName: "backrooms",
+  },
+]);
 
 system.beforeEvents.startup.subscribe((event) => {
   for (const item of CUSTOM_DIMENSION_POOL) {

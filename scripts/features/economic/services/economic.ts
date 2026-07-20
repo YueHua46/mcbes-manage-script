@@ -43,6 +43,12 @@ export class Economic {
     return Economic.instance;
   }
 
+  /** 金币余额属于交易数据，写入后必须立即落库。 */
+  private saveWallet(key: string, wallet: IUserWallet): void {
+    this.db.set(key, wallet);
+    this.db.save();
+  }
+
   private setupDailyReset(): void {
     taskScheduler.register({
       id: "economy.dailyReset",
@@ -58,14 +64,17 @@ export class Economic {
     const today = this.getCurrentDateString();
     const allWallets = this.db.getAll() as Record<string, IUserWalletWithDailyLimit>;
 
+    let changed = false;
     for (const [name, wallet] of Object.entries(allWallets)) {
       if (wallet.lastResetDate !== today) {
         wallet.dailyEarned = 0;
         wallet.lastResetDate = today;
         wallet.dailyLimitNotifyCount = 0;
         this.db.set(name, wallet);
+        changed = true;
       }
     }
+    if (changed) this.db.save();
   }
 
   private getCurrentDateString(): string {
@@ -101,6 +110,7 @@ export class Economic {
         this.db.delete(key);
       }
     }
+    this.db.save();
     return identityKey;
   }
 
@@ -125,7 +135,7 @@ export class Economic {
       lastResetDate: this.getCurrentDateString(),
       dailyLimitNotifyCount: 0,
     };
-    this.db.set(storageKey, wallet);
+    this.saveWallet(storageKey, wallet);
     return wallet;
   }
 
@@ -148,19 +158,19 @@ export class Economic {
     if (profile && (wallet.identityId !== profile.id || wallet.name !== profile.currentName)) {
       wallet.identityId = profile.id;
       wallet.name = profile.currentName;
-      this.db.set(storageKey, wallet);
+      this.saveWallet(storageKey, wallet);
     }
 
     if (wallet.dailyEarned === undefined) {
       wallet.dailyEarned = 0;
       wallet.lastResetDate = this.getCurrentDateString();
-      this.db.set(storageKey, wallet);
+      this.saveWallet(storageKey, wallet);
     }
 
     if (wallet.lastResetDate !== this.getCurrentDateString()) {
       wallet.dailyEarned = 0;
       wallet.lastResetDate = this.getCurrentDateString();
-      this.db.set(storageKey, wallet);
+      this.saveWallet(storageKey, wallet);
     }
 
     let needsFix = false;
@@ -192,7 +202,7 @@ export class Economic {
     }
 
     if (needsFix) {
-      this.db.set(storageKey, wallet);
+      this.saveWallet(storageKey, wallet);
     }
 
     return wallet;
@@ -285,7 +295,7 @@ export class Economic {
       wallet.dailyEarned += amount;
     }
 
-    this.db.set(this.resolveWalletKey(playerName), wallet);
+    this.saveWallet(this.resolveWalletKey(playerName), wallet);
     this.logTransaction("system", playerName, amount, reason);
 
     return amount;
@@ -309,7 +319,7 @@ export class Economic {
     if (wallet.gold < amount) return false;
 
     wallet.gold -= amount;
-    this.db.set(this.resolveWalletKey(playerName), wallet);
+    this.saveWallet(this.resolveWalletKey(playerName), wallet);
     this.logTransaction(playerName, "system", amount, reason);
 
     return true;
@@ -341,16 +351,22 @@ export class Economic {
     const toWallet = this.getWallet(toPlayer);
     const fromKey = this.resolveWalletKey(fromPlayer);
     const toKey = this.resolveWalletKey(toPlayer);
+    const fromGoldBefore = fromWallet.gold;
+    const toGoldBefore = toWallet.gold;
 
     fromWallet.gold -= amount;
     try {
       this.db.set(fromKey, fromWallet);
       toWallet.gold += amount;
       this.db.set(toKey, toWallet);
+      this.db.save();
     } catch (error) {
-      fromWallet.gold += amount;
+      fromWallet.gold = fromGoldBefore;
+      toWallet.gold = toGoldBefore;
       try {
         this.db.set(fromKey, fromWallet);
+        this.db.set(toKey, toWallet);
+        this.db.save();
       } catch (rollbackError) {
         console.warn(`转账失败且回滚付款方失败: ${fromPlayer} -> ${toPlayer}`, rollbackError);
       }
@@ -388,7 +404,13 @@ export class Economic {
       logs = logs.slice(logs.length - 1000);
     }
 
-    this.logDb.set("transactions", logs);
+    try {
+      this.logDb.set("transactions", logs);
+      this.logDb.save();
+    } catch (error) {
+      // 余额已经成功落库时，日志失败不能让上层误判交易失败并重复退款。
+      console.warn("交易日志持久化失败", error);
+    }
   }
 
   setPlayerGold(playerName: string, amount: number): boolean {
@@ -416,7 +438,7 @@ export class Economic {
 
     const wallet = this.getWallet(playerName);
     wallet.gold = amount;
-    this.db.set(this.resolveWalletKey(playerName), wallet);
+    this.saveWallet(this.resolveWalletKey(playerName), wallet);
 
     return true;
   }
@@ -460,13 +482,14 @@ export class Economic {
       wallet.lastResetDate = today;
       this.db.set(name, wallet);
     }
+    this.db.save();
   }
 
   resetPlayerDailyEarnings(playerName: string): void {
     const wallet = this.getWallet(playerName);
     wallet.dailyEarned = 0;
     wallet.lastResetDate = this.getCurrentDateString();
-    this.db.set(this.resolveWalletKey(playerName), wallet);
+    this.saveWallet(this.resolveWalletKey(playerName), wallet);
   }
 
   fixInvalidGoldData(): void {
@@ -510,6 +533,7 @@ export class Economic {
     }
 
     if (fixedCount > 0) {
+      this.db.save();
       console.warn(`修复了 ${fixedCount} 个玩家的无效金币数据`);
     }
   }

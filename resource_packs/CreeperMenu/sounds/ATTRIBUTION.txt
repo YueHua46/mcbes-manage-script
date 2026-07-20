@@ -57,3 +57,52 @@ welcome.ogg
 DOVA-SYNDROME 音源利用许可：
 https://dova-s.jp/en/contents/license
 
+Backrooms Level 0 声景
+=====================
+
+sounds/backrooms 下的荧光灯嗡鸣、电流浪涌、灯管抖动、墙后抓挠、
+不可辨识气声，以及干/湿地毯上的行走与疾跑脚步变体，均由本项目的
+确定性合成脚本原创生成，
+不包含电影、游戏、视频或第三方“后室音效”的采样。
+
+music_lock.wav 同样由生成脚本创建，为全零 PCM 静音循环，仅用于在
+backrooms 内占用游戏音乐通道，避免原版背景音乐破坏 Level 0 声景。
+
+Backrooms 幻听与 Lifeform 原创声音
+==================================
+
+sounds/backrooms/voices 与 sounds/backrooms/lifeform 下的人声幻听、诱饵、
+呼吸、关节、脚步、roar_1/2、attack_1/2/3、hurt_1/2 与 death_1/2 均由
+本项目以声门谐波、共振峰与确定性噪声原创合成。不包含 Kane Pixels
+影片、电影、真人录音或其他影视作品采样，也不克隆玩家或现实人物的声音。
+
+生成器：tools/generate-backrooms-audio.py
+
+Lifeform 的 Pixabay 二次处理声音
+=================================
+
+以下三段短素材由作者 CJB123 发布，并在各素材页面标明可按
+Pixabay Content License 使用。项目仍主动保留作者、素材名、来源与许可记录：
+
+pixabay_distant_scream.wav
+  素材：creature screams in the distance
+  作者：CJB123
+  来源：https://pixabay.com/sound-effects/film-special-effects-creature-screams-in-the-distance-223558/
+
+pixabay_hurt_wail.wav
+  素材：creature wail
+  作者：CJB123
+  来源：https://pixabay.com/sound-effects/film-special-effects-creature-wail-223555/
+
+pixabay_glitch_roar.wav
+  素材：glitchy roar
+  作者：CJB123
+  来源：https://pixabay.com/sound-effects/film-special-effects-glitchy-roar-223560/
+
+许可摘要：https://pixabay.com/service/license-summary/
+访问日期：2026-07-20
+
+这三段均已进行片段化剪辑、静音修剪、单声道转换、高低通均衡、动态压缩、
+限幅和淡入淡出；远处尖叫还加入低强度墙后/房间反射。成品只作为游戏内
+Lifeform 声音系统的一部分分发，原始 MP3 不随附加包打包，也不单独分发。
+处理脚本：tools/process-pixabay-lifeform-audio.ps1

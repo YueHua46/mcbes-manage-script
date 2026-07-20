@@ -43,6 +43,11 @@ import {
 } from "../../item-watch/item-watch-subscription";
 import dimensionRegistry from "../../dimension/services/dimension-registry";
 import { getPoolDimensionByAlias } from "../../dimension/services/custom-dimension-pool";
+import {
+  BACKROOMS_DIMENSION_ID,
+  ensureBackroomsLocationReady,
+  teleportPlayerToBackrooms,
+} from "../../backrooms";
 
 // 防止重复注册的标志
 let commandsRegistered = false;
@@ -2252,7 +2257,7 @@ function handleDimensionCommand(
     return { status: CustomCommandStatus.Failure, message: "只有管理员可以管理维度登记" };
   }
 
-  system.run(() => {
+  system.run(async () => {
     try {
       switch (operation.toLowerCase()) {
         case "list": {
@@ -2308,7 +2313,7 @@ function handleDimensionCommand(
         case "reset": {
           if (!alias) throw new Error("用法: /yuehua:dimension reset <别名>");
           const poolItem = getPoolDimensionByAlias(alias);
-          if (!poolItem) throw new Error("reset 仅用于 custom1 至 custom5 预置维度");
+          if (!poolItem) throw new Error("reset 仅用于 custom1 至 custom5 或 backrooms 预置维度");
           const record = dimensionRegistry.resetRegisteredDimensionConfiguration(alias, poolItem.displayName);
           player.sendMessage(color.green(`已恢复 ${record.alias} 的默认名称，并清除默认传送点。`));
           return;
@@ -2336,13 +2341,18 @@ function handleDimensionCommand(
           if (!alias) throw new Error("用法: /yuehua:dimension test <别名>");
           const record = dimensionRegistry.getRegisteredDimension(alias);
           if (!record) throw new Error(`未找到维度别名: ${alias}`);
-          if (!record.spawn) throw new Error(`维度 ${record.alias} 尚未设置默认传送点`);
-          const dimension = world.getDimension(record.dimensionId);
-          player.teleport(record.spawn, {
-            dimension,
-            rotation: record.rotation,
-            keepVelocity: false,
-          });
+          if (!record.spawn && record.dimensionId !== BACKROOMS_DIMENSION_ID) {
+            throw new Error(`维度 ${record.alias} 尚未设置默认传送点`);
+          }
+          if (record.dimensionId === BACKROOMS_DIMENSION_ID) await teleportPlayerToBackrooms(player);
+          else {
+            const dimension = world.getDimension(record.dimensionId);
+            player.teleport(record.spawn!, {
+              dimension,
+              rotation: record.rotation,
+              keepVelocity: false,
+            });
+          }
           player.sendMessage(color.green(`已传送到 ${record.displayName}。`));
           return;
         }
@@ -2404,23 +2414,36 @@ function handleDimensionTeleportCommand(
   }
 
   const operator = origin.sourceEntity instanceof Player ? origin.sourceEntity : undefined;
-  system.run(() => {
+  system.run(async () => {
     try {
       const record = dimensionRegistry.resolveRegisteredDimension(alias);
       if (!record) throw new Error(`未找到维度别名或显示名称: ${alias}`);
       const destination = location ?? record.spawn;
-      if (!destination) throw new Error(`维度 ${record.alias} 尚未设置默认传送点，请在指令中填写坐标`);
+      if (!destination && !(record.dimensionId === BACKROOMS_DIMENSION_ID && !location)) {
+        throw new Error(`维度 ${record.alias} 尚未设置默认传送点，请在指令中填写坐标`);
+      }
       const dimension = world.getDimension(record.dimensionId);
       let successCount = 0;
       let failureCount = 0;
 
       for (const target of targetPlayers) {
         try {
-          target.teleport(destination, {
-            dimension,
-            rotation: location ? undefined : record.rotation,
-            keepVelocity: false,
-          });
+          if (record.dimensionId === BACKROOMS_DIMENSION_ID && !location) {
+            // Level 0 Isolation Effect：每个玩家进入相距极远且持久稳定的 manifestation。
+            await teleportPlayerToBackrooms(target);
+          } else if (record.dimensionId === BACKROOMS_DIMENSION_ID) {
+            const safeDestination = await ensureBackroomsLocationReady(destination!);
+            target.teleport(safeDestination, {
+              dimension,
+              keepVelocity: false,
+            });
+          } else {
+            target.teleport(destination!, {
+              dimension,
+              rotation: location ? undefined : record.rotation,
+              keepVelocity: false,
+            });
+          }
           successCount++;
         } catch (error) {
           failureCount++;

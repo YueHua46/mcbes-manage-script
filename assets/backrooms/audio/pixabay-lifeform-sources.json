@@ -1,0 +1,32 @@
+{
+  "license": {
+    "name": "Pixabay Content License",
+    "url": "https://pixabay.com/service/license-summary/",
+    "accessed": "2026-07-20"
+  },
+  "author": "CJB123",
+  "sources": [
+    {
+      "title": "creature screams in the distance",
+      "page": "https://pixabay.com/sound-effects/film-special-effects-creature-screams-in-the-distance-223558/",
+      "source_file": "audio_08610d7fc7.mp3",
+      "sha256": "EFC868FD9FCB5BCC78DFDB7D7906EDB3F9819D2222E62B307214F50252149F5C",
+      "derivative": "sounds/backrooms/lifeform/pixabay_distant_scream.wav"
+    },
+    {
+      "title": "creature wail",
+      "page": "https://pixabay.com/sound-effects/film-special-effects-creature-wail-223555/",
+      "source_file": "audio_9046603103.mp3",
+      "sha256": "5BB622676E2AF918CF55B668F69FD0C77FCFF0120249098EC657F80755D96B57",
+      "derivative": "sounds/backrooms/lifeform/pixabay_hurt_wail.wav"
+    },
+    {
+      "title": "glitchy roar",
+      "page": "https://pixabay.com/sound-effects/film-special-effects-glitchy-roar-223560/",
+      "source_file": "audio_b70968e3d3.mp3",
+      "sha256": "B3A05B3ECF2254AA12BBDB7EA5B148ADF4437BDE9958D866C4570742609F5EF4",
+      "derivative": "sounds/backrooms/lifeform/pixabay_glitch_roar.wav"
+    }
+  ],
+  "processing": "Trimmed, mono PCM16/16 kHz, high-pass and low-pass EQ, restrained compression and limiting, short fades; distant cue additionally receives a subdued wall/room echo. Raw Pixabay downloads are not shipped in the add-on."
+}

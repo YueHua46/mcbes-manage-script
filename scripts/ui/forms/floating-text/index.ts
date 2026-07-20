@@ -204,8 +204,7 @@ function openFloatingTextCreateForm(player: Player): void {
       {
         title: "创建成功",
         desc: `${color.green("悬浮文字已创建在你当前位置上方。")}\n${cost > 0 ? color.yellow(`已扣除 ${cost} 金币。`) : color.gray("本次创建未扣金币。")}`,
-      },
-      () => openFloatingTextDetailForm(player, result, () => openFloatingTextMenu(player))
+      }
     );
   });
 }
@@ -217,7 +216,7 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
   }
 
   const form = new ActionFormData();
-  form.title(`${latest.name}`);
+  form.title("悬浮文字详情");
   form.body(
     [
       `所有者: ${latest.ownerName}`,

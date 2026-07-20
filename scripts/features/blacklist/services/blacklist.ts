@@ -20,6 +20,11 @@ class BlacklistService {
     });
   }
 
+  private saveEntry(key: string, entry: IBlacklistEntry): void {
+    this.db.set(key, entry);
+    this.db.save();
+  }
+
   /**
    * 将玩家加入黑名单
    */
@@ -32,7 +37,7 @@ class BlacklistService {
       bannedAt: Date.now(),
       bannedBy,
     };
-    this.db.set(xuid, entry);
+    this.saveEntry(xuid, entry);
     SystemLog.info(`[Blacklist] 已将玩家 ${name}(xuid:${xuid}, persistentId:${persistentId ?? "未知"}) 加入黑名单，操作人: ${bannedBy}`);
   }
 
@@ -51,7 +56,7 @@ class BlacklistService {
       bannedAt: Date.now(),
       bannedBy,
     };
-    this.db.set(fallbackKey, entry);
+    this.saveEntry(fallbackKey, entry);
     SystemLog.info(
       `[Blacklist] 已将玩家 ${name}(fallback:${fallbackKey}, persistentId:${persistentId ?? "未知"}) 加入降级黑名单，操作人: ${bannedBy}`
     );
@@ -71,6 +76,7 @@ class BlacklistService {
   remove(xuid: string): boolean {
     if (!this.db.has(xuid)) return false;
     this.db.delete(xuid);
+    this.db.save();
     SystemLog.info(`[Blacklist] 已移除 xuid: ${xuid} 的黑名单记录`);
     return true;
   }
@@ -106,7 +112,7 @@ class BlacklistService {
     const entry = this.getByXuid(xuid);
     if (!entry) return;
     const updated: IBlacklistEntry = { ...entry, name: newName };
-    this.db.set(xuid, updated);
+    this.saveEntry(xuid, updated);
     SystemLog.info(`[Blacklist] 已将 xuid: ${xuid} 的名字从 ${entry.name} 同步为 ${newName}`);
   }
 
@@ -124,7 +130,7 @@ class BlacklistService {
       name: newName,
       ...(newPersistentId ? { persistentId: newPersistentId } : {}),
     };
-    this.db.set(xuid, updated);
+    this.saveEntry(xuid, updated);
     if (nameChanged) SystemLog.info(`[Blacklist] xuid:${xuid} 名字同步: ${entry.name} → ${newName}`);
     if (pidChanged) SystemLog.info(`[Blacklist] xuid:${xuid} persistentId 同步: ${entry.persistentId ?? "无"} → ${newPersistentId}`);
   }

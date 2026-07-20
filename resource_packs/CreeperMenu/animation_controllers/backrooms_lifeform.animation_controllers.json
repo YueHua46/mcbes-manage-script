@@ -1,0 +1,40 @@
+{
+  "format_version": "1.10.0",
+  "animation_controllers": {
+    "controller.animation.yuehua.backrooms_lifeform.phase": {
+      "initial_state": "default",
+      "states": {
+        "default": {
+          "transitions": [
+            { "death": "!query.is_alive" },
+            { "stagger": "query.property('yuehua:lifeform_phase') == 'stagger'" },
+            { "attack": "query.is_delayed_attacking" },
+            { "roar": "query.property('yuehua:lifeform_phase') == 'roar'" },
+            { "inspect": "query.property('yuehua:lifeform_phase') == 'inspect'" }
+          ]
+        },
+        "inspect": { "animations": ["inspect"], "transitions": [{ "death": "!query.is_alive" }, { "stagger": "query.property('yuehua:lifeform_phase') == 'stagger'" }, { "default": "query.all_animations_finished" }] },
+        "roar": { "animations": ["roar"], "transitions": [{ "death": "!query.is_alive" }, { "stagger": "query.property('yuehua:lifeform_phase') == 'stagger'" }, { "default": "query.all_animations_finished" }] },
+        "attack": { "animations": ["attack"], "transitions": [{ "death": "!query.is_alive" }, { "stagger": "query.property('yuehua:lifeform_phase') == 'stagger'" }, { "default": "!query.is_delayed_attacking" }] },
+        "stagger": { "animations": ["stagger"], "transitions": [{ "death": "!query.is_alive" }, { "default": "query.all_animations_finished" }] },
+        "death": { "animations": ["death"] }
+      }
+    },
+    "controller.animation.yuehua.backrooms_lifeform.locomotion": {
+      "initial_state": "idle",
+      "states": {
+        "idle": { "animations": ["idle"], "transitions": [{ "disabled": "!query.is_alive || query.is_delayed_attacking || query.property('yuehua:lifeform_phase') == 'inspect' || query.property('yuehua:lifeform_phase') == 'roar' || query.property('yuehua:lifeform_phase') == 'stagger'" }, { "run": "query.ground_speed > 0.17" }, { "walk": "query.ground_speed > 0.015" }] },
+        "walk": { "animations": ["walk"], "transitions": [{ "disabled": "!query.is_alive || query.is_delayed_attacking || query.property('yuehua:lifeform_phase') == 'inspect' || query.property('yuehua:lifeform_phase') == 'roar' || query.property('yuehua:lifeform_phase') == 'stagger'" }, { "run": "query.ground_speed > 0.17" }, { "idle": "query.ground_speed <= 0.015" }] },
+        "run": { "animations": ["run"], "transitions": [{ "disabled": "!query.is_alive || query.is_delayed_attacking || query.property('yuehua:lifeform_phase') == 'inspect' || query.property('yuehua:lifeform_phase') == 'roar' || query.property('yuehua:lifeform_phase') == 'stagger'" }, { "walk": "query.ground_speed <= 0.17 && query.ground_speed > 0.015" }, { "idle": "query.ground_speed <= 0.015" }] },
+        "disabled": { "transitions": [{ "run": "query.is_alive && !query.is_delayed_attacking && query.property('yuehua:lifeform_phase') != 'inspect' && query.property('yuehua:lifeform_phase') != 'roar' && query.property('yuehua:lifeform_phase') != 'stagger' && query.ground_speed > 0.17" }, { "walk": "query.is_alive && !query.is_delayed_attacking && query.property('yuehua:lifeform_phase') != 'inspect' && query.property('yuehua:lifeform_phase') != 'roar' && query.property('yuehua:lifeform_phase') != 'stagger' && query.ground_speed > 0.015" }, { "idle": "query.is_alive && !query.is_delayed_attacking && query.property('yuehua:lifeform_phase') != 'inspect' && query.property('yuehua:lifeform_phase') != 'roar' && query.property('yuehua:lifeform_phase') != 'stagger'" }] }
+      }
+    },
+    "controller.animation.yuehua.backrooms_lifeform.turn": {
+      "initial_state": "default",
+      "states": {
+        "default": { "animations": [{ "turn": "math.abs(query.yaw_speed) > 0.01" }], "transitions": [{ "disabled": "!query.is_alive || query.is_delayed_attacking || query.property('yuehua:lifeform_phase') == 'inspect' || query.property('yuehua:lifeform_phase') == 'roar' || query.property('yuehua:lifeform_phase') == 'stagger'" }] },
+        "disabled": { "transitions": [{ "default": "query.is_alive && !query.is_delayed_attacking && query.property('yuehua:lifeform_phase') != 'inspect' && query.property('yuehua:lifeform_phase') != 'roar' && query.property('yuehua:lifeform_phase') != 'stagger'" }] }
+      }
+    }
+  }
+}

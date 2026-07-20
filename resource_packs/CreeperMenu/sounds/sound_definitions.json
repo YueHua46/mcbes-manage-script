@@ -40,6 +40,165 @@
     "yuehua.welcome_9": {
       "category": "music",
       "sounds": [{ "name": "sounds/9", "is3D": false }]
+    },
+    "yuehua.backrooms.music_lock": {
+      "category": "music",
+      "sounds": [{ "name": "sounds/backrooms/music_lock", "is3D": false }]
+    },
+    "yuehua.backrooms.hum": {
+      "category": "ambient",
+      "sounds": [
+        { "name": "sounds/backrooms/fluorescent_hum_a", "is3D": false },
+        { "name": "sounds/backrooms/fluorescent_hum_b", "is3D": false }
+      ]
+    },
+    "yuehua.backrooms.ballast_surge": {
+      "category": "ambient",
+      "sounds": [{ "name": "sounds/backrooms/ballast_surge", "is3D": false }]
+    },
+    "yuehua.backrooms.tube_flicker": {
+      "category": "ambient",
+      "max_distance": 32,
+      "sounds": [{ "name": "sounds/backrooms/tube_flicker", "is3D": true }]
+    },
+    "yuehua.backrooms.wall_scratch": {
+      "category": "ambient",
+      "max_distance": 40,
+      "sounds": [{ "name": "sounds/backrooms/wall_scratch", "is3D": true }]
+    },
+    "yuehua.backrooms.indistinct_breath": {
+      "category": "ambient",
+      "max_distance": 28,
+      "sounds": [{ "name": "sounds/backrooms/indistinct_breath", "is3D": true }]
+    },
+    "yuehua.backrooms.footstep_dry_walk": {
+      "category": "ambient",
+      "max_distance": 10,
+      "sounds": [
+        { "name": "sounds/backrooms/footstep_dry_walk_1", "is3D": true },
+        { "name": "sounds/backrooms/footstep_dry_walk_2", "is3D": true },
+        { "name": "sounds/backrooms/footstep_dry_walk_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.footstep_dry_run": {
+      "category": "ambient",
+      "max_distance": 12,
+      "sounds": [
+        { "name": "sounds/backrooms/footstep_dry_run_1", "is3D": true },
+        { "name": "sounds/backrooms/footstep_dry_run_2", "is3D": true },
+        { "name": "sounds/backrooms/footstep_dry_run_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.footstep_damp_walk": {
+      "category": "ambient",
+      "max_distance": 10,
+      "sounds": [
+        { "name": "sounds/backrooms/footstep_damp_walk_1", "is3D": true },
+        { "name": "sounds/backrooms/footstep_damp_walk_2", "is3D": true },
+        { "name": "sounds/backrooms/footstep_damp_walk_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.footstep_damp_run": {
+      "category": "ambient",
+      "max_distance": 12,
+      "sounds": [
+        { "name": "sounds/backrooms/footstep_damp_run_1", "is3D": true },
+        { "name": "sounds/backrooms/footstep_damp_run_2", "is3D": true },
+        { "name": "sounds/backrooms/footstep_damp_run_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.voice_discussion": {
+      "category": "ambient",
+      "max_distance": 48,
+      "sounds": [
+        { "name": "sounds/backrooms/voices/voice_discussion_1", "is3D": true },
+        { "name": "sounds/backrooms/voices/voice_discussion_2", "is3D": true },
+        { "name": "sounds/backrooms/voices/voice_discussion_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.voice_call": {
+      "category": "ambient",
+      "max_distance": 44,
+      "sounds": [
+        { "name": "sounds/backrooms/voices/voice_call_1", "is3D": true },
+        { "name": "sounds/backrooms/voices/voice_call_2", "is3D": true },
+        { "name": "sounds/backrooms/voices/voice_call_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.lifeform.idle": {
+      "category": "hostile", "max_distance": 24,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/idle_1", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/idle_2", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.lifeform.step_walk": {
+      "category": "hostile", "max_distance": 20,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/step_walk_1", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/step_walk_2", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/step_walk_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.lifeform.step_run": {
+      "category": "hostile", "max_distance": 24,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/step_run_1", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/step_run_2", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/step_run_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.lifeform.inspect": {
+      "category": "hostile", "max_distance": 32,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/inspect_1", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/inspect_2", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.lifeform.lure": {
+      "category": "hostile", "max_distance": 44,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/lure_1", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/lure_2", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/lure_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.lifeform.roar": {
+      "category": "hostile", "max_distance": 52,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/roar_1", "is3D": true, "weight": 4 },
+        { "name": "sounds/backrooms/lifeform/roar_2", "is3D": true, "weight": 4 },
+        { "name": "sounds/backrooms/lifeform/pixabay_glitch_roar", "is3D": true, "weight": 1, "volume": 0.68 }
+      ]
+    },
+    "yuehua.backrooms.lifeform.attack": {
+      "category": "hostile", "max_distance": 24,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/attack_1", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/attack_2", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/attack_3", "is3D": true }
+      ]
+    },
+    "yuehua.backrooms.lifeform.hurt": {
+      "category": "hostile", "max_distance": 32,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/hurt_1", "is3D": true, "weight": 3 },
+        { "name": "sounds/backrooms/lifeform/hurt_2", "is3D": true, "weight": 3 },
+        { "name": "sounds/backrooms/lifeform/pixabay_hurt_wail", "is3D": true, "weight": 1, "volume": 0.72 }
+      ]
+    },
+    "yuehua.backrooms.lifeform.distant": {
+      "category": "hostile", "max_distance": 56,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/pixabay_distant_scream", "is3D": true, "volume": 0.72 }
+      ]
+    },
+    "yuehua.backrooms.lifeform.death": {
+      "category": "hostile", "max_distance": 40,
+      "sounds": [
+        { "name": "sounds/backrooms/lifeform/death_1", "is3D": true },
+        { "name": "sounds/backrooms/lifeform/death_2", "is3D": true }
+      ]
     }
   }
 }

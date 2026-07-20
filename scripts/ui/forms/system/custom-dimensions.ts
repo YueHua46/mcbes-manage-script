@@ -4,6 +4,7 @@ import dimensionRegistry from "../../../features/dimension/services/dimension-re
 import { CUSTOM_DIMENSION_POOL } from "../../../features/dimension/services/custom-dimension-pool";
 import { color } from "../../../shared/utils/color";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
+import { BACKROOMS_DIMENSION_ID, teleportPlayerToBackrooms } from "../../../features/backrooms";
 
 function locationText(location?: { x: number; y: number; z: number }): string {
   if (!location) return "未设置";
@@ -67,7 +68,7 @@ async function initializePlatformAndTeleport(
 export function openCustomDimensionManageForm(player: Player, back: () => void): void {
   const form = new ActionFormData().title("自定义维度管理");
   form.body(
-    "插件已预注册 5 个虚空维度。先进入详情设置默认传送点，再使用 /yuehua:dimension_tp 交给命令方块传送玩家。"
+    "插件已预注册 5 个通用虚空维度和 backrooms。先进入详情设置默认传送点，再使用 /yuehua:dimension_tp 交给命令方块传送玩家。"
   );
   for (const item of CUSTOM_DIMENSION_POOL) {
     const record = dimensionRegistry.getRegisteredDimension(item.alias);
@@ -107,7 +108,7 @@ function openCustomDimensionDetailForm(player: Player, alias: string, back: () =
   );
   form.button("恢复默认配置", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
-  form.show(player).then((response) => {
+  form.show(player).then(async (response) => {
     if (response.canceled) return;
     switch (response.selection) {
       case 0:
@@ -127,6 +128,11 @@ function openCustomDimensionDetailForm(player: Player, alias: string, back: () =
         break;
       case 2:
         try {
+          if (record.dimensionId === BACKROOMS_DIMENSION_ID) {
+            await teleportPlayerToBackrooms(player);
+            player.sendMessage(color.green("你从现实的错误边缘坠入了 backrooms。"));
+            break;
+          }
           if (!record.spawn || isLegacyFailedPlatformLocation(record.spawn)) {
             void initializePlatformAndTeleport(player, alias, record.dimensionId, record.displayName);
             break;

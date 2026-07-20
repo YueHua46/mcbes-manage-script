@@ -30,6 +30,7 @@ class MemberManager {
     if (!playerName.trim()) return false;
 
     this.db.set(playerName, true);
+    this.db.save();
 
     const player = usePlayerByName(playerName);
     if (player) {
@@ -49,6 +50,7 @@ class MemberManager {
     if (!playerName.trim()) return false;
 
     this.db.delete(playerName);
+    this.db.save();
 
     const player = usePlayerByName(playerName);
     if (player) {

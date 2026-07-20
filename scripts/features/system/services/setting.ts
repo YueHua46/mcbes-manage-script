@@ -313,6 +313,7 @@ export class ServerSetting {
     system.run(() => {
       this.db = new Database<IValueType>("setting");
       for (const [module,state] of this.pending) this.db.set(module,state);
+      if (this.pending.size > 0) this.db.save();
       this.pending.clear();
     });
   }
@@ -340,6 +341,7 @@ export class ServerSetting {
     SystemLog.info(`setState: ${module} = ${state}`);
     if (!this.db) { this.pending.set(module,state); return; }
     this.db.set(module, state);
+    this.db.save();
   }
 }
 

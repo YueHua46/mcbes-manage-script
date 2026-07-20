@@ -37,6 +37,7 @@ export class ItemPriceDatabase {
    */
   setPrice(itemId: string, price: number): void {
     this.db.set(itemId, price);
+    this.db.save();
   }
 
   /**
@@ -44,6 +45,7 @@ export class ItemPriceDatabase {
    */
   removePrice(itemId: string): void {
     this.db.delete(itemId);
+    this.db.save();
   }
 
   /**
@@ -58,7 +60,6 @@ export class ItemPriceDatabase {
         customPrices[itemId] = price;
       }
     });
-
     return customPrices;
   }
 
@@ -74,7 +75,6 @@ export class ItemPriceDatabase {
         allPrices[itemId] = price;
       }
     });
-
     return allPrices;
   }
 
@@ -119,6 +119,7 @@ export class ItemPriceDatabase {
       }
     });
     
+    if (initialized > 0) this.db.save();
     console.warn(`[ItemPriceDatabase] 初始化完成，已初始化 ${initialized} 个物品，跳过 ${skipped} 个已设置的物品`);
     return { initialized, skipped };
   }

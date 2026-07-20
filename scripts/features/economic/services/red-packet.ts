@@ -227,6 +227,11 @@ class RedPacketService {
     });
   }
 
+  private savePacket(db: Database<IRedPacket>, id: string, packet: IRedPacket): void {
+    db.set(id, packet);
+    db.save();
+  }
+
   createPacket(sender: Player, input: CreateRedPacketInput): string | undefined {
     if (!isEconomyEnabled()) {
       return "经济系统未开启";
@@ -276,7 +281,7 @@ class RedPacketService {
     };
 
     try {
-      db.set(id, packet);
+      this.savePacket(db, id, packet);
     } catch (e) {
       SystemLog.error("红包持久化失败", e);
       economic.addGold(sender.name, totalDeducted, "玩家红包发放失败回退", true);
@@ -532,7 +537,7 @@ class RedPacketService {
       }
 
       try {
-        db.set(packetId, packet);
+        this.savePacket(db, packetId, packet);
       } catch (e) {
         SystemLog.error("红包领取记录保存失败", e);
         return "领取失败，请稍后重试";
@@ -544,7 +549,7 @@ class RedPacketService {
         packet.claimAtMs = packet.claimAtMs?.slice(0, packet.claimedBy.length);
         packet.finished = false;
         try {
-          db.set(packetId, packet);
+          this.savePacket(db, packetId, packet);
         } catch (e) {
           SystemLog.error("红包领取失败回滚记录失败", e);
         }
@@ -581,7 +586,7 @@ class RedPacketService {
     }
 
     try {
-      db.set(packetId, packet);
+      this.savePacket(db, packetId, packet);
     } catch (e) {
       SystemLog.error("旧版红包领取记录保存失败", e);
       rec.claimed = false;
@@ -594,7 +599,7 @@ class RedPacketService {
       rec.claimed = false;
       packet.finished = false;
       try {
-        db.set(packetId, packet);
+        this.savePacket(db, packetId, packet);
       } catch (e) {
         SystemLog.error("旧版红包领取失败回滚记录失败", e);
       }
@@ -647,7 +652,7 @@ class RedPacketService {
       }
 
       packet.finished = true;
-      db.set(id, packet);
+      this.savePacket(db, id, packet);
     }
   }
 }

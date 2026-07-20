@@ -143,12 +143,14 @@ class GuildService {
     this.indexDb.set(playerName, guildId);
     const identityId = this.getIdentityId(playerName);
     if (identityId) this.indexDb.set(identityId, guildId);
+    this.indexDb.save();
   }
 
   private deletePlayerIndex(playerName: string): void {
     this.indexDb.delete(playerName);
     const identityId = this.getIdentityId(playerName);
     if (identityId) this.indexDb.delete(identityId);
+    this.indexDb.save();
   }
 
   private getIndexedGuildId(playerName: string): string | undefined {
@@ -302,6 +304,33 @@ class GuildService {
   private saveGuild(g: IGuild): void {
     g.schemaVersion = CURRENT_GUILD_SCHEMA_VERSION;
     this.guildsDb.set(g.id, g);
+    this.guildsDb.save();
+  }
+
+  private saveInvite(playerName: string, invite: IPendingGuildInvite): void {
+    this.invitesDb.set(playerName, invite);
+    this.invitesDb.save();
+  }
+
+  private deleteInvite(playerName: string): boolean {
+    const deleted = this.invitesDb.delete(playerName);
+    if (deleted) this.invitesDb.save();
+    return deleted;
+  }
+
+  /** 跨数据库创建失败时做补偿回滚，避免留下孤立公会或成员索引。 */
+  private rollbackGuildCreation(guildId: string, playerName: string): void {
+    try {
+      this.guildsDb.delete(guildId);
+      this.guildsDb.save();
+    } catch (error) {
+      SystemLog.error("回滚公会记录失败", error);
+    }
+    try {
+      this.deletePlayerIndex(playerName);
+    } catch (error) {
+      SystemLog.error("回滚公会成员索引失败", error);
+    }
   }
 
   private isNameTaken(nameNorm: string): boolean {
@@ -448,6 +477,7 @@ class GuildService {
       this.saveGuild(g);
       this.setPlayerIndex(player.name, id);
     } catch (e) {
+      this.rollbackGuildCreation(id, player.name);
       if (cost > 0) {
         economic.addGold(player.name, cost, "guild:create:rollback", true);
       }
@@ -474,17 +504,21 @@ class GuildService {
     }
 
     this.guildsDb.delete(g.id);
+    this.guildsDb.save();
   }
 
   /** 清除指向该公会的所有待处理邀请 */
   private removeAllInvitesForGuild(guildId: string): void {
     const all = this.invitesDb.getAll() as Record<string, IPendingGuildInvite>;
+    let deleted = false;
     for (const playerName of Object.keys(all)) {
       const inv = all[playerName];
       if (inv?.guildId === guildId) {
         this.invitesDb.delete(playerName);
+        deleted = true;
       }
     }
+    if (deleted) this.invitesDb.save();
   }
 
   /** 删除本会全部公会领地数据（领地记录从库中移除，避免仅解绑遗留） */
@@ -575,7 +609,7 @@ class GuildService {
       byName: player.name,
       expiresAt: Date.now() + expSec * 1000,
     };
-    this.invitesDb.set(tname, inv);
+    this.saveInvite(tname, inv);
     this.logGuild(player.name, "guildInvite", this.guildMeta(g, `target=${tname}`));
 
     const online = usePlayerByName(tname);
@@ -594,18 +628,18 @@ class GuildService {
     const inv = this.invitesDb.get(player.name);
     if (!inv) return "没有待处理的公会邀请";
     if (Date.now() > inv.expiresAt) {
-      this.invitesDb.delete(player.name);
+      this.deleteInvite(player.name);
       return "邀请已过期";
     }
 
     if (this.getIndexedGuildId(player.name)) {
-      this.invitesDb.delete(player.name);
+      this.deleteInvite(player.name);
       return "你已在公会中";
     }
 
     const g = this.getGuild(inv.guildId);
     if (!g) {
-      this.invitesDb.delete(player.name);
+      this.deleteInvite(player.name);
       return "公会已不存在";
     }
 
@@ -625,13 +659,13 @@ class GuildService {
   }
 
   private clearAllInvitesForPlayer(inviteeName: string): void {
-    this.invitesDb.delete(inviteeName);
+    this.deleteInvite(inviteeName);
   }
 
   declineInvite(player: Player): string {
     if (!this.ensureDbs()) return "公会系统未就绪";
     if (!this.invitesDb.has(player.name)) return "没有待处理的邀请";
-    this.invitesDb.delete(player.name);
+    this.deleteInvite(player.name);
     return "";
   }
 
@@ -1214,12 +1248,12 @@ class GuildService {
     const inv = this.invitesDb.get(playerName);
     if (!inv) return undefined;
     if (Date.now() > inv.expiresAt) {
-      this.invitesDb.delete(playerName);
+      this.deleteInvite(playerName);
       return undefined;
     }
     const g = this.getGuild(inv.guildId);
     if (!g) {
-      this.invitesDb.delete(playerName);
+      this.deleteInvite(playerName);
       return undefined;
     }
     return { guildId: inv.guildId, guildTag: g.tag, guildName: g.name, inviterName: inv.byName };

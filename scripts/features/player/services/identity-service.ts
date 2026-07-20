@@ -86,6 +86,8 @@ class IdentityService {
       this.nameIndexDb.set(normalizeName(name), profile.id);
     }
     this.nameIndexDb.set(normalizeName(profile.currentName), profile.id);
+    this.profilesDb.save();
+    this.nameIndexDb.save();
   }
 
   bindPlayer(player: Player, extra?: { persistentId?: string | null; xuid?: string | null }): PlayerIdentityProfile {

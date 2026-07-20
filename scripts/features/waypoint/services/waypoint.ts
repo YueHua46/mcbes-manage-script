@@ -11,6 +11,7 @@ import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
 import setting, { IValueType } from "../../system/services/setting";
+import { BACKROOMS_DIMENSION_ID } from "../../backrooms/constants";
 
 export interface IWayPoint {
   name: string;
@@ -63,6 +64,18 @@ class WayPoint {
       // 执行数据迁移：将旧格式的坐标点（仅 pointName 作为键）迁移到新格式（playerName:pointName）
       this.migrateOldData();
     });
+  }
+
+  /** 坐标点是低频关键数据，业务变更后立即持久化。 */
+  private savePoint(key: string, point: IWayPoint): void {
+    this.db.set(key, point);
+    this.db.save();
+  }
+
+  private deletePointRecord(key: string): boolean {
+    const deleted = this.db.delete(key);
+    if (deleted) this.db.save();
+    return deleted;
   }
 
   /**
@@ -149,6 +162,7 @@ class WayPoint {
 
   createPoint(pointOption: ICreateWayPoint): void | string {
     const { pointName, location, player, type = "private" } = pointOption;
+    if (player.dimension.id === BACKROOMS_DIMENSION_ID) return "这里无法留下可靠的坐标记录";
     let maxPoints: IValueType = "10";
     if (type === "private") {
       maxPoints = setting.getState("maxPrivatePointsPerPlayer");
@@ -177,7 +191,7 @@ class WayPoint {
       modified: time,
       type: type,
     };
-    return this.db.set(key, wayPoint);
+    return this.savePoint(key, wayPoint);
   }
 
   /**
@@ -249,7 +263,7 @@ class WayPoint {
       modified: time,
       type: "guild",
     };
-    return this.db.set(key, wp);
+    return this.savePoint(key, wp);
   }
 
   /** 从旧版「某玩家名下的路点」复制为公会虚拟路点（迁移用） */
@@ -270,7 +284,7 @@ class WayPoint {
       modified: time,
       type: "guild",
     };
-    return this.db.set(key, wp);
+    return this.savePoint(key, wp);
   }
 
   /** 按完整库键更新坐标（含旧版「玩家名:名称」公会坐标） */
@@ -285,7 +299,7 @@ class WayPoint {
     wp.location = this.formatLocation(player.location);
     wp.dimension = player.dimension.id;
     wp.modified = getNowDate();
-    return this.db.set(key, wp);
+    return this.savePoint(key, wp);
   }
 
   /**
@@ -298,14 +312,14 @@ class WayPoint {
       // 如果提供了玩家名称，使用键精确删除
       const key = this.getKey(playerName, pointName);
       if (this.db.get(key)) {
-        return this.db.delete(key);
+        return this.deletePointRecord(key);
       }
     } else {
       // 如果没有提供玩家名称，遍历查找删除
       const point = this.db.values().find((p) => p.name === pointName);
       if (point) {
         const key = this.getKey(point.playerName, point.name);
-        return this.db.delete(key);
+        return this.deletePointRecord(key);
       }
     }
     return "坐标点不存在";
@@ -337,11 +351,13 @@ class WayPoint {
       // 使用新的键保存
       const newKey = this.getKey(player.name, updatePointName);
       wayPoint.modified = getNowDate();
-      return this.db.set(newKey, wayPoint);
+      this.db.set(newKey, wayPoint);
+      this.db.save();
+      return;
     }
 
     wayPoint.modified = getNowDate();
-    return this.db.set(oldKey, wayPoint);
+    return this.savePoint(oldKey, wayPoint);
   }
 
   checkOwner(player: Player, pointName: string): boolean {
@@ -352,6 +368,7 @@ class WayPoint {
   }
 
   teleport(player: Player, pointName: string, ownerName?: string): void | string {
+    if (player.dimension.id === BACKROOMS_DIMENSION_ID) return "Backrooms 的隔离层阻断了坐标传送";
     // 如果提供了所有者名称，使用它查找；否则使用当前玩家名称
     const searchPlayerName = ownerName || player.name;
     let wayPoint = this.getPoint(pointName, searchPlayerName);
@@ -360,6 +377,7 @@ class WayPoint {
       wayPoint = this.db.values().find((p) => p.name === pointName && p.type === "public");
     }
     if (!wayPoint) return "坐标点不存在";
+    if (wayPoint.dimension === BACKROOMS_DIMENSION_ID) return "无法通过坐标点进入其他人的 manifestation";
 
     // 保存传送前的位置和维度
     const startLocation = player.location;
@@ -724,6 +742,7 @@ class WayPoint {
       this.db.delete(key);
       count++;
     }
+    if (count > 0) this.db.save();
     return count;
   }
 
@@ -741,7 +760,7 @@ class WayPoint {
 
     wayPoint.isStarred = isStarred;
     wayPoint.modified = getNowDate();
-    return this.db.set(key, wayPoint);
+    return this.savePoint(key, wayPoint);
   }
 
   /**
@@ -750,12 +769,15 @@ class WayPoint {
   deleteAllGuildPointsForGuild(guildId: string): void {
     const owner = guildVirtualOwnerName(guildId);
     const all = this.db.getAll() as Record<string, IWayPoint>;
+    let deleted = false;
     for (const key of Object.keys(all)) {
       const wp = all[key];
       if (wp && wp.type === "guild" && wp.playerName === owner) {
         this.db.delete(key);
+        deleted = true;
       }
     }
+    if (deleted) this.db.save();
   }
 }
 

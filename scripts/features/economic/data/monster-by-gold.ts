@@ -6,6 +6,7 @@
 import { EntityTypes } from "@minecraft/server";
 
 export const monsterByGold: Record<string, [number, number]> = {
+  backrooms_lifeform: [100, 100],
   zombie: [1, 10],
   zombie_pigman: [2, 20],
   zombie_villager: [1, 10],

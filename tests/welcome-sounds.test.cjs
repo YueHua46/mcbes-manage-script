@@ -20,7 +20,11 @@ test("welcome music uses ten non-positional preloaded music events with matching
     assert.ok(fs.existsSync(path.join(root, "resource_packs/CreeperMenu", `${definition.sounds[0].name}.ogg`)));
   }
 
-  assert.equal(Object.keys(definitions).length, 10);
+  assert.equal(
+    Object.keys(definitions).filter((id) => id.startsWith("yuehua.welcome_")).length,
+    10,
+    "the shared sound catalog may contain non-welcome events, but exactly ten welcome tracks are required"
+  );
 });
 
 test("player join handler selects a concrete welcome sound id", () => {

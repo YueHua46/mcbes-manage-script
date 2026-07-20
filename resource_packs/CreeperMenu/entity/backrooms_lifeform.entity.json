@@ -1,0 +1,40 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "yuehua:backrooms_lifeform",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/backrooms_lifeform" },
+      "geometry": { "default": "geometry.yuehua.backrooms_lifeform" },
+      "animations": {
+        "stretch": "animation.yuehua.backrooms_lifeform.base_stretch",
+        "idle": "animation.yuehua.backrooms_lifeform.idle",
+        "walk": "animation.yuehua.backrooms_lifeform.walk",
+        "run": "animation.yuehua.backrooms_lifeform.run",
+        "turn": "animation.yuehua.backrooms_lifeform.turn",
+        "inspect": "animation.yuehua.backrooms_lifeform.inspect",
+        "roar": "animation.yuehua.backrooms_lifeform.roar",
+        "attack": "animation.yuehua.backrooms_lifeform.attack",
+        "stagger": "animation.yuehua.backrooms_lifeform.stagger",
+        "death": "animation.yuehua.backrooms_lifeform.death",
+        "locomotion": "controller.animation.yuehua.backrooms_lifeform.locomotion",
+        "phase": "controller.animation.yuehua.backrooms_lifeform.phase",
+        "turn_controller": "controller.animation.yuehua.backrooms_lifeform.turn"
+      },
+      "scripts": { "animate": ["stretch", "locomotion", "phase", "turn_controller"] },
+      "sound_effects": {
+        "idle": "yuehua.backrooms.lifeform.idle",
+        "step_walk": "yuehua.backrooms.lifeform.step_walk",
+        "step_run": "yuehua.backrooms.lifeform.step_run",
+        "inspect": "yuehua.backrooms.lifeform.inspect",
+        "lure": "yuehua.backrooms.lifeform.lure",
+        "roar": "yuehua.backrooms.lifeform.roar",
+        "attack": "yuehua.backrooms.lifeform.attack",
+        "hurt": "yuehua.backrooms.lifeform.hurt",
+        "death": "yuehua.backrooms.lifeform.death"
+      },
+      "render_controllers": ["controller.render.yuehua.backrooms_lifeform"],
+      "spawn_egg": { "base_color": "#17130F", "overlay_color": "#74623A" }
+    }
+  }
+}

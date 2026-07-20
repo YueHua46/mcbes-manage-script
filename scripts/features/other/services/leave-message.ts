@@ -31,6 +31,17 @@ class LeaveMessage {
     });
   }
 
+  private saveMessage(id: string, message: ILeaveMessage): void {
+    this.db.set(id, message);
+    this.db.save();
+  }
+
+  private deleteMessage(id: string): boolean {
+    const deleted = this.db.delete(id);
+    if (deleted) this.db.save();
+    return deleted;
+  }
+
   getLeaveMessages(): ILeaveMessage[] {
     return this.db.values();
   }
@@ -42,7 +53,7 @@ class LeaveMessage {
   createLeaveMessage(leaveMessage: Omit<ILeaveMessage, "id" | "time">): void | string {
     if (!leaveMessage.title || !leaveMessage.content) return "参数错误";
     const id = Date.now().toString();
-    return this.db.set(id, {
+    return this.saveMessage(id, {
       id,
       time: getNowDate(),
       ...leaveMessage,
@@ -51,7 +62,7 @@ class LeaveMessage {
 
   deleteLeaveMessage(id: string): boolean | string {
     if (!this.db.has(id)) return "该留言不存在";
-    return this.db.delete(id);
+    return this.deleteMessage(id);
   }
 }
 

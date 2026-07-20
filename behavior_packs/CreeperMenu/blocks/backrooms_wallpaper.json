@@ -1,0 +1,16 @@
+{
+  "format_version": "1.26.20",
+  "minecraft:block": {
+    "description": { "identifier": "yuehua:backrooms_wallpaper" },
+    "components": {
+      "minecraft:geometry": "minecraft:geometry.full_block",
+      "minecraft:material_instances": {
+        "*": { "texture": "backrooms_wallpaper", "render_method": "opaque", "ambient_occlusion": 1 }
+      },
+      "minecraft:destructible_by_mining": false,
+      "minecraft:destructible_by_explosion": false,
+      "minecraft:light_dampening": 15,
+      "minecraft:map_color": "#B5A35F"
+    }
+  }
+}

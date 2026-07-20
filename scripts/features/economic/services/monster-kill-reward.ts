@@ -47,7 +47,7 @@ world.afterEvents.entityDie.subscribe((event) => {
         const actualEarned = economic.addGold(player.name, amount, `击杀怪物 ${monsterName}`);
         // 按实际到账金额显示，避免每日上限截断后提示比到账更多。
         if (actualEarned > 0) {
-          const localizationKey = getMonsterLocalizationKey(monsterName);
+          const localizationKey = getMonsterLocalizationKey(fullType);
           player.onScreenDisplay.setActionBar({
             rawtext: [
               { text: `${colorCodes.yellow}击杀了 ${colorCodes.materialRedstone}` },

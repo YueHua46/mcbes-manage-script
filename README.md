@@ -43,7 +43,7 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 
 ## 自定义维度传送
 
-插件启动时会注册 5 个虚空生成器维度，并自动登记为 `custom1` 至 `custom5`。首次安装或升级后须完整重启世界/服务器，不要只使用 `/reload`。管理员可以修改显示名称、设置默认点并交给命令方块传送；插件也保留接入其他行为包维度的能力。
+插件启动时会注册 5 个通用虚空维度（`custom1` 至 `custom5`）和一个由脚本按需无限延伸的 `backrooms` 维度。首次安装或升级后须完整重启世界/服务器，不要只使用 `/reload`。管理员可以修改显示名称、设置默认点并交给命令方块传送；插件也保留接入其他行为包维度的能力。
 
 ```text
 /yuehua:dimension add <别名> <维度ID> [显示名称]
@@ -53,14 +53,14 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 /yuehua:dimension current
 /yuehua:dimension remove <别名>
 /yuehua:dimension rename <别名> <新显示名称>
-/yuehua:dimension reset <custom1至custom5>
+/yuehua:dimension reset <预置维度别名>
 /yuehua:dimension_setspawn <别名> <x> <y> <z>
 /yuehua:dimension_setspawn_here <别名>
 /yuehua:dimension test <别名>
 /yuehua:dimension_tp <玩家选择器> <别名> [x y z]
 ```
 
-预置维度的真实 ID 为 `yuehua:custom_1` 至 `yuehua:custom_5`，不能真正删除；`reset` 会恢复默认名称并清除默认传送点。`dimension`、`dimension_setspawn` 和 `dimension_setspawn_here` 仅管理员可用；`dimension_tp` 可由管理员或命令方块执行。省略目标坐标时使用已保存的默认点，例如：
+通用预置维度的真实 ID 为 `yuehua:custom_1` 至 `yuehua:custom_5`，另有 `yuehua:backrooms`；它们不能真正删除。`reset` 会恢复默认名称并清除默认传送点。`dimension`、`dimension_setspawn` 和 `dimension_setspawn_here` 仅管理员可用；`dimension_tp` 可由管理员或命令方块执行。省略目标坐标时使用已保存的默认点，例如：
 
 `dimension_tp` 的维度参数既可以填写固定别名（如 `custom1`），也可以填写管理员修改后的显示名称（如 `天界`）。相对坐标需要写成 `~ ~ ~`，三个坐标之间必须有空格。
 
@@ -68,6 +68,14 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 /yuehua:dimension_tp @a[tag=enter_mine] mine
 /yuehua:dimension_tp @p[r=3] dungeon 0 80 0
 ```
+
+进入 Backrooms Level 0：
+
+```mcfunction
+/yuehua:dimension_tp @p backrooms
+```
+
+省略坐标时，每个玩家会进入相距极远且持久稳定的独立 manifestation。生成器会在玩家接近边界时提前施工相邻 `64×64` 区域；未完成区域保持为封闭黄墙，不会暴露虚空。行为包 3.1.2 与资源包 3.2.2 加入局部灯光、专属脚步、墙后幻听、原版音乐抑制，以及会在持续探索后出现的细菌（Bacteria）小 Boss。由真实玩家击杀细菌可获得 100 金币并掉落 35 点经验。算法、隔离、声景、实体与运维说明见 [Backrooms 无限生成器设计](docs/backrooms-generator.md)。
 
 ## 开发
 

@@ -57,6 +57,11 @@ class OfficeShop {
     });
   }
 
+  private saveCategory(name: string, category: ICategory): void {
+    this.db.set(name, category);
+    this.db.save();
+  }
+
   /**
    * 遍历所有商品
    */
@@ -115,7 +120,7 @@ class OfficeShop {
       modified: Date.now(),
       createdBy: player.name,
     };
-    this.db.set(name, newCategory);
+    this.saveCategory(name, newCategory);
   }
 
   /**
@@ -129,7 +134,7 @@ class OfficeShop {
       ...updates,
       modified: Date.now(),
     };
-    this.db.set(name, updated);
+    this.saveCategory(name, updated);
   }
 
   /**
@@ -138,6 +143,7 @@ class OfficeShop {
   deleteCategory(name: string): void {
     if (!this.db.has(name)) return;
     this.db.delete(name);
+    this.db.save();
     this.getCategoryItems(name).forEach((entry) => entry.itemDB.delete());
   }
 

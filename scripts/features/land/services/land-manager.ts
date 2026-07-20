@@ -26,6 +26,18 @@ class LandManager {
     });
   }
 
+  /** 领地属于低频关键数据，所有业务变更必须立即持久化。 */
+  private saveLand(name: string, land: ILand): void {
+    this.db.set(name, land);
+    this.db.save();
+  }
+
+  private deleteLand(name: string): boolean {
+    const deleted = this.db.delete(name);
+    if (deleted) this.db.save();
+    return deleted;
+  }
+
   /**
    * 创建Vector3坐标
    */
@@ -50,7 +62,7 @@ class LandManager {
    */
   removeLand(name: string): boolean | string {
     if (!this.db.has(name)) return "领地不存在";
-    return this.db.delete(name);
+    return this.deleteLand(name);
   }
 
   /**
@@ -65,7 +77,7 @@ class LandManager {
    */
   setLand(name: string, land: ILand): void | string {
     if (!this.db.has(name)) return "领地不存在";
-    return this.db.set(name, land);
+    return this.saveLand(name, land);
   }
 
   /**
@@ -83,7 +95,7 @@ class LandManager {
         land.memberIdentityIds.push(memberIdentityId);
       }
     }
-    return this.db.set(name, land);
+    return this.saveLand(name, land);
   }
 
   /**
@@ -98,7 +110,7 @@ class LandManager {
     if (memberIdentityId && land.memberIdentityIds) {
       land.memberIdentityIds = land.memberIdentityIds.filter((id) => id !== memberIdentityId);
     }
-    return this.db.set(name, land);
+    return this.saveLand(name, land);
   }
 
   /**
@@ -108,7 +120,7 @@ class LandManager {
     if (!this.db.has(name)) return "领地不存在";
     const land = this.db.get(name) as ILand;
     land.public_auth = auth;
-    return this.db.set(name, land);
+    return this.saveLand(name, land);
   }
 
   /**
@@ -239,7 +251,7 @@ class LandManager {
     const land = this.db.get(name) as ILand;
     land.owner = playerName;
     land.ownerIdentityId = identityService.getProfileByName(playerName)?.id;
-    return this.db.set(name, land);
+    return this.saveLand(name, land);
   }
 
   /**
@@ -270,6 +282,7 @@ class LandManager {
       this.db.delete(land.name);
       count++;
     }
+    if (count > 0) this.db.save();
     return count;
   }
 
@@ -373,7 +386,7 @@ class LandManager {
       }
 
       try {
-        this.db.set(landData.name, landData);
+        this.saveLand(landData.name, landData);
       } catch (e) {
         if (treasuryCost > 0) {
           guildService.refundTreasuryForGuild(landData.guildId, treasuryCost);
@@ -403,7 +416,7 @@ class LandManager {
     }
 
     try {
-      this.db.set(landData.name, landData);
+      this.saveLand(landData.name, landData);
     } catch (e) {
       if (cost > 0) {
         economic.addGold(player.name, cost, "领地创建失败退款", true);
@@ -469,7 +482,7 @@ class LandManager {
     }
 
     land.teleportPoint = roundedLocation;
-    return this.db.set(landName, land);
+    return this.saveLand(landName, land);
   }
 
   /**
@@ -479,7 +492,7 @@ class LandManager {
     if (!this.db.has(landName)) return "领地不存在";
     const land = this.db.get(landName) as ILand;
     delete land.teleportPoint;
-    return this.db.set(landName, land);
+    return this.saveLand(landName, land);
   }
 
   /**

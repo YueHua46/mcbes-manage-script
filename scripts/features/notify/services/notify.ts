@@ -34,6 +34,11 @@ class Notify {
     });
   }
 
+  private saveNotify(id: string, notify: INotify): void {
+    this.db.set(id, notify);
+    this.db.save();
+  }
+
   init(): void {
     this.getNotifys().forEach((n) => {
       const id = n.id;
@@ -50,7 +55,7 @@ class Notify {
       const intervalTicks = this.normalizeIntervalTicks(n.interval);
       if (n.interval !== intervalTicks) {
         n.interval = intervalTicks;
-        this.db.set(id, n);
+        this.saveNotify(id, n);
       }
       const runId = system.runInterval(() => {
         world.sendMessage({
@@ -90,7 +95,7 @@ class Notify {
     if (!notify.title || !notify.content) return '参数错误';
     const id = Date.now().toString();
     const interval = this.normalizeIntervalTicks(notify.interval);
-    this.db.set(id, {
+    this.saveNotify(id, {
       id,
       time: getNowDate(),
       ...notify,
@@ -107,6 +112,7 @@ class Notify {
       this.runIdMap.delete(id);
     }
     this.db.delete(id);
+    this.db.save();
     return this.init();
   }
 
@@ -122,7 +128,7 @@ class Notify {
     if (typeof notify.interval === 'number') {
       next.interval = this.normalizeIntervalTicks(notify.interval);
     }
-    this.db.set(id, next);
+    this.saveNotify(id, next);
     return this.init();
   }
 }
