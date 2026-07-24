@@ -32,9 +32,21 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 | Backrooms Level 0 | 本地世界、Realms、BDS  | 独立行为包与资源包，不依赖苦力怕菜单                            | `npm run mcaddon:backrooms` |
 
 
-同时生成普通版、Realms 版、BDS 增强版和独立 Backrooms `.mcaddon`：`npm run mcaddon:all`。
+同时生成三个 CreeperMenu 发行产物：`npm run mcaddon:release`。当前版本的
+Release 附件名称为：
 
-当前苦力怕菜单行为包版本为 **3.1.13**，资源包版本为 **3.2.13**；Backrooms 行为包和资源包版本均为 **1.0.0**。manifest 最低引擎版本为 **1.26.0**。
+- `CreeperMenu-v3.2.13-MCBE-1.26.3x-普通兼容版.mcaddon`
+- `CreeperMenu-v3.2.13-MCBE-1.26.3x-Realms兼容版.mcaddon`
+- `CreeperMenu-v3.2.13-MCBE-1.26.3x-BDS增强版.mcaddon`
+
+三个 CreeperMenu 变体统一使用 **3.2.13** 发行版本。构建依赖精确锁定
+Minecraft Bedrock **1.26.30**，面向用户标记为 **1.26.3x**，表示适配
+正常的 `1.26.30` 至 `1.26.39` 小版本族。manifest 最低引擎版本仍为
+**1.26.0**。
+
+Backrooms 行为包和资源包继续使用独立版本 **1.0.0**，不会进入
+CreeperMenu 的三版本 Release。需要同时生成它时可使用
+`npm run mcaddon:all`。
 
 ## 项目架构
 
@@ -129,7 +141,30 @@ Backrooms ─> backrooms.main.ts + 独立 Backrooms 行为包和资源包
 
 测试除业务逻辑外，还会检查跨平台路径大小写、manifest 约束、资源尺寸、素材可复现性，以及经维护者确认的 DOVA 音乐、欢迎角色和假人皮肤是否被意外修改。
 
-当前 CI 负责质量检查和构建验证，不会自动创建 GitHub Release、上传 `.mcaddon` 或进行真实 Minecraft/BDS 游戏内测试；正式发行包仍需通过 `npm run mcaddon:all` 生成。
+普通 push 和 Pull Request 会构建并上传普通兼容版、Realms 兼容版和 BDS
+增强版三个短期 Actions artifacts，便于维护者下载验证，但不会创建 Release。
+推送与统一发行版本匹配的 `v*` Tag 后，CI 会再次完成全部检查，自动创建
+GitHub Release，并上传三个中文命名的 `.mcaddon`。CI 不代替真实
+Minecraft、Realms 或 BDS 游戏内测试。
+
+### 正式发布
+
+`release.config.json` 是 CreeperMenu 的统一发行版本与 Minecraft 构建基线。
+发布新版本时：
+
+```bash
+npm run release:sync -- 3.2.14
+npm run check
+git add release.config.json package.json package-lock.json behavior_packs/CreeperMenu resource_packs/CreeperMenu
+git commit -m "chore: 发布苦力怕菜单 3.2.14"
+git tag v3.2.14
+git push origin HEAD
+git push origin v3.2.14
+```
+
+Tag 必须严格等于 `v` 加统一发行版本，否则 CI 会拒绝发布。失败的 Tag 发布
+可以在 GitHub Actions 页面手动重跑，并输入已经存在的同一 Tag；手动流程
+不能发布任意分支或未经版本检查的 commit。
 
 ## 安装
 
@@ -213,6 +248,9 @@ npm run mcaddon:realms    # 打包菜单 Realms 兼容版
 npm run mcaddon:bds       # 打包菜单 BDS 增强版
 npm run mcaddon:backrooms # 打包独立 Backrooms
 npm run mcaddon:all       # 打包全部产物
+npm run mcaddon:release   # 打包三个 CreeperMenu Release 产物
+npm run release:check     # 检查统一版本与全部 manifest
+npm run release:sync -- 3.2.14 # 同步下一发行版本
 npm run verify:realms-build # 检查当前 Realms manifest 和脚本不含不支持模块
 ```
 
