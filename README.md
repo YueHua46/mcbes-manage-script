@@ -1,4 +1,4 @@
-苦力怕菜单
+![苦力怕菜单](docs/images/creeper-menu-banner.png)
 
 # 苦力怕菜单
 
