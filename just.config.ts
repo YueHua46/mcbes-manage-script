@@ -41,13 +41,15 @@ const isProduction = argv()["production"];
 type MainBundleOptions = BundleTaskParameters & {
   define?: Record<string, string>;
   realmsRuntime?: boolean;
+  bdsRuntime?: boolean;
 };
 
 function createBundleTaskOptions(
   entryPoint: string,
   outfile: string,
   define: Record<string, string>,
-  realmsRuntime: boolean = false
+  realmsRuntime: boolean = false,
+  bdsRuntime: boolean = false
 ): MainBundleOptions {
   const absoluteOutfile = path.resolve(__dirname, outfile);
   return {
@@ -67,6 +69,7 @@ function createBundleTaskOptions(
     dropLabels: isProduction ? ["dev"] : undefined,
     define,
     realmsRuntime,
+    bdsRuntime,
   } as MainBundleOptions;
 }
 
@@ -87,12 +90,18 @@ const bundleTaskOptionsDebug = createBundleTaskOptions("./scripts/main.debug.ts"
 });
 
 /** BDS 增强版构建：包含 server-net / server-admin 相关能力，仅供 BDS 服务器使用 */
-const bundleTaskOptionsBdsAdmin = createBundleTaskOptions("./scripts/main.bds.ts", "./dist/scripts/main.js", {
-  __BDS_BUILD__: "true",
-  __SERVER_ADMIN_BUILD__: "true",
-  __DEBUG_UTILITIES_BUILD__: "false",
-  __REALMS_BUILD__: "false",
-});
+const bundleTaskOptionsBdsAdmin = createBundleTaskOptions(
+  "./scripts/main.bds.ts",
+  "./dist/scripts/main.js",
+  {
+    __BDS_BUILD__: "true",
+    __SERVER_ADMIN_BUILD__: "true",
+    __DEBUG_UTILITIES_BUILD__: "false",
+    __REALMS_BUILD__: "false",
+  },
+  false,
+  true
+);
 
 /** Realms 兼容版构建：不包含 GameTest，仅支持旧版实体假人 */
 const bundleTaskOptionsRealms = createBundleTaskOptions(
@@ -130,6 +139,24 @@ const realmsRuntimePlugin: esbuild.Plugin = {
   },
 };
 
+const withoutBdsRuntimePlugin: esbuild.Plugin = {
+  name: "without-bds-runtime",
+  setup(build) {
+    const capabilityDirectory = path.resolve(
+      __dirname,
+      "scripts/features/platform/sapi-capabilities"
+    );
+    build.onResolve({ filter: /^\.\/server-(admin|net)$/ }, (args) => {
+      if (path.dirname(args.importer) !== capabilityDirectory) return undefined;
+      const disabledModule =
+        args.path === "./server-admin"
+          ? "server-admin.disabled.ts"
+          : "server-net.disabled.ts";
+      return { path: path.join(capabilityDirectory, disabledModule) };
+    });
+  },
+};
+
 /** 使用 esbuild 直接打主包 */
 async function runMainBundle(options: MainBundleOptions): Promise<void> {
   const outDir = path.dirname(options.outfile);
@@ -145,7 +172,10 @@ async function runMainBundle(options: MainBundleOptions): Promise<void> {
     define: options.define,
     minifyWhitespace: options.minifyWhitespace ?? false,
     sourcemap: options.sourcemap ?? true,
-    plugins: options.realmsRuntime ? [realmsRuntimePlugin] : undefined,
+    plugins: [
+      ...(options.realmsRuntime ? [realmsRuntimePlugin] : []),
+      ...(!options.bdsRuntime ? [withoutBdsRuntimePlugin] : []),
+    ],
     logLevel: "info",
   });
   if (options.sourcemap && options.outputSourcemapPath) {

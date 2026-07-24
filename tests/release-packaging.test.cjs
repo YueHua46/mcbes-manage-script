@@ -152,14 +152,33 @@ test("variant script validation requires the runtime imports each build promises
   assert.doesNotThrow(() =>
     validateVariantScript(
       "realms",
-      'if (false) import("@minecraft/server-net"); const hint = "@minecraft/server-admin";'
+      'const hint = "@minecraft/server-admin and @minecraft/server-net";'
     )
   );
   assert.throws(
     () => validateVariantScript("realms", 'import("@minecraft/server-gametest")'),
     /GameTest/
   );
+  assert.throws(
+    () => validateVariantScript("realms", 'import("@minecraft/server-net")'),
+    /BDS 专属/
+  );
+  assert.throws(
+    () => validateVariantScript("realms", 'import x from "@minecraft/server-admin"'),
+    /BDS 专属/
+  );
   assert.throws(() => validateVariantScript("standard", "export {};"), /GameTest/);
+  assert.throws(
+    () =>
+      validateVariantScript(
+        "standard",
+        [
+          'import("@minecraft/server-gametest")',
+          'import("@minecraft/server-admin")',
+        ].join(";")
+      ),
+    /BDS 专属/
+  );
   assert.throws(
     () => validateVariantScript("bds", 'import("@minecraft/server-gametest")'),
     /BDS 运行时/
@@ -174,6 +193,12 @@ test("variant script validation requires the runtime imports each build promises
       ].join(";")
     )
   );
+});
+
+test("non-BDS bundles replace BDS-only capability modules", () => {
+  assert.match(justConfig, /withoutBdsRuntimePlugin/);
+  assert.match(justConfig, /server-admin\.disabled\.ts/);
+  assert.match(justConfig, /server-net\.disabled\.ts/);
 });
 
 test("package manifest validation enforces version and variant dependencies", () => {

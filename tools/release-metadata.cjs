@@ -265,11 +265,26 @@ function validatePackageManifests(
   }
 }
 
+function hasRuntimeImport(script, moduleName) {
+  const escaped = moduleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(
+    `(?:\\bfrom\\s*|\\bimport\\s*\\(\\s*|\\brequire\\s*\\(\\s*)["']${escaped}["']`
+  ).test(script);
+}
+
 function validateVariantScript(variant, script) {
   expectedModules(variant);
-  const hasGameTest = script.includes("@minecraft/server-gametest");
+  const hasGameTest = hasRuntimeImport(script, "@minecraft/server-gametest");
+  const bdsOnlyImports = ["@minecraft/server-admin", "@minecraft/server-net"].filter(
+    (moduleName) => hasRuntimeImport(script, moduleName)
+  );
   if (variant === "realms" && hasGameTest) {
     throw new Error("Realms JavaScript 仍引用 GameTest 模块");
+  }
+  if (variant !== "bds" && bdsOnlyImports.length > 0) {
+    throw new Error(
+      `${variant} JavaScript 仍引用 BDS 专属模块：${bdsOnlyImports.join(",")}`
+    );
   }
   if (variant === "standard" && !hasGameTest) {
     throw new Error("普通兼容版 JavaScript 缺少 GameTest 运行时引用");
@@ -277,8 +292,8 @@ function validateVariantScript(variant, script) {
   if (
     variant === "bds" &&
     (!hasGameTest ||
-      !script.includes("@minecraft/server-admin") ||
-      !script.includes("@minecraft/server-net"))
+      !hasRuntimeImport(script, "@minecraft/server-admin") ||
+      !hasRuntimeImport(script, "@minecraft/server-net"))
   ) {
     throw new Error("BDS 运行时必须包含 GameTest、server-admin 和 server-net");
   }
