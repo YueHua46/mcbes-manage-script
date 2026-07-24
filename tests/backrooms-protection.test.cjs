@@ -46,7 +46,7 @@ Module._load = function (request, parent, isMain) {
 
 const { registerBackroomsProtection } = require(path.join(
   root,
-  "scripts/features/backrooms/protection.ts",
+  "scripts/addons/backrooms/protection.ts",
 ));
 registerBackroomsProtection();
 Module._load = previousModuleLoad;

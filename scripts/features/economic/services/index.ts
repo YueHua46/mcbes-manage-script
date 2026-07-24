@@ -5,7 +5,7 @@
 export { default as economic } from "./economic";
 export { default as itemPriceDatabase } from "./item-price-database";
 export { default as itemDatabase } from "./item-database";
-export { default as auctionHouse } from "./auction-house";
+export { default as playerMarket } from "./player-market";
 export { default as officeShop } from "./office-shop";
 export {
   default as redPacketService,
@@ -30,5 +30,5 @@ import "./monster-kill-reward";
 
 // 导出类型从models
 export type { IUserWallet, IUserWalletWithDailyLimit, ITransaction } from "../models/economic.model";
-export type { ShopItem, ShopItemData } from "./auction-house";
+export type { MarketItem, MarketItemData } from "./player-market";
 export type { ICategory, OfficeShopItemData, OfficeShopItemMetaData } from "./office-shop";

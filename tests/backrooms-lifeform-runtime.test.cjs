@@ -6,9 +6,13 @@ const test = require("node:test");
 const root = path.resolve(__dirname, "..");
 const director = fs.readFileSync(path.join(
   root,
-  "scripts/features/backrooms/lifeform/director.ts",
+  "scripts/addons/backrooms/lifeform/director.ts",
 ), "utf8");
-const voices = fs.readFileSync(path.join(root, "scripts/features/backrooms/voices.ts"), "utf8");
+const voices = fs.readFileSync(path.join(root, "scripts/addons/backrooms/voices.ts"), "utf8");
+const vocals = fs.readFileSync(path.join(
+  root,
+  "scripts/addons/backrooms/lifeform/vocals.ts",
+), "utf8");
 
 test("runtime director uses bounded low-frequency audits and never script-moves the Lifeform", () => {
   assert.match(director, /system\.runInterval\([\s\S]*ACTIVE_AUDIT_TICKS/);
@@ -36,12 +40,35 @@ test("runtime owns entities through the documented property/event contract", () 
   assert.match(director, /yuehua:manifestation_slot/);
   assert.match(director, /triggerEvent\(`yuehua:phase_\$\{phase\}`\)/);
   assert.match(director, /reduceEncounterState/);
-  assert.match(director, /triggerPhase\(encounter, "stagger"\)/);
+  assert.doesNotMatch(director, /triggerPhase\(encounter, "stagger"\)/);
   assert.match(director, /yuehua:despawn/);
-  assert.match(director, /yuehua\.backrooms_lifeform_target/);
-  assert.match(director, /player\.addTag\(LIFEFORM_TARGET_TAG\)/);
-  assert.match(director, /removeTag\(LIFEFORM_TARGET_TAG\)/);
+  assert.match(director, /yuehua\.backrooms_lifeform_target_/);
+  assert.match(director, /TARGET_SLOT_COUNT\s*=\s*4/);
+  assert.match(director, /availableTargetSlot/);
+  assert.match(director, /player\.addTag\(targetTag\(encounter\.targetSlot\)\)/);
+  assert.match(director, /removeTag\(targetTag\(slot\)\)/);
+  assert.match(director, /handoffEncounterTarget/);
+  assert.match(director, /restoreRespawnedTarget/);
+  assert.doesNotMatch(director, /target\?\.typeId[\s\S]*owner-unavailable/);
   assert.match(director, /yuehua\.backrooms\.lifeform\.hurt/);
+  assert.match(director, /yuehua\.backrooms_lifeform_debug/);
+  assert.match(director, /生成成功：实体/);
+  assert.match(director, /spawn-site-unavailable/);
+  assert.match(director, /function auditNativeTarget/);
+  assert.match(director, /锁敌确认/);
+});
+
+test("target handoff keeps the original encounter session until the Bacteria dies", () => {
+  assert.match(director, /if \(!sessions\.get\(event\.player\.id\)\?\.entityId\) sessions\.delete/);
+  assert.match(director, /if \(!sessions\.get\(event\.player\.id\)\?\.entityId\) \{[\s\S]*createSession/);
+  assert.match(director, /if \(session\?\.entityId === entityId\) session\.entityId = undefined/);
+});
+
+test("runtime accumulates horizontal travel and clamps legacy cooldowns", () => {
+  assert.match(director, /session\.travelDistance\s*\+=\s*Math\.hypot\(dx,\s*dz\)/);
+  assert.match(director, /player\.setDynamicProperty\(COOLDOWN_PROPERTY, maximumAllowed\)/);
+  assert.match(director, /旧版超长冷却已压缩/);
+  assert.match(director, /cooldownUntilMs:\s*travelGuaranteed\s*\?\s*0\s*:\s*cooldownUntilMs/);
 });
 
 test("orphan cleanup preserves unowned manual summons and removes only broken director-owned entities", () => {
@@ -70,4 +97,41 @@ test("entity handles and source-less voice playback are guarded against invalida
   assert.match(voices, /isWallOccluded/);
   assert.match(voices, /voiceApproachOutcome/);
   assert.match(voices, /onLureEligible/);
+});
+
+test("all valid Lifeforms receive independently scheduled spatial imported vocals", () => {
+  assert.match(vocals, /getEntities\(\{\s*type:\s*LIFEFORM_TYPE_ID\s*\}\)/);
+  assert.match(vocals, /yuehua\.backrooms\.lifeform\.random_vocal/);
+  assert.match(vocals, /yuehua\.backrooms\.lifeform\.roar/);
+  assert.match(vocals, /player\.playSound/);
+  assert.match(vocals, /entity\.location/);
+  assert.match(vocals, /nextVocalTicks/);
+  assert.match(vocals, /MIN_VOCAL_DELAY_TICKS/);
+  assert.match(vocals, /MAX_VOCAL_DELAY_TICKS/);
+  assert.match(vocals, /MIN_VOCAL_DELAY_TICKS\s*=\s*8\s*\*\s*20/);
+  assert.match(vocals, /MAX_VOCAL_DELAY_TICKS\s*=\s*16\s*\*\s*20/);
+  assert.match(vocals, /soundId\s*===\s*SIGNATURE_WAIL_SOUND_ID\s*\?\s*1\.45\s*:\s*1\.2/);
+  assert.match(vocals, /yuehua\.backrooms\.lifeform\.signature_wail/);
+  assert.match(vocals, /playedSignatureVocals/);
+  assert.match(vocals, /entity\.isValid/);
+});
+
+test("manual summons get one immediate positional CJB123 wail without duplicating director spawns", () => {
+  assert.match(vocals, /world\.afterEvents\.entitySpawn\.subscribe/);
+  assert.match(vocals, /MANUAL_SPAWN_DELAY_TICKS\s*=\s*2/);
+  assert.match(vocals, /MANUAL_SPAWN_AUDIBLE_DISTANCE\s*=\s*96/);
+  assert.match(vocals, /MANUAL_SPAWN_VOLUME\s*=\s*1\.6/);
+  assert.match(vocals, /getDynamicProperty\(OWNER_PROPERTY\)\s*!==\s*undefined/);
+  assert.match(vocals, /lifeform:manual-spawn-wail/);
+  assert.match(vocals, /maxDistance\s*=\s*MANUAL_SPAWN_AUDIBLE_DISTANCE/);
+  assert.match(vocals, /entity\.dimension\.getPlayers\(\{\s*location,\s*maxDistance\s*\}\)/);
+  assert.match(vocals, /playSpatialSound\(entity, SIGNATURE_WAIL_SOUND_ID,[\s\S]*MANUAL_SPAWN_VOLUME/);
+});
+
+test("manual and director Lifeforms continuously repair dropped native targets", () => {
+  assert.match(vocals, /Reflect\.set\(entity, ["']target["'], target\)/);
+  assert.match(vocals, /triggerEvent\(["']yuehua:manual_retarget["']\)/);
+  assert.match(director, /Reflect\.set\(encounter\.entity, ["']target["'], target\)/);
+  assert.match(director, /lastTargetRepairTick/);
+  assert.match(director, /triggerEvent\(`yuehua:target_slot_\$\{encounter\.targetSlot\}`\)/);
 });

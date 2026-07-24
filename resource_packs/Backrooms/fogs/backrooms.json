@@ -1,0 +1,22 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:fog_settings": {
+    "description": {
+      "identifier": "yuehua:backrooms"
+    },
+    "distance": {
+      "air": {
+        "fog_start": 24.0,
+        "fog_end": 56.0,
+        "fog_color": "#6A6138",
+        "render_distance_type": "fixed"
+      },
+      "weather": {
+        "fog_start": 24.0,
+        "fog_end": 56.0,
+        "fog_color": "#6A6138",
+        "render_distance_type": "fixed"
+      }
+    }
+  }
+}

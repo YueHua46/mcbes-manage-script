@@ -1,0 +1,17 @@
+{
+  "format_version": "1.26.20",
+  "minecraft:block": {
+    "description": { "identifier": "yuehua:backrooms_fluorescent_on" },
+    "components": {
+      "minecraft:geometry": "minecraft:geometry.full_block",
+      "minecraft:material_instances": {
+        "*": { "texture": "backrooms_fluorescent_on", "render_method": "opaque", "ambient_occlusion": 0, "face_dimming": false }
+      },
+      "minecraft:light_emission": 15,
+      "minecraft:light_dampening": 15,
+      "minecraft:destructible_by_mining": false,
+      "minecraft:destructible_by_explosion": false,
+      "minecraft:map_color": "#E3D39A"
+    }
+  }
+}

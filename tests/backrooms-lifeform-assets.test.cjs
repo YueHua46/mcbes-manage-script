@@ -6,13 +6,13 @@ const zlib = require("node:zlib");
 
 const root = path.resolve(__dirname, "..");
 const files = {
-  behavior: "behavior_packs/CreeperMenu/entities/backrooms_lifeform.json",
-  client: "resource_packs/CreeperMenu/entity/backrooms_lifeform.entity.json",
-  geometry: "resource_packs/CreeperMenu/models/entity/backrooms_lifeform.geo.json",
-  animations: "resource_packs/CreeperMenu/animations/backrooms_lifeform.animation.json",
-  controllers: "resource_packs/CreeperMenu/animation_controllers/backrooms_lifeform.animation_controllers.json",
-  render: "resource_packs/CreeperMenu/render_controllers/backrooms_lifeform.render_controllers.json",
-  texture: "resource_packs/CreeperMenu/textures/entity/backrooms_lifeform.png",
+  behavior: "behavior_packs/Backrooms/entities/backrooms_lifeform.json",
+  client: "resource_packs/Backrooms/entity/backrooms_lifeform.entity.json",
+  geometry: "resource_packs/Backrooms/models/entity/backrooms_lifeform.geo.json",
+  animations: "resource_packs/Backrooms/animations/backrooms_lifeform.animation.json",
+  controllers: "resource_packs/Backrooms/animation_controllers/backrooms_lifeform.animation_controllers.json",
+  render: "resource_packs/Backrooms/render_controllers/backrooms_lifeform.render_controllers.json",
+  texture: "resource_packs/Backrooms/textures/entity/backrooms_lifeform.png",
 };
 
 function absolute(relative) {
@@ -87,8 +87,8 @@ test("Lifeform Task 1 declares every required asset", () => {
 
 test("Lifeform has exact UTF-8 Chinese and English entity display names", () => {
   const key = "entity.yuehua:backrooms_lifeform.name";
-  assert.equal(lang("resource_packs/CreeperMenu/texts/zh_CN.lang").get(key), "细菌（Bacteria）");
-  assert.equal(lang("resource_packs/CreeperMenu/texts/en_US.lang").get(key), "Bacteria");
+  assert.equal(lang("resource_packs/Backrooms/texts/zh_CN.lang").get(key), "细菌（Bacteria）");
+  assert.equal(lang("resource_packs/Backrooms/texts/en_US.lang").get(key), "Bacteria");
 });
 
 test("behavior entity separates persistent manual summons from transient director encounters", () => {
@@ -100,17 +100,17 @@ test("behavior entity separates persistent manual summons from transient directo
   assert.equal(entity.description.is_summonable, true);
   const properties = entity.description.properties;
   assert.deepEqual(properties["yuehua:lifeform_phase"].values, [
-    "dormant", "lure", "stalk", "inspect", "roar", "chase", "search", "stagger", "retreat",
+    "dormant", "lure", "stalk", "inspect", "roar", "chase", "search", "retreat",
   ]);
   assert.equal(properties["yuehua:lifeform_phase"].client_sync, true);
   assert.equal(properties["yuehua:manifestation_slot"].client_sync, false);
 
   const components = entity.components;
-  assert.deepEqual(components["minecraft:health"], { value: 240, max: 240 });
+  assert.deepEqual(components["minecraft:health"], { value: 500, max: 500 });
   assert.equal(components["minecraft:attack"].damage, 7);
-  assert.equal(components["minecraft:knockback_resistance"].value, 0.68);
-  assert.equal(components["minecraft:follow_range"].value, 96);
-  assert.deepEqual(components["minecraft:experience_reward"], { on_death: "35" });
+  assert.equal(components["minecraft:knockback_resistance"].value, 1);
+  assert.equal(components["minecraft:follow_range"].value, 512);
+  assert.deepEqual(components["minecraft:experience_reward"], { on_death: "50" });
   const collision = components["minecraft:collision_box"];
   assert.deepEqual(collision, { width: 0.65, height: 2.8 });
   assert.ok(collision.height <= 2.85, "physics must fit the three-block low-room air column");
@@ -125,15 +125,24 @@ test("behavior entity separates persistent manual summons from transient directo
   assert.ok(manual["minecraft:persistent"], "manual summons must persist across unload/save");
   assert.equal(manual["minecraft:movement"].value, 0.35);
   const manualTarget = manual["minecraft:behavior.nearest_attackable_target"];
-  assert.equal(manualTarget.entity_types[0].max_dist, 96);
+  assert.equal(manualTarget.entity_types[0].max_dist, 512);
   assert.deepEqual(manualTarget.entity_types[0].filters, {
     test: "is_family", subject: "other", value: "player",
   });
   assert.doesNotMatch(JSON.stringify(manualTarget), /has_tag/);
-  assert.equal(manual["minecraft:behavior.delayed_attack"].speed_multiplier, 1.15);
+  assert.equal(manualTarget.must_see, false);
+  assert.equal(manualTarget.must_reach, false);
+  assert.equal(manualTarget.scan_interval, 1);
+  assert.equal(manualTarget.persist_time, 0);
+  assert.equal(manualTarget.reselect_targets, false);
+  assert.equal(manual["minecraft:behavior.delayed_attack"].speed_multiplier, 1.35);
 
   const spawnedGroups = entity.events["minecraft:entity_spawned"].add.component_groups;
   assert.ok(spawnedGroups.includes("yuehua:manual_autonomous"));
+  assert.deepEqual(entity.events["yuehua:manual_retarget"], {
+    remove: { component_groups: ["yuehua:manual_autonomous"] },
+    add: { component_groups: ["yuehua:manual_autonomous"] },
+  });
   const dormant = entity.events["yuehua:phase_dormant"];
   assert.ok(dormant.remove.component_groups.includes("yuehua:manual_autonomous"));
   assert.ok(dormant.add.component_groups.includes("yuehua:director_owned"));
@@ -148,37 +157,50 @@ test("behavior entity separates persistent manual summons from transient directo
     within_radius: 8,
   });
   const delayed = chase["minecraft:behavior.delayed_attack"];
-  assert.equal(delayed.attack_duration, 1.25);
-  assert.equal(delayed.hit_delay_pct, 0.36);
+  assert.equal(delayed.attack_duration, 0.7);
+  assert.equal(delayed.hit_delay_pct, 0.2);
   assert.equal(delayed.track_target, true);
-  assert.equal(delayed.speed_multiplier, 1.15);
-  assert.ok(delayed.reach_multiplier >= 2.3, "longer arms require matching native attack reach");
-  for (const group of [stalk, chase]) {
-    const target = group["minecraft:behavior.nearest_attackable_target"];
-    assert.equal(target.entity_types[0].max_dist, 96);
-    assert.match(JSON.stringify(target.entity_types[0].filters), /has_tag/);
-    assert.match(JSON.stringify(target.entity_types[0].filters), /yuehua\.backrooms_lifeform_target/);
-    assert.ok(target.scan_interval >= 10);
-    assert.equal(target.must_reach, true);
+  assert.equal(delayed.speed_multiplier, 1.35);
+  assert.equal(delayed.reach_multiplier, 3.1);
+  assert.equal(delayed.min_path_time, 0.1);
+  assert.equal(delayed.max_path_time, 0.25);
+  for (const group of [manual, chase]) {
+    assert.deepEqual(group["minecraft:behavior.move_towards_target"], {
+      priority: 3,
+      speed_multiplier: 1.35,
+      within_radius: 0,
+    });
   }
-  assert.equal(
-    stalk["minecraft:behavior.nearest_attackable_target"].must_see,
-    false,
-    "a wall-hidden natural encounter must acquire its tagged owner before it can approach",
-  );
-  assert.equal(chase["minecraft:behavior.nearest_attackable_target"].must_see, true);
-  assert.equal(
-    entity.component_groups["yuehua:phase_search"]["minecraft:behavior.random_stroll"].xz_dist,
-    16,
-  );
+  const idleStroll = {
+    priority: 8,
+    speed_multiplier: 0.7,
+    xz_dist: 16,
+    y_dist: 2,
+  };
+  assert.deepEqual(manual["minecraft:behavior.random_stroll"], idleStroll);
+  assert.deepEqual(entity.component_groups["yuehua:director_owned"]["minecraft:behavior.random_stroll"], idleStroll);
+  assert.ok(!stalk["minecraft:behavior.nearest_attackable_target"]);
+  assert.ok(!chase["minecraft:behavior.nearest_attackable_target"]);
+  for (let slot = 0; slot < 4; slot += 1) {
+    const target = entity.component_groups[`yuehua:target_slot_${slot}`]["minecraft:behavior.nearest_attackable_target"];
+    assert.equal(target.entity_types[0].max_dist, 512);
+    assert.match(JSON.stringify(target.entity_types[0].filters), new RegExp(`lifeform_target_${slot}`));
+    assert.equal(target.must_see, false);
+    assert.equal(target.must_reach, false);
+    assert.equal(target.scan_interval, 1);
+    assert.equal(target.persist_time, 0);
+    assert.equal(target.reselect_targets, false);
+    assert.ok(entity.events[`yuehua:target_slot_${slot}`]);
+  }
+  assert.ok(!entity.component_groups["yuehua:phase_search"]["minecraft:behavior.random_stroll"]);
 
-  const phases = ["dormant", "lure", "stalk", "inspect", "roar", "chase", "search", "stagger", "retreat"];
+  const phases = ["dormant", "lure", "stalk", "inspect", "roar", "chase", "search", "retreat"];
   for (const phase of phases) {
     assert.ok(entity.component_groups[`yuehua:phase_${phase}`], `missing component group ${phase}`);
     assert.ok(entity.events[`yuehua:phase_${phase}`], `missing event ${phase}`);
   }
   assert.ok(entity.events["yuehua:despawn"]);
-  assert.equal(fs.existsSync(absolute("behavior_packs/CreeperMenu/spawn_rules/backrooms_lifeform.json")), false);
+  assert.equal(fs.existsSync(absolute("behavior_packs/Backrooms/spawn_rules/backrooms_lifeform.json")), false);
 });
 
 test("geometry is an original tall filament rig within the performance budget", () => {
@@ -211,8 +233,8 @@ test("geometry is an original tall filament rig within the performance budget", 
     { min: Infinity, max: -Infinity },
   );
   const stretch = json(files.animations).animations["animation.yuehua.backrooms_lifeform.base_stretch"];
-  assert.deepEqual(stretch.bones.root.scale, [1, 1.32, 1]);
-  assert.deepEqual(stretch.bones.root.position, [0, 5.28, 0]);
+  assert.deepEqual(stretch.bones.root.scale, [1, 1.45, 1]);
+  assert.deepEqual(stretch.bones.root.position, [0, 5.8, 0]);
   const transformedBottom = verticalBounds.min * stretch.bones.root.scale[1] + stretch.bones.root.position[1];
   const transformedTop = verticalBounds.max * stretch.bones.root.scale[1] + stretch.bones.root.position[1];
   assert.ok(Math.abs(transformedBottom) <= 0.01, `feet must align to the floor, got ${transformedBottom / 16} blocks`);
@@ -221,6 +243,29 @@ test("geometry is an original tall filament rig within the performance budget", 
     visualHeightBlocks >= 3.6 && visualHeightBlocks <= 3.8,
     `static visual silhouette must be 3.6-3.8 blocks tall, got ${visualHeightBlocks}`,
   );
+
+  const byName = new Map(bones.map((bone) => [bone.name, bone]));
+  for (const name of ["upper_arm_l", "forearm_l", "upper_arm_r", "forearm_r", "thigh_l", "thigh_r"]) {
+    const widestAxis = Math.max(...byName.get(name).cubes[0].size.filter((_, axis) => axis !== 1));
+    assert.ok(widestAxis <= 1.4, `${name} must read as a thin filament, got ${widestAxis}`);
+  }
+  assert.ok(byName.get("rib_cage").cubes.length >= 4, "rib cage must be open strands instead of one torso block");
+  assert.ok(byName.get("head").cubes.length >= 5, "head needs an irregular lateral knot silhouette");
+  assert.ok(byName.get("jaw_upper").cubes.length >= 2, "upper jaw must be visibly split");
+  assert.ok(byName.get("jaw_lower").cubes.length >= 2, "lower jaw must be visibly split");
+  const headBounds = byName.get("head").cubes.reduce(
+    (bounds, cube) => ({
+      min: Math.min(bounds.min, cube.origin[0]),
+      max: Math.max(bounds.max, cube.origin[0] + cube.size[0]),
+    }),
+    { min: Infinity, max: -Infinity },
+  );
+  assert.ok(headBounds.max - headBounds.min >= 6, "head must spread sideways rather than form a square skull");
+  for (const name of ["tendril_head_l", "tendril_head_r"]) {
+    for (const cube of byName.get(name).cubes) {
+      assert.ok(cube.size[0] <= 0.45 && cube.size[2] <= 0.45, `${name} must stay hair-thin`);
+    }
+  }
 });
 
 test("texture is an opaque 128px charcoal organic atlas with tonal detail", () => {
@@ -286,7 +331,7 @@ test("all nine animations are authored with their required timing and sound cues
     turn: { loop: true },
     inspect: { length: 2.4, loop: false },
     roar: { length: 1.45, loop: false },
-    attack: { length: 1.25, loop: false },
+    attack: { length: 0.7, loop: false },
     stagger: { length: 0.55, loop: false },
     death: { length: 1.0, loop: false },
   };
@@ -310,7 +355,7 @@ test("all nine animations are authored with their required timing and sound cues
     "the attack lunge must visually reach with the longer arms",
   );
   assert.equal(animations["animation.yuehua.backrooms_lifeform.roar"].sound_effects["0.28"].effect, "roar");
-  assert.equal(animations["animation.yuehua.backrooms_lifeform.attack"].sound_effects["0.36"].effect, "attack");
+  assert.equal(animations["animation.yuehua.backrooms_lifeform.attack"].sound_effects["0.14"].effect, "attack");
   assert.equal(animations["animation.yuehua.backrooms_lifeform.death"].sound_effects["0.2"].effect, "death");
 });
 

@@ -18,13 +18,13 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(output, filename);
 };
 
-const core = require(path.join(root, "scripts/features/backrooms/core/index.ts"));
+const core = require(path.join(root, "scripts/addons/backrooms/core/index.ts"));
 const {
   BackroomsLayoutAdapter,
   getBackroomsRegionVariant,
   isValidLampRowPlan,
   planLampRowSlots,
-} = require(path.join(root, "scripts/features/backrooms/layout-adapter.ts"));
+} = require(path.join(root, "scripts/addons/backrooms/layout-adapter.ts"));
 
 test.after(() => {
   if (previousTsLoader) require.extensions[".ts"] = previousTsLoader;
@@ -33,6 +33,10 @@ test.after(() => {
 
 const seed = "lighting-policy-world";
 const DEAD_LAMP = "yuehua:backrooms_fluorescent_dead";
+const LIGHT_EMISSION = JSON.parse(fs.readFileSync(path.join(
+  root,
+  "behavior_packs/Backrooms/blocks/backrooms_fluorescent_on.json",
+), "utf8"))["minecraft:block"].components["minecraft:light_emission"];
 
 test("row-slot planner declares exact 2-4 fixture groups and rejects ambiguous spacing mutations", () => {
   assert.equal(typeof planLampRowSlots, "function", "missing pure lamp row-slot planner");
@@ -174,7 +178,7 @@ function groupFixtureRows(room, placements, axis) {
   return { fixtures, byRow };
 }
 
-function roomCoverage(layout, room, placements) {
+function roomCoverage(layout, room, placements, sampleY, minimumLightLevel) {
   const active = placements.filter((placement) => placement.blockId !== DEAD_LAMP);
   let walkable = 0;
   let covered = 0;
@@ -183,7 +187,12 @@ function roomCoverage(layout, room, placements) {
       const cell = layout.grid.get(x, z);
       if (cell !== core.BackroomsCell.Walkable && cell !== core.BackroomsCell.Gate) continue;
       walkable++;
-      if (active.some((lamp) => Math.abs(lamp.location.x - x) + Math.abs(lamp.location.z - z) <= 8)) {
+      if (active.some((lamp) => {
+        const distance = Math.abs(lamp.location.x - x)
+          + Math.abs(lamp.location.y - sampleY)
+          + Math.abs(lamp.location.z - z);
+        return LIGHT_EMISSION - distance >= minimumLightLevel;
+      })) {
         covered++;
       }
     }
@@ -251,12 +260,13 @@ test("normal rows provide broad coverage with bounded seeded dark and failed fix
         const axis = chooseFixtureAxis(room, placements);
         const grouped = groupFixtureRows(room, placements, axis);
         const active = placements.filter((lamp) => lamp.blockId !== DEAD_LAMP);
-        const coverage = roomCoverage(layout, room, placements);
+        const headCoverage = roomCoverage(layout, room, placements, 2, 6);
+        const floorCoverage = roomCoverage(layout, room, placements, 0, 6);
         rooms++;
         fixtures += grouped.fixtures.length;
         deadFixtures += grouped.fixtures.filter((fixture) => fixture.placements[0].blockId === DEAD_LAMP).length;
         if (active.length === 0) darkRooms++;
-        if (coverage >= 0.72) commonCoveredRooms++;
+        if (headCoverage >= 0.65 && floorCoverage >= 0.40) commonCoveredRooms++;
 
         for (const row of grouped.byRow.values()) {
           if (row.length < 2) continue;
@@ -282,6 +292,43 @@ test("normal rows provide broad coverage with bounded seeded dark and failed fix
     rowsWithOmittedSlots / multiFixtureRows >= 0.25,
     "at least a quarter of multi-fixture rows need grouped dark gaps",
   );
+});
+
+test("normal regions remain readable under actual three-dimensional light falloff", () => {
+  const adapter = new BackroomsLayoutAdapter(seed);
+  let walkable = 0;
+  let readableAtHead = 0;
+  let readableAtFloor = 0;
+
+  for (let rz = -5; rz <= 5; rz++) {
+    for (let rx = -5; rx <= 5; rx++) {
+      const region = { rx, rz };
+      if (getBackroomsRegionVariant(seed, region).blackout) continue;
+      const layout = adapter.getLayout(region);
+      const active = adapter.createPlan(region).lamps.filter((lamp) => lamp.blockId !== DEAD_LAMP);
+      for (let z = 0; z < 64; z++) {
+        for (let x = 0; x < 64; x++) {
+          const cell = layout.grid.get(x, z);
+          if (cell !== core.BackroomsCell.Walkable && cell !== core.BackroomsCell.Gate) continue;
+          walkable++;
+          for (const [sampleY, counter] of [[2, "head"], [0, "floor"]]) {
+            const readable = active.some((lamp) => {
+              const distance = Math.abs(lamp.location.x - x)
+                + Math.abs(lamp.location.y - sampleY)
+                + Math.abs(lamp.location.z - z);
+              return LIGHT_EMISSION - distance >= 6;
+            });
+            if (readable && counter === "head") readableAtHead++;
+            if (readable && counter === "floor") readableAtFloor++;
+          }
+        }
+      }
+    }
+  }
+
+  assert.equal(LIGHT_EMISSION, 15, "live fixtures must use full local block-light output");
+  assert.ok(readableAtHead / walkable >= 0.65, "at least 65% of head-height surfaces must be readable");
+  assert.ok(readableAtFloor / walkable >= 0.42, "at least 42% of floors must be readable");
 });
 
 test("blackout regions retain sparse dead fixtures but remain primarily dark", () => {

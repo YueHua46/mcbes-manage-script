@@ -11,7 +11,7 @@ export interface IConfig {
 class ConfigManager {
   private _config: IConfig = {
     debug: false,
-    version: "3.1.2",
+    version: "3.1.11",
     serverName: "杜绝熊孩服务器",
   };
 

@@ -19,14 +19,13 @@ import "./features/behavior-log/services/log-inspector-tool";
 import "./features/guild";
 import "./features/floating-text";
 import "./features/fake-player";
-import "./features/backrooms";
 import { eventRegistry } from "./events/registry";
 import { scheduleItemIconKeyCacheWarmup } from "./features/system/services/item-icon-key-cache";
 import "./events/handlers/index.bds";
 
 function initializeApp(): void {
   SystemLog.info("========================================");
-  SystemLog.info("苦力怕菜单 v3.1.2 启动中...");
+  SystemLog.info("苦力怕菜单 v3.1.11 启动中...");
   SystemLog.info("当前构建：BDS 增强版（仅 BDS 服务器）");
   SystemLog.info("========================================");
 

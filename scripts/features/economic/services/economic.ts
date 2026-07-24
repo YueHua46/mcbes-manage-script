@@ -14,6 +14,8 @@ import { formatDateOnlyBeijing } from "../../../shared/utils/datetime-beijing";
 import identityService from "../../player/services/identity-service";
 import type { IUserWallet, IUserWalletWithDailyLimit, ITransaction } from "../models/economic.model";
 
+export const PLAYER_MARKET_PURCHASE_REASON = "购买玩家交易市场商品";
+
 export class Economic {
   private db!: Database<IUserWallet>;
   private logDb!: Database<ITransaction[]>;
@@ -247,7 +249,7 @@ export class Economic {
     const wallet = this.getWallet(playerName);
 
     if (!ignoreDailyLimit) {
-      if (reason.includes("玩家转账") || reason.includes("购买玩家商店物品")) {
+      if (reason.includes("玩家转账") || reason.includes(PLAYER_MARKET_PURCHASE_REASON)) {
         ignoreDailyLimit = true;
       }
 

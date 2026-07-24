@@ -27,7 +27,8 @@ const bdsServerDeployPath = getOrThrowFromProcess("BDS_SERVER_DEPLOY_PATH");
 // You can use `npm run build:production` to build a "production" build that strips out statements labelled with "dev:".
 const isProduction = argv()["production"];
 
-function createBundleTaskOptions(entryPoint: string, define: Record<string, string>) {
+function createBundleTaskOptions(entryPoint: string, outfile: string, define: Record<string, string>) {
+  const absoluteOutfile = path.resolve(__dirname, outfile);
   return {
     entryPoint: path.join(__dirname, entryPoint),
     external: [
@@ -38,35 +39,45 @@ function createBundleTaskOptions(entryPoint: string, define: Record<string, stri
       "@minecraft/debug-utilities",
       "@minecraft/server-gametest",
     ],
-    outfile: path.resolve(__dirname, "./dist/scripts/main.js"),
+    outfile: absoluteOutfile,
     minifyWhitespace: false,
     sourcemap: true,
-    outputSourcemapPath: path.resolve(__dirname, "./dist/debug"),
+    outputSourcemapPath: path.resolve(path.dirname(absoluteOutfile), "../debug"),
     dropLabels: isProduction ? ["dev"] : undefined,
     define,
   } as BundleTaskParameters & { define?: Record<string, string> };
 }
 
 /** 普通兼容版构建：不包含 server-net / server-admin 运行时能力，供本地、BDS、Realms 使用 */
-const bundleTaskOptionsStandard = createBundleTaskOptions("./scripts/main.standard.ts", {
+const bundleTaskOptionsStandard = createBundleTaskOptions("./scripts/main.standard.ts", "./dist/scripts/main.js", {
   __BDS_BUILD__: "false",
   __SERVER_ADMIN_BUILD__: "false",
   __DEBUG_UTILITIES_BUILD__: "false",
 });
 
 /** 本地/BDS 调试版构建：包含 @minecraft/debug-utilities，不适用于 Realms */
-const bundleTaskOptionsDebug = createBundleTaskOptions("./scripts/main.debug.ts", {
+const bundleTaskOptionsDebug = createBundleTaskOptions("./scripts/main.debug.ts", "./dist/scripts/main.js", {
   __BDS_BUILD__: "false",
   __SERVER_ADMIN_BUILD__: "false",
   __DEBUG_UTILITIES_BUILD__: "true",
 });
 
 /** BDS 增强版构建：包含 server-net / server-admin 相关能力，仅供 BDS 服务器使用 */
-const bundleTaskOptionsBdsAdmin = createBundleTaskOptions("./scripts/main.bds.ts", {
+const bundleTaskOptionsBdsAdmin = createBundleTaskOptions("./scripts/main.bds.ts", "./dist/scripts/main.js", {
   __BDS_BUILD__: "true",
   __SERVER_ADMIN_BUILD__: "true",
   __DEBUG_UTILITIES_BUILD__: "false",
 });
+
+const bundleTaskOptionsBackrooms = createBundleTaskOptions(
+  "./scripts/backrooms.main.ts",
+  "./dist/backrooms/scripts/main.js",
+  {
+    __BDS_BUILD__: "false",
+    __SERVER_ADMIN_BUILD__: "false",
+    __DEBUG_UTILITIES_BUILD__: "false",
+  },
+);
 
 /** 使用 esbuild 直接打主包 */
 async function runMainBundle(options: typeof bundleTaskOptionsStandard): Promise<void> {
@@ -102,6 +113,12 @@ const copyTaskOptions: CopyTaskParameters = {
   copyToBehaviorPacks: [`./behavior_packs/${projectName}`],
   copyToScripts: ["./dist/scripts"],
   copyToResourcePacks: [`./resource_packs/${projectName}`],
+};
+
+const backroomsCopyTaskOptions: CopyTaskParameters = {
+  copyToBehaviorPacks: ["./behavior_packs/Backrooms"],
+  copyToScripts: ["./dist/backrooms/scripts"],
+  copyToResourcePacks: ["./resource_packs/Backrooms"],
 };
 
 const RETRYABLE_COPY_ERRORS = new Set(["EBUSY", "EPERM", "EACCES"]);
@@ -145,12 +162,21 @@ async function copyArtifacts(): Promise<void> {
     throw new Error(`无法确定 ${product} 的部署路径，请检查 .env 配置。`);
   }
 
-  const behaviorPackTarget = path.join(deploymentPath, "development_behavior_packs", projectName);
-  const resourcePackTarget = path.join(deploymentPath, "development_resource_packs", projectName);
-  await copyDirectoryContents(path.resolve(__dirname, copyTaskOptions.copyToBehaviorPacks[0]), behaviorPackTarget);
-  await copyDirectoryContents(path.resolve(__dirname, copyTaskOptions.copyToScripts[0]), path.join(behaviorPackTarget, "scripts"));
-  if (copyTaskOptions.copyToResourcePacks?.[0]) {
-    await copyDirectoryContents(path.resolve(__dirname, copyTaskOptions.copyToResourcePacks[0]), resourcePackTarget);
+  const packs = [
+    { name: projectName, options: copyTaskOptions },
+    { name: "Backrooms", options: backroomsCopyTaskOptions },
+  ];
+  for (const pack of packs) {
+    const behaviorPackTarget = path.join(deploymentPath, "development_behavior_packs", pack.name);
+    const resourcePackTarget = path.join(deploymentPath, "development_resource_packs", pack.name);
+    await copyDirectoryContents(path.resolve(__dirname, pack.options.copyToBehaviorPacks[0]), behaviorPackTarget);
+    await copyDirectoryContents(
+      path.resolve(__dirname, pack.options.copyToScripts[0]),
+      path.join(behaviorPackTarget, "scripts"),
+    );
+    if (pack.options.copyToResourcePacks?.[0]) {
+      await copyDirectoryContents(path.resolve(__dirname, pack.options.copyToResourcePacks[0]), resourcePackTarget);
+    }
   }
 }
 
@@ -167,6 +193,11 @@ const mcaddonTaskOptionsDebug: ZipTaskParameters = {
 const mcaddonTaskOptionsBdsAdmin: ZipTaskParameters = {
   ...copyTaskOptions,
   outputFile: `./dist/packages/${projectName}_BDS增强版（仅适用BDS服务器，含额外黑名单功能等）.mcaddon`,
+};
+
+const mcaddonTaskOptionsBackrooms: ZipTaskParameters = {
+  ...backroomsCopyTaskOptions,
+  outputFile: "./dist/packages/Backrooms_Level_0_独立附加包.mcaddon",
 };
 
 const behaviorPackDir = path.join(__dirname, "behavior_packs", projectName);
@@ -215,6 +246,7 @@ task("lint", coreLint(["scripts/**/*.ts"], argv().fix));
 task("bundle:standard", () => runMainBundle(bundleTaskOptionsStandard));
 task("bundle:debug", () => runMainBundle(bundleTaskOptionsDebug));
 task("bundle:bds-admin", () => runMainBundle(bundleTaskOptionsBdsAdmin));
+task("bundle:backrooms", () => runMainBundle(bundleTaskOptionsBackrooms));
 task("typescript", tscTask());
 task("useManifestStandard", () => {
   useStandardManifest();
@@ -226,9 +258,13 @@ task("useManifestBds", () => {
   useBdsManifest();
 });
 
-task("build:standard", series("useManifestStandard", "typescript", "bundle:standard"));
-task("build:debug", series("useManifestDebug", "typescript", "bundle:debug"));
-task("build:bds-admin", series("useManifestBds", "typescript", "bundle:bds-admin"));
+task("bundle:standard-all", parallel("bundle:standard", "bundle:backrooms"));
+task("bundle:debug-all", parallel("bundle:debug", "bundle:backrooms"));
+task("bundle:bds-admin-all", parallel("bundle:bds-admin", "bundle:backrooms"));
+task("build:standard", series("useManifestStandard", "typescript", "bundle:standard-all"));
+task("build:debug", series("useManifestDebug", "typescript", "bundle:debug-all"));
+task("build:bds-admin", series("useManifestBds", "typescript", "bundle:bds-admin-all"));
+task("build:backrooms", series("typescript", "bundle:backrooms"));
 task("build", series("build:standard"));
 
 // Clean
@@ -250,21 +286,21 @@ task("setBdsServerDeployEnv", () => {
 task(
   "local-deploy",
   watchTask(
-    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg}", "resource_packs/**/*.{json,lang,png,ogg}"],
+    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg,wav}", "resource_packs/**/*.{json,lang,png,ogg,wav}"],
     series("setDefaultDeployEnv", "clean-local", "build:standard", "package")
   )
 );
 task(
   "local-deploy:debug",
   watchTask(
-    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg}", "resource_packs/**/*.{json,lang,png,ogg}"],
+    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg,wav}", "resource_packs/**/*.{json,lang,png,ogg,wav}"],
     series("setDefaultDeployEnv", "clean-local", "build:debug", "package")
   )
 );
 task(
   "local-deploy:bds-admin",
   watchTask(
-    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg}", "resource_packs/**/*.{json,lang,png,ogg}"],
+    ["scripts/**/*.ts", "behavior_packs/**/*.{json,lang,png,ogg,wav}", "resource_packs/**/*.{json,lang,png,ogg,wav}"],
     series("setBdsServerDeployEnv", "clean-local", "build:bds-admin", "package")
   )
 );
@@ -274,14 +310,17 @@ task("local-deploy:bds", series("local-deploy:bds-admin"));
 task("createMcaddonFile:standard", mcaddonTask(mcaddonTaskOptionsStandard));
 task("createMcaddonFile:debug", mcaddonTask(mcaddonTaskOptionsDebug));
 task("createMcaddonFile:bds-admin", mcaddonTask(mcaddonTaskOptionsBdsAdmin));
+task("createMcaddonFile:backrooms", mcaddonTask(mcaddonTaskOptionsBackrooms));
 task("package:standard", series("build:standard", "createMcaddonFile:standard"));
 task("package:debug", series("build:debug", "createMcaddonFile:debug"));
 task("package:bds-admin", series("build:bds-admin", "createMcaddonFile:bds-admin"));
+task("package:backrooms", series("build:backrooms", "createMcaddonFile:backrooms"));
 task("mcaddon:standard", series("clean-local", "package:standard"));
 task("mcaddon:debug", series("clean-local", "package:debug"));
 task("mcaddon:bds-admin", series("clean-local", "package:bds-admin"));
+task("mcaddon:backrooms", series("clean-local", "package:backrooms"));
 task("mcaddon", series("mcaddon:standard"));
 task("mcaddon:bds", series("mcaddon:bds-admin"));
 
-// 同时产出普通兼容版 + BDS 增强版两个 mcaddon（发布时运行一次即可）
-task("mcaddon:all", series("clean-local", "package:standard", "package:bds-admin", "useManifestStandard"));
+// 同时产出菜单普通版、独立 Backrooms 包和菜单 BDS 增强版。
+task("mcaddon:all", series("clean-local", "package:standard", "package:backrooms", "package:bds-admin", "useManifestStandard"));

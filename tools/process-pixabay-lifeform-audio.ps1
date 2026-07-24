@@ -1,7 +1,7 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$SourceDirectory,
-  [string]$OutputDirectory = "resource_packs/CreeperMenu/sounds/backrooms/lifeform"
+  [string]$OutputDirectory = "resource_packs/Backrooms/sounds/backrooms/lifeform"
 )
 
 $ErrorActionPreference = "Stop"

@@ -19,8 +19,8 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(output, filename);
 };
 
-const core = require(path.join(root, "scripts/features/backrooms/core/index.ts"));
-const runtimeContracts = require(path.join(root, "scripts/features/backrooms/runtime/contracts.ts"));
+const core = require(path.join(root, "scripts/addons/backrooms/core/index.ts"));
+const runtimeContracts = require(path.join(root, "scripts/addons/backrooms/runtime/contracts.ts"));
 
 test.after(() => {
   if (previousTsLoader) require.extensions[".ts"] = previousTsLoader;
@@ -117,7 +117,7 @@ test("generated Level 0 regions are deterministic and fully connected", () => {
 
 test("runtime transaction ordering keeps ready marker as the final commit", () => {
   const builder = fs.readFileSync(
-    path.join(root, "scripts/features/backrooms/runtime/region-builder.ts"),
+    path.join(root, "scripts/addons/backrooms/runtime/region-builder.ts"),
     "utf8",
   );
   const shell = builder.indexOf("await this.buildShell");

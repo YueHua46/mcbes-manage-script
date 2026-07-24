@@ -53,17 +53,17 @@ Module._load = function (request, parent, isMain) {
   return previousModuleLoad.call(this, request, parent, isMain);
 };
 
-const core = require(path.join(root, "scripts/features/backrooms/core/index.ts"));
+const core = require(path.join(root, "scripts/addons/backrooms/core/index.ts"));
 const { BackroomsLayoutAdapter } = require(path.join(
   root,
-  "scripts/features/backrooms/layout-adapter.ts",
+  "scripts/addons/backrooms/layout-adapter.ts",
 ));
-const manifestation = require(path.join(root, "scripts/features/backrooms/manifestation.ts"));
-const constants = require(path.join(root, "scripts/features/backrooms/constants.ts"));
-const runtimeContracts = require(path.join(root, "scripts/features/backrooms/runtime/contracts.ts"));
+const manifestation = require(path.join(root, "scripts/addons/backrooms/manifestation.ts"));
+const constants = require(path.join(root, "scripts/addons/backrooms/constants.ts"));
+const runtimeContracts = require(path.join(root, "scripts/addons/backrooms/runtime/contracts.ts"));
 const { BackroomsRegionMarkerStore } = require(path.join(
   root,
-  "scripts/features/backrooms/runtime/region-marker.ts",
+  "scripts/addons/backrooms/runtime/region-marker.ts",
 ));
 Module._load = previousModuleLoad;
 
@@ -365,7 +365,7 @@ test("blackout and pit-cluster variants preserve their physical policies", () =>
   let pitLayout;
   for (let rx = -4000; rx <= 4000 && (!blackoutPlan || !pitPlan); rx++) {
     const region = { rx, rz: 37 };
-    const variant = require(path.join(root, "scripts/features/backrooms/layout-adapter.ts"))
+    const variant = require(path.join(root, "scripts/addons/backrooms/layout-adapter.ts"))
       .getBackroomsRegionVariant(seed, region);
     if (variant.blackout && !blackoutPlan) blackoutPlan = adapter.createPlan(region);
     if (variant.holeCluster && !pitPlan) {
@@ -389,20 +389,23 @@ test("blackout and pit-cluster variants preserve their physical policies", () =>
 });
 
 test("source wiring preserves registration, safe teleport, and transaction boundaries", () => {
-  const feature = source("scripts", "features", "backrooms", "index.ts");
+  const feature = source("scripts", "addons", "backrooms", "index.ts");
+  const commands = source("scripts", "addons", "backrooms", "commands.ts");
+  const standaloneMain = source("scripts", "backrooms.main.ts");
   const pool = source("scripts", "features", "dimension", "services", "custom-dimension-pool.ts");
   const standardMain = source("scripts", "main.standard.ts");
   const bdsMain = source("scripts", "main.bds.ts");
-  const builder = source("scripts", "features", "backrooms", "runtime", "region-builder.ts");
-  const queue = source("scripts", "features", "backrooms", "runtime", "generation-queue.ts");
-  const marker = source("scripts", "features", "backrooms", "runtime", "region-marker.ts");
-  const protection = source("scripts", "features", "backrooms", "protection.ts");
-  const anomalies = source("scripts", "features", "backrooms", "anomalies.ts");
+  const builder = source("scripts", "addons", "backrooms", "runtime", "region-builder.ts");
+  const queue = source("scripts", "addons", "backrooms", "runtime", "generation-queue.ts");
+  const marker = source("scripts", "addons", "backrooms", "runtime", "region-marker.ts");
+  const protection = source("scripts", "addons", "backrooms", "protection.ts");
+  const anomalies = source("scripts", "addons", "backrooms", "anomalies.ts");
   const manageForm = source("scripts", "ui", "forms", "system", "custom-dimensions.ts");
 
-  assert.match(pool, /alias:\s*["']backrooms["'][\s\S]*dimensionId:\s*["']yuehua:backrooms["']/);
+  assert.doesNotMatch(pool, /backrooms/i);
   assert.match(feature, /registerCustomDimension\(BACKROOMS_DIMENSION_ID\)/);
   assert.match(feature, /world\.afterEvents\.worldLoad\.subscribe/);
+  assert.match(feature, /registerIsolatedDimension\(BACKROOMS_DIMENSION_ID\)/);
   assertSourceOrder(
     feature,
     [
@@ -413,10 +416,14 @@ test("source wiring preserves registration, safe teleport, and transaction bound
     ],
     "Lifeform and source-less voices register after the deterministic layout is available",
   );
-  assert.match(standardMain, /import\s+["']\.\/features\/backrooms["']/);
-  assert.match(bdsMain, /import\s+["']\.\/features\/backrooms["']/);
-  assert.match(manageForm, /record\.dimensionId\s*===\s*BACKROOMS_DIMENSION_ID/);
-  assert.match(manageForm, /await\s+teleportPlayerToBackrooms\(player\)/);
+  assert.match(standaloneMain, /import\s+["']\.\/addons\/backrooms["']/);
+  assert.match(standaloneMain, /import\s+["']\.\/addons\/backrooms\/commands["']/);
+  assert.doesNotMatch(standardMain, /backrooms/i);
+  assert.doesNotMatch(bdsMain, /backrooms/i);
+  assert.doesNotMatch(manageForm, /backrooms/i);
+  assert.match(commands, /name:\s*["']yuehua:backrooms_tp["']/);
+  assert.match(commands, /name:\s*["']yuehua:backrooms_exit["']/);
+  assert.match(commands, /await\s+ensureBackroomsLocationReady\(location\)/);
   assertSourceOrder(
     feature,
     [
@@ -494,28 +501,68 @@ test("source wiring preserves registration, safe teleport, and transaction bound
   assert.match(protection, /entity\.typeId\s*===\s*LIFEFORM_TYPE_ID/);
 });
 
-test("custom Level 0 soundscape declares valid original wave assets", () => {
-  const definitions = JSON.parse(source(
+test("Backrooms is a standalone paired add-on and CreeperMenu carries no gameplay assets", () => {
+  const behaviorManifest = JSON.parse(source("behavior_packs", "Backrooms", "manifest.json"));
+  const resourceManifest = JSON.parse(source("resource_packs", "Backrooms", "manifest.json"));
+  const resourceDependency = behaviorManifest.dependencies.find((item) => item.uuid === resourceManifest.header.uuid);
+
+  assert.equal(behaviorManifest.modules.some((module) => module.type === "script"), true);
+  assert.deepEqual(resourceDependency.version, resourceManifest.header.version);
+  assert.equal(behaviorManifest.header.uuid === resourceManifest.header.uuid, false);
+
+  const menuBehaviorFiles = fs.readdirSync(path.join(root, "behavior_packs", "CreeperMenu", "blocks"));
+  assert.equal(menuBehaviorFiles.some((name) => /backrooms/i.test(name)), false);
+  assert.equal(
+    fs.existsSync(path.join(root, "behavior_packs", "CreeperMenu", "entities", "backrooms_lifeform.json")),
+    false,
+  );
+  assert.equal(
+    fs.existsSync(path.join(root, "resource_packs", "CreeperMenu", "textures", "blocks", "backrooms")),
+    false,
+  );
+
+  const menuSounds = JSON.parse(source(
     "resource_packs", "CreeperMenu", "sounds", "sound_definitions.json",
   )).sound_definitions;
+  assert.equal(Object.keys(menuSounds).some((id) => /backrooms/i.test(id)), false);
+});
+
+test("custom Level 0 soundscape declares valid original wave assets", () => {
+  const definitions = JSON.parse(source(
+    "resource_packs", "Backrooms", "sounds", "sound_definitions.json",
+  )).sound_definitions;
   const expected = [
-    "hum", "ballast_surge", "tube_flicker", "wall_scratch", "indistinct_breath", "music_lock",
-    "footstep_dry_walk", "footstep_dry_run", "footstep_damp_walk", "footstep_damp_run",
+    "ballast_surge", "tube_flicker", "wall_scratch", "indistinct_breath",
+    "corner_is_anybody", "corner_creepy_ambient", "corner_radio_recording",
   ];
+  assert.ok(definitions["music.game.yuehua_backrooms"], "missing registered Backrooms music track");
+  const musicTrack = definitions["music.game.yuehua_backrooms"].sounds[0];
+  const musicBytes = fs.readFileSync(path.join(
+    root, "resource_packs", "Backrooms", `${musicTrack.name}.ogg`,
+  ));
+  assert.equal(musicBytes.subarray(0, 4).toString("ascii"), "OggS");
   for (const suffix of expected) {
     assert.ok(definitions[`yuehua.backrooms.${suffix}`], `missing sound event ${suffix}`);
   }
   for (const suffix of expected) {
     for (const sound of definitions[`yuehua.backrooms.${suffix}`].sounds) {
-      const bytes = fs.readFileSync(path.join(root, "resource_packs", "CreeperMenu", `${sound.name}.wav`));
-      assert.equal(bytes.subarray(0, 4).toString("ascii"), "RIFF");
-      assert.equal(bytes.subarray(8, 12).toString("ascii"), "WAVE");
+      const extension = ".wav";
+      const bytes = fs.readFileSync(path.join(root, "resource_packs", "Backrooms", `${sound.name}${extension}`));
+      if (extension === ".ogg") assert.equal(bytes.subarray(0, 4).toString("ascii"), "OggS");
+      else {
+        assert.equal(bytes.subarray(0, 4).toString("ascii"), "RIFF");
+        assert.equal(bytes.subarray(8, 12).toString("ascii"), "WAVE");
+      }
       assert.ok(bytes.length > 1_000);
     }
   }
-  const ambience = source("scripts", "features", "backrooms", "ambience.ts");
+  const ambience = source("scripts", "addons", "backrooms", "ambience.ts");
   assert.match(ambience, /getBackroomsRegionVariant/);
-  assert.match(ambience, /player\.stopSound\(SOUNDS\.hum\)/);
+  assert.match(ambience, /player\.stopMusic\(\)/);
+  assert.match(ambience, /system\.runTimeout\([\s\S]*player\.playMusic\("music\.game\.yuehua_backrooms"/);
+  assert.doesNotMatch(ambience, /SOUNDS\.hum|nextHumTick|HUM_REPLAY_TICKS/);
+  assert.doesNotMatch(ambience, /music_lock/);
+  assert.doesNotMatch(ambience, /footstep/i);
   assert.match(ambience, /playSpatialAnomaly/);
 });
 
@@ -525,11 +572,11 @@ test("custom Level 0 block palette has complete 64px resource definitions", () =
     "ceiling_tile", "fluorescent_on", "fluorescent_dead",
   ];
   const terrain = JSON.parse(source(
-    "resource_packs", "CreeperMenu", "textures", "terrain_texture.json",
+    "resource_packs", "Backrooms", "textures", "terrain_texture.json",
   )).texture_data;
   for (const suffix of ids) {
     const definition = JSON.parse(source(
-      "behavior_packs", "CreeperMenu", "blocks", `backrooms_${suffix}.json`,
+      "behavior_packs", "Backrooms", "blocks", `backrooms_${suffix}.json`,
     ))["minecraft:block"];
     assert.equal(definition.description.identifier, `yuehua:backrooms_${suffix}`);
     assert.equal(definition.components["minecraft:destructible_by_mining"], false);
@@ -537,38 +584,40 @@ test("custom Level 0 block palette has complete 64px resource definitions", () =
     assert.ok(definition.components["minecraft:material_instances"]);
     assert.ok(terrain[`backrooms_${suffix}`]);
     const png = fs.readFileSync(path.join(
-      root, "resource_packs", "CreeperMenu", "textures", "blocks", "backrooms", `${suffix}.png`,
+      root, "resource_packs", "Backrooms", "textures", "blocks", "backrooms", `${suffix}.png`,
     ));
     assert.equal(png.readUInt32BE(16), 64);
     assert.equal(png.readUInt32BE(20), 64);
   }
   const lamp = JSON.parse(source(
-    "behavior_packs", "CreeperMenu", "blocks", "backrooms_fluorescent_on.json",
+    "behavior_packs", "Backrooms", "blocks", "backrooms_fluorescent_on.json",
   ))["minecraft:block"];
-  assert.ok(lamp.components["minecraft:light_emission"] > 0);
-  assert.ok(lamp.components["minecraft:light_emission"] <= 8);
+  assert.equal(lamp.components["minecraft:light_emission"], 15);
 });
 
-test("Backrooms fog preserves local lamp contrast instead of globally filling darkness", () => {
+test("Backrooms fog keeps the warm Level 0 palette readable without erasing local contrast", () => {
   const fog = JSON.parse(source(
-    "resource_packs", "CreeperMenu", "fogs", "backrooms.json",
+    "resource_packs", "Backrooms", "fogs", "backrooms.json",
   ))["minecraft:fog_settings"].distance;
   const rgb = (color) => [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16));
 
   for (const medium of ["air", "weather"]) {
-    assert.ok(fog[medium].fog_start >= 16, `${medium} fog must not flatten nearby local lighting`);
+    assert.ok(fog[medium].fog_start >= 22, `${medium} fog must not flatten nearby local lighting`);
+    assert.ok(fog[medium].fog_end >= 52, `${medium} fog must retain a readable mid-distance`);
     assert.ok(fog[medium].fog_end > fog[medium].fog_start, `${medium} fog distance must remain ordered`);
     assert.ok(
-      rgb(fog[medium].fog_color).every((channel) => channel < 0x70),
-      `${medium} fog must be a dark olive-brown, got ${fog[medium].fog_color}`,
+      rgb(fog[medium].fog_color)[0] > rgb(fog[medium].fog_color)[1]
+        && rgb(fog[medium].fog_color)[1] > rgb(fog[medium].fog_color)[2]
+        && rgb(fog[medium].fog_color)[0] >= 0x60,
+      `${medium} fog must be a readable warm yellow-brown, got ${fog[medium].fog_color}`,
     );
   }
 });
 
 test("renderer contract avoids unscoped global lighting and registers only the warm static lamp", () => {
-  const globalPath = path.join(root, "resource_packs", "CreeperMenu", "lighting", "global.json");
+  const globalPath = path.join(root, "resource_packs", "Backrooms", "lighting", "global.json");
   const localPath = path.join(
-    root, "resource_packs", "CreeperMenu", "local_lighting", "local_lighting.json",
+    root, "resource_packs", "Backrooms", "local_lighting", "local_lighting.json",
   );
   assert.equal(
     fs.existsSync(globalPath),
@@ -581,6 +630,7 @@ test("renderer contract avoids unscoped global lighting and registers only the w
   assert.deepEqual(Object.keys(local), ["yuehua:backrooms_fluorescent_on"]);
   assert.equal(local["yuehua:backrooms_fluorescent_on"].light_type, "static_light");
   const color = local["yuehua:backrooms_fluorescent_on"].light_color;
+  assert.equal(color, "#FFD68C");
   const rgb = [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16));
   assert.ok(rgb[0] > rgb[1] && rgb[1] > rgb[2], `lamp must be warm ivory, got ${color}`);
 });

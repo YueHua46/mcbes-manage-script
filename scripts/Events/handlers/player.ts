@@ -25,14 +25,14 @@ const WELCOME_SOUNDS = [
   { id: "yuehua.welcome_9", title: "Green Stage" },
 ] as const;
 
-// 保留原有欢迎画面的节奏；声音使用独立的音乐通道，不再靠延迟标题等待音频。
+// 欢迎音走独立音效通道，避免覆盖玩家已在播放的维度背景音乐。
 const WELCOME_PRESENTATION_DELAY_TICKS = 70;
 
 function playRandomWelcomeSound(player: Player): void {
   const index = Math.floor(Math.random() * WELCOME_SOUNDS.length);
   const sound = WELCOME_SOUNDS[index];
   try {
-    player.playMusic(sound.id, { volume: 0.4, fade: 0, loop: false });
+    player.playSound(sound.id, { volume: 1, pitch: 1 });
   } catch (error) {
     console.warn(`播放进服欢迎音乐失败：${sound.id}`, error);
   }
@@ -59,7 +59,7 @@ export function registerPlayerEvents(): void {
       player.runCommand(
         `titleraw @s subtitle {"rawtext":[{"text":"${welcomeCharacter}\\n\\n\\n\\n${left} §d欢迎来到 ${right}\\n§s${serverName}"}]}`
       );
-      // 副标题此时尚不可见。先发出预加载音乐，再触发标题动画，保证两者来自同一进服时点。
+      // 副标题此时尚不可见。先播放欢迎音，再触发标题动画，保证两者来自同一进服时点。
       playRandomWelcomeSound(player);
       // 空格只保留最小标题行高，避免旧版 "\n\n" 把可见内容大幅向下推。
       player.onScreenDisplay.setTitle({ text: " " });

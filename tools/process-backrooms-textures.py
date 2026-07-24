@@ -10,7 +10,7 @@ from PIL import Image, ImageFilter
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "resource_packs" / "CreeperMenu" / "textures" / "blocks" / "backrooms"
+OUTPUT = ROOT / "resource_packs" / "Backrooms" / "textures" / "blocks" / "backrooms"
 
 
 def edge_match(image: Image.Image, border: int = 7) -> Image.Image:

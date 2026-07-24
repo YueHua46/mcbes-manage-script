@@ -1,0 +1,47 @@
+{
+  "processed_at": "2026-07-20",
+  "processing": "Decoded to mono PCM16/16 kHz WAV, frequency-limited, loudness-controlled, limited, and faded at file boundaries. Original MP3 files are not shipped.",
+  "sources": [
+    {
+      "role": "corner_is_anybody",
+      "source_file": "backrooms-is-there-anybody-in-there_-made-with-Voicemod.mp3",
+      "sha256": "D1CDF85D7DD19084AE39623123D3D02407946F72FD3B6266A8F74EF09E0AAEBA",
+      "origin": "User-provided Voicemod export",
+      "derivative": "sounds/backrooms/events/corner_is_anybody.wav"
+    },
+    {
+      "role": "corner_creepy_ambient",
+      "source_file": "u_sw4m729ttd-whose-is-this-creepy-ambient-sound-232423.mp3",
+      "sha256": "03434BB63FD0DD83C7EC9FB80DA1410034B8C645AB11110571AFC184E89B737E",
+      "origin": "Pixabay #232423, creator u_sw4m729ttd",
+      "license": "Pixabay Content License",
+      "page": "https://pixabay.com/sound-effects/whose-is-this-creepy-ambient-sound-232423/",
+      "derivative": "sounds/backrooms/events/corner_creepy_ambient.wav"
+    },
+    {
+      "role": "lifeform_smiler",
+      "source_file": "unr3al_backr00ms-backrooms-smiler-jumpscare-123798.mp3",
+      "sha256": "FCCADC10DE4A64C043FB41935DAF5941E952EC651838A12BEFE2D7A66CB59F6A",
+      "origin": "Pixabay #123798, creator UNR3AL_Backr00ms",
+      "license": "Pixabay Content License",
+      "page": "https://pixabay.com/sound-effects/backrooms-smiler-jumpscare-123798/",
+      "derivative": "sounds/backrooms/lifeform/lifeform_smiler.wav"
+    },
+    {
+      "role": "lifeform_wail",
+      "source_file": "cjb123-creature-wail-223555.mp3",
+      "sha256": "5BB622676E2AF918CF55B668F69FD0C77FCFF0120249098EC657F80755D96B57",
+      "origin": "Pixabay #223555, creator CJB123",
+      "license": "Pixabay Content License",
+      "page": "https://pixabay.com/sound-effects/film-special-effects-creature-wail-223555/",
+      "derivative": "sounds/backrooms/lifeform/lifeform_wail.wav"
+    },
+    {
+      "role": "corner_radio_recording",
+      "source_file": "as-human-expansion-is-projected-to-increase-exponentially-in-the-coming-decades-we-must-account-for-these-never-before-f.mp3",
+      "sha256": "AC628C9A3322EA29F9908DCFB09D53E7263E855297EB29DD29C65226E982DD9A",
+      "origin": "User-provided file carrying 101soundboards.com metadata",
+      "derivative": "sounds/backrooms/events/corner_radio_recording.wav"
+    }
+  ]
+}

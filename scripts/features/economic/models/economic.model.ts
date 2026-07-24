@@ -26,7 +26,7 @@ export interface ITransaction {
   timestamp: number;
 }
 
-export interface IAuctionItem {
+export interface IPlayerMarketItem {
   id: string;
   seller: string;
   itemTypeId: string;

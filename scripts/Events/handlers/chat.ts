@@ -10,7 +10,7 @@ import setting from "../../features/system/services/setting";
 import { guildFacade } from "../../features/guild/services/guild-facade";
 import { isMenuChatTrigger } from "../../core/constants";
 import { isRealPlayerEntity } from "../../shared/utils/online-players";
-import { BACKROOMS_DIMENSION_ID } from "../../features/backrooms/constants";
+import { isDimensionIsolated } from "../../shared/dimension-isolation";
 
 /**
  * 注册聊天事件处理器
@@ -36,11 +36,7 @@ export function registerChatEvents(): void {
     if (isMenuChatTrigger(message)) return;
     e.cancel = true;
 
-    // Level 0 的 Isolation Effect：消息不能跨越 manifestation，也不能传回现实。
-    if (sender.dimension.id === BACKROOMS_DIMENSION_ID) {
-      system.run(() => sender.isValid && sender.sendMessage("§8无线电里只剩下荧光灯的嗡鸣。"));
-      return;
-    }
+    if (isDimensionIsolated(sender.dimension.id)) return;
 
     // 获取玩家别名
     const alias = playerSettings.getPlayerAlias(sender);
@@ -61,7 +57,7 @@ export function registerChatEvents(): void {
       displayText = `${playerNameColor}${guildPart}${sender.name}： ${playerChatColor}${message}`;
     }
 
-    const allPlayers = useAllPlayers().filter((player) => player.dimension.id !== BACKROOMS_DIMENSION_ID);
+    const allPlayers = useAllPlayers().filter((player) => !isDimensionIsolated(player.dimension.id));
     allPlayers.forEach((player) => {
       const isOpenChat = player.getDynamicProperty("Chat") as boolean | undefined;
       if (typeof isOpenChat === "undefined") {

@@ -11,7 +11,7 @@ import { color } from "../../../shared/utils/color";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
 import setting, { IValueType } from "../../system/services/setting";
-import { BACKROOMS_DIMENSION_ID } from "../../backrooms/constants";
+import { isDimensionIsolated } from "../../../shared/dimension-isolation";
 
 export interface IWayPoint {
   name: string;
@@ -162,7 +162,7 @@ class WayPoint {
 
   createPoint(pointOption: ICreateWayPoint): void | string {
     const { pointName, location, player, type = "private" } = pointOption;
-    if (player.dimension.id === BACKROOMS_DIMENSION_ID) return "这里无法留下可靠的坐标记录";
+    if (isDimensionIsolated(player.dimension.id)) return "当前维度禁止保存坐标点";
     let maxPoints: IValueType = "10";
     if (type === "private") {
       maxPoints = setting.getState("maxPrivatePointsPerPlayer");
@@ -368,7 +368,7 @@ class WayPoint {
   }
 
   teleport(player: Player, pointName: string, ownerName?: string): void | string {
-    if (player.dimension.id === BACKROOMS_DIMENSION_ID) return "Backrooms 的隔离层阻断了坐标传送";
+    if (isDimensionIsolated(player.dimension.id)) return "当前维度禁止坐标传送";
     // 如果提供了所有者名称，使用它查找；否则使用当前玩家名称
     const searchPlayerName = ownerName || player.name;
     let wayPoint = this.getPoint(pointName, searchPlayerName);
@@ -377,7 +377,7 @@ class WayPoint {
       wayPoint = this.db.values().find((p) => p.name === pointName && p.type === "public");
     }
     if (!wayPoint) return "坐标点不存在";
-    if (wayPoint.dimension === BACKROOMS_DIMENSION_ID) return "无法通过坐标点进入其他人的 manifestation";
+    if (isDimensionIsolated(wayPoint.dimension)) return "目标维度禁止坐标传送";
 
     // 保存传送前的位置和维度
     const startLocation = player.location;

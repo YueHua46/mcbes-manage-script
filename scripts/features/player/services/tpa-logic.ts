@@ -5,18 +5,18 @@
 import { Player } from "@minecraft/server";
 import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
+import { isDimensionIsolated } from "../../../shared/dimension-isolation";
 import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
-import { BACKROOMS_DIMENSION_ID } from "../../backrooms/constants";
 
 export type TpaType = "to" | "come";
 
 export function teleportPlayer(requestPlayer: Player, targetPlayer: Player, type: TpaType): void {
   if (
-    requestPlayer.dimension.id === BACKROOMS_DIMENSION_ID ||
-    targetPlayer.dimension.id === BACKROOMS_DIMENSION_ID
+    isDimensionIsolated(requestPlayer.dimension.id) ||
+    isDimensionIsolated(targetPlayer.dimension.id)
   ) {
-    requestPlayer.sendMessage(color.gray("目标信号无法穿过 backrooms 的隔离层。"));
-    targetPlayer.sendMessage(color.gray("一段传送信号消失在荧光灯的噪声中。"));
+    requestPlayer.sendMessage(color.gray("目标维度禁止外部传送。"));
+    targetPlayer.sendMessage(color.gray("传送信号被目标维度阻断。"));
     return;
   }
 

@@ -16,7 +16,7 @@ ATLASES = {
     "atlas-world.png": "ada carneval carneval_unavailable checkpoint dunya durbun fast_travel fotograf home island marker_quest overworld region topraklar game_parkour_tag party_unavailable".split(),
     "atlas-economy.png": "catalogue clock coins gem gift rewards shop shop_bank trade trophy sandik quest_chest quest_daily_common quest_log star bina".split(),
     "atlas-gameplay.png": "8 copkutusu dinazor duyuru gadgets game_battle_box game_survival_games infinibag kilic mod_shield party_invites party_remove pickaxe saat sword zombi".split(),
-    "atlas-main-menu.png": "menu_player menu_waypoint menu_land menu_economy menu_guild menu_floating_text menu_pvp menu_stats menu_quest menu_other menu_help menu_item menu_server_settings menu_shop menu_auction menu_transfer".split(),
+    "atlas-main-menu.png": "menu_player menu_waypoint menu_land menu_economy menu_guild menu_floating_text menu_pvp menu_stats menu_quest menu_other menu_help menu_item menu_server_settings menu_shop menu_player_market menu_transfer".split(),
 }
 
 PALETTE = [

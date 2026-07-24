@@ -19,7 +19,7 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(output, filename);
 };
 
-const selector = require(path.join(root, "scripts/features/backrooms/lifeform/spawn-site-selector.ts"));
+const selector = require(path.join(root, "scripts/addons/backrooms/lifeform/spawn-site-selector.ts"));
 
 test.after(() => {
   if (previousTsLoader) require.extensions[".ts"] = previousTsLoader;

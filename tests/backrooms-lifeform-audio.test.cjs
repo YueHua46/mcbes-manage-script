@@ -6,7 +6,7 @@ const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const root = path.resolve(__dirname, "..");
-const packRoot = path.join(root, "resource_packs", "CreeperMenu");
+const packRoot = path.join(root, "resource_packs", "Backrooms");
 const soundsRoot = path.join(packRoot, "sounds");
 const definitions = JSON.parse(
   fs.readFileSync(path.join(soundsRoot, "sound_definitions.json"), "utf8"),
@@ -110,7 +110,7 @@ test("Lifeform exposes the complete non-looping hostile sound library", () => {
     step_run: [3, 0.25, 0.7, 0.28, 16, 28],
     inspect: [2, 1.4, 3.0, 0.24, 20, 36],
     lure: [3, 2.5, 6.0, 0.26, 32, 48],
-    roar: [2, 1.0, 2.3, 0.68, 36, 56],
+    roar: [2, 1.0, 2.3, 0.68, 64, 72],
     attack: [3, 0.6, 1.5, 0.48, 16, 30],
     hurt: [2, 0.4, 1.2, 0.38, 20, 36],
     death: [2, 0.9, 2.2, 0.46, 28, 44],
@@ -153,6 +153,41 @@ test("processed Pixabay cues stay spatial, short, and subordinate to the origina
   assert.ok(importedHurt.volume <= 0.75, "processed hurt needs an in-game gain ceiling");
   assert.ok(roar.sounds.filter((sound) => !sound.name.includes("pixabay_")).length >= 2);
   assert.ok(hurt.sounds.filter((sound) => !sound.name.includes("pixabay_")).length >= 2);
+});
+
+test("Lifeform random vocal event provides the two requested imported variants", () => {
+  const vocals = inspectEvent("yuehua.backrooms.lifeform.random_vocal", {
+    category: "hostile",
+    minDistance: 64,
+    maxDistance: 72,
+    minVariants: 2,
+    minDuration: 3.4,
+    maxDuration: 8.0,
+    minPeak: 0.25,
+  });
+  assert.equal(vocals.length, 2);
+  const names = definitions["yuehua.backrooms.lifeform.random_vocal"].sounds.map((sound) => sound.name);
+  assert.deepEqual(names, [
+    "sounds/backrooms/lifeform/lifeform_smiler",
+    "sounds/backrooms/lifeform/lifeform_wail",
+  ]);
+});
+
+test("CJB123 creature wail has a dedicated guaranteed Lifeform event", () => {
+  const wails = inspectEvent("yuehua.backrooms.lifeform.signature_wail", {
+    category: "hostile",
+    minDistance: 96,
+    maxDistance: 96,
+    minVariants: 1,
+    minDuration: 3.4,
+    maxDuration: 4.0,
+    minPeak: 0.6,
+  });
+  assert.equal(wails.length, 1);
+  assert.equal(
+    definitions["yuehua.backrooms.lifeform.signature_wail"].sounds[0].name,
+    "sounds/backrooms/lifeform/lifeform_wail",
+  );
 });
 
 test("Pixabay processing is reproducible, high-frequency limited, and ships no raw downloads", () => {

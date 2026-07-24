@@ -19,10 +19,10 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(output, filename);
 };
 
-const config = require(path.join(root, "scripts/features/backrooms/lifeform/config.ts"));
-const contracts = require(path.join(root, "scripts/features/backrooms/lifeform/contracts.ts"));
+const config = require(path.join(root, "scripts/addons/backrooms/lifeform/config.ts"));
+const contracts = require(path.join(root, "scripts/addons/backrooms/lifeform/contracts.ts"));
 const directorSource = fs.readFileSync(
-  path.join(root, "scripts/features/backrooms/lifeform/director.ts"),
+  path.join(root, "scripts/addons/backrooms/lifeform/director.ts"),
   "utf8",
 );
 
@@ -66,6 +66,22 @@ test("eight-minute guarantee cannot be blocked by staying inside fewer than four
   }), true);
 });
 
+test("five hundred blocks of horizontal travel also guarantees an encounter", () => {
+  assert.equal(config.GUARANTEE_TRAVEL_DISTANCE, 500);
+  assert.equal(config.evaluateEncounterEligibility({
+    sessionTicks: 0,
+    uniqueRegions: 1,
+    failedChecks: 0,
+    travelDistance: 499.99,
+  }).guaranteed, false);
+  assert.equal(config.evaluateEncounterEligibility({
+    sessionTicks: 0,
+    uniqueRegions: 1,
+    failedChecks: 0,
+    travelDistance: 500,
+  }).guaranteed, true);
+});
+
 test("director limits block repeat sessions, duplicate manifestations, global overflow, and wall-clock cooldown", () => {
   const base = {
     eligible: true,
@@ -84,13 +100,13 @@ test("director limits block repeat sessions, duplicate manifestations, global ov
   assert.equal(config.canStartEncounter({ ...base, cooldownUntilMs: base.nowMs + 1 }), false);
   assert.equal(config.canStartEncounter({ ...base, roll: 0.08, probability: 0.08 }), false);
   assert.equal(config.canStartEncounter({ ...base, roll: 0.999, guaranteed: true }), true);
-  assert.equal(config.ENCOUNTER_COOLDOWN_MS, 30 * 60 * 1000);
+  assert.equal(config.ENCOUNTER_COOLDOWN_MS, 5 * 60 * 1000);
   assert.equal(config.DIRECTOR_CHECK_TICKS, 400);
 });
 
 test("ordinary voices use independent timing and a seventy/twenty/ten approach outcome", () => {
-  assert.deepEqual(config.voiceFirstDelayTicks(0), { min: 3_600, max: 7_200 });
-  assert.deepEqual(config.voiceRepeatDelayTicks(), { min: 1_800, max: 3_600 });
+  assert.deepEqual(config.voiceFirstDelayTicks(0), { min: 900, max: 2_400 });
+  assert.deepEqual(config.voiceRepeatDelayTicks(), { min: 2_400, max: 6_000 });
   assert.equal(config.voiceApproachOutcome(0), "disappear");
   assert.equal(config.voiceApproachOutcome(0.699999), "disappear");
   assert.equal(config.voiceApproachOutcome(0.7), "relocate");
@@ -99,14 +115,18 @@ test("ordinary voices use independent timing and a seventy/twenty/ten approach o
   assert.equal(config.voiceApproachOutcome(0.999999), "lure-eligible");
 });
 
-test("a director-owned manifestation emits one muffled spatial warning from behind the wall", () => {
+test("a director-owned manifestation emits one loud spatial roar from behind the wall", () => {
   const spawnStart = directorSource.indexOf("function spawnEncounter");
   const eligibilityStart = directorSource.indexOf("function checkEligibility", spawnStart);
   const spawnEncounter = directorSource.slice(spawnStart, eligibilityStart);
-  const warningCalls = spawnEncounter.match(/playSound\(["']yuehua\.backrooms\.lifeform\.distant["']/g) ?? [];
-  assert.equal(warningCalls.length, 1, "spawn must issue exactly one distant Lifeform warning");
-  assert.match(spawnEncounter, /volume:\s*0\.[23][0-9]?/);
-  assert.match(spawnEncounter, /pitch:\s*0\.[89]/);
+  const roarCalls = spawnEncounter.match(/playSound\(["']yuehua\.backrooms\.lifeform\.roar["']/g) ?? [];
+  assert.equal(roarCalls.length, 1, "spawn must issue exactly one Lifeform roar");
+  assert.match(spawnEncounter, /volume:\s*1\.35/);
+  assert.match(spawnEncounter, /lifeform:spawn-roar/);
+  assert.ok(
+    spawnEncounter.indexOf('triggerPhase(encounter, "dormant")') < spawnEncounter.indexOf("assignEncounterTarget(encounter, target)"),
+    "manual targeting must be removed before the director target slot is installed",
+  );
 });
 
 test("state reducer follows the event-driven encounter phases and cleanup paths", () => {
@@ -130,15 +150,17 @@ test("state reducer follows the event-driven encounter phases and cleanup paths"
   assert.equal(state.phase, "retreat");
 });
 
-test("stagger requires six damage and has a three-second cooldown without replacing the logical phase", () => {
+test("a replacement target resumes a searching or retreating Bacteria without scripted stagger state", () => {
   let state = contracts.createEncounterState("owner", 2, 10);
   state = contracts.reduceEncounterState(state, { type: "tick", tick: 11 });
-  state = contracts.reduceEncounterState(state, { type: "damage", amount: 5, tick: 20 });
-  assert.equal(state.staggerUntilTick, 0);
-  state = contracts.reduceEncounterState(state, { type: "damage", amount: 6, tick: 21 });
-  assert.equal(state.staggerUntilTick, 32);
-  assert.equal(state.nextStaggerTick, 81);
-  const unchanged = contracts.reduceEncounterState(state, { type: "damage", amount: 20, tick: 50 });
-  assert.equal(unchanged.nextStaggerTick, 81);
-  assert.equal(unchanged.phase, "lure");
+  state = contracts.reduceEncounterState(state, { type: "lure-complete", tick: 20 });
+  state = contracts.reduceEncounterState(state, { type: "mutual-sight", tick: 21 });
+  state = contracts.reduceEncounterState(state, { type: "phase-timeout", tick: 69 });
+  state = contracts.reduceEncounterState(state, { type: "phase-timeout", tick: 98 });
+  state = contracts.reduceEncounterState(state, { type: "sight-lost", tick: 120 });
+  assert.equal(state.phase, "search");
+  state = contracts.reduceEncounterState(state, { type: "target-reassigned", tick: 121 });
+  assert.equal(state.phase, "chase");
+  assert.equal("staggerUntilTick" in state, false);
+  assert.equal("nextStaggerTick" in state, false);
 });

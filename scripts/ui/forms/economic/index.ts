@@ -13,7 +13,7 @@ import economic from "../../../features/economic/services/economic";
 import { openDialogForm } from "../../../ui/components/dialog";
 import transferForm from "./transfer-form";
 import sellItemsForm from "./sell-items-form";
-import ahf from "./auction-house-form";
+import playerMarketForm from "./player-market-form";
 import { officeShopForm } from "./office-shop-form";
 import { getPendingRedPacketHint, openRedPacketMenu } from "./red-packet-form";
 
@@ -34,7 +34,7 @@ export function openEconomyMenuForm(player: Player): void {
 
   form.button("钱包", "textures/icons/rewards");
   form.button("商店", "textures/icons/menu_shop");
-  form.button("拍卖行", "textures/icons/menu_auction");
+  form.button("玩家交易市场", "textures/icons/menu_player_market");
   form.button("出售物品", "textures/icons/coins");
   form.button("转账", "textures/icons/menu_transfer");
   form.button("红包", "textures/icons/gift");
@@ -53,8 +53,8 @@ export function openEconomyMenuForm(player: Player): void {
         officeShopForm.openCategoryList(player);
         break;
       case 2:
-        // 拍卖行
-        ahf.openMainMenu(player);
+        // 玩家交易市场
+        playerMarketForm.openMainMenu(player);
         break;
       case 3:
         // 出售物品

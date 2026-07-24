@@ -8,7 +8,7 @@ const test = require("node:test");
 const zlib = require("node:zlib");
 
 const root = path.resolve(__dirname, "..");
-const textureRoot = path.join(root, "resource_packs", "CreeperMenu", "textures", "blocks", "backrooms");
+const textureRoot = path.join(root, "resource_packs", "Backrooms", "textures", "blocks", "backrooms");
 const textureNames = [
   "wallpaper.png",
   "wallpaper_stained.png",

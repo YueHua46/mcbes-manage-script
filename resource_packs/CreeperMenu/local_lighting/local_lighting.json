@@ -1,9 +1,0 @@
-{
-  "format_version": "1.21.120",
-  "minecraft:local_light_settings": {
-    "yuehua:backrooms_fluorescent_on": {
-      "light_color": "#FFDFA3",
-      "light_type": "static_light"
-    }
-  }
-}

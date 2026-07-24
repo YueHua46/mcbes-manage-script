@@ -1,0 +1,91 @@
+Backrooms Level 0 声景
+=====================
+
+sounds/backrooms 下的电流浪涌、灯管抖动、墙后抓挠和不可辨识气声，
+均由本项目的确定性合成脚本原创生成，
+不包含电影、游戏、视频或第三方“后室音效”的采样。
+
+sounds/music/game/yuehua_backrooms_loop.ogg
+  素材：Backrooms Ambience（Freesound #626096）
+  作者：Resaural
+  来源：https://freesound.org/people/Resaural/sounds/626096/
+  许可：Creative Commons CC0 1.0
+  许可地址：https://creativecommons.org/publicdomain/zero/1.0/
+  处理：保留 44.1 kHz 双声道，以 2 秒交叉淡化制作无缝循环单元，在单个文件内铺为 180 秒，统一响度并转为适合音乐通道流式解码的 OGG Vorbis。
+  处理脚本：tools/process-backrooms-background-audio.ps1
+  访问日期：2026-07-20
+
+Backrooms 幻听与 Lifeform 原创声音
+==================================
+
+sounds/backrooms/voices 下的人声幻听，以及 sounds/backrooms/lifeform 下的诱饵、
+呼吸、关节、脚步、idle、inspect、roar_1/2、attack_1/2/3、hurt_1/2 与 death_1/2 均由
+本项目以声门谐波、共振峰与确定性噪声原创合成。不包含 Kane Pixels
+影片、电影、真人录音或其他影视作品采样，也不克隆玩家或现实人物的声音。
+
+生成器：tools/generate-backrooms-audio.py
+
+Lifeform 的 Pixabay 二次处理声音
+=================================
+
+以下三段短素材由作者 CJB123 发布，并在各素材页面标明可按
+Pixabay Content License 使用。项目仍主动保留作者、素材名、来源与许可记录：
+
+pixabay_distant_scream.wav
+  素材：creature screams in the distance
+  作者：CJB123
+  来源：https://pixabay.com/sound-effects/film-special-effects-creature-screams-in-the-distance-223558/
+
+pixabay_hurt_wail.wav
+  素材：creature wail
+  作者：CJB123
+  来源：https://pixabay.com/sound-effects/film-special-effects-creature-wail-223555/
+
+pixabay_glitch_roar.wav
+  素材：glitchy roar
+  作者：CJB123
+  来源：https://pixabay.com/sound-effects/film-special-effects-glitchy-roar-223560/
+
+许可摘要：https://pixabay.com/service/license-summary/
+访问日期：2026-07-20
+
+这三段均已进行片段化剪辑、静音修剪、单声道转换、高低通均衡、动态压缩、
+限幅和淡入淡出；远处尖叫还加入低强度墙后/房间反射。成品只作为游戏内
+Lifeform 声音系统的一部分分发，原始 MP3 不随附加包打包，也不单独分发。
+处理脚本：tools/process-pixabay-lifeform-audio.ps1
+
+Backrooms 角落事件与新增 Lifeform 声音
+========================================
+
+以下文件由项目所有者提供，并由 tools/process-backrooms-event-audio.ps1
+校验 SHA-256 后转换为单声道 PCM16/16 kHz WAV。原始 MP3 不随资源包分发。
+
+corner_creepy_ambient.wav
+  素材：Whose Is This Creepy Ambient Sound（Pixabay #232423）
+  作者：u_sw4m729ttd
+  来源：https://pixabay.com/sound-effects/whose-is-this-creepy-ambient-sound-232423/
+
+lifeform_smiler.wav
+  素材：Backrooms Smiler Jumpscare（Pixabay #123798）
+  作者：UNR3AL_Backr00ms
+  来源：https://pixabay.com/sound-effects/backrooms-smiler-jumpscare-123798/
+
+lifeform_wail.wav
+  素材：creature wail（Pixabay #223555）
+  作者：CJB123
+  来源：https://pixabay.com/sound-effects/film-special-effects-creature-wail-223555/
+
+以上三项按 Pixabay Content License 使用：
+https://pixabay.com/service/license-summary/
+
+corner_is_anybody.wav
+  来源：项目所有者提供的 Voicemod 导出文件。
+
+corner_radio_recording.wav
+  来源：项目所有者提供的文件；内嵌元数据标记为 101soundboards.com。
+
+后两项的源文件未携带公开许可声明。对外公开分发附加包前，项目所有者应确认
+自己拥有相应使用和再分发权；本记录不将未知授权误写为 CC0 或 Pixabay 许可。
+
+来源哈希、统一文件名和处理目标详见：
+assets/backrooms/audio/imported-event-sources.json

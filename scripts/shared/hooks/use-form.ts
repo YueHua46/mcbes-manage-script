@@ -2,8 +2,8 @@
  * 表单相关钩子
  */
 
-import { Player, RawMessage, system } from '@minecraft/server';
-import { ActionFormData, MessageFormData } from '@minecraft/server-ui';
+import { Player, RawMessage, system } from "@minecraft/server";
+import { ActionFormData, ActionFormResponse, MessageFormData, MessageFormResponse } from "@minecraft/server-ui";
 import { color } from '../utils/color';
 
 /**
@@ -77,15 +77,27 @@ export function useFormatInfo(info: IFormatInfo): RawMessage {
 export async function useForceOpen(
   player: Player,
   form: ActionFormData | MessageFormData,
-  timeout = 1200
-) {
-  let startTick = system.currentTick;
-  
+  timeout = 200,
+  retryIntervalTicks = 5
+): Promise<ActionFormResponse | MessageFormResponse | undefined> {
+  const startTick = system.currentTick;
+
   while (system.currentTick - startTick < timeout) {
-    const response = await form.show(player);
-    if (response.cancelationReason !== 'UserBusy') return response;
+    if (!player.isValid) return undefined;
+
+    // UserBusy can resolve immediately. Yielding prevents a tight promise loop from
+    // blocking the server tick while the player closes chat or another screen.
+    await system.waitTicks(retryIntervalTicks);
+    if (!player.isValid) return undefined;
+
+    try {
+      const response = await form.show(player);
+      if (response.cancelationReason !== "UserBusy") return response;
+    } catch {
+      return undefined;
+    }
   }
-  
+
   return undefined;
 }
 

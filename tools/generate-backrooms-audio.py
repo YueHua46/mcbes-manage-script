@@ -10,7 +10,7 @@ import numpy as np
 
 
 SAMPLE_RATE = 16_000
-OUTPUT = Path(__file__).resolve().parents[1] / "resource_packs" / "CreeperMenu" / "sounds" / "backrooms"
+OUTPUT = Path(__file__).resolve().parents[1] / "resource_packs" / "Backrooms" / "sounds" / "backrooms"
 
 
 def envelope(length: int, attack: float = 0.05, release: float = 0.08) -> np.ndarray:
@@ -41,20 +41,6 @@ def write_wave(name: str, signal: np.ndarray, peak: float = 0.86) -> None:
         output.writeframes((pcm * 32767).astype("<i2").tobytes())
 
 
-def fluorescent_hum(name: str, seed: int, mains: float, phase: float) -> None:
-    rng = np.random.default_rng(seed)
-    duration = 24.0
-    t = np.arange(int(SAMPLE_RATE * duration)) / SAMPLE_RATE
-    signal = np.zeros_like(t)
-    for harmonic, strength in [(1, 0.30), (2, 0.52), (3, 0.16), (4, 0.11), (6, 0.05)]:
-        signal += strength * np.sin(2 * math.pi * mains * harmonic * t + phase * harmonic)
-    modulation = 0.72 + 0.12 * np.sin(2 * math.pi * 0.125 * t + phase)
-    modulation += 0.06 * np.sin(2 * math.pi * 0.25 * t + 1.7)
-    room_noise = lowpass(rng.normal(0, 1, len(t)), 121) * 0.10
-    signal = (signal + room_noise) * modulation
-    write_wave(name, signal * envelope(len(t), 0.35, 0.6), 0.42)
-
-
 def ballast_surge() -> None:
     rng = np.random.default_rng(7103)
     duration = 7.0
@@ -64,11 +50,6 @@ def ballast_surge() -> None:
     transformer = 0.12 * np.sin(2 * math.pi * (360 + 8 * np.sin(2 * math.pi * 0.7 * t)) * t)
     grit = lowpass(rng.normal(0, 1, len(t)), 31) * (0.03 + 0.08 * rise)
     write_wave("ballast_surge.wav", (beating + transformer + grit) * rise * envelope(len(t)), 0.44)
-
-
-def music_lock() -> None:
-    """Silent loop used only to reserve Bedrock's music mixer while inside Level 0."""
-    write_wave("music_lock.wav", np.zeros(SAMPLE_RATE * 2, dtype=np.float64), 0.0)
 
 
 def tube_flicker() -> None:
@@ -107,27 +88,6 @@ def indistinct_breath() -> None:
     slow = 0.5 + 0.5 * np.sin(2 * math.pi * 0.43 * t + 0.8)
     formant = 0.12 * np.sin(2 * math.pi * 430 * t + 1.4 * np.sin(2 * math.pi * 0.31 * t))
     write_wave("indistinct_breath.wav", (breath * 0.9 + formant) * slow * envelope(count, 0.55, 0.8), 0.44)
-
-
-def carpet_footstep(name: str, seed: int, damp: bool, running: bool) -> None:
-    """Synthesize a close, muffled shoe contact without game-like transient clicks."""
-    rng = np.random.default_rng(seed)
-    duration = 0.36 if running else 0.46
-    count = int(SAMPLE_RATE * duration)
-    t = np.arange(count) / SAMPLE_RATE
-    impact_center = 0.055 if running else 0.075
-    impact = np.exp(-((t - impact_center) / (0.038 if running else 0.052)) ** 2)
-    settle = np.exp(-((t - (0.20 if running else 0.27)) / 0.09) ** 2)
-    carpet = lowpass(rng.normal(0, 1, count), 29 if running else 39)
-    body_frequency = (92 if running else 72) - (34 if running else 22) * t
-    body = np.sin(2 * math.pi * body_frequency * t + seed * 0.013) * np.exp(-t * (9 if running else 7))
-    signal = carpet * (0.54 * impact + 0.19 * settle) + 0.30 * body * impact
-    if damp:
-        suction = lowpass(rng.normal(0, 1, count), 67) * np.exp(-((t - 0.24) / 0.105) ** 2)
-        low_wet = np.sin(2 * math.pi * (48 - 13 * t) * t) * np.exp(-t * 6.5)
-        signal = signal * 0.72 + suction * 0.72 + low_wet * 0.20
-    peak = 0.42 if damp and running else 0.36 if running else 0.34 if damp else 0.30
-    write_wave(name, signal * envelope(count, 0.008, 0.11), peak)
 
 
 VOWELS = (
@@ -331,17 +291,10 @@ def lifeform_death(variant: int) -> None:
 
 
 if __name__ == "__main__":
-    fluorescent_hum("fluorescent_hum_a.wav", 1409, 60.0, 0.2)
-    fluorescent_hum("fluorescent_hum_b.wav", 2381, 59.7, 1.1)
     ballast_surge()
     tube_flicker()
     wall_scratch()
     indistinct_breath()
-    for variant in range(1, 4):
-        carpet_footstep(f"footstep_dry_walk_{variant}.wav", 3100 + variant, False, False)
-        carpet_footstep(f"footstep_dry_run_{variant}.wav", 3200 + variant, False, True)
-        carpet_footstep(f"footstep_damp_walk_{variant}.wav", 3300 + variant, True, False)
-        carpet_footstep(f"footstep_damp_run_{variant}.wav", 3400 + variant, True, True)
     for variant, duration in enumerate((9.4, 10.8, 12.2), start=1):
         voice_discussion(variant, duration)
     for variant, duration in enumerate((3.0, 3.6, 4.3), start=1):
@@ -358,4 +311,3 @@ if __name__ == "__main__":
         lifeform_roar(variant)
         lifeform_hurt(variant)
         lifeform_death(variant)
-    music_lock()

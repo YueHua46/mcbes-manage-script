@@ -4,19 +4,20 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 
 ## 构建变体
 
-项目提供两种 `.mcaddon` 产物，按需选用：
+项目提供两个彼此独立的附加包；苦力怕菜单另有两种构建变体：
 
 | 变体 | 构建命令 | 适用环境 | 额外依赖 |
 |------|----------|----------|----------|
 | **普通兼容版** | `npm run mcaddon` / `npm run build:standard` | 本地存档、BDS、Realms 领域服 | `@minecraft/server`、`@minecraft/server-ui` |
 | **BDS 增强版** | `npm run mcaddon:bds` / `npm run build:bds-admin` | 仅 BDS 专用服务器 | 额外 `@minecraft/server-admin`、`@minecraft/server-net` |
+| **Backrooms Level 0** | `npm run mcaddon:backrooms` / `npm run build:backrooms` | 本地存档、BDS、Realms 领域服 | 独立行为包与资源包，不依赖苦力怕菜单 |
 
 **差异摘要：**
 
 - 普通兼容版：不含 BDS 专属模块，可在 Realms / 本地世界运行；黑名单进服前拦截、XUID 查询、HTTP 出站不可用。
 - BDS 增强版：支持黑名单进服前拦截（`asyncPlayerJoin`）、XUID 解析（`server-net` HTTP）、完整黑名单管理 UI。
 
-同时产出两个包：`npm run mcaddon:all`
+同时产出全部包：`npm run mcaddon:all`
 
 ## 功能矩阵
 
@@ -27,7 +28,7 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 | 自定义维度传送 | 维度登记、默认点、选择器批量跨维度传送 | ✓ | ✓ |
 | 领地系统 | 创建/管理/权限/粒子边界/快照分片 | ✓ | ✓ |
 | PVP 系统 | 竞技场、统计、效果管理 | ✓ | ✓ |
-| 经济系统 | 金币、官方商店、拍卖行、红包、怪物击杀奖励 | ✓ | ✓ |
+| 经济系统 | 金币、官方商店、玩家交易市场、红包、怪物击杀奖励 | ✓ | ✓ |
 | 公会系统 | 创建/成员/金库/权限 facade 缓存 | ✓ | ✓ |
 | 路点系统 | 个人/公共路点、传送倒计时 | ✓ | ✓ |
 | 玩家行为日志 | 聊天/交互/伤害/物品监控、日志检视器 | ✓ | ✓ |
@@ -43,7 +44,7 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 
 ## 自定义维度传送
 
-插件启动时会注册 5 个通用虚空维度（`custom1` 至 `custom5`）和一个由脚本按需无限延伸的 `backrooms` 维度。首次安装或升级后须完整重启世界/服务器，不要只使用 `/reload`。管理员可以修改显示名称、设置默认点并交给命令方块传送；插件也保留接入其他行为包维度的能力。
+苦力怕菜单启动时只注册 5 个通用虚空维度（`custom1` 至 `custom5`）。首次安装或升级后须完整重启世界/服务器，不要只使用 `/reload`。管理员可以修改显示名称、设置默认点并交给命令方块传送；插件也保留接入其他行为包维度的能力。
 
 ```text
 /yuehua:dimension add <别名> <维度ID> [显示名称]
@@ -60,7 +61,7 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 /yuehua:dimension_tp <玩家选择器> <别名> [x y z]
 ```
 
-通用预置维度的真实 ID 为 `yuehua:custom_1` 至 `yuehua:custom_5`，另有 `yuehua:backrooms`；它们不能真正删除。`reset` 会恢复默认名称并清除默认传送点。`dimension`、`dimension_setspawn` 和 `dimension_setspawn_here` 仅管理员可用；`dimension_tp` 可由管理员或命令方块执行。省略目标坐标时使用已保存的默认点，例如：
+通用预置维度的真实 ID 为 `yuehua:custom_1` 至 `yuehua:custom_5`；它们不能真正删除。`reset` 会恢复默认名称并清除默认传送点。`dimension`、`dimension_setspawn` 和 `dimension_setspawn_here` 仅管理员可用；`dimension_tp` 可由管理员或命令方块执行。省略目标坐标时使用已保存的默认点，例如：
 
 `dimension_tp` 的维度参数既可以填写固定别名（如 `custom1`），也可以填写管理员修改后的显示名称（如 `天界`）。相对坐标需要写成 `~ ~ ~`，三个坐标之间必须有空格。
 
@@ -69,13 +70,17 @@ Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI
 /yuehua:dimension_tp @p[r=3] dungeon 0 80 0
 ```
 
-进入 Backrooms Level 0：
+## Backrooms 独立附加包
+
+Backrooms Level 0 已从苦力怕菜单完全拆分到 `behavior_packs/Backrooms` 与 `resource_packs/Backrooms`。启用这两个配套包并完整重启世界后，由管理员或命令方块执行：
 
 ```mcfunction
-/yuehua:dimension_tp @p backrooms
+/yuehua:backrooms_tp @p
+/yuehua:backrooms_tp @p 0 100 0
+/yuehua:backrooms_exit @p
 ```
 
-省略坐标时，每个玩家会进入相距极远且持久稳定的独立 manifestation。生成器会在玩家接近边界时提前施工相邻 `64×64` 区域；未完成区域保持为封闭黄墙，不会暴露虚空。行为包 3.1.2 与资源包 3.2.2 加入局部灯光、专属脚步、墙后幻听、原版音乐抑制，以及会在持续探索后出现的细菌（Bacteria）小 Boss。由真实玩家击杀细菌可获得 100 金币并掉落 35 点经验。算法、隔离、声景、实体与运维说明见 [Backrooms 无限生成器设计](docs/backrooms-generator.md)。
+省略坐标时，每个玩家会进入相距极远且持久稳定的独立 manifestation；显式坐标会先生成目标区域并收敛到安全落脚点。独立包包含暖黄色局部灯光、持续背景音、角落录音、墙后幻听和细菌（Bacteria）遭遇，击杀细菌掉落 50 点原版经验。它会发布通用隔离维度策略；同时安装苦力怕菜单时，菜单的聊天、TPA 与坐标点系统会自动遵守该策略。算法、隔离、声景、实体与运维说明见 [Backrooms 无限生成器设计](docs/backrooms-generator.md)。
 
 ## 开发
 
@@ -92,9 +97,11 @@ npm run lint             # ESLint 检查
 npx tsc --noEmit         # TypeScript 类型检查
 npm run build            # 构建普通兼容版
 npm run build:bds-admin  # 构建 BDS 增强版
+npm run build:backrooms  # 构建独立 Backrooms 脚本
 npm run mcaddon          # 打包普通兼容版 .mcaddon
 npm run mcaddon:bds      # 打包 BDS 增强版 .mcaddon
-npm run mcaddon:all      # 同时产出两个 .mcaddon
+npm run mcaddon:backrooms # 打包独立 Backrooms .mcaddon
+npm run mcaddon:all      # 同时产出全部 .mcaddon
 npm run local-deploy     # 监听变更并部署普通版
 npm run local-deploy:bds # 监听变更并部署 BDS 版
 ```
@@ -105,7 +112,7 @@ fork 后修改并提交 PR，请在描述中说明改动内容与测试方式。
 
 ### 更新 Chest UI 原版物品贴图映射
 
-商店、拍卖行等界面使用 **`textures/...` 贴图路径**显示物品图标（不再依赖 runtime 数字 id）。
+商店、玩家交易市场等界面使用 **`textures/...` 贴图路径**显示物品图标（不再依赖 runtime 数字 id）。
 
 - 映射数据：`scripts/assets/vanilla-item-icon-paths.ts`（自动生成）
 - 生成器源码已包含在本仓库：`tools/build-vanilla-icon-map.ts`，不依赖其他相邻项目

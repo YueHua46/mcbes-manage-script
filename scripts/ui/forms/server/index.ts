@@ -2,7 +2,7 @@
  * 服务器主菜单表单
  */
 
-import { Player } from "@minecraft/server";
+import { GameMode, Player } from "@minecraft/server";
 import { ActionFormData, FormCancelationReason } from "@minecraft/server-ui";
 import { isAdmin } from "../../../shared/utils/common";
 import { IModules } from "../../../features/system/services/setting";
@@ -53,6 +53,17 @@ function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: an
  * 打开苦力怕菜单表单
  */
 export async function openServerMenuForm(player: Player): Promise<void> {
+  if (!player.isValid) return;
+
+  try {
+    if (player.getGameMode() === GameMode.Spectator) {
+      player.sendMessage(`§e旁观模式下暂时无法打开${BRANDING.MENU_ITEM_LABEL}，请切换游戏模式后重试。`);
+      return;
+    }
+  } catch {
+    return;
+  }
+
   // 动态导入以避免循环依赖
   const setting = (await import("../../../features/system/services/setting")).default;
 
@@ -170,7 +181,8 @@ export async function openServerMenuForm(player: Player): Promise<void> {
 
   const form = createServerMenuForm(player, menuItems, setting);
 
-  form.show(player).then(async (data) => {
+  try {
+    const data = await form.show(player);
     if (data.cancelationReason === FormCancelationReason.UserBusy) {
       player.sendMessage(`§e请关闭你当前的聊天窗口，以便显示${BRANDING.MENU_ITEM_LABEL}。`);
       const forceForm = await useForceOpen(player, form);
@@ -197,5 +209,9 @@ export async function openServerMenuForm(player: Player): Promise<void> {
         await selectedItem.action(player);
       }
     }
-  });
+  } catch {
+    if (player.isValid) {
+      player.sendMessage(`§c${BRANDING.MENU_ITEM_LABEL}打开失败，请关闭其他界面后重试。`);
+    }
+  }
 }

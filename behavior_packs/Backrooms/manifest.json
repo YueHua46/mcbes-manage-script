@@ -1,0 +1,36 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Backrooms Level 0_BP",
+    "description": "独立的 Backrooms Level 0 自定义维度行为包",
+    "uuid": "bc937d56-39b7-423c-860d-0134b751fee0",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 0]
+  },
+  "modules": [
+    {
+      "description": "Backrooms Level 0 数据",
+      "type": "data",
+      "uuid": "4e02c769-1efd-4e6d-9d14-aa424cc459d7",
+      "version": [1, 0, 0]
+    },
+    {
+      "description": "Backrooms Level 0 运行时",
+      "type": "script",
+      "language": "javascript",
+      "uuid": "e870f641-50c7-4a39-99a8-418efb9cda6b",
+      "entry": "scripts/main.js",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "beta"
+    },
+    {
+      "uuid": "cc1b3753-551b-42bc-b078-1a450148ce2a",
+      "version": [1, 0, 0]
+    }
+  ]
+}

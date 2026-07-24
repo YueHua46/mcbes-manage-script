@@ -1,0 +1,19 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Backrooms Level 0_RP",
+    "description": "独立的 Backrooms Level 0 自定义维度资源包",
+    "uuid": "cc1b3753-551b-42bc-b078-1a450148ce2a",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 0]
+  },
+  "modules": [
+    {
+      "description": "Backrooms Level 0 资源",
+      "type": "resources",
+      "uuid": "f9ce79cb-bd46-499f-af42-cfa1b2a621d1",
+      "version": [1, 0, 0]
+    }
+  ],
+  "capabilities": ["pbr"]
+}

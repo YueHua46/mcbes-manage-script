@@ -4,14 +4,14 @@ const path = require("node:path");
 const test = require("node:test");
 
 const root = path.resolve(__dirname, "..");
-const blockDirectory = path.join(root, "behavior_packs", "CreeperMenu", "blocks");
+const blockDirectory = path.join(root, "behavior_packs", "Backrooms", "blocks");
 
 function readJson(...parts) {
   return JSON.parse(fs.readFileSync(path.join(root, ...parts), "utf8"));
 }
 
 function readBackroomsBlock(name) {
-  return readJson("behavior_packs", "CreeperMenu", "blocks", `backrooms_${name}.json`)[
+  return readJson("behavior_packs", "Backrooms", "blocks", `backrooms_${name}.json`)[
     "minecraft:block"
   ];
 }
@@ -59,8 +59,7 @@ test("Backrooms blocks preserve the remastered physical and warm-light material 
   }
   assert.equal(new Set(Object.values(expectedMapColors)).size, Object.keys(expectedMapColors).length);
 
-  assert.ok(blocks.lampOn.components["minecraft:light_emission"] > 0);
-  assert.ok(blocks.lampOn.components["minecraft:light_emission"] <= 8);
+  assert.equal(blocks.lampOn.components["minecraft:light_emission"], 15);
   assert.equal(blocks.lampDead.components["minecraft:light_emission"] ?? 0, 0);
 
   const expectedIdentifiers = new Set([
@@ -81,7 +80,7 @@ test("Backrooms blocks preserve the remastered physical and warm-light material 
   );
   assert.deepEqual(actualIdentifiers, expectedIdentifiers);
 
-  const resourceManifest = readJson("resource_packs", "CreeperMenu", "manifest.json");
+  const resourceManifest = readJson("resource_packs", "Backrooms", "manifest.json");
   assert.deepEqual(resourceManifest.capabilities, ["pbr"]);
 });
 
@@ -93,7 +92,7 @@ test("PBR MER makes only the lit fluorescent material emissive", () => {
   const emissive = new Map();
   for (const material of materials) {
     const relative = path.join(
-      "resource_packs", "CreeperMenu", "textures", "blocks", "backrooms",
+      "resource_packs", "Backrooms", "textures", "blocks", "backrooms",
       `${material}.texture_set.json`,
     );
     const absolute = path.join(root, relative);
