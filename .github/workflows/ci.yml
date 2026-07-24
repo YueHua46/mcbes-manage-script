@@ -40,5 +40,11 @@ jobs:
       - name: Build BDS enhanced variant
         run: npm run build:bds-admin
 
+      - name: Build Realms variant
+        run: npm run build:realms
+
+      - name: Verify Realms artifact
+        run: npm run verify:realms-build
+
       - name: Build standalone Backrooms
         run: npm run build:backrooms

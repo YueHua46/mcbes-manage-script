@@ -15,6 +15,7 @@ import {
 } from "../../../features/fake-player/services/fake-player-skins";
 import { color } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
+import { isSimulatedPlayerAvailable } from "../../../features/platform/sapi-capabilities";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
 import { openFakePlayerInteractMenu } from "./fake-player-inventory";
 import setting from "../../../features/system/services/setting";
@@ -44,7 +45,7 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
   const own = fakePlayerService.listForPlayer(player.name);
   const max = fakePlayerService.getMaxPerPlayer();
   const cost = fakePlayerService.getCreateCost();
-  const reviveCost = fakePlayerService.getReviveCost();
+  const simulatedPlayerAvailable = isSimulatedPlayerAvailable();
 
   const form = new ActionFormData();
   form.title("假人管理");
@@ -52,8 +53,12 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
     [
       `§a我的假人: §e${own.length}/${isAdmin(player) ? "不限" : max}`,
       `§a创建费用: §e${formatEconomyCost(cost)}`,
-      `§a新版假人复活费用: §e${formatEconomyCost(reviveCost)}`,
-      `§7创建时可选择兼容性更好的旧版实体，或可参与原版刷怪判定的新版模拟玩家。`,
+      ...(simulatedPlayerAvailable
+        ? [
+            `§a新版假人复活费用: §e${formatEconomyCost(fakePlayerService.getReviveCost())}`,
+            "§7创建时可选择兼容性更好的旧版实体，或可参与原版刷怪判定的新版模拟玩家。",
+          ]
+        : ["§7Realms 版仅支持旧版实体假人。"]),
     ].join("\n")
   );
   form.button("在当前位置创建假人", "textures/icons/add");
@@ -69,7 +74,9 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
     const backIndex = admin ? 3 : 2;
     switch (data.selection) {
       case 0:
-        openCreateFakePlayerForm(player, back);
+        isSimulatedPlayerAvailable()
+          ? openCreateFakePlayerForm(player, back)
+          : openCreateFakePlayerDetailsForm(player, "entity", back);
         break;
       case 1:
         openFakePlayerListForm(player, false, back);
@@ -85,6 +92,11 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
 }
 
 function openCreateFakePlayerForm(player: Player, back: () => void): void {
+  if (!isSimulatedPlayerAvailable()) {
+    openCreateFakePlayerDetailsForm(player, "entity", back);
+    return;
+  }
+
   const form = new ActionFormData();
   form.title("选择假人类型");
   form.body(
@@ -131,7 +143,7 @@ function openCreateFakePlayerDetailsForm(player: Player, type: FakePlayerType, b
 
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason) {
-      openCreateFakePlayerForm(player, back);
+      isSimulatedPlayerAvailable() ? openCreateFakePlayerForm(player, back) : openFakePlayerMenu(player, back);
       return;
     }
 

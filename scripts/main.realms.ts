@@ -1,5 +1,5 @@
 /**
- * 苦力怕菜单 - 标准兼容版入口
+ * 苦力怕菜单 - Realms 兼容版入口
  */
 
 import { SystemLog } from "./shared/utils/common";
@@ -26,7 +26,7 @@ import "./events/handlers/index.standard";
 function initializeApp(): void {
   SystemLog.info("========================================");
   SystemLog.info("苦力怕菜单 v3.1.11 启动中...");
-  SystemLog.info("当前构建：标准兼容版（本地 / BDS）");
+  SystemLog.info("当前构建：Realms 兼容版（仅旧版实体假人）");
   SystemLog.info("========================================");
 
   try {
@@ -44,7 +44,7 @@ function initializeApp(): void {
     SystemLog.info("  ✓ 自定义命令系统");
     SystemLog.info("  ✓ 试玩模式系统");
     SystemLog.info("  ✓ 悬浮文字系统");
-    SystemLog.info("  ✓ 假人模拟玩家系统");
+    SystemLog.info("  ✓ 旧版实体假人系统");
 
     SystemLog.info("[3/3] 初始化事件系统...");
     eventRegistry.initializeAll();
@@ -52,7 +52,7 @@ function initializeApp(): void {
 
     SystemLog.info("========================================");
     SystemLog.info("✓ 所有模块已加载成功");
-    SystemLog.info("✓ 标准兼容版运行正常");
+    SystemLog.info("✓ Realms 兼容版运行正常");
     SystemLog.info("========================================");
   } catch (error) {
     SystemLog.error("插件初始化失败", error);

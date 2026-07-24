@@ -1,8 +1,15 @@
 import { Dimension, Entity, EntityDamageSource, EquipmentSlot, GameMode, ItemStack, Player, RawMessage, system, Vector2, Vector3, world } from "@minecraft/server";
-import { spawnSimulatedPlayer, SimulatedPlayer } from "@minecraft/server-gametest";
+import {
+  spawnSupportedSimulatedPlayer,
+  type SimulatedPlayer,
+} from "./simulated-player-runtime";
 import { Database } from "../../../shared/database/database";
 import { generateId, isAdmin, SystemLog } from "../../../shared/utils/common";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
+import {
+  isRealmsBuild,
+  isSimulatedPlayerAvailable,
+} from "../../platform/sapi-capabilities";
 import {
   isScriptFakePlayerEntity,
   isKnownFakePlayerName,
@@ -18,6 +25,7 @@ import {
   restorePlayerInventory,
   snapshotPlayerInventory,
 } from "./fake-player-inventory-store";
+import { migrateFakePlayerRecordForRealms } from "./realms-fake-player-migration";
 
 const LEGACY_ENTITY_TYPE = "yuehua:fake_player";
 const FAKE_PLAYER_ID_PROPERTY = "fakePlayerId";
@@ -251,6 +259,7 @@ class FakePlayerService {
   constructor() {
     system.run(() => {
       this.db = new Database<IFakePlayer>("fake_players");
+      this.migrateRecordsForRealms();
       for (const item of this.db.values()) registerKnownFakePlayerName(item.name);
       this.ensureAllSpawned();
       system.runInterval(() => this.tickBehaviors(), 1);
@@ -495,6 +504,11 @@ class FakePlayerService {
     const name = input.name.trim();
     const nameError = this.validateName(name);
     if (nameError) return nameError;
+    if (!isSimulatedPlayerAvailable() && input.type === "simulated") {
+      return "Realms 兼容版仅支持旧版实体假人";
+    }
+    const type: FakePlayerType =
+      input.type === "entity" || !isSimulatedPlayerAvailable() ? "entity" : "simulated";
 
     const admin = isAdmin(input.player);
     if (!admin && this.listForPlayer(input.player.name).length >= this.getMaxPerPlayer()) {
@@ -515,11 +529,11 @@ class FakePlayerService {
       location: formatLocation(input.player.location),
       dimension: input.player.dimension.id,
       created: time,
-      type: input.type === "entity" ? "entity" : "simulated",
-      skinId: input.type === "entity" ? this.normalizeSkinId(input.skinId) : undefined,
+      type,
+      skinId: type === "entity" ? this.normalizeSkinId(input.skinId) : undefined,
       rotationX: input.player.getRotation().x,
       rotationY: input.player.getRotation().y,
-      gameMode: input.type === "simulated" ? GameMode.Survival : undefined,
+      gameMode: type === "simulated" ? GameMode.Survival : undefined,
     };
 
     registerKnownFakePlayerName(item.name);
@@ -988,7 +1002,7 @@ class FakePlayerService {
     }
 
     try {
-      const simulated = spawnSimulatedPlayer(
+      const simulated = spawnSupportedSimulatedPlayer(
         {
           dimension,
           x: item.location.x,
@@ -1399,6 +1413,30 @@ class FakePlayerService {
   private normalizeSkinId(value: unknown): number {
     const skinId = Math.floor(Number(value));
     return Number.isFinite(skinId) && skinId >= 0 && skinId <= 15 ? skinId : 0;
+  }
+
+  private migrateRecordsForRealms(): void {
+    if (!isRealmsBuild()) return;
+
+    let migrated = 0;
+    for (const item of this.db.values()) {
+      try {
+        const result = migrateFakePlayerRecordForRealms(item);
+        if (!result.changed) continue;
+        this.db.set(result.record.id, result.record);
+        migrated++;
+      } catch (error) {
+        SystemLog.warn(`[FakePlayer] Realms 假人降级失败: ${item.id} ${String(error)}`);
+      }
+    }
+    if (migrated === 0) return;
+
+    try {
+      this.db.save();
+      SystemLog.info(`[FakePlayer] 已将 ${migrated} 个新版假人降级为旧版实体假人`);
+    } catch (error) {
+      SystemLog.warn(`[FakePlayer] Realms 假人降级已应用，但暂时无法写回数据库: ${String(error)}`);
+    }
   }
 
   private removeLiveFakePlayer(simulated: SimulatedPlayer): void {

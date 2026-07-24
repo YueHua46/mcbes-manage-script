@@ -26,11 +26,12 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 
 | 产物 | 适用环境 | 特点 | 打包命令 |
 | --- | --- | --- | --- |
-| 苦力怕菜单普通兼容版 | 本地世界、Realms、BDS | 不依赖 BDS 专属模块，覆盖主要菜单功能 | `npm run mcaddon` |
+| 苦力怕菜单普通兼容版 | 本地世界、普通基岩版环境、BDS | 保留旧版实体假人和新版模拟玩家，不依赖 BDS 专属模块 | `npm run mcaddon` |
+| 苦力怕菜单 Realms 兼容版 | Minecraft Realms | 不声明或加载 `@minecraft/server-gametest`，仅支持旧版实体假人 | `npm run mcaddon:realms` |
 | 苦力怕菜单 BDS 增强版 | 仅 BDS 专用服务器 | 增加进服前黑名单拦截、XUID 解析和服务器网络能力 | `npm run mcaddon:bds` |
 | Backrooms Level 0 | 本地世界、Realms、BDS | 独立行为包与资源包，不依赖苦力怕菜单 | `npm run mcaddon:backrooms` |
 
-同时生成全部 `.mcaddon`：`npm run mcaddon:all`。
+同时生成普通版、Realms 版、BDS 增强版和独立 Backrooms `.mcaddon`：`npm run mcaddon:all`。
 
 当前苦力怕菜单行为包版本为 **3.1.13**，资源包版本为 **3.2.13**；Backrooms 行为包和资源包版本均为 **1.0.0**。manifest 最低引擎版本为 **1.26.0**。
 
@@ -38,7 +39,7 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 
 ### 苦力怕菜单
 
-1. 从 Release 下载普通兼容版或 BDS 增强版。
+1. 从 Release 下载与目标环境对应的普通兼容版、Realms 兼容版或 BDS 增强版。
 2. 本地世界使用 Minecraft 打开 `.mcaddon` 完成导入；BDS 可解压后部署行为包和资源包。
 3. 在世界中同时启用 `苦力怕菜单_BP` 与 `苦力怕菜单_RP`。
 4. 首次安装或升级后完整重启世界或服务器，不要只执行 `/reload`。
@@ -59,7 +60,10 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 - `behavior_packs/CreeperMenu`
 - `resource_packs/CreeperMenu`
 
-BDS 增强版必须通过 `npm run build:bds-admin` 或 `npm run mcaddon:bds` 生成，不要直接把源码目录当作已构建的增强版。
+BDS 增强版必须通过 `npm run build:bds-admin` 或 `npm run mcaddon:bds` 生成；Realms 兼容版必须通过 `npm run build:realms` 或 `npm run mcaddon:realms` 生成。不要直接把源码目录当作已经切换好 manifest 和脚本能力的发行版本。
+
+> [!WARNING]
+> Realms 兼容版仅支持旧版实体假人。世界中已有的新版模拟玩家记录会在首次加载时自动降级，并保留名称、创建者、位置、方向、皮肤和通用权限；新版专属的背包快照、死亡状态、自动行为和动作脚本会被清除，之后切回普通版或 BDS 版也不会自动恢复。切换版本前请备份世界。
 
 ### Backrooms Level 0
 
@@ -102,15 +106,20 @@ npm run lint              # ESLint
 npm run typecheck         # TypeScript 类型检查
 npm test                  # 发布约束与资源保护测试
 npm run build:standard    # 构建菜单普通版和独立 Backrooms
+npm run build:realms      # 构建 Realms 菜单版和独立 Backrooms
 npm run build:bds-admin   # 构建菜单 BDS 版和独立 Backrooms
 npm run build:backrooms   # 仅构建 Backrooms 脚本
 npm run mcaddon           # 打包菜单普通兼容版
+npm run mcaddon:realms    # 打包菜单 Realms 兼容版
 npm run mcaddon:bds       # 打包菜单 BDS 增强版
 npm run mcaddon:backrooms # 打包独立 Backrooms
 npm run mcaddon:all       # 打包全部产物
+npm run verify:realms-build # 检查当前 Realms manifest 和脚本不含不支持模块
 ```
 
 本地部署需要在 `.env` 中设置 `PROJECT_NAME`；使用 BDS 部署任务时还需设置 `BDS_SERVER_DEPLOY_PATH`。普通构建和代码检查不要求部署路径。
+
+`package.json` 中仍保留 `@minecraft/server-gametest` 源码依赖，因为普通兼容版和 BDS 增强版需要编译新版模拟玩家。Realms 构建会在打包期替换该运行时边界，最终 manifest 和 JavaScript 产物均不包含该模块。
 
 ### 更新 Chest UI 原版物品图标映射
 
@@ -134,6 +143,8 @@ npm run build:vanilla-icon-map -- 1.26.30
 ```bash
 npm run check
 npm run build:standard
+npm run build:realms
+npm run verify:realms-build
 npm run build:bds-admin
 npm run build:backrooms
 ```

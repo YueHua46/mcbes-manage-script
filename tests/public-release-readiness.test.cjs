@@ -98,7 +98,11 @@ test("README exposes the release essentials", () => {
   for (const required of [
     "docs/images/creeper-menu-banner.png",
     "普通兼容版",
+    "Realms 兼容版",
     "BDS 增强版",
+    "npm run build:realms",
+    "npm run mcaddon:realms",
+    "@minecraft/server-gametest",
     "安装",
     "npm run check",
     "第三方",

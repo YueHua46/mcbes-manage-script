@@ -8,6 +8,8 @@ export {
   isBdsBuild,
   isServerAdminBuild,
   isDebugUtilitiesBuild,
+  isRealmsBuild,
+  isSimulatedPlayerAvailable,
   getBuildVariant,
   getBuildVariantLabel,
   STANDARD_BUILD_LIMITATION_HINT,

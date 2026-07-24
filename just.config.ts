@@ -26,7 +26,17 @@ const projectName = process.env.PROJECT_NAME?.trim() || "CreeperMenu";
 // You can use `npm run build:production` to build a "production" build that strips out statements labelled with "dev:".
 const isProduction = argv()["production"];
 
-function createBundleTaskOptions(entryPoint: string, outfile: string, define: Record<string, string>) {
+type MainBundleOptions = BundleTaskParameters & {
+  define?: Record<string, string>;
+  realmsRuntime?: boolean;
+};
+
+function createBundleTaskOptions(
+  entryPoint: string,
+  outfile: string,
+  define: Record<string, string>,
+  realmsRuntime: boolean = false
+): MainBundleOptions {
   const absoluteOutfile = path.resolve(__dirname, outfile);
   return {
     entryPoint: path.join(__dirname, entryPoint),
@@ -44,14 +54,16 @@ function createBundleTaskOptions(entryPoint: string, outfile: string, define: Re
     outputSourcemapPath: path.resolve(path.dirname(absoluteOutfile), "../debug"),
     dropLabels: isProduction ? ["dev"] : undefined,
     define,
-  } as BundleTaskParameters & { define?: Record<string, string> };
+    realmsRuntime,
+  } as MainBundleOptions;
 }
 
-/** 普通兼容版构建：不包含 server-net / server-admin 运行时能力，供本地、BDS、Realms 使用 */
+/** 普通兼容版构建：不包含 server-net / server-admin 运行时能力，供本地和 BDS 使用 */
 const bundleTaskOptionsStandard = createBundleTaskOptions("./scripts/main.standard.ts", "./dist/scripts/main.js", {
   __BDS_BUILD__: "false",
   __SERVER_ADMIN_BUILD__: "false",
   __DEBUG_UTILITIES_BUILD__: "false",
+  __REALMS_BUILD__: "false",
 });
 
 /** 本地/BDS 调试版构建：包含 @minecraft/debug-utilities，不适用于 Realms */
@@ -59,6 +71,7 @@ const bundleTaskOptionsDebug = createBundleTaskOptions("./scripts/main.debug.ts"
   __BDS_BUILD__: "false",
   __SERVER_ADMIN_BUILD__: "false",
   __DEBUG_UTILITIES_BUILD__: "true",
+  __REALMS_BUILD__: "false",
 });
 
 /** BDS 增强版构建：包含 server-net / server-admin 相关能力，仅供 BDS 服务器使用 */
@@ -66,7 +79,21 @@ const bundleTaskOptionsBdsAdmin = createBundleTaskOptions("./scripts/main.bds.ts
   __BDS_BUILD__: "true",
   __SERVER_ADMIN_BUILD__: "true",
   __DEBUG_UTILITIES_BUILD__: "false",
+  __REALMS_BUILD__: "false",
 });
+
+/** Realms 兼容版构建：不包含 GameTest，仅支持旧版实体假人 */
+const bundleTaskOptionsRealms = createBundleTaskOptions(
+  "./scripts/main.realms.ts",
+  "./dist/scripts/main.js",
+  {
+    __BDS_BUILD__: "false",
+    __SERVER_ADMIN_BUILD__: "false",
+    __DEBUG_UTILITIES_BUILD__: "false",
+    __REALMS_BUILD__: "true",
+  },
+  true
+);
 
 const bundleTaskOptionsBackrooms = createBundleTaskOptions(
   "./scripts/backrooms.main.ts",
@@ -75,11 +102,24 @@ const bundleTaskOptionsBackrooms = createBundleTaskOptions(
     __BDS_BUILD__: "false",
     __SERVER_ADMIN_BUILD__: "false",
     __DEBUG_UTILITIES_BUILD__: "false",
+    __REALMS_BUILD__: "false",
   },
 );
 
+const realmsRuntimePlugin: esbuild.Plugin = {
+  name: "realms-simulated-player-runtime",
+  setup(build) {
+    build.onResolve({ filter: /simulated-player-runtime$/ }, () => ({
+      path: path.resolve(
+        __dirname,
+        "scripts/features/fake-player/services/simulated-player-runtime.realms.ts"
+      ),
+    }));
+  },
+};
+
 /** 使用 esbuild 直接打主包 */
-async function runMainBundle(options: typeof bundleTaskOptionsStandard): Promise<void> {
+async function runMainBundle(options: MainBundleOptions): Promise<void> {
   const outDir = path.dirname(options.outfile);
   if (!fs.existsSync(outDir)) {
     fs.mkdirSync(outDir, { recursive: true });
@@ -93,6 +133,7 @@ async function runMainBundle(options: typeof bundleTaskOptionsStandard): Promise
     define: options.define,
     minifyWhitespace: options.minifyWhitespace ?? false,
     sourcemap: options.sourcemap ?? true,
+    plugins: options.realmsRuntime ? [realmsRuntimePlugin] : undefined,
     logLevel: "info",
   });
   if (options.sourcemap && options.outputSourcemapPath) {
@@ -181,7 +222,7 @@ async function copyArtifacts(): Promise<void> {
 
 const mcaddonTaskOptionsStandard: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_普通兼容版（适用本地、BDS、Realms领域服）.mcaddon`,
+  outputFile: `./dist/packages/${projectName}_普通兼容版（适用本地、BDS）.mcaddon`,
 };
 
 const mcaddonTaskOptionsDebug: ZipTaskParameters = {
@@ -194,6 +235,11 @@ const mcaddonTaskOptionsBdsAdmin: ZipTaskParameters = {
   outputFile: `./dist/packages/${projectName}_BDS增强版（仅适用BDS服务器，含额外黑名单功能等）.mcaddon`,
 };
 
+const mcaddonTaskOptionsRealms: ZipTaskParameters = {
+  ...copyTaskOptions,
+  outputFile: `./dist/packages/${projectName}_Realms兼容版（仅旧版实体假人）.mcaddon`,
+};
+
 const mcaddonTaskOptionsBackrooms: ZipTaskParameters = {
   ...backroomsCopyTaskOptions,
   outputFile: "./dist/packages/Backrooms_Level_0_独立附加包.mcaddon",
@@ -204,6 +250,7 @@ const manifestPath = path.join(behaviorPackDir, "manifest.json");
 const manifestStandardPath = path.join(behaviorPackDir, "manifest.standard.json");
 const manifestDebugPath = path.join(behaviorPackDir, "manifest.debug.json");
 const manifestBdsPath = path.join(behaviorPackDir, "manifest.bds.json");
+const manifestRealmsPath = path.join(behaviorPackDir, "manifest.realms.json");
 
 function useManifestVariant(sourcePath: string, label: string) {
   if (!fs.existsSync(sourcePath)) {
@@ -222,6 +269,10 @@ function useDebugManifest() {
 
 function useBdsManifest() {
   useManifestVariant(manifestBdsPath, "manifest.bds.json");
+}
+
+function useRealmsManifest() {
+  useManifestVariant(manifestRealmsPath, "manifest.realms.json");
 }
 
 function setDefaultDeployEnv() {
@@ -246,6 +297,7 @@ task("lint", coreLint(["scripts/**/*.ts"], argv().fix));
 task("bundle:standard", () => runMainBundle(bundleTaskOptionsStandard));
 task("bundle:debug", () => runMainBundle(bundleTaskOptionsDebug));
 task("bundle:bds-admin", () => runMainBundle(bundleTaskOptionsBdsAdmin));
+task("bundle:realms", () => runMainBundle(bundleTaskOptionsRealms));
 task("bundle:backrooms", () => runMainBundle(bundleTaskOptionsBackrooms));
 task("typescript", tscTask());
 task("useManifestStandard", () => {
@@ -257,13 +309,18 @@ task("useManifestDebug", () => {
 task("useManifestBds", () => {
   useBdsManifest();
 });
+task("useManifestRealms", () => {
+  useRealmsManifest();
+});
 
 task("bundle:standard-all", parallel("bundle:standard", "bundle:backrooms"));
 task("bundle:debug-all", parallel("bundle:debug", "bundle:backrooms"));
 task("bundle:bds-admin-all", parallel("bundle:bds-admin", "bundle:backrooms"));
+task("bundle:realms-all", parallel("bundle:realms", "bundle:backrooms"));
 task("build:standard", series("useManifestStandard", "typescript", "bundle:standard-all"));
 task("build:debug", series("useManifestDebug", "typescript", "bundle:debug-all"));
 task("build:bds-admin", series("useManifestBds", "typescript", "bundle:bds-admin-all"));
+task("build:realms", series("useManifestRealms", "typescript", "bundle:realms-all"));
 task("build:backrooms", series("typescript", "bundle:backrooms"));
 task("build", series("build:standard"));
 
@@ -310,17 +367,30 @@ task("local-deploy:bds", series("local-deploy:bds-admin"));
 task("createMcaddonFile:standard", mcaddonTask(mcaddonTaskOptionsStandard));
 task("createMcaddonFile:debug", mcaddonTask(mcaddonTaskOptionsDebug));
 task("createMcaddonFile:bds-admin", mcaddonTask(mcaddonTaskOptionsBdsAdmin));
+task("createMcaddonFile:realms", mcaddonTask(mcaddonTaskOptionsRealms));
 task("createMcaddonFile:backrooms", mcaddonTask(mcaddonTaskOptionsBackrooms));
 task("package:standard", series("build:standard", "createMcaddonFile:standard"));
 task("package:debug", series("build:debug", "createMcaddonFile:debug"));
 task("package:bds-admin", series("build:bds-admin", "createMcaddonFile:bds-admin"));
+task("package:realms", series("build:realms", "createMcaddonFile:realms"));
 task("package:backrooms", series("build:backrooms", "createMcaddonFile:backrooms"));
 task("mcaddon:standard", series("clean-local", "package:standard"));
 task("mcaddon:debug", series("clean-local", "package:debug"));
 task("mcaddon:bds-admin", series("clean-local", "package:bds-admin"));
+task("mcaddon:realms", series("clean-local", "package:realms"));
 task("mcaddon:backrooms", series("clean-local", "package:backrooms"));
 task("mcaddon", series("mcaddon:standard"));
 task("mcaddon:bds", series("mcaddon:bds-admin"));
 
-// 同时产出菜单普通版、独立 Backrooms 包和菜单 BDS 增强版。
-task("mcaddon:all", series("clean-local", "package:standard", "package:backrooms", "package:bds-admin", "useManifestStandard"));
+// 同时产出菜单普通版、Realms 版、BDS 增强版和独立 Backrooms 包。
+task(
+  "mcaddon:all",
+  series(
+    "clean-local",
+    "package:standard",
+    "package:realms",
+    "package:backrooms",
+    "package:bds-admin",
+    "useManifestStandard"
+  )
+);

@@ -3,7 +3,7 @@
  * 业务/UI 层应通过此模块判断能力，避免直接读取 __BDS_BUILD__ / __SERVER_ADMIN_BUILD__。
  */
 
-export type BuildVariant = "standard" | "debug" | "bds-admin";
+export type BuildVariant = "standard" | "debug" | "bds-admin" | "realms";
 
 export function isBdsBuild(): boolean {
   return typeof __BDS_BUILD__ !== "undefined" && __BDS_BUILD__;
@@ -17,12 +17,22 @@ export function isDebugUtilitiesBuild(): boolean {
   return typeof __DEBUG_UTILITIES_BUILD__ !== "undefined" && __DEBUG_UTILITIES_BUILD__;
 }
 
+export function isRealmsBuild(): boolean {
+  return typeof __REALMS_BUILD__ !== "undefined" && __REALMS_BUILD__;
+}
+
+export function isSimulatedPlayerAvailable(): boolean {
+  return !isRealmsBuild();
+}
+
 export function getBuildVariant(): BuildVariant {
+  if (isRealmsBuild()) return "realms";
   if (isDebugUtilitiesBuild()) return "debug";
   return isServerAdminBuild() ? "bds-admin" : "standard";
 }
 
 export function getBuildVariantLabel(): string {
+  if (isRealmsBuild()) return "Realms 兼容版";
   if (isDebugUtilitiesBuild()) return "本地/BDS 调试版";
   return isServerAdminBuild() ? "BDS 增强版" : "普通兼容版";
 }
