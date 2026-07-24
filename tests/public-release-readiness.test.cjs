@@ -110,3 +110,21 @@ test("README exposes the release essentials", () => {
     assert.match(readme, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 });
+
+test("README documents the automatic three-variant release workflow", () => {
+  const readme = read("README.md");
+  for (const required of [
+    "CreeperMenu-v3.2.13-MCBE-1.26.3x-普通兼容版.mcaddon",
+    "CreeperMenu-v3.2.13-MCBE-1.26.3x-Realms兼容版.mcaddon",
+    "CreeperMenu-v3.2.13-MCBE-1.26.3x-BDS增强版.mcaddon",
+    "npm run release:sync -- 3.2.14",
+    "git tag v3.2.14",
+    "git push origin v3.2.14",
+    "1.26.30",
+    "1.26.3x",
+    "Backrooms",
+    "独立版本",
+  ]) {
+    assert.match(readme, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+});

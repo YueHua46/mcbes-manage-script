@@ -3,6 +3,12 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 已存在且需要重新发布的 v* tag
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -13,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -32,20 +41,124 @@ jobs:
           npm ci
           python -m pip install -r requirements-dev.txt
 
+      - name: Validate release metadata and target
+        env:
+          MANUAL_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            git show-ref --verify "refs/tags/$MANUAL_TAG"
+            npm run release:check -- --tag "$MANUAL_TAG"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            npm run release:check -- --tag "$GITHUB_REF_NAME"
+          else
+            npm run release:check
+          fi
+
       - name: Check source and protected resources
         run: npm run check
 
-      - name: Build standard variant
-        run: npm run build:standard
-
-      - name: Build BDS enhanced variant
-        run: npm run build:bds-admin
-
-      - name: Build Realms variant
-        run: npm run build:realms
-
-      - name: Verify Realms artifact
-        run: npm run verify:realms-build
+      - name: Build and verify Realms runtime boundary
+        run: |
+          npm run build:realms
+          npm run verify:realms-build
 
       - name: Build standalone Backrooms
         run: npm run build:backrooms
+
+  package:
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            script: mcaddon:standard
+          - variant: realms
+            script: mcaddon:realms
+          - variant: bds
+            script: mcaddon:bds
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and verify package
+        id: package
+        run: |
+          npm run "${{ matrix.script }}"
+          artifact_name="$(node tools/release-metadata.cjs print filename "${{ matrix.variant }}")"
+          artifact_path="dist/packages/$artifact_name"
+          node tools/release-metadata.cjs verify-package "${{ matrix.variant }}" "$artifact_path"
+          echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: creeper-menu-${{ matrix.variant }}
+          path: ${{ steps.package.outputs.artifact_path }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: [verify, package]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download all variants
+        uses: actions/download-artifact@v4
+        with:
+          pattern: creeper-menu-*
+          path: release-files
+          merge-multiple: true
+
+      - name: Validate release files and metadata
+        run: |
+          node tools/release-metadata.cjs verify-release-files release-files
+          echo "RELEASE_TAG=$(node tools/release-metadata.cjs print tag)" >> "$GITHUB_ENV"
+          echo "RELEASE_TITLE=$(node tools/release-metadata.cjs print release-title)" >> "$GITHUB_ENV"
+          {
+            echo "RELEASE_NOTES<<EOF"
+            node tools/release-metadata.cjs notes
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-files/*.mcaddon --clobber
+          else
+            gh release create "$RELEASE_TAG" release-files/*.mcaddon \
+              --verify-tag \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES" \
+              --generate-notes
+          fi

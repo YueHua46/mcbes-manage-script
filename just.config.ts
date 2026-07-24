@@ -19,6 +19,18 @@ import path from "path";
 import fs from "fs";
 import * as esbuild from "esbuild";
 
+const {
+  artifactFilename,
+  loadReleaseConfig,
+}: {
+  artifactFilename: (
+    variant: "standard" | "realms" | "bds",
+    config: { version: string; minecraftVersion: string }
+  ) => string;
+  loadReleaseConfig: () => { version: string; minecraftVersion: string };
+} = require("./tools/release-metadata.cjs");
+const releaseConfig = loadReleaseConfig();
+
 // Setup env variables
 setupEnvironment(path.resolve(__dirname, ".env"));
 const projectName = process.env.PROJECT_NAME?.trim() || "CreeperMenu";
@@ -29,13 +41,15 @@ const isProduction = argv()["production"];
 type MainBundleOptions = BundleTaskParameters & {
   define?: Record<string, string>;
   realmsRuntime?: boolean;
+  bdsRuntime?: boolean;
 };
 
 function createBundleTaskOptions(
   entryPoint: string,
   outfile: string,
   define: Record<string, string>,
-  realmsRuntime: boolean = false
+  realmsRuntime: boolean = false,
+  bdsRuntime: boolean = false
 ): MainBundleOptions {
   const absoluteOutfile = path.resolve(__dirname, outfile);
   return {
@@ -55,6 +69,7 @@ function createBundleTaskOptions(
     dropLabels: isProduction ? ["dev"] : undefined,
     define,
     realmsRuntime,
+    bdsRuntime,
   } as MainBundleOptions;
 }
 
@@ -75,12 +90,18 @@ const bundleTaskOptionsDebug = createBundleTaskOptions("./scripts/main.debug.ts"
 });
 
 /** BDS 增强版构建：包含 server-net / server-admin 相关能力，仅供 BDS 服务器使用 */
-const bundleTaskOptionsBdsAdmin = createBundleTaskOptions("./scripts/main.bds.ts", "./dist/scripts/main.js", {
-  __BDS_BUILD__: "true",
-  __SERVER_ADMIN_BUILD__: "true",
-  __DEBUG_UTILITIES_BUILD__: "false",
-  __REALMS_BUILD__: "false",
-});
+const bundleTaskOptionsBdsAdmin = createBundleTaskOptions(
+  "./scripts/main.bds.ts",
+  "./dist/scripts/main.js",
+  {
+    __BDS_BUILD__: "true",
+    __SERVER_ADMIN_BUILD__: "true",
+    __DEBUG_UTILITIES_BUILD__: "false",
+    __REALMS_BUILD__: "false",
+  },
+  false,
+  true
+);
 
 /** Realms 兼容版构建：不包含 GameTest，仅支持旧版实体假人 */
 const bundleTaskOptionsRealms = createBundleTaskOptions(
@@ -118,6 +139,24 @@ const realmsRuntimePlugin: esbuild.Plugin = {
   },
 };
 
+const withoutBdsRuntimePlugin: esbuild.Plugin = {
+  name: "without-bds-runtime",
+  setup(build) {
+    const capabilityDirectory = path.resolve(
+      __dirname,
+      "scripts/features/platform/sapi-capabilities"
+    );
+    build.onResolve({ filter: /^\.\/server-(admin|net)$/ }, (args) => {
+      if (path.dirname(args.importer) !== capabilityDirectory) return undefined;
+      const disabledModule =
+        args.path === "./server-admin"
+          ? "server-admin.disabled.ts"
+          : "server-net.disabled.ts";
+      return { path: path.join(capabilityDirectory, disabledModule) };
+    });
+  },
+};
+
 /** 使用 esbuild 直接打主包 */
 async function runMainBundle(options: MainBundleOptions): Promise<void> {
   const outDir = path.dirname(options.outfile);
@@ -133,7 +172,10 @@ async function runMainBundle(options: MainBundleOptions): Promise<void> {
     define: options.define,
     minifyWhitespace: options.minifyWhitespace ?? false,
     sourcemap: options.sourcemap ?? true,
-    plugins: options.realmsRuntime ? [realmsRuntimePlugin] : undefined,
+    plugins: [
+      ...(options.realmsRuntime ? [realmsRuntimePlugin] : []),
+      ...(!options.bdsRuntime ? [withoutBdsRuntimePlugin] : []),
+    ],
     logLevel: "info",
   });
   if (options.sourcemap && options.outputSourcemapPath) {
@@ -220,9 +262,10 @@ async function copyArtifacts(): Promise<void> {
   }
 }
 
+// 普通兼容版（适用本地、BDS）
 const mcaddonTaskOptionsStandard: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_普通兼容版（适用本地、BDS）.mcaddon`,
+  outputFile: `./dist/packages/${artifactFilename("standard", releaseConfig)}`,
 };
 
 const mcaddonTaskOptionsDebug: ZipTaskParameters = {
@@ -232,12 +275,12 @@ const mcaddonTaskOptionsDebug: ZipTaskParameters = {
 
 const mcaddonTaskOptionsBdsAdmin: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_BDS增强版（仅适用BDS服务器，含额外黑名单功能等）.mcaddon`,
+  outputFile: `./dist/packages/${artifactFilename("bds", releaseConfig)}`,
 };
 
 const mcaddonTaskOptionsRealms: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_Realms兼容版（仅旧版实体假人）.mcaddon`,
+  outputFile: `./dist/packages/${artifactFilename("realms", releaseConfig)}`,
 };
 
 const mcaddonTaskOptionsBackrooms: ZipTaskParameters = {
@@ -273,6 +316,18 @@ function useBdsManifest() {
 
 function useRealmsManifest() {
   useManifestVariant(manifestRealmsPath, "manifest.realms.json");
+}
+
+// just-scripts 在串行任务失败时不会继续执行收尾步骤，因此发布构建退出时再同步恢复一次。
+if (process.argv.includes("mcaddon:release")) {
+  process.once("exit", () => {
+    try {
+      useStandardManifest();
+    } catch (error) {
+      console.error("发布构建结束后恢复 manifest.standard.json 失败", error);
+      process.exitCode = 1;
+    }
+  });
 }
 
 function setDefaultDeployEnv() {
@@ -381,6 +436,18 @@ task("mcaddon:realms", series("clean-local", "package:realms"));
 task("mcaddon:backrooms", series("clean-local", "package:backrooms"));
 task("mcaddon", series("mcaddon:standard"));
 task("mcaddon:bds", series("mcaddon:bds-admin"));
+
+// 仅生成进入 CreeperMenu Release 的三个菜单变体，不包含独立 Backrooms 包。
+task(
+  "mcaddon:release",
+  series(
+    "clean-local",
+    "package:standard",
+    "package:realms",
+    "package:bds-admin",
+    "useManifestStandard"
+  )
+);
 
 // 同时产出菜单普通版、Realms 版、BDS 增强版和独立 Backrooms 包。
 task(

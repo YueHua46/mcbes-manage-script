@@ -1,6 +1,6 @@
 {
   "name": "creeper-menu",
-  "version": "1.0.0",
+  "version": "3.2.13",
   "productName": "苦力怕菜单",
   "description": "Minecraft 基岩版服务器菜单插件",
   "private": true,
@@ -11,17 +11,21 @@
     "@minecraft/core-build-tasks": "^5.7.0",
     "@typescript-eslint/eslint-plugin": "^8.60.0",
     "@typescript-eslint/parser": "^8.60.0",
+    "acorn": "8.15.0",
     "esbuild": "^0.24.2",
     "eslint-plugin-minecraft-linting": "^2.0.10",
     "source-map": "^0.7.4",
     "ts-node": "^10.9.1",
     "typescript": "^5.5.4",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "yauzl": "3.4.0"
   },
   "scripts": {
     "test": "node --test tests/*.test.cjs",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm test",
+    "release:check": "node tools/release-metadata.cjs check",
+    "release:sync": "node tools/release-metadata.cjs sync",
     "verify:realms-build": "node tools/verify-realms-build.cjs",
     "lint": "just-scripts lint",
     "build": "just-scripts build:standard",
@@ -46,6 +50,7 @@
     "mcaddon:bds-admin": "just-scripts mcaddon:bds-admin",
     "mcaddon:backrooms": "just-scripts mcaddon:backrooms",
     "mcaddon:all": "just-scripts mcaddon:all",
+    "mcaddon:release": "just-scripts mcaddon:release",
     "build:vanilla-icon-map": "ts-node --project tsconfig.tools.json tools/build-vanilla-icon-map.ts",
     "enablemcloopback": "CheckNetIsolation.exe LoopbackExempt -a -p=S-1-15-2-1958404141-86561845-1752920682-3514627264-368642714-62675701-733520436",
     "enablemcpreviewloopback": "CheckNetIsolation.exe LoopbackExempt -a -p=S-1-15-2-424268864-5579737-879501358-346833251-474568803-887069379-4040235476"
