@@ -26,7 +26,7 @@ test("economy-disabled player surfaces hide money and optional costs become free
 });
 
 test("land selection always tells players how to cancel", () => {
-  const landHandler = read("scripts/Events/handlers/land.ts");
+  const landHandler = read("scripts/events/handlers/land.ts");
 
   assert.match(landHandler, /取消：潜行手持木棍长按空气/);
   assert.match(landHandler, /取消圈地：潜行并手持木棍长按空气（不要对着方块）/);

@@ -88,6 +88,25 @@ function distance(a, b) {
   return Math.hypot(...a.map((value, index) => value - b[index]));
 }
 
+function assertPixelEquivalent(filename, generatedDirectory) {
+  const generated = decodeRgbPng(filename, generatedDirectory);
+  const checkedIn = decodeRgbPng(filename);
+  assert.equal(generated.width, checkedIn.width, `${filename} width changed`);
+  assert.equal(generated.height, checkedIn.height, `${filename} height changed`);
+  assert.equal(generated.channels, checkedIn.channels, `${filename} channel count changed`);
+
+  let totalDifference = 0;
+  let maximumDifference = 0;
+  for (let index = 0; index < checkedIn.pixels.length; index += 1) {
+    const difference = Math.abs(generated.pixels[index] - checkedIn.pixels[index]);
+    totalDifference += difference;
+    maximumDifference = Math.max(maximumDifference, difference);
+  }
+  const meanDifference = totalDifference / checkedIn.pixels.length;
+  assert.ok(maximumDifference <= 1, `${filename} differs by up to ${maximumDifference} channel levels`);
+  assert.ok(meanDifference <= 0.15, `${filename} mean channel difference is ${meanDifference}`);
+}
+
 function chroma(mean) {
   const total = mean.reduce((sum, value) => sum + value, 0);
   return mean.map((value) => value / total);
@@ -219,25 +238,30 @@ test("all seven tiles join continuously across opposite boundaries", () => {
   }
 });
 
-test("the processor deterministically reproduces every checked-in texture without overwriting it", { timeout: 60_000 }, () => {
+test("the processor is deterministic and reproduces every checked-in texture across platforms", { timeout: 60_000 }, () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "backrooms-textures-"));
   try {
     const python = process.env.PYTHON || "python3";
-    const result = childProcess.spawnSync(
-      python,
-      [
-        path.join(root, "tools", "process-backrooms-textures.py"),
-        path.join(root, "assets", "backrooms", "source_material_atlas_v4.png"),
-        temporaryRoot,
-      ],
-      { cwd: root, encoding: "utf8", timeout: 50_000 }
-    );
-    assert.equal(result.status, 0, `texture processor failed:\n${result.stdout}\n${result.stderr}`);
+    const firstOutput = path.join(temporaryRoot, "first");
+    const secondOutput = path.join(temporaryRoot, "second");
+    for (const output of [firstOutput, secondOutput]) {
+      const result = childProcess.spawnSync(
+        python,
+        [
+          path.join(root, "tools", "process-backrooms-textures.py"),
+          path.join(root, "assets", "backrooms", "source_material_atlas_v4.png"),
+          output,
+        ],
+        { cwd: root, encoding: "utf8", timeout: 25_000 }
+      );
+      assert.equal(result.status, 0, `texture processor failed:\n${result.stdout}\n${result.stderr}`);
+    }
     for (const name of textureNames) {
-      const generated = path.join(temporaryRoot, name);
-      const checkedIn = path.join(textureRoot, name);
-      assert.ok(fs.existsSync(generated), `processor did not create ${name}`);
-      assert.equal(sha256(generated), sha256(checkedIn), `${name} is not deterministic`);
+      const first = path.join(firstOutput, name);
+      const second = path.join(secondOutput, name);
+      assert.ok(fs.existsSync(first), `processor did not create ${name}`);
+      assert.equal(sha256(first), sha256(second), `${name} is not deterministic`);
+      assertPixelEquivalent(name, firstOutput);
     }
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });

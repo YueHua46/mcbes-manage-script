@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, "..");
 
 test("all sixteen fake-player characters map to the first row of glyph_E8", () => {
   const glyphMap = fs.readFileSync(path.join(root, "scripts/assets/glyph-map.ts"), "utf8");
-  const joinEvent = fs.readFileSync(path.join(root, "scripts/Events/handlers/player.ts"), "utf8");
+  const joinEvent = fs.readFileSync(path.join(root, "scripts/events/handlers/player.ts"), "utf8");
   const hudScreen = JSON.parse(
     fs.readFileSync(path.join(root, "resource_packs/CreeperMenu/ui/hud_screen.json"), "utf8")
   );

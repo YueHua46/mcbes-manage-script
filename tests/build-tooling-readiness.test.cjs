@@ -22,6 +22,15 @@ test("event source directory uses portable lowercase casing", () => {
   }
 });
 
+test("tests reference the lowercase event source directory", () => {
+  const testRoot = path.join(root, "tests");
+  for (const entry of fs.readdirSync(testRoot)) {
+    if (!entry.endsWith(".test.cjs")) continue;
+    const source = fs.readFileSync(path.join(testRoot, entry), "utf8");
+    assert.doesNotMatch(source, /scripts\/Events\//, entry);
+  }
+});
+
 test("lint and build configuration do not require a deployment path at module load", () => {
   const config = fs.readFileSync(path.join(root, "just.config.ts"), "utf8");
   assert.doesNotMatch(config, /^const bdsServerDeployPath\s*=\s*getOrThrowFromProcess/m);
