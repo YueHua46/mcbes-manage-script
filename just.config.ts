@@ -19,6 +19,18 @@ import path from "path";
 import fs from "fs";
 import * as esbuild from "esbuild";
 
+const {
+  artifactFilename,
+  loadReleaseConfig,
+}: {
+  artifactFilename: (
+    variant: "standard" | "realms" | "bds",
+    config: { version: string; minecraftVersion: string }
+  ) => string;
+  loadReleaseConfig: () => { version: string; minecraftVersion: string };
+} = require("./tools/release-metadata.cjs");
+const releaseConfig = loadReleaseConfig();
+
 // Setup env variables
 setupEnvironment(path.resolve(__dirname, ".env"));
 const projectName = process.env.PROJECT_NAME?.trim() || "CreeperMenu";
@@ -222,7 +234,7 @@ async function copyArtifacts(): Promise<void> {
 
 const mcaddonTaskOptionsStandard: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_普通兼容版（适用本地、BDS）.mcaddon`,
+  outputFile: `./dist/packages/${artifactFilename("standard", releaseConfig)}`,
 };
 
 const mcaddonTaskOptionsDebug: ZipTaskParameters = {
@@ -232,12 +244,12 @@ const mcaddonTaskOptionsDebug: ZipTaskParameters = {
 
 const mcaddonTaskOptionsBdsAdmin: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_BDS增强版（仅适用BDS服务器，含额外黑名单功能等）.mcaddon`,
+  outputFile: `./dist/packages/${artifactFilename("bds", releaseConfig)}`,
 };
 
 const mcaddonTaskOptionsRealms: ZipTaskParameters = {
   ...copyTaskOptions,
-  outputFile: `./dist/packages/${projectName}_Realms兼容版（仅旧版实体假人）.mcaddon`,
+  outputFile: `./dist/packages/${artifactFilename("realms", releaseConfig)}`,
 };
 
 const mcaddonTaskOptionsBackrooms: ZipTaskParameters = {
@@ -381,6 +393,18 @@ task("mcaddon:realms", series("clean-local", "package:realms"));
 task("mcaddon:backrooms", series("clean-local", "package:backrooms"));
 task("mcaddon", series("mcaddon:standard"));
 task("mcaddon:bds", series("mcaddon:bds-admin"));
+
+// 仅生成进入 CreeperMenu Release 的三个菜单变体，不包含独立 Backrooms 包。
+task(
+  "mcaddon:release",
+  series(
+    "clean-local",
+    "package:standard",
+    "package:realms",
+    "package:bds-admin",
+    "useManifestStandard"
+  )
+);
 
 // 同时产出菜单普通版、Realms 版、BDS 增强版和独立 Backrooms 包。
 task(

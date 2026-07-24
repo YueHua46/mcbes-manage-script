@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const yauzl = require("yauzl");
 
 const ROOT = path.resolve(__dirname, "..");
 const CONFIG_PATH = path.join(ROOT, "release.config.json");
@@ -10,6 +11,21 @@ const VARIANT_LABELS = Object.freeze({
   standard: "普通兼容版",
   realms: "Realms兼容版",
   bds: "BDS增强版",
+});
+const VARIANT_MODULES = Object.freeze({
+  standard: Object.freeze([
+    "@minecraft/server",
+    "@minecraft/server-ui",
+    "@minecraft/server-gametest",
+  ]),
+  realms: Object.freeze(["@minecraft/server", "@minecraft/server-ui"]),
+  bds: Object.freeze([
+    "@minecraft/server",
+    "@minecraft/server-ui",
+    "@minecraft/server-admin",
+    "@minecraft/server-net",
+    "@minecraft/server-gametest",
+  ]),
 });
 const CREEPER_MENU_MANIFESTS = Object.freeze([
   "behavior_packs/CreeperMenu/manifest.json",
@@ -71,10 +87,169 @@ function releaseTitle(config = loadReleaseConfig()) {
   return `苦力怕菜单 v${config.version}（适配 MCBE ${minecraftFamily(config.minecraftVersion)}）`;
 }
 
+function expectedModules(variant) {
+  const modules = VARIANT_MODULES[variant];
+  if (!modules) {
+    throw new Error(`未知发行变体：${variant}`);
+  }
+  return [...modules];
+}
+
 function assertTag(tag, config = loadReleaseConfig()) {
   const expected = `v${config.version}`;
   if (tag !== expected) {
     throw new Error(`发行 tag 必须等于 ${expected}，实际为 ${tag || "空值"}`);
+  }
+}
+
+function validateManifestVersion(manifest, expected, label) {
+  for (const [location, actual] of manifestVersionStrings(manifest)) {
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      throw new Error(
+        `${label} 版本不一致：${location}=${JSON.stringify(actual)}，预期=${JSON.stringify(expected)}`
+      );
+    }
+  }
+}
+
+function validatePackageManifests(
+  variant,
+  behaviorManifest,
+  resourceManifest,
+  config = loadReleaseConfig()
+) {
+  const expectedVersion = config.version.split(".").map(Number);
+  validateManifestVersion(behaviorManifest, expectedVersion, "行为包");
+  validateManifestVersion(resourceManifest, expectedVersion, "资源包");
+
+  const actualModules = (behaviorManifest.dependencies || [])
+    .map((dependency) => dependency.module_name)
+    .filter(Boolean)
+    .sort();
+  const requiredModules = expectedModules(variant).sort();
+  if (JSON.stringify(actualModules) !== JSON.stringify(requiredModules)) {
+    throw new Error(
+      `${variant} 依赖不匹配：实际=${actualModules.join(",")}，预期=${requiredModules.join(",")}`
+    );
+  }
+}
+
+function validateRealmsScript(script) {
+  if (script.includes("@minecraft/server-gametest")) {
+    throw new Error("Realms JavaScript 仍引用 GameTest 模块");
+  }
+}
+
+function readArchiveEntries(archiveSource) {
+  return new Promise((resolve, reject) => {
+    const handleOpen = (openError, zipFile) => {
+      if (openError) {
+        reject(openError);
+        return;
+      }
+      const entries = [];
+      zipFile.on("error", reject);
+      zipFile.on("end", () => resolve(entries));
+      zipFile.on("entry", (entry) => {
+        if (/\/$/.test(entry.fileName)) {
+          zipFile.readEntry();
+          return;
+        }
+        zipFile.openReadStream(entry, (streamError, stream) => {
+          if (streamError) {
+            reject(streamError);
+            return;
+          }
+          const chunks = [];
+          stream.on("data", (chunk) => chunks.push(chunk));
+          stream.on("error", reject);
+          stream.on("end", () => {
+            entries.push({
+              name: entry.fileName,
+              content: Buffer.concat(chunks),
+            });
+            zipFile.readEntry();
+          });
+        });
+      });
+      zipFile.readEntry();
+    };
+    if (Buffer.isBuffer(archiveSource)) {
+      yauzl.fromBuffer(archiveSource, { lazyEntries: true }, handleOpen);
+    } else {
+      yauzl.open(archiveSource, { lazyEntries: true }, handleOpen);
+    }
+  });
+}
+
+async function readPackageEntries(archivePath) {
+  const outerEntries = await readArchiveEntries(archivePath);
+  const packageEntries = [];
+  for (const entry of outerEntries) {
+    if (/\.mcpack$/i.test(entry.name)) {
+      const nestedEntries = await readArchiveEntries(entry.content);
+      for (const nestedEntry of nestedEntries) {
+        packageEntries.push({
+          name: `${entry.name}!/${nestedEntry.name}`,
+          content: nestedEntry.content,
+        });
+      }
+    } else {
+      packageEntries.push(entry);
+    }
+  }
+  return packageEntries;
+}
+
+async function verifyPackage(variant, archivePath, config = loadReleaseConfig()) {
+  expectedModules(variant);
+  if (!archivePath || !fs.existsSync(archivePath)) {
+    throw new Error(`发行产物不存在：${archivePath || "空路径"}`);
+  }
+  const expectedName = artifactFilename(variant, config);
+  if (path.basename(archivePath) !== expectedName) {
+    throw new Error(
+      `${variant} 产物文件名不匹配：${path.basename(archivePath)}，预期=${expectedName}`
+    );
+  }
+
+  const entries = await readPackageEntries(archivePath);
+  const manifestEntries = entries.filter((entry) => /(^|\/)manifest\.json$/.test(entry.name));
+  if (manifestEntries.length !== 2) {
+    throw new Error(`发行产物必须恰好包含两个 manifest，实际=${manifestEntries.length}`);
+  }
+
+  const manifests = manifestEntries.map((entry) => {
+    let manifest;
+    try {
+      manifest = JSON.parse(entry.content.toString("utf8"));
+    } catch (error) {
+      throw new Error(`${entry.name} 不是有效 JSON：${error.message}`);
+    }
+    if (/Backrooms/i.test(manifest.header?.name || "")) {
+      throw new Error("CreeperMenu 发行产物不能包含 Backrooms manifest");
+    }
+    return { name: entry.name, manifest };
+  });
+  const behavior = manifests.filter((entry) =>
+    entry.manifest.modules?.some((module) => module.type === "script")
+  );
+  const resource = manifests.filter((entry) =>
+    entry.manifest.modules?.some((module) => module.type === "resources")
+  );
+  if (behavior.length !== 1 || resource.length !== 1) {
+    throw new Error(
+      `无法唯一识别行为包和资源包 manifest：behavior=${behavior.length}, resource=${resource.length}`
+    );
+  }
+  validatePackageManifests(variant, behavior[0].manifest, resource[0].manifest, config);
+
+  if (variant === "realms") {
+    const scripts = entries.filter((entry) => /(^|\/)scripts\/main\.js$/.test(entry.name));
+    if (scripts.length !== 1) {
+      throw new Error(`Realms 产物必须恰好包含一个 scripts/main.js，实际=${scripts.length}`);
+    }
+    validateRealmsScript(scripts[0].content.toString("utf8"));
   }
 }
 
@@ -163,7 +338,7 @@ function printValue(field, variant) {
   }
 }
 
-function runCli(args = process.argv.slice(2)) {
+async function runCli(args = process.argv.slice(2)) {
   const [command = "check", ...rest] = args;
   if (command === "check") {
     const config = loadReleaseConfig();
@@ -186,16 +361,19 @@ function runCli(args = process.argv.slice(2)) {
     console.log(printValue(rest[0], rest[1]));
     return;
   }
+  if (command === "verify-package") {
+    await verifyPackage(rest[0], rest[1]);
+    console.log(`${rest[0]} 发行产物验证通过：${path.basename(rest[1])}`);
+    return;
+  }
   throw new Error(`未知命令：${command}`);
 }
 
 if (require.main === module) {
-  try {
-    runCli();
-  } catch (error) {
+  runCli().catch((error) => {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
-  }
+  });
 }
 
 module.exports = {
@@ -204,9 +382,13 @@ module.exports = {
   artifactFilename,
   assertTag,
   assertVersions,
+  expectedModules,
   loadReleaseConfig,
   minecraftFamily,
   releaseTitle,
   runCli,
   syncVersion,
+  validatePackageManifests,
+  validateRealmsScript,
+  verifyPackage,
 };
