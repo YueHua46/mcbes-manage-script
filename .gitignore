@@ -1,4 +1,11 @@
 .env
+.env.local
+.DS_Store
+.superpowers/
+.vs/
+.worktrees/
+error.log
+*.log
 dist
 /out/
 node_modules/

@@ -227,7 +227,8 @@ function directoryHashes(directory) {
 
 test("voice and Lifeform synthesis is byte-for-byte deterministic", () => {
   const generator = path.join(root, "tools", "generate-backrooms-audio.py");
-  const run = () => spawnSync("python", [generator], { cwd: root, encoding: "utf8" });
+  const python = process.env.PYTHON || "python3";
+  const run = () => spawnSync(python, [generator], { cwd: root, encoding: "utf8" });
   const firstRun = run();
   assert.equal(firstRun.status, 0, firstRun.stderr || firstRun.stdout);
   const voiceDirectory = path.join(soundsRoot, "backrooms", "voices");

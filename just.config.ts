@@ -21,8 +21,7 @@ import * as esbuild from "esbuild";
 
 // Setup env variables
 setupEnvironment(path.resolve(__dirname, ".env"));
-const projectName = getOrThrowFromProcess("PROJECT_NAME");
-const bdsServerDeployPath = getOrThrowFromProcess("BDS_SERVER_DEPLOY_PATH");
+const projectName = process.env.PROJECT_NAME?.trim() || "CreeperMenu";
 
 // You can use `npm run build:production` to build a "production" build that strips out statements labelled with "dev:".
 const isProduction = argv()["production"];
@@ -235,6 +234,7 @@ function setDefaultDeployEnv() {
 }
 
 function setBdsServerDeployEnv() {
+  const bdsServerDeployPath = getOrThrowFromProcess("BDS_SERVER_DEPLOY_PATH");
   process.env.MINECRAFT_PRODUCT = "Custom";
   process.env.CUSTOM_DEPLOYMENT_PATH = bdsServerDeployPath;
 }

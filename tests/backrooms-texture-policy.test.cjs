@@ -222,10 +222,10 @@ test("all seven tiles join continuously across opposite boundaries", () => {
 test("the processor deterministically reproduces every checked-in texture without overwriting it", { timeout: 60_000 }, () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "backrooms-textures-"));
   try {
+    const python = process.env.PYTHON || "python3";
     const result = childProcess.spawnSync(
-      "uv",
+      python,
       [
-        "run", "--with", "pillow", "--with", "numpy", "python",
         path.join(root, "tools", "process-backrooms-textures.py"),
         path.join(root, "assets", "backrooms", "source_material_atlas_v4.png"),
         temporaryRoot,

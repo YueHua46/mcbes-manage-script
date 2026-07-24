@@ -1,78 +1,74 @@
+![苦力怕菜单](docs/images/creeper-menu-banner.png)
+
 # 苦力怕菜单
 
-Minecraft 基岩版（Bedrock）服务器菜单插件，基于 Script API（SAPI）构建。支持 **1.26.x** 引擎（manifest `min_engine_version: [1, 26, 0]`）。
+Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、公会、路点和管理工具集中到一个菜单道具里。本仓库还包含已经独立拆包的 Backrooms Level 0 附加包。
 
-## 构建变体
+> [!IMPORTANT]
+> 本仓库公开源代码，但限制商业用途，属于 **source-available（源码可用）** 项目，而不是 OSI 定义的开源软件。代码许可为 [PolyForm Noncommercial License 1.0.0](LICENSE)，第三方素材适用各自条款。
 
-项目提供两个彼此独立的附加包；苦力怕菜单另有两种构建变体：
+> [!NOTE]
+> 这是非官方 Minecraft 项目，不受 Mojang Studios 或 Microsoft 批准、认可、赞助或关联。
 
-| 变体 | 构建命令 | 适用环境 | 额外依赖 |
-|------|----------|----------|----------|
-| **普通兼容版** | `npm run mcaddon` / `npm run build:standard` | 本地存档、BDS、Realms 领域服 | `@minecraft/server`、`@minecraft/server-ui` |
-| **BDS 增强版** | `npm run mcaddon:bds` / `npm run build:bds-admin` | 仅 BDS 专用服务器 | 额外 `@minecraft/server-admin`、`@minecraft/server-net` |
-| **Backrooms Level 0** | `npm run mcaddon:backrooms` / `npm run build:backrooms` | 本地存档、BDS、Realms 领域服 | 独立行为包与资源包，不依赖苦力怕菜单 |
+## 功能
 
-**差异摘要：**
+- 菜单入口：使用 `yuehua:sm` 道具打开主菜单。
+- 玩家功能：TPA、坐标与随机传送、个人/公共路点、在线时长与设置。
+- 服务器系统：领地、经济、官方商店、玩家交易市场、红包、公会、PVP、任务和统计。
+- 管理工具：玩家与背包管理、行为日志、防刷物品、公告、浮空字和调度面板。
+- 自定义维度：苦力怕菜单提供 5 个通用虚空维度。
+- 独立 Backrooms：按玩家隔离、按需延伸的 Level 0，以及独立实体、声景和资源包。
+- 资源体验：保留项目原有的 DOVA 音乐、欢迎角色、假人皮肤与相关运行时资源。
 
-- 普通兼容版：不含 BDS 专属模块，可在 Realms / 本地世界运行；黑名单进服前拦截、XUID 查询、HTTP 出站不可用。
-- BDS 增强版：支持黑名单进服前拦截（`asyncPlayerJoin`）、XUID 解析（`server-net` HTTP）、完整黑名单管理 UI。
+完整功能和管理员操作说明见 [项目知识库](docs/creeper-menu-knowledge-base.md)。Backrooms 的生成、隔离和声景设计见 [Backrooms 无限生成器设计](docs/backrooms-generator.md)。
 
-同时产出全部包：`npm run mcaddon:all`
+## 构建与附加包
 
-## 功能矩阵
+| 产物 | 适用环境 | 特点 | 打包命令 |
+| --- | --- | --- | --- |
+| 苦力怕菜单普通兼容版 | 本地世界、Realms、BDS | 不依赖 BDS 专属模块，覆盖主要菜单功能 | `npm run mcaddon` |
+| 苦力怕菜单 BDS 增强版 | 仅 BDS 专用服务器 | 增加进服前黑名单拦截、XUID 解析和服务器网络能力 | `npm run mcaddon:bds` |
+| Backrooms Level 0 | 本地世界、Realms、BDS | 独立行为包与资源包，不依赖苦力怕菜单 | `npm run mcaddon:backrooms` |
 
-| 模块 | 说明 | 普通版 | BDS 增强版 |
-|------|------|:------:|:----------:|
-| 自定义命令 | SAPI `CustomCommandRegistry`，权限与参数校验 | ✓ | ✓ |
-| 玩家传送 / TPA | 玩家互传、坐标传送、随机传送 | ✓ | ✓ |
-| 自定义维度传送 | 维度登记、默认点、选择器批量跨维度传送 | ✓ | ✓ |
-| 领地系统 | 创建/管理/权限/粒子边界/快照分片 | ✓ | ✓ |
-| PVP 系统 | 竞技场、统计、效果管理 | ✓ | ✓ |
-| 经济系统 | 金币、官方商店、玩家交易市场、红包、怪物击杀奖励 | ✓ | ✓ |
-| 公会系统 | 创建/成员/金库/权限 facade 缓存 | ✓ | ✓ |
-| 路点系统 | 个人/公共路点、传送倒计时 | ✓ | ✓ |
-| 玩家行为日志 | 聊天/交互/伤害/物品监控、日志检视器 | ✓ | ✓ |
-| 防刷物品 | Bundle 守卫、方块白名单、库存访问拦截 | ✓ | ✓ |
-| 黑名单 | 名字 / persistentId / xuid 三层匹配 | — | ✓ |
-| 进服前拦截 | `asyncPlayerJoin` 拒绝封禁玩家 | — | ✓ |
-| 服务器实时面板 | CustomForm + Observable，不支持时降级 ActionForm | ✓ | ✓ |
-| 试玩模式 / 在线时长 / 数据统计 | 服主管理面板子模块 | ✓ | ✓ |
-| 一键挖矿 / 一键砍树 | 可配置开关 | ✓ | ✓ |
-| Chest UI 图标修复 | 启动时自动偏移修复 | ✓ | ✓ |
+同时生成全部 `.mcaddon`：`npm run mcaddon:all`。
 
-平台能力检测与 BDS 专属 API 封装见 `scripts/features/platform/sapi-capabilities/`。
+当前苦力怕菜单行为包版本为 **3.1.13**，资源包版本为 **3.2.13**；Backrooms 行为包和资源包版本均为 **1.0.0**。manifest 最低引擎版本为 **1.26.0**。
 
-## 自定义维度传送
+## 安装
 
-苦力怕菜单启动时只注册 5 个通用虚空维度（`custom1` 至 `custom5`）。首次安装或升级后须完整重启世界/服务器，不要只使用 `/reload`。管理员可以修改显示名称、设置默认点并交给命令方块传送；插件也保留接入其他行为包维度的能力。
+### 苦力怕菜单
 
-```text
-/yuehua:dimension add <别名> <维度ID> [显示名称]
-/yuehua:dimension add_here <别名> [显示名称]
-/yuehua:dimension list
-/yuehua:dimension info <别名>
-/yuehua:dimension current
-/yuehua:dimension remove <别名>
-/yuehua:dimension rename <别名> <新显示名称>
-/yuehua:dimension reset <预置维度别名>
-/yuehua:dimension_setspawn <别名> <x> <y> <z>
-/yuehua:dimension_setspawn_here <别名>
-/yuehua:dimension test <别名>
-/yuehua:dimension_tp <玩家选择器> <别名> [x y z]
-```
-
-通用预置维度的真实 ID 为 `yuehua:custom_1` 至 `yuehua:custom_5`；它们不能真正删除。`reset` 会恢复默认名称并清除默认传送点。`dimension`、`dimension_setspawn` 和 `dimension_setspawn_here` 仅管理员可用；`dimension_tp` 可由管理员或命令方块执行。省略目标坐标时使用已保存的默认点，例如：
-
-`dimension_tp` 的维度参数既可以填写固定别名（如 `custom1`），也可以填写管理员修改后的显示名称（如 `天界`）。相对坐标需要写成 `~ ~ ~`，三个坐标之间必须有空格。
+1. 从 Release 下载普通兼容版或 BDS 增强版。
+2. 本地世界使用 Minecraft 打开 `.mcaddon` 完成导入；BDS 可解压后部署行为包和资源包。
+3. 在世界中同时启用 `苦力怕菜单_BP` 与 `苦力怕菜单_RP`。
+4. 首次安装或升级后完整重启世界或服务器，不要只执行 `/reload`。
+5. 给管理员添加标签：
 
 ```mcfunction
-/yuehua:dimension_tp @a[tag=enter_mine] mine
-/yuehua:dimension_tp @p[r=3] dungeon 0 80 0
+/tag @s add admin
 ```
 
-## Backrooms 独立附加包
+6. 获取菜单道具：
 
-Backrooms Level 0 已从苦力怕菜单完全拆分到 `behavior_packs/Backrooms` 与 `resource_packs/Backrooms`。启用这两个配套包并完整重启世界后，由管理员或命令方块执行：
+```mcfunction
+/give @s yuehua:sm
+```
+
+手动安装时，将以下目录分别放入目标世界或服务器对应的行为包、资源包目录：
+
+- `behavior_packs/CreeperMenu`
+- `resource_packs/CreeperMenu`
+
+BDS 增强版必须通过 `npm run build:bds-admin` 或 `npm run mcaddon:bds` 生成，不要直接把源码目录当作已构建的增强版。
+
+### Backrooms Level 0
+
+Backrooms 已从苦力怕菜单拆分为独立附加包。启用以下两个配套目录并完整重启：
+
+- `behavior_packs/Backrooms`
+- `resource_packs/Backrooms`
+
+管理员或命令方块可使用：
 
 ```mcfunction
 /yuehua:backrooms_tp @p
@@ -80,49 +76,72 @@ Backrooms Level 0 已从苦力怕菜单完全拆分到 `behavior_packs/Backrooms
 /yuehua:backrooms_exit @p
 ```
 
-省略坐标时，每个玩家会进入相距极远且持久稳定的独立 manifestation；显式坐标会先生成目标区域并收敛到安全落脚点。独立包包含暖黄色局部灯光、持续背景音、角落录音、墙后幻听和细菌（Bacteria）遭遇，击杀细菌掉落 50 点原版经验。它会发布通用隔离维度策略；同时安装苦力怕菜单时，菜单的聊天、TPA 与坐标点系统会自动遵守该策略。算法、隔离、声景、实体与运维说明见 [Backrooms 无限生成器设计](docs/backrooms-generator.md)。
+省略坐标时，每个玩家会进入相距极远且持久稳定的独立 manifestation；显式坐标会先生成目标区域并收敛到安全落脚点。同时安装苦力怕菜单时，聊天、TPA 与坐标点系统会遵守 Backrooms 发布的维度隔离策略。
 
-## 开发
+## 开发与构建
 
-### 环境要求
+环境要求：
 
-- Node.js 18+
+- Node.js `20.19+`、`22.13+` 或 `24+`
 - npm
+- Python 3.11+（仅用于素材可复现性测试）
 
-### 常用命令
+安装与检查：
 
 ```bash
-npm install              # 安装依赖
-npm run lint             # ESLint 检查
-npx tsc --noEmit         # TypeScript 类型检查
-npm run build            # 构建普通兼容版
-npm run build:bds-admin  # 构建 BDS 增强版
-npm run build:backrooms  # 构建独立 Backrooms 脚本
-npm run mcaddon          # 打包普通兼容版 .mcaddon
-npm run mcaddon:bds      # 打包 BDS 增强版 .mcaddon
-npm run mcaddon:backrooms # 打包独立 Backrooms .mcaddon
-npm run mcaddon:all      # 同时产出全部 .mcaddon
-npm run local-deploy     # 监听变更并部署普通版
-npm run local-deploy:bds # 监听变更并部署 BDS 版
+npm ci
+python3 -m pip install -r requirements-dev.txt
+cp .env.example .env
+npm run check
 ```
 
-### 贡献
+常用命令：
 
-fork 后修改并提交 PR，请在描述中说明改动内容与测试方式。需具备基础 JavaScript/TypeScript 知识。
+```bash
+npm run lint              # ESLint
+npm run typecheck         # TypeScript 类型检查
+npm test                  # 发布约束与资源保护测试
+npm run build:standard    # 构建菜单普通版和独立 Backrooms
+npm run build:bds-admin   # 构建菜单 BDS 版和独立 Backrooms
+npm run build:backrooms   # 仅构建 Backrooms 脚本
+npm run mcaddon           # 打包菜单普通兼容版
+npm run mcaddon:bds       # 打包菜单 BDS 增强版
+npm run mcaddon:backrooms # 打包独立 Backrooms
+npm run mcaddon:all       # 打包全部产物
+```
 
-### 更新 Chest UI 原版物品贴图映射
+本地部署需要在 `.env` 中设置 `PROJECT_NAME`；使用 BDS 部署任务时还需设置 `BDS_SERVER_DEPLOY_PATH`。普通构建和代码检查不要求部署路径。
 
-商店、玩家交易市场等界面使用 **`textures/...` 贴图路径**显示物品图标（不再依赖 runtime 数字 id）。
+### 更新 Chest UI 原版物品图标映射
 
-- 映射数据：`scripts/assets/vanilla-item-icon-paths.ts`（自动生成）
-- 生成器源码已包含在本仓库：`tools/build-vanilla-icon-map.ts`，不依赖其他相邻项目
-- 当前版本重新生成：`npm run build:vanilla-icon-map`
-- 指定新版本标签：`npm run build:vanilla-icon-map -- 1.26.30`，再执行 `npm run build`
-- 生成器会从 Mojang 官方 `bedrock-samples` 下载物品和贴图元数据；诊断报告写入 `out/vanilla-icon-map/`
-- 附加包自定义物品默认尝试 `textures/items/物品名`
+官方商店、玩家交易市场等界面使用 `textures/...` 路径显示物品图标。映射文件为 `scripts/features/system/services/vanilla-item-icon-paths.ts`，生成器为 `tools/build-vanilla-icon-map.ts`：
 
-## 版权
+```bash
+npm run build:vanilla-icon-map
+npm run build:vanilla-icon-map -- 1.26.30
+```
 
-本插件遵循 MIT 协议，你可以在遵守协议的前提下自由使用本插件的代码。  
-本插件的版权归作者所有，作者保留对本插件的所有权和最终解释权。  
-请不要将本插件应用于商业用途，否则后果自负。
+生成器会从 Mojang 官方 `bedrock-samples` 获取物品和贴图元数据，诊断报告输出到 `out/vanilla-icon-map/`。
+
+### 品牌图
+
+包图标与本页横幅由 [品牌构建脚本](tools/build-brand-assets.py) 生成。中央始终使用现有菜单道具 `sm.png`，脚本只读取它，不会覆盖或重绘游戏内纹理。背景来自项目内保留的 ImageGen 源图。
+
+## 贡献
+
+欢迎提交问题和非商业用途的改进。提交 PR 前请运行：
+
+```bash
+npm run check
+npm run build:standard
+npm run build:bds-admin
+npm run build:backrooms
+```
+
+请不要在没有明确授权的情况下替换、删除、重命名 DOVA 音乐、欢迎角色、假人皮肤及其来源文件。经过项目维护者确认的音频编码优化应同步更新对应保护测试。
+
+## 许可与第三方内容
+
+项目原创代码和未单独标注的原创内容使用 [PolyForm Noncommercial License 1.0.0](LICENSE)：允许非商业使用、研究、修改和再分发，但不允许商业用途。
+
+Minecraft 名称与素材、DOVA-SYNDROME 音乐、Pixabay 音效及二次元角色资源不由项目许可证重新授权。来源、署名和适用边界见 [第三方素材与商标声明](THIRD_PARTY_NOTICES.md)。

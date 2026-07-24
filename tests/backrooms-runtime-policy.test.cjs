@@ -510,7 +510,8 @@ test("Backrooms is a standalone paired add-on and CreeperMenu carries no gamepla
   assert.deepEqual(resourceDependency.version, resourceManifest.header.version);
   assert.equal(behaviorManifest.header.uuid === resourceManifest.header.uuid, false);
 
-  const menuBehaviorFiles = fs.readdirSync(path.join(root, "behavior_packs", "CreeperMenu", "blocks"));
+  const menuBlocksPath = path.join(root, "behavior_packs", "CreeperMenu", "blocks");
+  const menuBehaviorFiles = fs.existsSync(menuBlocksPath) ? fs.readdirSync(menuBlocksPath) : [];
   assert.equal(menuBehaviorFiles.some((name) => /backrooms/i.test(name)), false);
   assert.equal(
     fs.existsSync(path.join(root, "behavior_packs", "CreeperMenu", "entities", "backrooms_lifeform.json")),

@@ -38,7 +38,12 @@ function createTemporaryTickingAreaId(dimension: Dimension, attempt: number): st
   return `${TEMP_TICKING_AREA_PREFIX}_${dimensionName}_${Date.now()}_${attempt}_${RandomNumber(0, 9999)}`;
 }
 
-async function createTemporaryTickingArea(dimension: Dimension, x: number, z: number, attempt: number): Promise<string | undefined> {
+async function createTemporaryTickingArea(
+  dimension: Dimension,
+  x: number,
+  z: number,
+  attempt: number
+): Promise<string | undefined> {
   const manager = world.tickingAreaManager;
   const chunkX = getChunkStart(x);
   const chunkZ = getChunkStart(z);
@@ -66,7 +71,13 @@ function removeTemporaryTickingArea(identifier: string): void {
   }
 }
 
-function findSurfaceTargetOutsideLand(dimension: Dimension, x: number, z: number, minY: number, maxY: number): Vector3 | undefined {
+function findSurfaceTargetOutsideLand(
+  dimension: Dimension,
+  x: number,
+  z: number,
+  minY: number,
+  maxY: number
+): Vector3 | undefined {
   for (let y = maxY - 1; y > minY + 1; y--) {
     const block = dimension.getBlock({ x, y, z });
     if (!block || block.isAir) continue;
@@ -104,7 +115,12 @@ function hasPlayerMoved(player: Player, startLocation: Vector3, startDimension: 
   }
 }
 
-function createProgressiveParticles(player: Player, location: Vector3, intensity: number, isPostTeleport: boolean): void {
+function createProgressiveParticles(
+  player: Player,
+  location: Vector3,
+  intensity: number,
+  isPostTeleport: boolean
+): void {
   if (!isPlayerAvailable(player)) return;
 
   if (isPostTeleport) {
@@ -191,8 +207,11 @@ function startPostTeleportEffects(player: Player, target: Vector3): void {
   }
 
   try {
-    player.runCommand("title @s times 5 40 5");
-    player.runCommand("title @s title §a传送成功！");
+    player.onScreenDisplay.setTitle("§a传送成功！", {
+      fadeInDuration: 5,
+      stayDuration: 40,
+      fadeOutDuration: 5,
+    });
     player.onScreenDisplay.setActionBar(
       color.green(
         `随机传送成功：${color.yellow(`${Math.floor(target.x)} ${Math.floor(target.y)} ${Math.floor(target.z)}`)}`
@@ -322,8 +341,11 @@ function startRandomTeleportCountdown(player: Player, result: RandomLocationResu
       }
 
       if (countdown > 0) {
-        player.runCommand("title @s times 5 20 5");
-        player.runCommand(`title @s title §e${countdown}`);
+        player.onScreenDisplay.setTitle(`§e${countdown}`, {
+          fadeInDuration: 5,
+          stayDuration: 20,
+          fadeOutDuration: 5,
+        });
         player.onScreenDisplay.setActionBar("§b正在随机传送... §7(请不要移动)");
         player.playSound("random.click");
         countdown--;

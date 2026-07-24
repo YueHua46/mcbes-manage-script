@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+          cache: npm
+
+      - name: Use Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          python -m pip install -r requirements-dev.txt
+
+      - name: Check source and protected resources
+        run: npm run check
+
+      - name: Build standard variant
+        run: npm run build:standard
+
+      - name: Build BDS enhanced variant
+        run: npm run build:bds-admin
+
+      - name: Build standalone Backrooms
+        run: npm run build:backrooms

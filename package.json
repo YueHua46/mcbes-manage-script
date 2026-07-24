@@ -4,6 +4,9 @@
   "productName": "苦力怕菜单",
   "description": "Minecraft 基岩版服务器菜单插件",
   "private": true,
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
+  },
   "devDependencies": {
     "@minecraft/core-build-tasks": "^5.7.0",
     "@typescript-eslint/eslint-plugin": "^8.60.0",
@@ -16,6 +19,9 @@
     "uuid": "^9.0.1"
   },
   "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm test",
     "lint": "just-scripts lint",
     "build": "just-scripts build:standard",
     "build:standard": "just-scripts build:standard",

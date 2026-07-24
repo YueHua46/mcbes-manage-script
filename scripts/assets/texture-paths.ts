@@ -3,7 +3,7 @@
  * 动态匹配物品ID到纹理路径
  */
 
-import { iconPathMap, IconPath } from '../features/economic/data/icon-path';
+import { iconPathMap, IconPath } from "../features/economic/data/icon-path";
 
 /**
  * 生成所有可能的排列组合
@@ -60,5 +60,3 @@ export function dynamicMatchIconPath(itemId: string): string {
   // 如果所有排列组合都没有匹配到，返回空字符串
   return "";
 }
-
-

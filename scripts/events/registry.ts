@@ -2,7 +2,7 @@
  * 事件注册中心
  */
 
-import { SystemLog } from '../shared/utils/common';
+import { SystemLog } from "../shared/utils/common";
 
 type EventHandlerFunction = () => void;
 
@@ -58,8 +58,8 @@ class EventRegistry {
    * 初始化所有已注册的事件
    */
   initializeAll(): void {
-    SystemLog.info('开始初始化所有事件处理器');
-    
+    SystemLog.info("开始初始化所有事件处理器");
+
     this._events.forEach((event) => {
       if (event.enabled) {
         try {
@@ -83,5 +83,3 @@ class EventRegistry {
 }
 
 export const eventRegistry = new EventRegistry();
-
-
