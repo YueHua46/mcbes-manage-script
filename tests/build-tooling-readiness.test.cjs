@@ -30,3 +30,11 @@ test("lint and build configuration do not require a deployment path at module lo
     /function setBdsServerDeployEnv\(\)[\s\S]*getOrThrowFromProcess\("BDS_SERVER_DEPLOY_PATH"\)/
   );
 });
+
+test("GitHub Actions pip cache tracks the repository development requirements file", () => {
+  const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
+  assert.match(
+    workflow,
+    /uses:\s*actions\/setup-python@v5[\s\S]*?cache:\s*pip[\s\S]*?cache-dependency-path:\s*requirements-dev\.txt/
+  );
+});
