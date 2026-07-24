@@ -25,6 +25,10 @@ function readJson(filePath) {
 }
 
 function writeJson(filePath, value) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function writeManifestJson(filePath, value) {
   const formatted = JSON.stringify(value, null, 2)
     .replace(/\[\n\s+(\d+),\n\s+(\d+),\n\s+(\d+)\n\s+\]/g, "[$1, $2, $3]")
     .replace(/\[\n\s+("[^"\n]+")\n\s+\]/g, "[$1]");
@@ -135,7 +139,7 @@ function syncVersion(version) {
     for (const module of manifest.modules) {
       module.version = versionArray;
     }
-    writeJson(manifestPath, manifest);
+    writeManifestJson(manifestPath, manifest);
   }
 
   assertVersions({ ...config, version });
