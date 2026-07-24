@@ -1,0 +1,85 @@
+name: "功能建议 / Feature request"
+description: "建议可执行的改进 / Suggest an actionable improvement"
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你的建议。尚未成形的想法和使用讨论更适合放在 Discussions。
+        Thank you for the proposal. Early ideas and usage discussions belong in Discussions.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: "提交前检查 / Preflight check"
+      options:
+        - label: "我已经搜索过现有 Issue 和 Discussion。/ I searched existing Issues and Discussions."
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "问题与使用场景 / Problem and use case"
+      description: "谁在什么情况下遇到了什么限制？/ Who encounters which limitation, and when?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "建议方案 / Proposed solution"
+      description: "描述期望的行为，而不只是界面形式。/ Describe the desired behavior, not only the UI."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "替代方案 / Alternatives considered"
+
+  - type: dropdown
+    id: affected-area
+    attributes:
+      label: "影响范围 / Affected area"
+      options:
+        - "苦力怕菜单通用功能 / Creeper Menu shared feature"
+        - "普通兼容版 / Standard"
+        - "Realms 兼容版 / Realms"
+        - "BDS 增强版 / BDS enhanced"
+        - "独立 Backrooms / Standalone Backrooms"
+        - "构建与工具 / Build and tooling"
+        - "文档 / Documentation"
+    validations:
+      required: true
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: "兼容性影响 / Compatibility impact"
+      description: "说明对现有世界、玩家数据、配置或构建变体的影响。/ Describe impacts on worlds, player data, configuration, or build variants."
+      placeholder: "无已知影响 / No known impact"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: implementation
+    attributes:
+      label: "是否愿意实现 / Willing to implement"
+      options:
+        - "愿意提交 PR / I can submit a PR"
+        - "可以协助测试 / I can help test"
+        - "目前只能提供建议 / Proposal only"
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "补充信息 / Additional context"
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: "贡献说明 / Contribution note"
+      options:
+        - label: "我理解较大的功能应在维护者确认方向后再开始实现。/ I understand substantial work should start after maintainers confirm the direction."
+          required: true
