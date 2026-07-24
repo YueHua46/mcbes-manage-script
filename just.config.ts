@@ -288,6 +288,18 @@ function useRealmsManifest() {
   useManifestVariant(manifestRealmsPath, "manifest.realms.json");
 }
 
+// just-scripts 在串行任务失败时不会继续执行收尾步骤，因此发布构建退出时再同步恢复一次。
+if (process.argv.includes("mcaddon:release")) {
+  process.once("exit", () => {
+    try {
+      useStandardManifest();
+    } catch (error) {
+      console.error("发布构建结束后恢复 manifest.standard.json 失败", error);
+      process.exitCode = 1;
+    }
+  });
+}
+
 function setDefaultDeployEnv() {
   if (!process.env.MINECRAFT_PRODUCT) {
     process.env.MINECRAFT_PRODUCT = "BedrockGDK";

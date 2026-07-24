@@ -11,7 +11,7 @@ const justConfig = fs.readFileSync(path.join(ROOT, "just.config.ts"), "utf8");
 const {
   artifactFilename,
   expectedModules,
-  validateRealmsScript,
+  validateVariantScript,
   validatePackageManifests,
   verifyPackage,
 } = require("../tools/release-metadata.cjs");
@@ -34,6 +34,7 @@ test("release packaging exposes one command for exactly three CreeperMenu varian
   }
   assert.doesNotMatch(releaseTask, /backrooms/i);
   assert.match(releaseTask, /"useManifestStandard"/);
+  assert.match(justConfig, /process\.once\("exit"/);
 });
 
 test("package verifier rejects a missing archive before release", async () => {
@@ -69,10 +70,23 @@ test("package verifier reads BP and RP manifests from nested mcpack archives", a
     {
       name: "manifest.json",
       content: JSON.stringify({
-        header: { name: "苦力怕菜单_BP", version },
+        header: {
+          name: "苦力怕菜单_BP",
+          uuid: "c32e1f60-0ee0-4413-a760-d261d91e5fc6",
+          version,
+        },
         modules: [
-          { type: "data", version },
-          { type: "script", version },
+          {
+            type: "data",
+            uuid: "0c4dc15d-f113-4d6f-bb41-6a0b44d785e0",
+            version,
+          },
+          {
+            type: "script",
+            uuid: "c022f157-4583-4c5e-ad08-a5828f8d0783",
+            entry: "scripts/main.js",
+            version,
+          },
         ],
         dependencies: expectedModules("standard").map((module_name) => ({
           module_name,
@@ -80,14 +94,27 @@ test("package verifier reads BP and RP manifests from nested mcpack archives", a
         })),
       }),
     },
-    { name: "scripts/main.js", content: "export {};" },
+    {
+      name: "scripts/main.js",
+      content: 'import("@minecraft/server-gametest"); export {};',
+    },
   ]);
   await createZip(rpPath, [
     {
       name: "manifest.json",
       content: JSON.stringify({
-        header: { name: "苦力怕菜单_RP", version },
-        modules: [{ type: "resources", version }],
+        header: {
+          name: "苦力怕菜单_RP",
+          uuid: "1150bfb5-215b-45a1-bea0-6e9aaafcb344",
+          version,
+        },
+        modules: [
+          {
+            type: "resources",
+            uuid: "b95615c0-01b0-4928-8a36-25a4dd434e32",
+            version,
+          },
+        ],
       }),
     },
   ]);
@@ -121,31 +148,70 @@ test("each release variant has an exact supported module contract", () => {
   assert.throws(() => expectedModules("debug"), /未知发行变体/);
 });
 
-test("Realms script validation follows the existing GameTest runtime boundary", () => {
+test("variant script validation requires the runtime imports each build promises", () => {
   assert.doesNotThrow(() =>
-    validateRealmsScript(
+    validateVariantScript(
+      "realms",
       'if (false) import("@minecraft/server-net"); const hint = "@minecraft/server-admin";'
     )
   );
   assert.throws(
-    () => validateRealmsScript('import("@minecraft/server-gametest")'),
+    () => validateVariantScript("realms", 'import("@minecraft/server-gametest")'),
     /GameTest/
+  );
+  assert.throws(() => validateVariantScript("standard", "export {};"), /GameTest/);
+  assert.throws(
+    () => validateVariantScript("bds", 'import("@minecraft/server-gametest")'),
+    /BDS 运行时/
+  );
+  assert.doesNotThrow(() =>
+    validateVariantScript(
+      "bds",
+      [
+        'import("@minecraft/server-gametest")',
+        'import("@minecraft/server-admin")',
+        'import("@minecraft/server-net")',
+      ].join(";")
+    )
   );
 });
 
 test("package manifest validation enforces version and variant dependencies", () => {
   const config = { version: "3.2.13", minecraftVersion: "1.26.30" };
   const makeBehavior = (modules) => ({
-    header: { version: [3, 2, 13] },
+    header: {
+      name: "苦力怕菜单_BP",
+      uuid: "c32e1f60-0ee0-4413-a760-d261d91e5fc6",
+      version: [3, 2, 13],
+    },
     modules: [
-      { type: "data", version: [3, 2, 13] },
-      { type: "script", version: [3, 2, 13] },
+      {
+        type: "data",
+        uuid: "0c4dc15d-f113-4d6f-bb41-6a0b44d785e0",
+        version: [3, 2, 13],
+      },
+      {
+        type: "script",
+        uuid: "c022f157-4583-4c5e-ad08-a5828f8d0783",
+        entry: "scripts/main.js",
+        version: [3, 2, 13],
+      },
     ],
     dependencies: modules.map((module_name) => ({ module_name, version: "beta" })),
   });
   const resource = {
-    header: { version: [3, 2, 13] },
-    modules: [{ type: "resources", version: [3, 2, 13] }],
+    header: {
+      name: "苦力怕菜单_RP",
+      uuid: "1150bfb5-215b-45a1-bea0-6e9aaafcb344",
+      version: [3, 2, 13],
+    },
+    modules: [
+      {
+        type: "resources",
+        uuid: "b95615c0-01b0-4928-8a36-25a4dd434e32",
+        version: [3, 2, 13],
+      },
+    ],
   };
 
   assert.doesNotThrow(() =>
@@ -185,5 +251,21 @@ test("package manifest validation enforces version and variant dependencies", ()
         config
       ),
     /版本不一致/
+  );
+  assert.throws(
+    () =>
+      validatePackageManifests(
+        "standard",
+        {
+          ...makeBehavior(expectedModules("standard")),
+          header: {
+            ...makeBehavior(expectedModules("standard")).header,
+            uuid: "00000000-0000-0000-0000-000000000000",
+          },
+        },
+        resource,
+        config
+      ),
+    /身份不匹配/
   );
 });

@@ -6,6 +6,7 @@ const test = require("node:test");
 const ROOT = path.resolve(__dirname, "..");
 const {
   artifactFilename,
+  assertMinecraftDependencies,
   assertTag,
   assertVersions,
   loadReleaseConfig,
@@ -55,6 +56,31 @@ test("all CreeperMenu package and manifest versions share one release version", 
   const config = loadReleaseConfig();
   assert.deepEqual(config, { version: "3.2.13", minecraftVersion: "1.26.30" });
   assert.doesNotThrow(() => assertVersions(config));
+});
+
+test("Minecraft build baseline must match the pinned package dependencies", () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+  const config = { version: "3.2.13", minecraftVersion: "1.26.30" };
+  assert.doesNotThrow(() => assertMinecraftDependencies(packageJson.dependencies, config));
+  assert.throws(
+    () =>
+      assertMinecraftDependencies(
+        { ...packageJson.dependencies, "@minecraft/vanilla-data": "1.26.40" },
+        config
+      ),
+    /Minecraft 构建基线/
+  );
+  assert.throws(
+    () =>
+      assertMinecraftDependencies(
+        {
+          ...packageJson.dependencies,
+          "@minecraft/server": "2.9.0-beta.1.26.40-stable",
+        },
+        config
+      ),
+    /Minecraft 构建基线/
+  );
 });
 
 test("Backrooms remains independently versioned", () => {

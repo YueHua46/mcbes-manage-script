@@ -27,6 +27,38 @@ const VARIANT_MODULES = Object.freeze({
     "@minecraft/server-gametest",
   ]),
 });
+const MINECRAFT_BUILD_DEPENDENCIES = Object.freeze([
+  "@minecraft/debug-utilities",
+  "@minecraft/server",
+  "@minecraft/server-admin",
+  "@minecraft/server-gametest",
+  "@minecraft/server-net",
+  "@minecraft/server-ui",
+]);
+const CREEPER_MENU_IDENTITY = Object.freeze({
+  behavior: Object.freeze({
+    name: "苦力怕菜单_BP",
+    uuid: "c32e1f60-0ee0-4413-a760-d261d91e5fc6",
+    modules: Object.freeze({
+      data: Object.freeze({
+        uuid: "0c4dc15d-f113-4d6f-bb41-6a0b44d785e0",
+      }),
+      script: Object.freeze({
+        uuid: "c022f157-4583-4c5e-ad08-a5828f8d0783",
+        entry: "scripts/main.js",
+      }),
+    }),
+  }),
+  resource: Object.freeze({
+    name: "苦力怕菜单_RP",
+    uuid: "1150bfb5-215b-45a1-bea0-6e9aaafcb344",
+    modules: Object.freeze({
+      resources: Object.freeze({
+        uuid: "b95615c0-01b0-4928-8a36-25a4dd434e32",
+      }),
+    }),
+  }),
+});
 const CREEPER_MENU_MANIFESTS = Object.freeze([
   "behavior_packs/CreeperMenu/manifest.json",
   "behavior_packs/CreeperMenu/manifest.standard.json",
@@ -138,12 +170,65 @@ function assertTag(tag, config = loadReleaseConfig()) {
   }
 }
 
+function assertMinecraftDependencies(dependencies, config = loadReleaseConfig()) {
+  const problems = [];
+  if (dependencies?.["@minecraft/vanilla-data"] !== config.minecraftVersion) {
+    problems.push(
+      `@minecraft/vanilla-data=${dependencies?.["@minecraft/vanilla-data"] || "缺失"}`
+    );
+  }
+  const expectedSuffix = `.${config.minecraftVersion}-stable`;
+  for (const dependency of MINECRAFT_BUILD_DEPENDENCIES) {
+    const actual = dependencies?.[dependency];
+    if (typeof actual !== "string" || !actual.endsWith(expectedSuffix)) {
+      problems.push(`${dependency}=${actual || "缺失"}`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Minecraft 构建基线 ${config.minecraftVersion} 与依赖不一致：\n- ${problems.join("\n- ")}`
+    );
+  }
+}
+
 function validateManifestVersion(manifest, expected, label) {
   for (const [location, actual] of manifestVersionStrings(manifest)) {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw new Error(
         `${label} 版本不一致：${location}=${JSON.stringify(actual)}，预期=${JSON.stringify(expected)}`
       );
+    }
+  }
+}
+
+function assertManifestIdentity(manifest, expected, label) {
+  if (
+    manifest.header?.name !== expected.name ||
+    manifest.header?.uuid !== expected.uuid
+  ) {
+    throw new Error(
+      `${label}身份不匹配：name=${manifest.header?.name || "缺失"}, uuid=${
+        manifest.header?.uuid || "缺失"
+      }`
+    );
+  }
+
+  const actualModules = manifest.modules || [];
+  const expectedTypes = Object.keys(expected.modules).sort();
+  const actualTypes = actualModules.map((module) => module.type).sort();
+  if (JSON.stringify(actualTypes) !== JSON.stringify(expectedTypes)) {
+    throw new Error(
+      `${label}身份不匹配：模块类型=${actualTypes.join(",")}，预期=${expectedTypes.join(",")}`
+    );
+  }
+  for (const [type, expectedModule] of Object.entries(expected.modules)) {
+    const matches = actualModules.filter((module) => module.type === type);
+    if (
+      matches.length !== 1 ||
+      matches[0].uuid !== expectedModule.uuid ||
+      ("entry" in expectedModule && matches[0].entry !== expectedModule.entry)
+    ) {
+      throw new Error(`${label}身份不匹配：${type} 模块 UUID 或入口错误`);
     }
   }
 }
@@ -157,6 +242,16 @@ function validatePackageManifests(
   const expectedVersion = config.version.split(".").map(Number);
   validateManifestVersion(behaviorManifest, expectedVersion, "行为包");
   validateManifestVersion(resourceManifest, expectedVersion, "资源包");
+  assertManifestIdentity(
+    behaviorManifest,
+    CREEPER_MENU_IDENTITY.behavior,
+    "CreeperMenu 行为包"
+  );
+  assertManifestIdentity(
+    resourceManifest,
+    CREEPER_MENU_IDENTITY.resource,
+    "CreeperMenu 资源包"
+  );
 
   const actualModules = (behaviorManifest.dependencies || [])
     .map((dependency) => dependency.module_name)
@@ -170,9 +265,22 @@ function validatePackageManifests(
   }
 }
 
-function validateRealmsScript(script) {
-  if (script.includes("@minecraft/server-gametest")) {
+function validateVariantScript(variant, script) {
+  expectedModules(variant);
+  const hasGameTest = script.includes("@minecraft/server-gametest");
+  if (variant === "realms" && hasGameTest) {
     throw new Error("Realms JavaScript 仍引用 GameTest 模块");
+  }
+  if (variant === "standard" && !hasGameTest) {
+    throw new Error("普通兼容版 JavaScript 缺少 GameTest 运行时引用");
+  }
+  if (
+    variant === "bds" &&
+    (!hasGameTest ||
+      !script.includes("@minecraft/server-admin") ||
+      !script.includes("@minecraft/server-net"))
+  ) {
+    throw new Error("BDS 运行时必须包含 GameTest、server-admin 和 server-net");
   }
 }
 
@@ -280,13 +388,22 @@ async function verifyPackage(variant, archivePath, config = loadReleaseConfig())
   }
   validatePackageManifests(variant, behavior[0].manifest, resource[0].manifest, config);
 
-  if (variant === "realms") {
-    const scripts = entries.filter((entry) => /(^|\/)scripts\/main\.js$/.test(entry.name));
-    if (scripts.length !== 1) {
-      throw new Error(`Realms 产物必须恰好包含一个 scripts/main.js，实际=${scripts.length}`);
-    }
-    validateRealmsScript(scripts[0].content.toString("utf8"));
+  const scriptModule = behavior[0].manifest.modules.find(
+    (module) => module.type === "script"
+  );
+  const scriptEntry = scriptModule.entry;
+  const scripts = entries.filter(
+    (entry) =>
+      entry.name === scriptEntry ||
+      entry.name.endsWith(`/${scriptEntry}`) ||
+      entry.name.endsWith(`!/${scriptEntry}`)
+  );
+  if (scripts.length !== 1) {
+    throw new Error(
+      `${variant} 产物必须恰好包含一个 ${scriptEntry}，实际=${scripts.length}`
+    );
   }
+  validateVariantScript(variant, scripts[0].content.toString("utf8"));
 }
 
 function manifestVersionStrings(manifest) {
@@ -301,6 +418,8 @@ function assertVersions(config = loadReleaseConfig()) {
   const problems = [];
   const packageJson = readJson(path.join(ROOT, "package.json"));
   const packageLock = readJson(path.join(ROOT, "package-lock.json"));
+  assertMinecraftDependencies(packageJson.dependencies, config);
+  assertMinecraftDependencies(packageLock.packages?.[""]?.dependencies, config);
 
   if (packageJson.version !== config.version) {
     problems.push(`package.json=${packageJson.version}`);
@@ -425,6 +544,7 @@ module.exports = {
   CREEPER_MENU_MANIFESTS,
   VARIANT_LABELS,
   artifactFilename,
+  assertMinecraftDependencies,
   assertTag,
   assertVersions,
   expectedModules,
@@ -435,7 +555,7 @@ module.exports = {
   runCli,
   syncVersion,
   validatePackageManifests,
-  validateRealmsScript,
+  validateVariantScript,
   verifyPackage,
   verifyReleaseFiles,
 };
