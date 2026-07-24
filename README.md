@@ -1,4 +1,4 @@
-苦力怕菜单
+![苦力怕菜单](docs/images/creeper-menu-banner.png)
 
 # 苦力怕菜单
 
@@ -237,7 +237,13 @@ npm run build:vanilla-icon-map -- 1.26.30
 
 ## 贡献
 
-欢迎提交问题和非商业用途的改进。提交 PR 前请运行：
+欢迎提交问题和非商业用途的改进。开始前请阅读：
+
+- [贡献指南](CONTRIBUTING.md)：开发环境、测试要求与 PR 标题规范
+- [GitHub Discussions](https://github.com/YueHua46/mcbes-manage-script/discussions)：安装、配置、使用求助与早期想法
+- [安全政策](SECURITY.md)：私密报告安全漏洞
+
+提交 PR 前请运行：
 
 ```bash
 npm run check
