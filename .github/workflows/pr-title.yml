@@ -1,0 +1,34 @@
+name: PR Title
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validate title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate semantic pull request title
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            test
+            build
+            ci
+            chore
+            perf
+            style
+            revert
+          requireScope: false
+          subjectPattern: '^(?!.*[。.]\s*$).+$'
+          subjectPatternError: '标题描述不能以句号结尾 / The PR title subject must not end with a period: "{subject}"'
