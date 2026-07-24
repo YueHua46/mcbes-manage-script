@@ -87,6 +87,42 @@ function releaseTitle(config = loadReleaseConfig()) {
   return `苦力怕菜单 v${config.version}（适配 MCBE ${minecraftFamily(config.minecraftVersion)}）`;
 }
 
+function releaseNotes(config = loadReleaseConfig()) {
+  const family = minecraftFamily(config.minecraftVersion);
+  return [
+    `本版本使用 Minecraft Bedrock ${config.minecraftVersion} API 构建，适配 ${family} 版本族。`,
+    "",
+    "### 下载选择",
+    "",
+    "- **普通兼容版**：适用于本地世界、普通基岩版环境及不使用专属能力的 BDS。",
+    "- **Realms 兼容版**：适用于 Minecraft Realms，仅支持旧版实体假人。",
+    "- **BDS 增强版**：仅适用于 BDS 专用服务器，包含服务器网络与管理能力。",
+    "",
+    "> 更新附加包或切换构建版本前，请先完整备份世界。",
+  ].join("\n");
+}
+
+function verifyReleaseFiles(directory, config = loadReleaseConfig()) {
+  if (!directory || !fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) {
+    throw new Error(`Release 产物目录不存在：${directory || "空路径"}`);
+  }
+  const actual = fs
+    .readdirSync(directory)
+    .filter((name) => name.endsWith(".mcaddon"))
+    .sort();
+  const expected = ["standard", "realms", "bds"]
+    .map((variant) => artifactFilename(variant, config))
+    .sort();
+  if (actual.length !== 3) {
+    throw new Error(`Release 目录必须恰好包含三个 .mcaddon，实际=${actual.length}`);
+  }
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(
+      `Release 文件名不匹配：\n实际=${actual.join("\n")}\n预期=${expected.join("\n")}`
+    );
+  }
+}
+
 function expectedModules(variant) {
   const modules = VARIANT_MODULES[variant];
   if (!modules) {
@@ -361,6 +397,15 @@ async function runCli(args = process.argv.slice(2)) {
     console.log(printValue(rest[0], rest[1]));
     return;
   }
+  if (command === "notes") {
+    console.log(releaseNotes());
+    return;
+  }
+  if (command === "verify-release-files") {
+    verifyReleaseFiles(rest[0]);
+    console.log("Release 文件集合验证通过：三个 CreeperMenu 变体齐全");
+    return;
+  }
   if (command === "verify-package") {
     await verifyPackage(rest[0], rest[1]);
     console.log(`${rest[0]} 发行产物验证通过：${path.basename(rest[1])}`);
@@ -385,10 +430,12 @@ module.exports = {
   expectedModules,
   loadReleaseConfig,
   minecraftFamily,
+  releaseNotes,
   releaseTitle,
   runCli,
   syncVersion,
   validatePackageManifests,
   validateRealmsScript,
   verifyPackage,
+  verifyReleaseFiles,
 };

@@ -232,6 +232,7 @@ async function copyArtifacts(): Promise<void> {
   }
 }
 
+// 普通兼容版（适用本地、BDS）
 const mcaddonTaskOptionsStandard: ZipTaskParameters = {
   ...copyTaskOptions,
   outputFile: `./dist/packages/${artifactFilename("standard", releaseConfig)}`,

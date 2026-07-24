@@ -10,7 +10,9 @@ const {
   assertVersions,
   loadReleaseConfig,
   minecraftFamily,
+  releaseNotes,
   releaseTitle,
+  verifyReleaseFiles,
 } = require("../tools/release-metadata.cjs");
 
 test("release metadata derives the public Minecraft family and Chinese names", () => {
@@ -65,5 +67,37 @@ test("Backrooms remains independently versioned", () => {
     for (const module of manifest.modules) {
       assert.deepEqual(module.version, [1, 0, 0]);
     }
+  }
+});
+
+test("release notes explain all variants and the exact compatibility baseline", () => {
+  const notes = releaseNotes({
+    version: "3.2.13",
+    minecraftVersion: "1.26.30",
+  });
+  for (const text of [
+    "普通兼容版",
+    "Realms 兼容版",
+    "BDS 增强版",
+    "1.26.30",
+    "1.26.3x",
+    "备份世界",
+  ]) {
+    assert.match(notes, new RegExp(text));
+  }
+});
+
+test("release file validation requires exactly the three configured attachments", () => {
+  const tempDir = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "release-files-"));
+  const config = { version: "3.2.13", minecraftVersion: "1.26.30" };
+  try {
+    for (const variant of ["standard", "realms", "bds"]) {
+      fs.writeFileSync(path.join(tempDir, artifactFilename(variant, config)), variant);
+    }
+    assert.doesNotThrow(() => verifyReleaseFiles(tempDir, config));
+    fs.writeFileSync(path.join(tempDir, "Backrooms.mcaddon"), "unexpected");
+    assert.throws(() => verifyReleaseFiles(tempDir, config), /必须恰好包含三个/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
