@@ -1,4 +1,4 @@
-![苦力怕菜单](docs/images/creeper-menu-banner.png)
+苦力怕菜单
 
 # 苦力怕菜单
 
@@ -18,38 +18,135 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 - 管理工具：玩家与背包管理、行为日志、防刷物品、公告、浮空字和调度面板。
 - 自定义维度：苦力怕菜单提供 5 个通用虚空维度。
 - 独立 Backrooms：按玩家隔离、按需延伸的 Level 0，以及独立实体、声景和资源包。
-- 资源体验：保留项目原有的 DOVA 音乐、欢迎角色、假人皮肤与相关运行时资源。
 
-完整功能和管理员操作说明见 [项目知识库](docs/creeper-menu-knowledge-base.md)。Backrooms 的生成、隔离和声景设计见 [Backrooms 无限生成器设计](docs/backrooms-generator.md)。
+完整功能和管理员操作说明见 [项目知识库](docs/creeper-menu-knowledge-base.md)，版本变化见 [更新日志](CHANGELOG.md)。Backrooms 的生成、隔离和声景设计见 [Backrooms 无限生成器设计](docs/backrooms-generator.md)。
 
 ## 构建与附加包
 
-| 产物 | 适用环境 | 特点 | 打包命令 |
-| --- | --- | --- | --- |
-| 苦力怕菜单普通兼容版 | 本地世界、普通基岩版环境、BDS | 保留旧版实体假人和新版模拟玩家，不依赖 BDS 专属模块 | `npm run mcaddon` |
-| 苦力怕菜单 Realms 兼容版 | Minecraft Realms | 不声明或加载 `@minecraft/server-gametest`，仅支持旧版实体假人 | `npm run mcaddon:realms` |
-| 苦力怕菜单 BDS 增强版 | 仅 BDS 专用服务器 | 增加进服前黑名单拦截、XUID 解析和服务器网络能力 | `npm run mcaddon:bds` |
-| Backrooms Level 0 | 本地世界、Realms、BDS | 独立行为包与资源包，不依赖苦力怕菜单 | `npm run mcaddon:backrooms` |
+
+| 产物                | 适用环境             | 特点                                            | 打包命令                        |
+| ----------------- | ---------------- | --------------------------------------------- | --------------------------- |
+| 苦力怕菜单普通兼容版        | 本地世界、普通基岩版环境、BDS | 保留旧版实体假人和新版模拟玩家，不依赖 BDS 专属模块                  | `npm run mcaddon`           |
+| 苦力怕菜单 Realms 兼容版  | Minecraft Realms | 不声明或加载 `@minecraft/server-gametest`，仅支持旧版实体假人 | `npm run mcaddon:realms`    |
+| 苦力怕菜单 BDS 增强版     | 仅 BDS 专用服务器      | 增加进服前黑名单拦截、XUID 解析和服务器网络能力                    | `npm run mcaddon:bds`       |
+| Backrooms Level 0 | 本地世界、Realms、BDS  | 独立行为包与资源包，不依赖苦力怕菜单                            | `npm run mcaddon:backrooms` |
+
 
 同时生成普通版、Realms 版、BDS 增强版和独立 Backrooms `.mcaddon`：`npm run mcaddon:all`。
 
 当前苦力怕菜单行为包版本为 **3.1.13**，资源包版本为 **3.2.13**；Backrooms 行为包和资源包版本均为 **1.0.0**。manifest 最低引擎版本为 **1.26.0**。
 
+## 项目架构
+
+仓库同时维护苦力怕菜单和独立 Backrooms 附加包。运行时代码、行为包、资源包与构建工具彼此分离，同一套苦力怕菜单业务代码通过不同入口和 manifest 生成普通版、Realms 版与 BDS 增强版。
+
+### 核心目录
+
+```text
+mcbes-manage-script/
+├── behavior_packs/
+│   ├── CreeperMenu/          # 苦力怕菜单行为包与各版本 manifest
+│   └── Backrooms/            # 独立 Backrooms 行为包
+├── resource_packs/
+│   ├── CreeperMenu/          # 菜单 UI、道具、音乐、角色和其他资源
+│   └── Backrooms/            # Backrooms 材质、声音、实体与渲染资源
+├── scripts/
+│   ├── main.standard.ts      # 普通兼容版入口
+│   ├── main.realms.ts        # Realms 兼容版入口
+│   ├── main.bds.ts           # BDS 增强版入口
+│   ├── events/               # 事件注册与处理器
+│   ├── features/             # 领地、经济、公会、假人等业务模块
+│   ├── ui/                   # 表单、Chest UI 和公共界面组件
+│   ├── shared/               # 数据库、Hook、维度隔离和通用工具
+│   └── addons/backrooms/     # Backrooms 生成、运行时与 Lifeform 逻辑
+├── tools/                    # 构建验证、品牌图、纹理、音频和图标工具
+├── tests/                    # 逻辑、构建约束和受保护资源测试
+├── docs/                     # 知识库、设计说明与实现记录
+├── design/                   # 品牌、图标和欢迎角色设计资料
+├── assets/                   # 可复现素材处理所需的输入资源
+├── just.config.ts            # 编译、打包与本地部署任务
+└── .github/workflows/ci.yml  # GitHub Actions 持续集成
+```
+
+`dist/`、`out/`、`node_modules/` 和本地 `.env` 均为生成内容或本机配置，不进入版本控制。
+
+### 代码分层
+
+
+| 层级    | 位置                                                        | 职责                                     |
+| ----- | --------------------------------------------------------- | -------------------------------------- |
+| 构建入口  | `scripts/main.standard.ts`、`main.realms.ts`、`main.bds.ts` | 选择运行环境对应的事件入口和平台能力                     |
+| 事件层   | `scripts/events/`                                         | 集中注册世界、玩家、物品及服务器事件                     |
+| 功能层   | `scripts/features/`                                       | 实现领地、经济、公会、路点、假人、行为日志等业务               |
+| 界面层   | `scripts/ui/`                                             | 组织表单、Chest UI、菜单导航和界面组件                |
+| 基础层   | `scripts/shared/`                                         | 提供数据库、公共 Hook、维度隔离和通用工具                |
+| 平台能力层 | `scripts/features/platform/sapi-capabilities/`            | 统一封装 BDS、调试版与 Realms 的 API 差异          |
+| 独立附加包 | `scripts/addons/backrooms/`                               | 实现 Backrooms 布局生成、区域队列、异常、声景和 Lifeform |
+
+
+主要调用关系如下：
+
+```text
+构建入口
+  ├─ 事件注册 ──> 功能服务 ──> 数据模型与持久化
+  ├─ UI 表单 ───> 功能服务
+  └─ 平台能力边界 ──> BDS / Realms / 通用 SAPI
+
+Backrooms 入口
+  └─ 布局与连通性 ──> 生成队列 ──> 区域构建 ──> 异常、声景与 Lifeform
+```
+
+业务与 UI 模块不应直接散落 BDS 或 Realms 的动态模块判断。`sapi-capabilities` 负责统一暴露构建标志和可选平台能力，避免普通版或 Realms 版意外加载 BDS 专属模块。
+
+### 构建变体
+
+`just.config.ts` 使用不同入口、编译标志和 manifest 生成各版本：
+
+```text
+普通版  ──> main.standard.ts + manifest.standard.json
+Realms  ──> main.realms.ts   + manifest.realms.json
+BDS     ──> main.bds.ts      + manifest.bds.json
+Backrooms ─> backrooms.main.ts + 独立 Backrooms 行为包和资源包
+```
+
+- 普通版保留 GameTest 模块，用于新版模拟玩家，同时不启用 BDS 专属网络和管理 API。
+- Realms 版在打包阶段替换模拟玩家运行时，并从 manifest 和最终 JavaScript 中移除 `@minecraft/server-gametest`。
+- BDS 增强版启用 `@minecraft/server-net`、`@minecraft/server-admin` 等专用能力。
+- Backrooms 使用独立入口、manifest、行为包和资源包，不依赖苦力怕菜单运行。
+- `npm run mcaddon:all` 会依次生成四个 `.mcaddon`，最后把源码目录恢复到普通版 manifest。
+
+
+
+### 持续集成（CI）
+
+每次 push 和 Pull Request 都会触发 [GitHub Actions](.github/workflows/ci.yml)，在 Ubuntu 环境中执行：
+
+1. 安装 Node.js 22.13.1、Python 3.12、npm 依赖和固定版本的 Python 素材工具依赖。
+2. 执行 `npm run check`，完成 ESLint、Prettier、TypeScript 类型检查和全部测试。
+3. 构建普通兼容版、BDS 增强版与 Realms 兼容版。
+4. 检查 Realms manifest 和最终 JavaScript 均不包含 `@minecraft/server-gametest`。
+5. 单独构建 Backrooms，确认它可以脱离苦力怕菜单完成编译。
+
+测试除业务逻辑外，还会检查跨平台路径大小写、manifest 约束、资源尺寸、素材可复现性，以及经维护者确认的 DOVA 音乐、欢迎角色和假人皮肤是否被意外修改。
+
+当前 CI 负责质量检查和构建验证，不会自动创建 GitHub Release、上传 `.mcaddon` 或进行真实 Minecraft/BDS 游戏内测试；正式发行包仍需通过 `npm run mcaddon:all` 生成。
+
 ## 安装
+
+
 
 ### 苦力怕菜单
 
 1. 从 Release 下载与目标环境对应的普通兼容版、Realms 兼容版或 BDS 增强版。
 2. 本地世界使用 Minecraft 打开 `.mcaddon` 完成导入；BDS 可解压后部署行为包和资源包。
 3. 在世界中同时启用 `苦力怕菜单_BP` 与 `苦力怕菜单_RP`。
-4. 首次安装或升级后完整重启世界或服务器，不要只执行 `/reload`。
-5. 给管理员添加标签：
+4. 给管理员添加标签：
 
 ```mcfunction
 /tag @s add admin
 ```
 
-6. 获取菜单道具：
+1. 获取菜单道具：
 
 ```mcfunction
 /give @s yuehua:sm
@@ -65,7 +162,9 @@ BDS 增强版必须通过 `npm run build:bds-admin` 或 `npm run mcaddon:bds` �
 > [!WARNING]
 > Realms 兼容版仅支持旧版实体假人。世界中已有的新版模拟玩家记录会在首次加载时自动降级，并保留名称、创建者、位置、方向、皮肤和通用权限；新版专属的背包快照、死亡状态、自动行为和动作脚本会被清除，之后切回普通版或 BDS 版也不会自动恢复。切换版本前请备份世界。
 
-### Backrooms Level 0
+
+
+### 后室
 
 Backrooms 已从苦力怕菜单拆分为独立附加包。启用以下两个配套目录并完整重启：
 
@@ -149,7 +248,7 @@ npm run build:bds-admin
 npm run build:backrooms
 ```
 
-请不要在没有明确授权的情况下替换、删除、重命名 DOVA 音乐、欢迎角色、假人皮肤及其来源文件。经过项目维护者确认的音频编码优化应同步更新对应保护测试。
+
 
 ## 许可与第三方内容
 
