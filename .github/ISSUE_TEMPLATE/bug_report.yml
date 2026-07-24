@@ -1,0 +1,112 @@
+name: "错误报告 / Bug report"
+description: "报告可复现的问题 / Report a reproducible problem"
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你帮助改进项目。安装、配置和使用问题请前往 Discussions。
+        Thank you for helping improve the project. Use Discussions for setup, configuration, and support.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: "提交前检查 / Preflight checks"
+      options:
+        - label: "我已经搜索过现有 Issue，没有找到相同问题。/ I searched existing Issues and found no duplicate."
+          required: true
+        - label: "我已经确认该问题可在最新版本或最新 main 上复现。/ I confirmed this reproduces on the latest release or current main."
+          required: true
+
+  - type: input
+    id: project-version
+    attributes:
+      label: "项目版本或 commit / Project version or commit"
+      description: "例如 3.1.13 或完整 commit SHA / For example, 3.1.13 or a full commit SHA"
+      placeholder: "3.1.13"
+    validations:
+      required: true
+
+  - type: input
+    id: minecraft-version
+    attributes:
+      label: "Minecraft 版本 / Minecraft version"
+      placeholder: "1.26.30"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: "部署环境 / Deployment environment"
+      options:
+        - "本地世界 / Local world"
+        - "Minecraft Realms"
+        - "普通 BDS / Standard BDS"
+        - "BDS 增强版 / BDS enhanced"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build-variant
+    attributes:
+      label: "构建变体 / Build variant"
+      options:
+        - "普通兼容版 / Standard"
+        - "Realms 兼容版 / Realms"
+        - "BDS 增强版 / BDS enhanced"
+        - "独立 Backrooms / Standalone Backrooms"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "问题描述 / Problem description"
+      description: "简要说明发生了什么。/ Briefly explain what happened."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "复现步骤 / Steps to reproduce"
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "预期结果 / Expected behavior"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "实际结果 / Actual behavior"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "日志 / Logs"
+      description: "请删除令牌、服务器地址和玩家隐私数据。/ Remove tokens, server addresses, and player data."
+      render: shell
+
+  - type: textarea
+    id: media
+    attributes:
+      label: "截图或视频 / Screenshots or video"
+      description: "可将文件拖到这里。/ Drag files here if helpful."
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "补充信息 / Additional context"
