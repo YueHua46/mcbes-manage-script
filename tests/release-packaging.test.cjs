@@ -167,6 +167,10 @@ test("variant script validation requires the runtime imports each build promises
     () => validateVariantScript("realms", 'import x from "@minecraft/server-admin"'),
     /BDS 专属/
   );
+  assert.throws(
+    () => validateVariantScript("realms", 'import "@minecraft/server-net";'),
+    /BDS 专属/
+  );
   assert.throws(() => validateVariantScript("standard", "export {};"), /GameTest/);
   assert.throws(
     () =>
@@ -176,6 +180,14 @@ test("variant script validation requires the runtime imports each build promises
           'import("@minecraft/server-gametest")',
           'import("@minecraft/server-admin")',
         ].join(";")
+      ),
+    /BDS 专属/
+  );
+  assert.throws(
+    () =>
+      validateVariantScript(
+        "standard",
+        'import "@minecraft/server-admin"; import("@minecraft/server-gametest");'
       ),
     /BDS 专属/
   );

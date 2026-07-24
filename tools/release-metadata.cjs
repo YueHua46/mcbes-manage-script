@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const acorn = require("acorn");
 const yauzl = require("yauzl");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -265,18 +266,59 @@ function validatePackageManifests(
   }
 }
 
-function hasRuntimeImport(script, moduleName) {
-  const escaped = moduleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(
-    `(?:\\bfrom\\s*|\\bimport\\s*\\(\\s*|\\brequire\\s*\\(\\s*)["']${escaped}["']`
-  ).test(script);
+function runtimeImports(script) {
+  let ast;
+  try {
+    ast = acorn.parse(script, {
+      allowHashBang: true,
+      ecmaVersion: "latest",
+      sourceType: "module",
+    });
+  } catch (error) {
+    throw new Error(`无法解析发行产物 JavaScript：${error.message}`);
+  }
+
+  const imports = new Set();
+  const stack = [ast];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
+    if (
+      node.type === "ImportDeclaration" &&
+      typeof node.source?.value === "string"
+    ) {
+      imports.add(node.source.value);
+    } else if (
+      node.type === "ImportExpression" &&
+      typeof node.source?.value === "string"
+    ) {
+      imports.add(node.source.value);
+    } else if (
+      node.type === "CallExpression" &&
+      node.callee?.type === "Identifier" &&
+      node.callee.name === "require" &&
+      typeof node.arguments?.[0]?.value === "string"
+    ) {
+      imports.add(node.arguments[0].value);
+    }
+
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) {
+        stack.push(...value);
+      } else if (value && typeof value === "object" && typeof value.type === "string") {
+        stack.push(value);
+      }
+    }
+  }
+  return imports;
 }
 
 function validateVariantScript(variant, script) {
   expectedModules(variant);
-  const hasGameTest = hasRuntimeImport(script, "@minecraft/server-gametest");
+  const imports = runtimeImports(script);
+  const hasGameTest = imports.has("@minecraft/server-gametest");
   const bdsOnlyImports = ["@minecraft/server-admin", "@minecraft/server-net"].filter(
-    (moduleName) => hasRuntimeImport(script, moduleName)
+    (moduleName) => imports.has(moduleName)
   );
   if (variant === "realms" && hasGameTest) {
     throw new Error("Realms JavaScript 仍引用 GameTest 模块");
@@ -292,8 +334,8 @@ function validateVariantScript(variant, script) {
   if (
     variant === "bds" &&
     (!hasGameTest ||
-      !hasRuntimeImport(script, "@minecraft/server-admin") ||
-      !hasRuntimeImport(script, "@minecraft/server-net"))
+      !imports.has("@minecraft/server-admin") ||
+      !imports.has("@minecraft/server-net"))
   ) {
     throw new Error("BDS 运行时必须包含 GameTest、server-admin 和 server-net");
   }
