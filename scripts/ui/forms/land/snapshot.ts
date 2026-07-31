@@ -5,17 +5,14 @@ import landSnapshotService, { LandSnapshotRecord } from "../../../features/land/
 import { color } from "../../../shared/utils/color";
 import { formatDateTime } from "../../../shared/utils/format";
 import { isAdmin } from "../../../shared/utils/common";
-import guildService from "../../../features/guild/services/guild-service";
 import landManager from "../../../features/land/services/land-manager";
 import { openConfirmDialogForm, openDialogForm } from "../../components/dialog";
 
 function canManageLandSnapshots(player: Player, landName: string): ILand | undefined {
+  if (!isAdmin(player)) return undefined;
   const current = landManager.getLand(landName);
   if (typeof current === "string") return undefined;
-  const allowed = current.guildId
-    ? isAdmin(player) || guildService.canOfficerManageGuildLand(player, current)
-    : isAdmin(player) || current.owner === player.name;
-  return allowed ? current : undefined;
+  return current;
 }
 
 function openSnapshotDialog(
@@ -204,7 +201,7 @@ function openSnapshotDetailForm(player: Player, land: ILand, snapshot: LandSnaps
             openSnapshotDialog(player, "删除失败", color.red("你的权限已变化，无法删除该领地快照。"), back);
             return;
           }
-          const result = landSnapshotService.deleteSnapshot(snapshot.id);
+          const result = landSnapshotService.deleteSnapshot(player, snapshot.id);
           openSnapshotDialog(
             player,
             typeof result === "string" ? "删除失败" : "已删除",

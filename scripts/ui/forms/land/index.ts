@@ -1189,11 +1189,13 @@ export const openLandDetailForm = (
         icon: "textures/icons/party_remove",
         action: () => openLandAuthForm(player, landData, reopenDetail),
       });
-      buttons.push({
-        text: "领地快照",
-        icon: "textures/icons/fotograf",
-        action: () => openLandSnapshotForm(player, landData, reopenDetail),
-      });
+      if (playerIsAdmin(player)) {
+        buttons.push({
+          text: "领地快照",
+          icon: "textures/icons/fotograf",
+          action: () => openLandSnapshotForm(player, landData, reopenDetail),
+        });
+      }
       if (canUseLandTeleport(player)) {
         buttons.push({
           text: landData.teleportPoint ? "修改传送点" : "设置传送点",
@@ -1364,7 +1366,7 @@ export const openLandDetailForm = (
 
   if (isOwner || isAdmin) {
     const actions: Btn[] = [
-      ...(isAdmin
+      ...(playerIsAdmin(player)
         ? [
             {
               text: "领地快照",
