@@ -2,7 +2,11 @@
  * 经济系统服务导出
  */
 
-export { default as economic } from "./economic";
+export {
+  default as economic,
+  MONEY_SCOREBOARD_MAX,
+  MONEY_SCOREBOARD_OBJECTIVE,
+} from "./economic";
 export { default as itemPriceDatabase } from "./item-price-database";
 export { default as itemDatabase } from "./item-database";
 export { default as playerMarket } from "./player-market";

@@ -33,7 +33,7 @@ import {
 import pvpManager from "../../../features/pvp/services/pvp-manager";
 import landSnapshotService from "../../../features/land/services/land-snapshot";
 import itemPriceDb from "../../../features/economic/services/item-price-database";
-import economic from "../../../features/economic/services/economic";
+import economic, { MONEY_SCOREBOARD_MAX } from "../../../features/economic/services/economic";
 import { dynamicMatchIconPath } from "../../../assets/texture-paths";
 import floatingTextService from "../../../features/floating-text/services/floating-text";
 import {
@@ -1725,12 +1725,12 @@ function openSetPlayerMoneyForm(player: Player, operation: PlayerMoneyOperation 
       return;
     }
 
-    if (amount > Number.MAX_SAFE_INTEGER) {
+    if (amount > MONEY_SCOREBOARD_MAX) {
       openDialogForm(
         player,
         {
           title: "设置失败",
-          desc: color.red(`金额过大，最大值为 ${Number.MAX_SAFE_INTEGER}！`),
+          desc: color.red(`金额过大，最大值为 ${MONEY_SCOREBOARD_MAX}！`),
         },
         () => openSetPlayerMoneyForm(player, operation)
       );
@@ -1784,8 +1784,8 @@ function openSetPlayerMoneyForm(player: Player, operation: PlayerMoneyOperation 
           desc: color.red(
             operation === "remove" && oldBalance < amount
               ? `玩家余额不足，当前只有 ${oldBalance} 金币。`
-              : operation === "add" && !Number.isSafeInteger(targetBalance)
-                ? `增加后余额会超过安全上限 ${Number.MAX_SAFE_INTEGER}。`
+              : operation === "add" && targetBalance > MONEY_SCOREBOARD_MAX
+                ? `增加后余额会超过金币上限 ${MONEY_SCOREBOARD_MAX}。`
               : `${operationLabel}金币失败，请检查经济系统状态。`
           ),
         },
@@ -1846,12 +1846,12 @@ function openResetAllPlayerMoneyForm(player: Player): void {
       resetAmount = parsedAmount;
     }
 
-    if (resetAmount > Number.MAX_SAFE_INTEGER) {
+    if (resetAmount > MONEY_SCOREBOARD_MAX) {
       openDialogForm(
         player,
         {
           title: "设置失败",
-          desc: color.red(`金额过大，最大值为 ${Number.MAX_SAFE_INTEGER}！`),
+          desc: color.red(`金额过大，最大值为 ${MONEY_SCOREBOARD_MAX}！`),
         },
         () => openResetAllPlayerMoneyForm(player)
       );
