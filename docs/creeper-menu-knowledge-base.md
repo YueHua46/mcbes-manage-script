@@ -565,6 +565,32 @@ TPA 勿扰模式：
 /yuehua:money top
 ```
 
+原版命令扩展：
+
+经济系统会自动创建名为 `yuehua_money`、显示名为「金币」的计分板，并与在线玩家的钱包双向同步。模组内的奖励、消费、转账和管理员调整会立即更新计分板；原版命令修改计分板后，也会在下一游戏刻写回钱包，并以「原版计分板调整」记录交易日志。
+
+可以直接通过原版选择器按金币范围筛选玩家：
+
+```mcfunction
+execute as @a[scores={yuehua_money=1000..}] run give @s diamond 1
+execute as @a[scores={yuehua_money=..99}] run tellraw @s {"rawtext":[{"text":"金币不足 100"}]}
+```
+
+也可以通过原版计分板指令调整金币：
+
+```mcfunction
+scoreboard players add @p yuehua_money 100
+scoreboard players remove @a[scores={yuehua_money=500..}] yuehua_money 500
+scoreboard players set @p yuehua_money 1000
+```
+
+注意事项：
+
+- 双向同步仅作用于在线真实玩家；离线玩家仍使用离线金币管理指令。
+- 金币范围为 `0～2147483647`，与原版计分板整数范围一致；负分会自动归零。
+- 删除玩家的计分板分数或删除整个 `yuehua_money` 目标不会清空钱包，模组会根据真实钱包重新创建并恢复分数。
+- `yuehua_money` 是受支持的经济接口，不建议将它用于与金币无关的用途。
+
 #### 5.8.2 官方商店
 
 菜单路径：

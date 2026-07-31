@@ -31,7 +31,7 @@ import { tryStartLandFlightSession } from "../../land/services/land-flight";
 import fakePlayerService from "../../fake-player/services/fake-player";
 import setting, { defaultSetting, type IModules } from "../../system/services/setting";
 import serverInfo from "../../system/services/server-info";
-import { economic } from "../../economic";
+import { economic, MONEY_SCOREBOARD_MAX } from "../../economic";
 import * as tpaRequest from "../../player/services/tpa-request";
 import { teleportPlayer as tpaTeleport, notifyReject as tpaNotifyReject } from "../../player/services/tpa-logic";
 import {
@@ -1432,9 +1432,8 @@ function handleMoneySettingCommand(
           return;
         }
 
-        const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-        if (amount > MAX_SAFE_INTEGER) {
-          player.sendMessage(color.red(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`));
+        if (amount > MONEY_SCOREBOARD_MAX) {
+          player.sendMessage(color.red(`金额过大，最大值为 ${MONEY_SCOREBOARD_MAX}`));
           return;
         }
 
@@ -1562,10 +1561,8 @@ function handleMoneySettingCommand(
         };
       }
 
-      const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-      if (amount > MAX_SAFE_INTEGER) {
-        // SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
-        return { status: CustomCommandStatus.Failure, message: `金额过大，最大值为 ${MAX_SAFE_INTEGER}` };
+      if (amount > MONEY_SCOREBOARD_MAX) {
+        return { status: CustomCommandStatus.Failure, message: `金额过大，最大值为 ${MONEY_SCOREBOARD_MAX}` };
       }
 
       const op = operation.toLowerCase();
@@ -1685,9 +1682,8 @@ function handleMoneySettingOfflineCommand(
           return;
         }
 
-        const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-        if (amount > MAX_SAFE_INTEGER) {
-          player.sendMessage(color.red(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`));
+        if (amount > MONEY_SCOREBOARD_MAX) {
+          player.sendMessage(color.red(`金额过大，最大值为 ${MONEY_SCOREBOARD_MAX}`));
           return;
         }
 
@@ -1805,10 +1801,8 @@ function handleMoneySettingOfflineCommand(
         return { status: CustomCommandStatus.Failure, message: "请输入有效的金额 (必须大于等于0)" };
       }
 
-      const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-      if (amount > MAX_SAFE_INTEGER) {
-        // SystemLog.error(`金额过大，最大值为 ${MAX_SAFE_INTEGER}`);
-        return { status: CustomCommandStatus.Failure, message: `金额过大，最大值为 ${MAX_SAFE_INTEGER}` };
+      if (amount > MONEY_SCOREBOARD_MAX) {
+        return { status: CustomCommandStatus.Failure, message: `金额过大，最大值为 ${MONEY_SCOREBOARD_MAX}` };
       }
 
       // 检查玩家是否有钱包数据（是否进过服务器）

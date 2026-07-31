@@ -3,18 +3,23 @@
  * 完整迁移自 Modules/Economic/Economic.ts (564行)
  */
 
-import { Player, system, Vector3, world } from "@minecraft/server";
+import { Player, ScoreboardObjective, system, Vector3, world } from "@minecraft/server";
 import { taskScheduler } from "../../platform/scheduler";
 import { Database } from "../../../shared/database/database";
 import { usePlayerByName } from "../../../shared/hooks/use-player";
 import setting from "../../system/services/setting";
-import { filterRealPlayerRecords } from "../../../shared/utils/online-players";
+import { filterRealPlayerRecords, getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { colorCodes } from "../../../shared/utils/color";
 import { formatDateOnlyBeijing } from "../../../shared/utils/datetime-beijing";
 import identityService from "../../player/services/identity-service";
 import type { IUserWallet, IUserWalletWithDailyLimit, ITransaction } from "../models/economic.model";
 
 export const PLAYER_MARKET_PURCHASE_REASON = "购买玩家交易市场商品";
+export const MONEY_SCOREBOARD_OBJECTIVE = "yuehua_money";
+export const MONEY_SCOREBOARD_MAX = 2_147_483_647;
+
+const MONEY_SCOREBOARD_MIN = 0;
+const MONEY_SCOREBOARD_ADJUST_REASON = "原版计分板调整";
 
 export class Economic {
   private db!: Database<IUserWallet>;
@@ -22,6 +27,7 @@ export class Economic {
   private static instance: Economic;
   private DEFAULT_GOLD = 500;
   private DAILY_GOLD_LIMIT = 100000;
+  private readonly lastSyncedScores = new Map<string, number>();
 
   private constructor() {
     system.run(() => {
@@ -36,6 +42,7 @@ export class Economic {
     });
 
     this.setupDailyReset();
+    this.setupScoreboardBridge();
   }
 
   static getInstance(): Economic {
@@ -49,6 +56,113 @@ export class Economic {
   private saveWallet(key: string, wallet: IUserWallet): void {
     this.db.set(key, wallet);
     this.db.save();
+    this.syncWalletToOnlinePlayer(wallet.name, wallet.gold);
+  }
+
+  private setupScoreboardBridge(): void {
+    taskScheduler.register({
+      id: "economy.moneyScoreboardBridge",
+      label: "金币计分板双向同步",
+      category: "economy",
+      intervalTicks: 1,
+      when: () => setting.getState("economy") === true,
+      run: () => this.reconcileMoneyScoreboard(),
+    });
+  }
+
+  private ensureMoneyObjective(): ScoreboardObjective {
+    return (
+      world.scoreboard.getObjective(MONEY_SCOREBOARD_OBJECTIVE) ??
+      world.scoreboard.addObjective(MONEY_SCOREBOARD_OBJECTIVE, "金币")
+    );
+  }
+
+  private toScoreboardGold(gold: number): number {
+    return Math.max(MONEY_SCOREBOARD_MIN, Math.min(MONEY_SCOREBOARD_MAX, Math.floor(gold)));
+  }
+
+  private syncWalletToOnlinePlayer(playerName: string, gold: number): void {
+    const player = usePlayerByName(playerName);
+    if (!player?.isValid) return;
+
+    try {
+      const score = this.toScoreboardGold(gold);
+      this.ensureMoneyObjective().setScore(player, score);
+      this.lastSyncedScores.set(player.id, score);
+    } catch (error) {
+      console.warn(`[Economy] 同步 ${playerName} 的金币计分板失败`, error);
+    }
+  }
+
+  private importScoreboardGold(player: Player, observedScore: number): void {
+    const nextGold = this.toScoreboardGold(observedScore);
+    const storageKey = this.resolveWalletKey(player.name);
+    const wallet = this.getWallet(player.name);
+    const previousGold = wallet.gold;
+
+    if (previousGold !== nextGold) {
+      wallet.gold = nextGold;
+      this.db.set(storageKey, wallet);
+      this.db.save();
+
+      const amount = Math.abs(nextGold - previousGold);
+      if (amount > 0) {
+        this.logTransaction(
+          nextGold > previousGold ? "system" : player.name,
+          nextGold > previousGold ? player.name : "system",
+          amount,
+          MONEY_SCOREBOARD_ADJUST_REASON
+        );
+      }
+    }
+
+    const objective = this.ensureMoneyObjective();
+    if (observedScore !== nextGold) objective.setScore(player, nextGold);
+    this.lastSyncedScores.set(player.id, nextGold);
+  }
+
+  private reconcileMoneyScoreboard(): void {
+    if (!this.db || !this.logDb) return;
+
+    const objective = this.ensureMoneyObjective();
+    const onlineIds = new Set<string>();
+
+    for (const player of getOnlineRealPlayers()) {
+      onlineIds.add(player.id);
+      const wallet = this.getWallet(player.name);
+      const walletScore = this.toScoreboardGold(wallet.gold);
+      const lastSyncedScore = this.lastSyncedScores.get(player.id);
+      let observedScore: number | undefined;
+
+      try {
+        observedScore = objective.getScore(player);
+      } catch {
+        observedScore = undefined;
+      }
+
+      // 首次加入、计分板目标被重置或分数被删除时，以持久化钱包恢复分数。
+      if (lastSyncedScore === undefined || observedScore === undefined) {
+        objective.setScore(player, walletScore);
+        this.lastSyncedScores.set(player.id, walletScore);
+        continue;
+      }
+
+      // 与模组最后写入值不同，说明原版命令修改了分数；将变化导入钱包。
+      if (observedScore !== lastSyncedScore) {
+        this.importScoreboardGold(player, observedScore);
+        continue;
+      }
+
+      // 计分板未被外部修改，但钱包发生了变化，将最新钱包余额导出。
+      if (walletScore !== lastSyncedScore) {
+        objective.setScore(player, walletScore);
+        this.lastSyncedScores.set(player.id, walletScore);
+      }
+    }
+
+    for (const playerId of this.lastSyncedScores.keys()) {
+      if (!onlineIds.has(playerId)) this.lastSyncedScores.delete(playerId);
+    }
   }
 
   private setupDailyReset(): void {
@@ -132,7 +246,7 @@ export class Economic {
     const wallet: IUserWalletWithDailyLimit = {
       name: profile?.currentName ?? name,
       identityId: profile?.id,
-      gold: this.DEFAULT_GOLD,
+      gold: this.toScoreboardGold(this.DEFAULT_GOLD),
       dailyEarned: 0,
       lastResetDate: this.getCurrentDateString(),
       dailyLimitNotifyCount: 0,
@@ -178,7 +292,7 @@ export class Economic {
     let needsFix = false;
     if (isNaN(wallet.gold) || !isFinite(wallet.gold) || wallet.gold === null || wallet.gold === undefined) {
       console.warn(`检测到玩家 ${playerName} 的金币数据无效，将重置为默认值`);
-      wallet.gold = this.DEFAULT_GOLD;
+      wallet.gold = this.toScoreboardGold(this.DEFAULT_GOLD);
       needsFix = true;
     }
 
@@ -194,7 +308,13 @@ export class Economic {
     }
 
     if (wallet.gold < 0) {
-      wallet.gold = this.DEFAULT_GOLD;
+      wallet.gold = this.toScoreboardGold(this.DEFAULT_GOLD);
+      needsFix = true;
+    }
+
+    if (wallet.gold > MONEY_SCOREBOARD_MAX) {
+      console.warn(`玩家 ${playerName} 的金币超过计分板整数上限，将调整为 ${MONEY_SCOREBOARD_MAX}`);
+      wallet.gold = MONEY_SCOREBOARD_MAX;
       needsFix = true;
     }
 
@@ -240,13 +360,18 @@ export class Economic {
       return 0;
     }
 
-    const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-    if (amount > MAX_SAFE_INTEGER) {
-      console.warn(`添加金币数量超过最大安全整数范围: ${amount}`);
+    if (amount > MONEY_SCOREBOARD_MAX) {
+      console.warn(`添加金币数量超过计分板整数上限: ${amount}`);
       return 0;
     }
 
     const wallet = this.getWallet(playerName);
+    const remainingCapacity = MONEY_SCOREBOARD_MAX - wallet.gold;
+    if (remainingCapacity <= 0) {
+      console.warn(`玩家 ${playerName} 的金币已达到计分板整数上限`);
+      return 0;
+    }
+    amount = Math.min(amount, remainingCapacity);
 
     if (!ignoreDailyLimit) {
       if (reason.includes("玩家转账") || reason.includes(PLAYER_MARKET_PURCHASE_REASON)) {
@@ -311,9 +436,8 @@ export class Economic {
       return false;
     }
 
-    const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-    if (amount > MAX_SAFE_INTEGER) {
-      console.warn(`扣除金币数量超过最大安全整数范围: ${amount}`);
+    if (amount > MONEY_SCOREBOARD_MAX) {
+      console.warn(`扣除金币数量超过计分板整数上限: ${amount}`);
       return false;
     }
 
@@ -339,9 +463,8 @@ export class Economic {
       return "无效金额";
     }
 
-    const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-    if (amount > MAX_SAFE_INTEGER) {
-      console.warn(`转账金币数量超过最大安全整数范围: ${amount}`);
+    if (amount > MONEY_SCOREBOARD_MAX) {
+      console.warn(`转账金币数量超过计分板整数上限: ${amount}`);
       return "转账金额过大";
     }
 
@@ -351,6 +474,7 @@ export class Economic {
     if (fromWallet.gold < amount) return "余额不足";
 
     const toWallet = this.getWallet(toPlayer);
+    if (toWallet.gold > MONEY_SCOREBOARD_MAX - amount) return "收款方余额将超过金币上限";
     const fromKey = this.resolveWalletKey(fromPlayer);
     const toKey = this.resolveWalletKey(toPlayer);
     const fromGoldBefore = fromWallet.gold;
@@ -362,6 +486,8 @@ export class Economic {
       toWallet.gold += amount;
       this.db.set(toKey, toWallet);
       this.db.save();
+      this.syncWalletToOnlinePlayer(fromPlayer, fromWallet.gold);
+      this.syncWalletToOnlinePlayer(toPlayer, toWallet.gold);
     } catch (error) {
       fromWallet.gold = fromGoldBefore;
       toWallet.gold = toGoldBefore;
@@ -427,9 +553,8 @@ export class Economic {
       return false;
     }
 
-    const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-    if (amount > MAX_SAFE_INTEGER) {
-      console.warn(`金币数量超过最大安全整数范围: ${amount}`);
+    if (amount > MONEY_SCOREBOARD_MAX) {
+      console.warn(`金币数量超过计分板整数上限: ${amount}`);
       return false;
     }
 
@@ -503,7 +628,7 @@ export class Economic {
 
       if (isNaN(wallet.gold) || !isFinite(wallet.gold) || wallet.gold === null || wallet.gold === undefined) {
         console.warn(`检测到玩家 ${name} 的金币数据无效，将重置为默认值`);
-        wallet.gold = this.DEFAULT_GOLD;
+        wallet.gold = this.toScoreboardGold(this.DEFAULT_GOLD);
         needsFix = true;
       }
 
@@ -519,7 +644,13 @@ export class Economic {
       }
 
       if (wallet.gold < 0) {
-        wallet.gold = this.DEFAULT_GOLD;
+        wallet.gold = this.toScoreboardGold(this.DEFAULT_GOLD);
+        needsFix = true;
+      }
+
+      if (wallet.gold > MONEY_SCOREBOARD_MAX) {
+        console.warn(`玩家 ${wallet.name || name} 的金币超过计分板整数上限，将调整为 ${MONEY_SCOREBOARD_MAX}`);
+        wallet.gold = MONEY_SCOREBOARD_MAX;
         needsFix = true;
       }
 

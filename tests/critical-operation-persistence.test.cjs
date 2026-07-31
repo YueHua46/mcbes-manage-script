@@ -41,7 +41,10 @@ test("guild records and membership indexes flush at transaction boundaries", () 
 test("wallet balances and transaction records flush immediately", () => {
   const source = read("scripts/features/economic/services/economic.ts");
 
-  assert.match(source, /private saveWallet\(key: string, wallet: IUserWallet\): void \{\s*this\.db\.set\(key, wallet\);\s*this\.db\.save\(\);\s*\}/);
+  assert.match(
+    source,
+    /private saveWallet\(key: string, wallet: IUserWallet\): void \{\s*this\.db\.set\(key, wallet\);\s*this\.db\.save\(\);\s*this\.syncWalletToOnlinePlayer\(wallet\.name, wallet\.gold\);\s*\}/
+  );
   assert.match(source, /addGold\([\s\S]*this\.saveWallet\(this\.resolveWalletKey\(playerName\), wallet\);/);
   assert.match(source, /removeGold\([\s\S]*this\.saveWallet\(this\.resolveWalletKey\(playerName\), wallet\);/);
   assert.match(source, /this\.db\.set\(toKey, toWallet\);\s*this\.db\.save\(\);/);
