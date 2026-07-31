@@ -7,6 +7,7 @@ import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players"
 import setting from "../../system/services/setting";
 import landManager from "./land-manager";
 import { taskScheduler } from "../../platform/scheduler";
+import { isAdmin } from "../../../shared/utils/common";
 
 const DATABASE_NAME = "landSnapshots";
 const MAX_STRUCTURE_X = 64;
@@ -301,6 +302,7 @@ class LandSnapshotService {
   }
 
   createSnapshot(player: Player, landName: string, options: CreateLandSnapshotOptions = {}): string | true {
+    if (!isAdmin(player)) return "只有管理员可以使用领地快照功能";
     const land = landManager.getLand(landName);
     if (typeof land === "string") return land;
     if (!this.db) return "快照数据库尚未初始化，请稍后再试";
@@ -328,6 +330,7 @@ class LandSnapshotService {
   }
 
   restoreSnapshot(player: Player, snapshotId: string): string | true {
+    if (!isAdmin(player)) return "只有管理员可以使用领地快照功能";
     const snapshot = this.getSnapshot(snapshotId);
     if (!snapshot) return "快照不存在或已被删除";
     if (this.activeLandJobs.has(snapshot.landName)) return "该领地已有快照任务正在执行";
@@ -341,7 +344,8 @@ class LandSnapshotService {
     return true;
   }
 
-  deleteSnapshot(snapshotId: string): string | true {
+  deleteSnapshot(player: Player, snapshotId: string): string | true {
+    if (!isAdmin(player)) return "只有管理员可以使用领地快照功能";
     const snapshot = this.getSnapshot(snapshotId);
     if (!snapshot || !this.db) return "快照不存在或已被删除";
     if (this.activeLandJobs.has(snapshot.landName)) return "该领地已有快照任务正在执行";
