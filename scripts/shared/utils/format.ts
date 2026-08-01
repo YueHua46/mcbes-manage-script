@@ -8,7 +8,7 @@ import { formatDateTimeBeijing } from "./datetime-beijing";
  * 格式化数字，添加千分位分隔符
  */
 export function formatNumber(num: number): string {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 /**
@@ -30,7 +30,5 @@ export function formatVector(x: number, y: number, z: number): string {
  */
 export function truncateString(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str;
-  return str.substring(0, maxLength - 3) + '...';
+  return str.substring(0, maxLength - 3) + "...";
 }
-
-

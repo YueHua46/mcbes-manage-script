@@ -11,10 +11,7 @@ import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/
 export type TpaType = "to" | "come";
 
 export function teleportPlayer(requestPlayer: Player, targetPlayer: Player, type: TpaType): void {
-  if (
-    isDimensionIsolated(requestPlayer.dimension.id) ||
-    isDimensionIsolated(targetPlayer.dimension.id)
-  ) {
+  if (isDimensionIsolated(requestPlayer.dimension.id) || isDimensionIsolated(targetPlayer.dimension.id)) {
     requestPlayer.sendMessage(color.gray("目标维度禁止外部传送。"));
     targetPlayer.sendMessage(color.gray("传送信号被目标维度阻断。"));
     return;

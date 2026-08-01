@@ -1,16 +1,6 @@
 import { BlockVolume, Player, system, world, type Vector3 } from "@minecraft/server";
-import {
-  BackroomsCell,
-  DeterministicRandom,
-  deriveSeed32,
-  generateRegionPlan,
-  hashParts32,
-} from "./core";
-import {
-  BACKROOMS_DIMENSION_ID,
-  BACKROOMS_FLOOR_Y,
-  BACKROOMS_REGION_SIZE,
-} from "./constants";
+import { BackroomsCell, DeterministicRandom, deriveSeed32, generateRegionPlan, hashParts32 } from "./core";
+import { BACKROOMS_DIMENSION_ID, BACKROOMS_FLOOR_Y, BACKROOMS_REGION_SIZE } from "./constants";
 import { locationToRegion, regionKey, regionOrigin, type BackroomsRegion } from "./runtime";
 import { isBackroomsAdmin } from "./permissions";
 
@@ -76,9 +66,10 @@ function consumeExitAuthorization(player: Player): boolean {
 
 function markRegionVisited(player: Player, region: BackroomsRegion): boolean {
   const parsed = safeParse<number[]>(player.getDynamicProperty(VISITED_FILTER_PROPERTY));
-  const words = Array.isArray(parsed) && parsed.length === 16
-    ? parsed.map((value) => Number.isSafeInteger(value) ? value >>> 0 : 0)
-    : new Array<number>(16).fill(0);
+  const words =
+    Array.isArray(parsed) && parsed.length === 16
+      ? parsed.map((value) => (Number.isSafeInteger(value) ? value >>> 0 : 0))
+      : new Array<number>(16).fill(0);
   const first = hashParts32("visited-a", region.rx, region.rz) % 512;
   const second = hashParts32("visited-b", region.rx, region.rz) % 512;
   const hasFirst = (words[first >>> 5] & (1 << (first & 31))) !== 0;
@@ -108,10 +99,7 @@ function horizontalDistanceSquared(a: Vector3, b: Vector3): number {
   return dx * dx + dz * dz;
 }
 
-function wallCandidate(
-  player: Player,
-  region: BackroomsRegion,
-): { x: number; z: number } | undefined {
+function wallCandidate(player: Player, region: BackroomsRegion): { x: number; z: number } | undefined {
   const layout = generateRegionPlan(world.seed, region.rx, region.rz);
   const origin = regionOrigin(region, BACKROOMS_REGION_SIZE);
   const candidates: Array<{ x: number; z: number }> = [];
@@ -153,9 +141,11 @@ function maybeCreateExit(player: Player, region: BackroomsRegion, explored: numb
     y: BACKROOMS_FLOOR_Y + 1,
     z: origin.z + candidate.z,
     createdAt: Date.now(),
-    originalBlockId: world.getDimension(BACKROOMS_DIMENSION_ID)
-      .getBlock({ x: origin.x + candidate.x, y: BACKROOMS_FLOOR_Y + 1, z: origin.z + candidate.z })
-      ?.typeId ?? "yuehua:backrooms_wallpaper",
+    originalBlockId:
+      world
+        .getDimension(BACKROOMS_DIMENSION_ID)
+        .getBlock({ x: origin.x + candidate.x, y: BACKROOMS_FLOOR_Y + 1, z: origin.z + candidate.z })?.typeId ??
+      "yuehua:backrooms_wallpaper",
   };
   player.setDynamicProperty(EXIT_PROPERTY, JSON.stringify(exit));
   player.sendMessage("§7远处有一小段墙纸正在以错误的频率闪烁。 ");
@@ -165,11 +155,8 @@ function maybeCreateExit(player: Player, region: BackroomsRegion, explored: numb
 function setExitWall(exit: StoredExit, lit: boolean): void {
   const dimension = world.getDimension(BACKROOMS_DIMENSION_ID);
   dimension.fillBlocks(
-    new BlockVolume(
-      { x: exit.x, y: exit.y, z: exit.z },
-      { x: exit.x, y: exit.y + 3, z: exit.z },
-    ),
-    lit ? "yuehua:backrooms_fluorescent_on" : exit.originalBlockId,
+    new BlockVolume({ x: exit.x, y: exit.y, z: exit.z }, { x: exit.x, y: exit.y + 3, z: exit.z }),
+    lit ? "yuehua:backrooms_fluorescent_on" : exit.originalBlockId
   );
 }
 
@@ -203,8 +190,16 @@ function maybePeripheralShift(previous: BackroomsRegion, player: Player): void {
   const roll = hashParts32(world.seed, "backrooms-shift", previous.rx, previous.rz) / 0x100000000;
   if (roll >= SHIFT_RATE) return;
   const dimension = world.getDimension(BACKROOMS_DIMENSION_ID);
-  if (dimension.getPlayers().some((other) => locationToRegion(other.location, BACKROOMS_REGION_SIZE).rx === previous.rx
-    && locationToRegion(other.location, BACKROOMS_REGION_SIZE).rz === previous.rz)) return;
+  if (
+    dimension
+      .getPlayers()
+      .some(
+        (other) =>
+          locationToRegion(other.location, BACKROOMS_REGION_SIZE).rx === previous.rx &&
+          locationToRegion(other.location, BACKROOMS_REGION_SIZE).rz === previous.rz
+      )
+  )
+    return;
 
   const layout = generateRegionPlan(world.seed, previous.rx, previous.rz);
   const candidates: Array<{ x: number; z: number; vertical: boolean }> = [];
@@ -222,7 +217,11 @@ function maybePeripheralShift(previous: BackroomsRegion, player: Player): void {
         layout.grid.get(x, z - 1) === BackroomsCell.Walkable &&
         layout.grid.get(x, z + 1) === BackroomsCell.Walkable;
       if (vertical || horizontal) {
-        const absolute = { x: previous.rx * BACKROOMS_REGION_SIZE + x, y: player.location.y, z: previous.rz * BACKROOMS_REGION_SIZE + z };
+        const absolute = {
+          x: previous.rx * BACKROOMS_REGION_SIZE + x,
+          y: player.location.y,
+          z: previous.rz * BACKROOMS_REGION_SIZE + z,
+        };
         if (horizontalDistanceSquared(player.location, absolute) >= 48 * 48) candidates.push({ x, z, vertical });
       }
     }
@@ -277,7 +276,10 @@ function tickPlayer(player: Player): void {
     const lit = (hashParts32(player.id, system.currentTick >> 4) & 3) !== 0;
     try {
       setExitWall(exit, lit);
-      flickerUntil.set(key, system.currentTick + (lit ? 4 : 26 + (hashParts32(exit.x, exit.z, system.currentTick) % 45)));
+      flickerUntil.set(
+        key,
+        system.currentTick + (lit ? 4 : 26 + (hashParts32(exit.x, exit.z, system.currentTick) % 45))
+      );
     } catch {
       // 离玩家较远的候选墙可能暂时卸载；靠近后会自然恢复闪烁。
     }
@@ -297,7 +299,11 @@ export function registerBackroomsAnomalies(): void {
       if (authorized || isBackroomsAdmin(event.player)) {
         const exit = readExit(event.player);
         if (exit) {
-          try { setExitWall(exit, false); } catch { /* Destination chunk may be unloading. */ }
+          try {
+            setExitWall(exit, false);
+          } catch {
+            /* Destination chunk may be unloading. */
+          }
         }
         event.player.setDynamicProperty(EXIT_PROPERTY, undefined);
         return;
@@ -323,7 +329,11 @@ export function registerBackroomsAnomalies(): void {
     if (event.deadEntity instanceof Player && event.deadEntity.dimension.id === BACKROOMS_DIMENSION_ID) {
       const exit = readExit(event.deadEntity);
       if (exit) {
-        try { setExitWall(exit, false); } catch { /* Best-effort restoration on death. */ }
+        try {
+          setExitWall(exit, false);
+        } catch {
+          /* Best-effort restoration on death. */
+        }
       }
       event.deadEntity.setDynamicProperty(EXIT_PROPERTY, undefined);
       authorizeExit(event.deadEntity);
@@ -334,7 +344,11 @@ export function registerBackroomsAnomalies(): void {
     if (event.player.dimension.id !== BACKROOMS_DIMENSION_ID) return;
     const exit = readExit(event.player);
     if (exit) {
-      try { setExitWall(exit, false); } catch { /* Region will be retried by the anomaly tick. */ }
+      try {
+        setExitWall(exit, false);
+      } catch {
+        /* Region will be retried by the anomaly tick. */
+      }
     }
   });
 

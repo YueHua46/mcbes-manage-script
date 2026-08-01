@@ -57,11 +57,7 @@ export class BackroomsPlayerFrontier {
           const stepX = Math.abs(dx / length) >= 0.35 ? Math.sign(dx) : 0;
           const stepZ = Math.abs(dz / length) >= 0.35 ? Math.sign(dz) : 0;
           for (let step = 1; step <= this.config.forwardPreloadRegions; step++) {
-            this.requestOnce(
-              requested,
-              { rx: center.rx + stepX * step, rz: center.rz + stepZ * step },
-              50 + step * 10
-            );
+            this.requestOnce(requested, { rx: center.rx + stepX * step, rz: center.rz + stepZ * step }, 50 + step * 10);
           }
         }
       }

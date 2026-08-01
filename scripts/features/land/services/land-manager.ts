@@ -640,33 +640,33 @@ class LandManager {
     let countdownInterval: number | undefined;
     let particleInterval: number | undefined;
     particleInterval = system.runInterval(() => {
-        try {
-          if (!player || !player.location) {
-            if (particleInterval !== undefined) system.clearRun(particleInterval);
-            if (countdownInterval !== undefined) system.clearRun(countdownInterval);
-            return;
-          }
-
-          const currentLocation = player.location;
-          const moved =
-            Math.abs(currentLocation.x - startLocation.x) > 0.5 ||
-            Math.abs(currentLocation.y - startLocation.y) > 0.5 ||
-            Math.abs(currentLocation.z - startLocation.z) > 0.5;
-
-          if (moved && particleIntensity > 0.1) {
-            if (particleInterval !== undefined) system.clearRun(particleInterval);
-            if (countdownInterval !== undefined) system.clearRun(countdownInterval);
-            player.onScreenDisplay.setTitle("");
-            player.onScreenDisplay.setActionBar(color.red("传送已取消：检测到移动"));
-            player.playSound("random.pop");
-            return;
-          }
-
-          particleIntensity = Math.min(1.0, particleIntensity + particleStep);
-          createProgressiveParticles(player, currentLocation, particleIntensity, false);
-        } catch (error) {
+      try {
+        if (!player || !player.location) {
           if (particleInterval !== undefined) system.clearRun(particleInterval);
+          if (countdownInterval !== undefined) system.clearRun(countdownInterval);
+          return;
         }
+
+        const currentLocation = player.location;
+        const moved =
+          Math.abs(currentLocation.x - startLocation.x) > 0.5 ||
+          Math.abs(currentLocation.y - startLocation.y) > 0.5 ||
+          Math.abs(currentLocation.z - startLocation.z) > 0.5;
+
+        if (moved && particleIntensity > 0.1) {
+          if (particleInterval !== undefined) system.clearRun(particleInterval);
+          if (countdownInterval !== undefined) system.clearRun(countdownInterval);
+          player.onScreenDisplay.setTitle("");
+          player.onScreenDisplay.setActionBar(color.red("传送已取消：检测到移动"));
+          player.playSound("random.pop");
+          return;
+        }
+
+        particleIntensity = Math.min(1.0, particleIntensity + particleStep);
+        createProgressiveParticles(player, currentLocation, particleIntensity, false);
+      } catch (error) {
+        if (particleInterval !== undefined) system.clearRun(particleInterval);
+      }
     }, 2);
 
     // 传送倒计时（3秒）

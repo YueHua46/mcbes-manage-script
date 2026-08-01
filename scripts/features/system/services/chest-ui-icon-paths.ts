@@ -47,10 +47,7 @@ export function resolveIconKeyToDisplayTexture(iconKey: string, typeId?: string)
 }
 
 /** Chest UI 按钮图标：统一解析为 textures/... 贴图路径 */
-export function resolveChestUiItemDisplayTexture(
-  texture: string,
-  options?: { skipIconKeyLookup?: boolean }
-): string {
+export function resolveChestUiItemDisplayTexture(texture: string, options?: { skipIconKeyLookup?: boolean }): string {
   if (isTexturePath(texture)) return normalizeTexturePath(texture);
 
   const ownPluginTexture = resolveOwnPluginItemIconTexture(texture);

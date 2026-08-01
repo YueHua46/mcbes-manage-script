@@ -1,10 +1,5 @@
 import { BlockVolume, ListBlockVolume, type Dimension, type Vector3 } from "@minecraft/server";
-import {
-  type BackroomsRegion,
-  type BackroomsRuntimeConfig,
-  type RegionMarkerState,
-  regionOrigin,
-} from "./contracts";
+import { type BackroomsRegion, type BackroomsRuntimeConfig, type RegionMarkerState, regionOrigin } from "./contracts";
 
 /** Persistent, world-local transaction marker stored below the generated floor. */
 export class BackroomsRegionMarkerStore {
@@ -48,7 +43,7 @@ export class BackroomsRegionMarkerStore {
     if (state === "ready") {
       dimension.fillBlocks(
         new ListBlockVolume(this.getSentinelLocations(region)),
-        this.config.palette.readySentinelMarker,
+        this.config.palette.readySentinelMarker
       );
     }
     // Global commit is deliberately last. Emerald + lapis sentinels is marker schema v3.

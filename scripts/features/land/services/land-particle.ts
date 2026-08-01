@@ -172,7 +172,10 @@ class LandParticle {
         return;
       }
 
-      const palette = this.getAmbientPalette(options.seed ?? `${startPos.x}:${startPos.z}:${endPos.x}:${endPos.z}`, options.variant);
+      const palette = this.getAmbientPalette(
+        options.seed ?? `${startPos.x}:${startPos.z}:${endPos.x}:${endPos.z}`,
+        options.variant
+      );
       if (detail !== "low") this.spawnAmbientCornerMarkers(player, bounds, bottomY, topY, palette);
       system.runJob(
         this.ambientBoundaryGenerator(player, bottomEdges, visibleTopEdges, visibleVerticalEdges, palette, detail)
@@ -516,7 +519,6 @@ class LandParticle {
         edgeStep++;
       }
     }
-
   }
 
   private *iterLineParticles(
@@ -565,43 +567,63 @@ class LandParticle {
   }
 
   private spawnBoundaryParticle(player: Player, pos: Vector3, stepIndex: number): void {
-    this.spawnLandEdgeParticleSafe(player, {
-      x: pos.x + 0.5,
-      y: pos.y + 0.18,
-      z: pos.z + 0.5,
-    }, { red: 0.14, green: 0.95, blue: 1, alpha: 0.52 });
+    this.spawnLandEdgeParticleSafe(
+      player,
+      {
+        x: pos.x + 0.5,
+        y: pos.y + 0.18,
+        z: pos.z + 0.5,
+      },
+      { red: 0.14, green: 0.95, blue: 1, alpha: 0.52 }
+    );
 
     if (stepIndex % 6 === 0) {
-      this.spawnLandEdgeParticleSafe(player, {
-        x: pos.x + 0.5,
-        y: pos.y + 0.32,
-        z: pos.z + 0.5,
-      }, { red: 0.78, green: 1, blue: 0.7, alpha: 0.44 });
+      this.spawnLandEdgeParticleSafe(
+        player,
+        {
+          x: pos.x + 0.5,
+          y: pos.y + 0.32,
+          z: pos.z + 0.5,
+        },
+        { red: 0.78, green: 1, blue: 0.7, alpha: 0.44 }
+      );
     }
   }
 
   private spawnAccentParticle(player: Player, pos: Vector3, stepIndex: number): void {
     if (stepIndex % 3 !== 0) return;
-    this.spawnLandEdgeParticleSafe(player, {
-      x: pos.x + 0.5,
-      y: pos.y + 0.14,
-      z: pos.z + 0.5,
-    }, { red: 0.46, green: 1, blue: 0.88, alpha: 0.22 });
+    this.spawnLandEdgeParticleSafe(
+      player,
+      {
+        x: pos.x + 0.5,
+        y: pos.y + 0.14,
+        z: pos.z + 0.5,
+      },
+      { red: 0.46, green: 1, blue: 0.88, alpha: 0.22 }
+    );
   }
 
   private spawnCornerAnchorParticles(player: Player, pos: Vector3): void {
     const center = { x: pos.x, y: pos.y, z: pos.z };
     this.spawnLandAnchorRingParticleSafe(player, center, { red: 0.84, green: 1, blue: 0.42, alpha: 0.68 });
-    this.spawnLandCornerParticleSafe(player, { ...center, y: center.y + 0.34 }, { red: 0.26, green: 1, blue: 0.86, alpha: 0.58 });
+    this.spawnLandCornerParticleSafe(
+      player,
+      { ...center, y: center.y + 0.34 },
+      { red: 0.26, green: 1, blue: 0.86, alpha: 0.58 }
+    );
   }
 
   private spawnOverlapBoundaryParticle(player: Player, pos: Vector3, stepIndex: number): void {
     if (stepIndex % 3 !== 0) return;
-    this.spawnLandEdgeParticleSafe(player, {
-      x: pos.x + 0.5,
-      y: pos.y + 0.24,
-      z: pos.z + 0.5,
-    }, { red: 1, green: 0.34, blue: 0.18, alpha: 0.54 });
+    this.spawnLandEdgeParticleSafe(
+      player,
+      {
+        x: pos.x + 0.5,
+        y: pos.y + 0.24,
+        z: pos.z + 0.5,
+      },
+      { red: 1, green: 0.34, blue: 0.18, alpha: 0.54 }
+    );
   }
 
   private spawnOverlapCornerParticles(player: Player, pos: Vector3): void {
@@ -619,7 +641,11 @@ class LandParticle {
     this.spawnLandEdgeParticleSafe(player, base, this.withAlpha(palette.edge, palette.edge.alpha * pulse));
 
     if ((stepIndex + Math.floor(system.currentTick / 5)) % 5 === 0) {
-      this.spawnLandEdgeParticleSafe(player, { ...base, y: base.y + 0.14 }, this.withAlpha(palette.flow, palette.flow.alpha * 1.08));
+      this.spawnLandEdgeParticleSafe(
+        player,
+        { ...base, y: base.y + 0.14 },
+        this.withAlpha(palette.flow, palette.flow.alpha * 1.08)
+      );
     }
   }
 
@@ -630,11 +656,20 @@ class LandParticle {
       y: pos.y + 0.075,
       z: pos.z + 0.5,
     };
-    this.spawnCustomColoredParticleSafe(player, "rbb:land_ground_band", base, this.withAlpha(palette.ground, palette.ground.alpha * (0.98 + pulse * 0.18)));
+    this.spawnCustomColoredParticleSafe(
+      player,
+      "rbb:land_ground_band",
+      base,
+      this.withAlpha(palette.ground, palette.ground.alpha * (0.98 + pulse * 0.18))
+    );
 
     const markerPhase = Math.floor(system.currentTick / 8) % AMBIENT_FOUNDATION_MARKER_INTERVAL;
     if (stepIndex % AMBIENT_FOUNDATION_MARKER_INTERVAL === markerPhase) {
-      this.spawnLandEdgeParticleSafe(player, { ...base, y: base.y + 0.2 }, this.withAlpha(palette.flow, palette.flow.alpha * 0.72));
+      this.spawnLandEdgeParticleSafe(
+        player,
+        { ...base, y: base.y + 0.2 },
+        this.withAlpha(palette.flow, palette.flow.alpha * 0.72)
+      );
     }
   }
 
@@ -647,15 +682,20 @@ class LandParticle {
   ): void {
     const t = (layerIndex + 1) / (AMBIENT_WALL_LAYERS + 1);
     const alpha = palette.wall.alpha * (0.72 - t * 0.24) * this.getAmbientPulse(stepIndex + layerIndex * 9);
-    this.spawnCustomColoredParticleSafe(player, "rbb:land_wall_panel", {
-      x: pos.x + 0.5,
-      y: pos.y + 0.18 + AMBIENT_WALL_HEIGHT * t,
-      z: pos.z + 0.5,
-    }, this.withAlpha(palette.wall, alpha));
+    this.spawnCustomColoredParticleSafe(
+      player,
+      "rbb:land_wall_panel",
+      {
+        x: pos.x + 0.5,
+        y: pos.y + 0.18 + AMBIENT_WALL_HEIGHT * t,
+        z: pos.z + 0.5,
+      },
+      this.withAlpha(palette.wall, alpha)
+    );
   }
 
   private spawnAmbientScanSparks(player: Player, edges: Edge[], palette: AmbientPalette, seed: string): void {
-    const tickOffset = ((system.currentTick + Math.abs(this.hashString(seed)) % 96) % 96) / 96;
+    const tickOffset = ((system.currentTick + (Math.abs(this.hashString(seed)) % 96)) % 96) / 96;
     for (const [edgeIndex, edge] of edges.entries()) {
       for (let i = 0; i < AMBIENT_SCAN_STREAKS_PER_EDGE; i++) {
         const headT = (tickOffset + i / AMBIENT_SCAN_STREAKS_PER_EDGE + edgeIndex * 0.041) % 1;
@@ -665,24 +705,39 @@ class LandParticle {
           const fade = 1 - trail / (AMBIENT_SCAN_TRAIL_PARTICLES + 0.6);
           const lift = 0.42 + Math.sin((system.currentTick + trail * 3 + edgeIndex * 7) / 8) * 0.04;
           const particleType = trail === 0 || trail === 1 ? "rbb:land_scan_streak" : "rbb:land_scan_spark";
-          this.spawnCustomColoredParticleSafe(player, particleType, {
-            x: pos.x + 0.5,
-            y: pos.y + lift,
-            z: pos.z + 0.5,
-          }, this.withAlpha(palette.scan, palette.scan.alpha * fade * fade));
-          if (trail === 0) {
-            this.spawnLandEdgeParticleSafe(player, {
+          this.spawnCustomColoredParticleSafe(
+            player,
+            particleType,
+            {
               x: pos.x + 0.5,
-              y: pos.y + 0.22,
+              y: pos.y + lift,
               z: pos.z + 0.5,
-            }, this.withAlpha(palette.flow, palette.flow.alpha * 0.82));
+            },
+            this.withAlpha(palette.scan, palette.scan.alpha * fade * fade)
+          );
+          if (trail === 0) {
+            this.spawnLandEdgeParticleSafe(
+              player,
+              {
+                x: pos.x + 0.5,
+                y: pos.y + 0.22,
+                z: pos.z + 0.5,
+              },
+              this.withAlpha(palette.flow, palette.flow.alpha * 0.82)
+            );
           }
         }
       }
     }
   }
 
-  private spawnAmbientCornerMarkers(player: Player, bounds: Bounds, bottomY: number, topY: number, palette: AmbientPalette): void {
+  private spawnAmbientCornerMarkers(
+    player: Player,
+    bounds: Bounds,
+    bottomY: number,
+    topY: number,
+    palette: AmbientPalette
+  ): void {
     const corners = this.getFootprintCorners(bounds);
     const markerCount = this.getAmbientCornerMarkerCount(topY - bottomY);
 
@@ -697,21 +752,22 @@ class LandParticle {
         const t = markerCount === 1 ? 0 : i / (markerCount - 1);
         const color = this.mixColor(palette.corner, palette.height, t);
         const pulse = this.getAmbientPulse(i * 5);
-        this.spawnLandCornerParticleSafe(player, {
-          x: bottom.x,
-          y: bottom.y + (top.y - bottom.y) * t,
-          z: bottom.z,
-        }, this.withAlpha(color, color.alpha * (0.68 + pulse * 0.2)));
+        this.spawnLandCornerParticleSafe(
+          player,
+          {
+            x: bottom.x,
+            y: bottom.y + (top.y - bottom.y) * t,
+            z: bottom.z,
+          },
+          this.withAlpha(color, color.alpha * (0.68 + pulse * 0.2))
+        );
       }
     }
   }
 
   private getAmbientCornerMarkerCount(height: number): number {
     const adaptiveCount = Math.ceil(Math.max(0, height) / AMBIENT_CORNER_MARKER_SPACING) + 1;
-    return Math.max(
-      AMBIENT_CORNER_MARKER_MIN_PARTICLES,
-      Math.min(AMBIENT_CORNER_MARKER_MAX_PARTICLES, adaptiveCount)
-    );
+    return Math.max(AMBIENT_CORNER_MARKER_MIN_PARTICLES, Math.min(AMBIENT_CORNER_MARKER_MAX_PARTICLES, adaptiveCount));
   }
 
   private getAmbientPulse(offset: number): number {
@@ -745,19 +801,27 @@ class LandParticle {
       for (let i = 0; i < PULSE_PARTICLES_PER_EDGE; i++) {
         const t = (tickOffset + i / PULSE_PARTICLES_PER_EDGE + edgeIndex * 0.037) % 1;
         const pos = this.lerp(start, end, t);
-        this.spawnLandEdgeParticleSafe(player, {
-          x: pos.x + 0.5,
-          y: pos.y + 0.28,
-          z: pos.z + 0.5,
-        }, { red: 0.7, green: 1, blue: 0.82, alpha: 0.5 });
+        this.spawnLandEdgeParticleSafe(
+          player,
+          {
+            x: pos.x + 0.5,
+            y: pos.y + 0.28,
+            z: pos.z + 0.5,
+          },
+          { red: 0.7, green: 1, blue: 0.82, alpha: 0.5 }
+        );
       }
     }
 
-    this.spawnLandCornerParticleSafe(player, {
-      x: bounds.center.x,
-      y: bounds.min.y + 0.38,
-      z: bounds.center.z,
-    }, { red: 0.22, green: 0.9, blue: 1, alpha: 0.34 });
+    this.spawnLandCornerParticleSafe(
+      player,
+      {
+        x: bounds.center.x,
+        y: bounds.min.y + 0.38,
+        z: bounds.center.z,
+      },
+      { red: 0.22, green: 0.9, blue: 1, alpha: 0.34 }
+    );
   }
 
   private spawnOverlapLandPulses(player: Player, overlaps: LandSelectionOverlapInfo[] | undefined): void {
@@ -768,11 +832,15 @@ class LandParticle {
       for (const [edgeIndex, [start, end]] of plan.edges.entries()) {
         const t = ((system.currentTick % 60) / 60 + edgeIndex * 0.071) % 1;
         const pos = this.lerp(start, end, t);
-        this.spawnLandEdgeParticleSafe(player, {
-          x: pos.x + 0.5,
-          y: pos.y + 0.26,
-          z: pos.z + 0.5,
-        }, { red: 1, green: 0.28, blue: 0.16, alpha: 0.48 });
+        this.spawnLandEdgeParticleSafe(
+          player,
+          {
+            x: pos.x + 0.5,
+            y: pos.y + 0.26,
+            z: pos.z + 0.5,
+          },
+          { red: 1, green: 0.28, blue: 0.16, alpha: 0.48 }
+        );
       }
     }
   }
@@ -780,7 +848,11 @@ class LandParticle {
   private spawnMarkerParticles(player: Player, pos: Vector3): void {
     const center = { x: pos.x + 0.5, y: pos.y + 0.35, z: pos.z + 0.5 };
     this.spawnLandAnchorRingParticleSafe(player, center, { red: 0.82, green: 1, blue: 0.36, alpha: 0.72 });
-    this.spawnLandCornerParticleSafe(player, { ...center, y: center.y + 0.34 }, { red: 0.18, green: 0.95, blue: 1, alpha: 0.52 });
+    this.spawnLandCornerParticleSafe(
+      player,
+      { ...center, y: center.y + 0.34 },
+      { red: 0.18, green: 0.95, blue: 1, alpha: 0.52 }
+    );
   }
 
   private spawnParticleSafe(player: Player, particleType: string, pos: Vector3): void {

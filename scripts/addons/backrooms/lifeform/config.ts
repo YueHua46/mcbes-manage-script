@@ -28,13 +28,13 @@ export function encounterProbability(failedChecks: number): number {
 }
 
 export function evaluateEncounterEligibility(input: EncounterEligibilityInput): EncounterEligibility {
-  const eligible = input.sessionTicks >= MIN_SESSION_TICKS
-    && input.uniqueRegions >= MIN_UNIQUE_REGIONS;
+  const eligible = input.sessionTicks >= MIN_SESSION_TICKS && input.uniqueRegions >= MIN_UNIQUE_REGIONS;
   // Time is the final safety net: a player who explores one large region for
   // eight minutes must not be excluded forever by the region counter.
-  const guaranteed = input.sessionTicks >= GUARANTEE_SESSION_TICKS
-    || (input.travelDistance ?? 0) >= GUARANTEE_TRAVEL_DISTANCE
-    || (eligible && input.uniqueRegions >= GUARANTEE_UNIQUE_REGIONS);
+  const guaranteed =
+    input.sessionTicks >= GUARANTEE_SESSION_TICKS ||
+    (input.travelDistance ?? 0) >= GUARANTEE_TRAVEL_DISTANCE ||
+    (eligible && input.uniqueRegions >= GUARANTEE_UNIQUE_REGIONS);
   return {
     eligible,
     guaranteed,

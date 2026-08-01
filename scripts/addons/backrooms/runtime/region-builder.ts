@@ -85,13 +85,7 @@ export class BackroomsRegionBuilder {
       await this.buildShell(dimension, region);
       await this.placeVolumes(dimension, region, plan.walls, this.config.palette.wall, "墙体");
       await this.placeBlocks(dimension, region, plan.lamps ?? [], this.config.palette.lamp, "灯具");
-      await this.placeBlocks(
-        dimension,
-        region,
-        plan.decorations ?? [],
-        this.config.palette.decoration,
-        "装饰"
-      );
+      await this.placeBlocks(dimension, region, plan.decorations ?? [], this.config.palette.decoration, "装饰");
       await this.placeVoids(dimension, region, plan.voids ?? []);
       if (plan.safeSpawn) await this.commitSafeSpawn(dimension, region, plan.safeSpawn);
 
@@ -154,7 +148,10 @@ export class BackroomsRegionBuilder {
     // A complete safe shell exists before any partitions or decorations are attempted.
     await this.fill(
       dimension,
-      new BlockVolume({ x: origin.x, y: this.config.floorY - 1, z: origin.z }, { x: maxX, y: this.config.floorY - 1, z: maxZ }),
+      new BlockVolume(
+        { x: origin.x, y: this.config.floorY - 1, z: origin.z },
+        { x: maxX, y: this.config.floorY - 1, z: maxZ }
+      ),
       this.config.palette.foundation
     );
     await this.fill(
@@ -164,13 +161,32 @@ export class BackroomsRegionBuilder {
     );
     await this.fill(
       dimension,
-      new BlockVolume({ x: origin.x, y: this.config.ceilingY, z: origin.z }, { x: maxX, y: this.config.ceilingY, z: maxZ }),
+      new BlockVolume(
+        { x: origin.x, y: this.config.ceilingY, z: origin.z },
+        { x: maxX, y: this.config.ceilingY, z: maxZ }
+      ),
       this.config.palette.ceiling
     );
-    await this.fill(dimension, new BlockVolume({ x: origin.x, y: wallBottom, z: origin.z }, { x: maxX, y: wallTop, z: origin.z }), this.config.palette.wall);
-    await this.fill(dimension, new BlockVolume({ x: origin.x, y: wallBottom, z: maxZ }, { x: maxX, y: wallTop, z: maxZ }), this.config.palette.wall);
-    await this.fill(dimension, new BlockVolume({ x: origin.x, y: wallBottom, z: origin.z }, { x: origin.x, y: wallTop, z: maxZ }), this.config.palette.wall);
-    await this.fill(dimension, new BlockVolume({ x: maxX, y: wallBottom, z: origin.z }, { x: maxX, y: wallTop, z: maxZ }), this.config.palette.wall);
+    await this.fill(
+      dimension,
+      new BlockVolume({ x: origin.x, y: wallBottom, z: origin.z }, { x: maxX, y: wallTop, z: origin.z }),
+      this.config.palette.wall
+    );
+    await this.fill(
+      dimension,
+      new BlockVolume({ x: origin.x, y: wallBottom, z: maxZ }, { x: maxX, y: wallTop, z: maxZ }),
+      this.config.palette.wall
+    );
+    await this.fill(
+      dimension,
+      new BlockVolume({ x: origin.x, y: wallBottom, z: origin.z }, { x: origin.x, y: wallTop, z: maxZ }),
+      this.config.palette.wall
+    );
+    await this.fill(
+      dimension,
+      new BlockVolume({ x: maxX, y: wallBottom, z: origin.z }, { x: maxX, y: wallTop, z: maxZ }),
+      this.config.palette.wall
+    );
   }
 
   private async placeVolumes(
@@ -186,8 +202,8 @@ export class BackroomsRegionBuilder {
       this.validateRelativeLocation(item.from, label);
       this.validateRelativeLocation(item.to, label);
       const volume = normalizedVolume(
-          { x: origin.x + item.from.x, y: this.config.floorY + item.from.y, z: origin.z + item.from.z },
-          { x: origin.x + item.to.x, y: this.config.floorY + item.to.y, z: origin.z + item.to.z }
+        { x: origin.x + item.from.x, y: this.config.floorY + item.from.y, z: origin.z + item.from.z },
+        { x: origin.x + item.to.x, y: this.config.floorY + item.to.y, z: origin.z + item.to.z }
       );
       const blockId = item.blockId ?? fallbackBlockId;
       const locations = grouped.get(blockId) ?? [];
@@ -235,24 +251,24 @@ export class BackroomsRegionBuilder {
       dimension,
       new BlockVolume(
         { x: origin.x + spawn.x, y: this.config.floorY, z: origin.z + spawn.z },
-        { x: origin.x + spawn.x + 1, y: this.config.floorY, z: origin.z + spawn.z + 1 },
+        { x: origin.x + spawn.x + 1, y: this.config.floorY, z: origin.z + spawn.z + 1 }
       ),
-      this.config.palette.floor,
+      this.config.palette.floor
     );
     await this.fill(
       dimension,
       new BlockVolume(
         { x: origin.x + spawn.x, y: this.config.floorY + 1, z: origin.z + spawn.z },
-        { x: origin.x + spawn.x + 1, y: this.config.floorY + 3, z: origin.z + spawn.z + 1 },
+        { x: origin.x + spawn.x + 1, y: this.config.floorY + 3, z: origin.z + spawn.z + 1 }
       ),
-      "minecraft:air",
+      "minecraft:air"
     );
   }
 
   private async placeVoids(
     dimension: Dimension,
     region: BackroomsRegion,
-    volumes: readonly RelativeVolume[],
+    volumes: readonly RelativeVolume[]
   ): Promise<void> {
     const origin = regionOrigin(region, this.config.regionSize);
     const locations: Vector3[] = [];
@@ -265,7 +281,7 @@ export class BackroomsRegionBuilder {
       clampInteger(item.to.y, -1, 0, "void.y");
       const volume = normalizedVolume(
         { x: origin.x + item.from.x, y: this.config.floorY + item.from.y, z: origin.z + item.from.z },
-        { x: origin.x + item.to.x, y: this.config.floorY + item.to.y, z: origin.z + item.to.z },
+        { x: origin.x + item.to.x, y: this.config.floorY + item.to.y, z: origin.z + item.to.z }
       );
       for (const location of volume.getBlockLocationIterator()) locations.push(location);
     }
@@ -331,8 +347,10 @@ export class BackroomsRegionBuilder {
       return;
     }
 
-    if (this.fillOperations >= this.config.fillOperationsPerTick
-      || this.filledBlocks + capacity > this.config.fillBlocksPerTick) {
+    if (
+      this.fillOperations >= this.config.fillOperationsPerTick ||
+      this.filledBlocks + capacity > this.config.fillBlocksPerTick
+    ) {
       this.fillOperations = 0;
       this.filledBlocks = 0;
       await system.waitTicks(1);

@@ -20,14 +20,17 @@ import { ensureBackroomsLocationReady, teleportPlayerToBackrooms } from "./index
 function registerCommand(
   registry: CustomCommandRegistry,
   command: CustomCommand,
-  handler: (origin: CustomCommandOrigin, players: Player[], location?: Vector3) => CustomCommandResult,
+  handler: (origin: CustomCommandOrigin, players: Player[], location?: Vector3) => CustomCommandResult
 ): void {
   try {
     registry.registerCommand(command, handler);
   } catch (error) {
-    if (error instanceof CustomCommandError
-      && (error.reason === CustomCommandErrorReason.RegistryReadOnly
-        || error.reason === CustomCommandErrorReason.AlreadyRegistered)) return;
+    if (
+      error instanceof CustomCommandError &&
+      (error.reason === CustomCommandErrorReason.RegistryReadOnly ||
+        error.reason === CustomCommandErrorReason.AlreadyRegistered)
+    )
+      return;
     throw error;
   }
 }
@@ -38,11 +41,7 @@ function sendResult(origin: CustomCommandOrigin, message: string): void {
   else console.info(`[Backrooms] ${message.replace(/§./g, "")}`);
 }
 
-function handleEnter(
-  origin: CustomCommandOrigin,
-  players: Player[],
-  location?: Vector3,
-): CustomCommandResult {
+function handleEnter(origin: CustomCommandOrigin, players: Player[], location?: Vector3): CustomCommandResult {
   if (!players.length) return { status: CustomCommandStatus.Failure, message: "没有匹配到在线玩家" };
   system.run(async () => {
     let succeeded = 0;
@@ -51,9 +50,10 @@ function handleEnter(
         if (location) {
           const destination = await ensureBackroomsLocationReady(location);
           player.teleport(destination, {
-            dimension: player.dimension.id === BACKROOMS_DIMENSION_ID
-              ? player.dimension
-              : world.getDimension(BACKROOMS_DIMENSION_ID),
+            dimension:
+              player.dimension.id === BACKROOMS_DIMENSION_ID
+                ? player.dimension
+                : world.getDimension(BACKROOMS_DIMENSION_ID),
             keepVelocity: false,
           });
         } else {
@@ -86,24 +86,26 @@ function handleExit(origin: CustomCommandOrigin, players: Player[]): CustomComma
 }
 
 system.beforeEvents.startup.subscribe((event) => {
-  registerCommand(event.customCommandRegistry, {
-    name: "yuehua:backrooms_tp",
-    description: "将玩家送入独立的 Backrooms manifestation；可选坐标会收敛到安全落脚点。",
-    permissionLevel: CommandPermissionLevel.GameDirectors,
-    mandatoryParameters: [
-      { type: CustomCommandParamType.PlayerSelector, name: "玩家选择器" },
-    ],
-    optionalParameters: [
-      { type: CustomCommandParamType.Location, name: "目标坐标" },
-    ],
-  }, handleEnter);
+  registerCommand(
+    event.customCommandRegistry,
+    {
+      name: "yuehua:backrooms_tp",
+      description: "将玩家送入独立的 Backrooms manifestation；可选坐标会收敛到安全落脚点。",
+      permissionLevel: CommandPermissionLevel.GameDirectors,
+      mandatoryParameters: [{ type: CustomCommandParamType.PlayerSelector, name: "玩家选择器" }],
+      optionalParameters: [{ type: CustomCommandParamType.Location, name: "目标坐标" }],
+    },
+    handleEnter
+  );
 
-  registerCommand(event.customCommandRegistry, {
-    name: "yuehua:backrooms_exit",
-    description: "将玩家从 Backrooms 救援到进入前的位置。",
-    permissionLevel: CommandPermissionLevel.GameDirectors,
-    mandatoryParameters: [
-      { type: CustomCommandParamType.PlayerSelector, name: "玩家选择器" },
-    ],
-  }, handleExit);
+  registerCommand(
+    event.customCommandRegistry,
+    {
+      name: "yuehua:backrooms_exit",
+      description: "将玩家从 Backrooms 救援到进入前的位置。",
+      permissionLevel: CommandPermissionLevel.GameDirectors,
+      mandatoryParameters: [{ type: CustomCommandParamType.PlayerSelector, name: "玩家选择器" }],
+    },
+    handleExit
+  );
 });

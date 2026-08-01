@@ -352,7 +352,7 @@ function setBdsServerDeployEnv() {
 }
 
 // Lint
-task("lint", coreLint(["scripts/**/*.ts"], argv().fix));
+task("lint", coreLint(["scripts"], argv().fix));
 
 // Build
 task("bundle:standard", () => runMainBundle(bundleTaskOptionsStandard));

@@ -9,12 +9,7 @@
 import type { Block, Player } from "@minecraft/server";
 import { system, world } from "@minecraft/server";
 import { isBundleTypeId, isRestrictedBlockInventory, isRestrictedEntityContainer } from "./constants";
-import {
-  addWhitelistedBlock,
-  isTrustedPlacer,
-  isWhitelistedBlock,
-  removeWhitelistedBlockAt,
-} from "./whitelist-store";
+import { addWhitelistedBlock, isTrustedPlacer, isWhitelistedBlock, removeWhitelistedBlockAt } from "./whitelist-store";
 import {
   clearSessionForPlayer,
   isAntiDupeBundleGuardEnabled,

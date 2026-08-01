@@ -189,7 +189,8 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       if (forceForm?.canceled) return;
       if (forceForm?.selection !== undefined) {
         const availableItems = menuItems.filter(
-          ({ id, adminOnly, alwaysVisible }) => (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
+          ({ id, adminOnly, alwaysVisible }) =>
+            (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
         );
         const selectedItem = availableItems[forceForm.selection];
         if (selectedItem) {
@@ -202,7 +203,8 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     if (data.canceled) return;
     if (data.selection !== undefined) {
       const availableItems = menuItems.filter(
-        ({ id, adminOnly, alwaysVisible }) => (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
+        ({ id, adminOnly, alwaysVisible }) =>
+          (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
       );
       const selectedItem = availableItems[data.selection];
       if (selectedItem) {

@@ -1,11 +1,6 @@
 import { Player, system, world, type Vector3 } from "@minecraft/server";
 import { hashParts32 } from "./core";
-import {
-  BACKROOMS_DIMENSION_ID,
-  BACKROOMS_FOG_ID,
-  BACKROOMS_FOG_STACK_ID,
-  BACKROOMS_REGION_SIZE,
-} from "./constants";
+import { BACKROOMS_DIMENSION_ID, BACKROOMS_FOG_ID, BACKROOMS_FOG_STACK_ID, BACKROOMS_REGION_SIZE } from "./constants";
 import { getBackroomsRegionVariant } from "./layout-adapter";
 import { locationToRegion } from "./runtime";
 
@@ -53,7 +48,11 @@ function removeBackroomsFog(player: Player): void {
 
 function stopBackroomsSounds(player: Player): void {
   for (const soundId of [...Object.values(SOUNDS), ...RETIRED_SOUND_IDS]) {
-    try { player.stopSound(soundId); } catch { /* Player may already be invalid. */ }
+    try {
+      player.stopSound(soundId);
+    } catch {
+      /* Player may already be invalid. */
+    }
   }
 }
 
@@ -92,7 +91,11 @@ function enterAmbience(player: Player): void {
 function leaveAmbience(player: Player): void {
   removeBackroomsFog(player);
   stopBackroomsSounds(player);
-  try { player.stopMusic(); } catch { /* Player may already be invalid. */ }
+  try {
+    player.stopMusic();
+  } catch {
+    /* Player may already be invalid. */
+  }
   activePlayers.delete(player.id);
   warnedAt.delete(player.id);
 }
@@ -126,19 +129,18 @@ function updateSoundscape(player: Player, state: PlayerSoundscape): void {
       state.blackout = blackout;
       player.stopSound(SOUNDS.surge);
       // The music ambience continues; only local electrical details drop out in a blackout.
-      player.dimension.playSound(SOUNDS.flicker, player.location, { volume: 0.20, pitch: blackout ? 0.78 : 1.06 });
+      player.dimension.playSound(SOUNDS.flicker, player.location, { volume: 0.2, pitch: blackout ? 0.78 : 1.06 });
     }
 
     if (!blackout && system.currentTick >= state.nextSurgeTick) {
       player.playSound(SOUNDS.surge, {
-        volume: 0.20 + randomUnit(player, "surge-volume") * 0.08,
+        volume: 0.2 + randomUnit(player, "surge-volume") * 0.08,
         pitch: 0.94 + randomUnit(player, "surge-pitch") * 0.12,
       });
       state.nextSurgeTick = system.currentTick + randomTicks(player, "next-surge", 6000, 16800);
     }
 
     if (system.currentTick >= state.nextAnomalyTick) playSpatialAnomaly(player, state);
-
   } catch (error) {
     warnSound(player, error);
   }

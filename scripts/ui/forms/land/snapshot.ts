@@ -15,12 +15,7 @@ function canManageLandSnapshots(player: Player, landName: string): ILand | undef
   return current;
 }
 
-function openSnapshotDialog(
-  player: Player,
-  title: string,
-  desc: string,
-  onButton?: () => void
-): void {
+function openSnapshotDialog(player: Player, title: string, desc: string, onButton?: () => void): void {
   const form = new ActionFormData();
   form.title(title);
   form.body(desc);
@@ -66,9 +61,7 @@ function openChunkLimitSettingsForm(player: Player, land: ILand, back: () => voi
     const next = Math.floor(Number(raw));
     const result = landSnapshotService.setChunkLimit(next);
     if (typeof result === "string") {
-      openSnapshotDialog(player, "设置失败", color.red(result), () =>
-        openChunkLimitSettingsForm(player, land, back)
-      );
+      openSnapshotDialog(player, "设置失败", color.red(result), () => openChunkLimitSettingsForm(player, land, back));
       return;
     }
     openSnapshotDialog(

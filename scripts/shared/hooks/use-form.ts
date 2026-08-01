@@ -4,7 +4,7 @@
 
 import { Player, RawMessage, system } from "@minecraft/server";
 import { ActionFormData, ActionFormResponse, MessageFormData, MessageFormResponse } from "@minecraft/server-ui";
-import { color } from '../utils/color';
+import { color } from "../utils/color";
 
 /**
  * 格式化列表信息
@@ -20,7 +20,7 @@ export function useFormatListInfo(infos: IFormatListInfo[]): RawMessage {
     rawtext: [],
   };
 
-  infos.forEach(info => {
+  infos.forEach((info) => {
     if (info.title) {
       formatInfo?.rawtext?.push({
         text: `${color.green.bold(info.title)}\n`,
@@ -32,7 +32,7 @@ export function useFormatListInfo(infos: IFormatListInfo[]): RawMessage {
       });
     }
     if (info?.list?.length) {
-      info.list.forEach(item => {
+      info.list.forEach((item) => {
         formatInfo?.rawtext?.push({
           text: `   - ${color.green(item)}\n`,
         });
@@ -55,19 +55,19 @@ export function useFormatInfo(info: IFormatInfo): RawMessage {
   const formatInfo: RawMessage = {
     rawtext: [],
   };
-  
+
   if (info.title) {
     formatInfo.rawtext?.push({
-      text: color.green.bold(info.title) + '\n',
+      text: color.green.bold(info.title) + "\n",
     });
   }
-  
+
   if (info.desc) {
     formatInfo.rawtext?.push({
-      text: color.yellow(info.desc) + '\n',
+      text: color.yellow(info.desc) + "\n",
     });
   }
-  
+
   return formatInfo;
 }
 
@@ -100,5 +100,3 @@ export async function useForceOpen(
 
   return undefined;
 }
-
-

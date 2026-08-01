@@ -1,15 +1,22 @@
-import { Dimension, Entity, EntityDamageSource, EquipmentSlot, GameMode, ItemStack, Player, RawMessage, system, Vector2, Vector3, world } from "@minecraft/server";
 import {
-  spawnSupportedSimulatedPlayer,
-  type SimulatedPlayer,
-} from "./simulated-player-runtime";
+  Dimension,
+  Entity,
+  EntityDamageSource,
+  EquipmentSlot,
+  GameMode,
+  ItemStack,
+  Player,
+  RawMessage,
+  system,
+  Vector2,
+  Vector3,
+  world,
+} from "@minecraft/server";
+import { spawnSupportedSimulatedPlayer, type SimulatedPlayer } from "./simulated-player-runtime";
 import { Database } from "../../../shared/database/database";
 import { generateId, isAdmin, SystemLog } from "../../../shared/utils/common";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
-import {
-  isRealmsBuild,
-  isSimulatedPlayerAvailable,
-} from "../../platform/sapi-capabilities";
+import { isRealmsBuild, isSimulatedPlayerAvailable } from "../../platform/sapi-capabilities";
 import {
   isScriptFakePlayerEntity,
   isKnownFakePlayerName,
@@ -507,8 +514,7 @@ class FakePlayerService {
     if (!isSimulatedPlayerAvailable() && input.type === "simulated") {
       return "Realms 兼容版仅支持旧版实体假人";
     }
-    const type: FakePlayerType =
-      input.type === "entity" || !isSimulatedPlayerAvailable() ? "entity" : "simulated";
+    const type: FakePlayerType = input.type === "entity" || !isSimulatedPlayerAvailable() ? "entity" : "simulated";
 
     const admin = isAdmin(input.player);
     if (!admin && this.listForPlayer(input.player.name).length >= this.getMaxPerPlayer()) {
@@ -600,7 +606,13 @@ class FakePlayerService {
     }
 
     const equippable = simulated.getComponent("equippable");
-    for (const slot of [EquipmentSlot.Head, EquipmentSlot.Chest, EquipmentSlot.Legs, EquipmentSlot.Feet, EquipmentSlot.Offhand]) {
+    for (const slot of [
+      EquipmentSlot.Head,
+      EquipmentSlot.Chest,
+      EquipmentSlot.Legs,
+      EquipmentSlot.Feet,
+      EquipmentSlot.Offhand,
+    ]) {
       const stack = equippable?.getEquipment(slot);
       if (stack && drop(stack)) equippable?.setEquipment(slot, undefined);
     }
@@ -1308,40 +1320,41 @@ class FakePlayerService {
       this.breakingTargetById.delete(item.id);
     }
 
-    if (force || system.currentTick % 10 === 0) switch (behavior.movement) {
-      case "station":
-        if (behavior.stationLocation && behavior.stationDimension && behavior.lookAtLocation) {
-          if (
-            simulated.dimension.id !== behavior.stationDimension ||
-            distanceSquared(simulated.location, behavior.stationLocation) > 0.0025
-          ) {
-            simulated.teleport(behavior.stationLocation, { dimension: getDimension(behavior.stationDimension) });
+    if (force || system.currentTick % 10 === 0)
+      switch (behavior.movement) {
+        case "station":
+          if (behavior.stationLocation && behavior.stationDimension && behavior.lookAtLocation) {
+            if (
+              simulated.dimension.id !== behavior.stationDimension ||
+              distanceSquared(simulated.location, behavior.stationLocation) > 0.0025
+            ) {
+              simulated.teleport(behavior.stationLocation, { dimension: getDimension(behavior.stationDimension) });
+            }
+            simulated.stopMoving();
+            simulated.lookAtLocation(behavior.lookAtLocation);
           }
-          simulated.stopMoving();
-          simulated.lookAtLocation(behavior.lookAtLocation);
+          break;
+        case "follow": {
+          const target = this.findRealPlayer(behavior.targetPlayer ?? "");
+          if (target?.dimension.id === simulated.dimension.id) simulated.navigateToEntity(target, behavior.speed);
+          else simulated.stopMoving();
+          break;
         }
-        break;
-      case "follow": {
-        const target = this.findRealPlayer(behavior.targetPlayer ?? "");
-        if (target?.dimension.id === simulated.dimension.id) simulated.navigateToEntity(target, behavior.speed);
-        else simulated.stopMoving();
-        break;
+        case "forward":
+          simulated.moveRelative(0, 1, behavior.speed);
+          break;
+        case "backward":
+          simulated.moveRelative(0, -1, behavior.speed);
+          break;
+        case "left":
+          simulated.moveRelative(-1, 0, behavior.speed);
+          break;
+        case "right":
+          simulated.moveRelative(1, 0, behavior.speed);
+          break;
+        default:
+          if (force) simulated.stopMoving();
       }
-      case "forward":
-        simulated.moveRelative(0, 1, behavior.speed);
-        break;
-      case "backward":
-        simulated.moveRelative(0, -1, behavior.speed);
-        break;
-      case "left":
-        simulated.moveRelative(-1, 0, behavior.speed);
-        break;
-      case "right":
-        simulated.moveRelative(1, 0, behavior.speed);
-        break;
-      default:
-        if (force) simulated.stopMoving();
-    }
 
     if (behavior.action === "none") return;
     if (behavior.action === "hold_slot") {

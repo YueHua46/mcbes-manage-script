@@ -1,10 +1,5 @@
 import { system } from "@minecraft/server";
-import {
-  type BackroomsRegion,
-  type BackroomsRuntimeConfig,
-  type RegionLayoutProvider,
-  regionKey,
-} from "./contracts";
+import { type BackroomsRegion, type BackroomsRuntimeConfig, type RegionLayoutProvider, regionKey } from "./contracts";
 import { BackroomsRegionBuilder, BackroomsTickingAreaCapacityError } from "./region-builder";
 
 interface QueueEntry {
@@ -214,9 +209,7 @@ export class BackroomsGenerationQueue {
         const delay = this.config.retryBaseDelayTicks * 2 ** (entry.attempts - 1);
         entry.availableTick = system.currentTick + delay;
         this.queued.set(key, entry);
-        console.warn(
-          `[Backrooms] 区域 ${key} 构建失败，将进行第 ${entry.attempts + 1} 次尝试：${String(error)}`
-        );
+        console.warn(`[Backrooms] 区域 ${key} 构建失败，将进行第 ${entry.attempts + 1} 次尝试：${String(error)}`);
       } else {
         const cooldown = system.currentTick + this.config.retryBaseDelayTicks * 16;
         this.cooldownUntil.set(key, cooldown);
@@ -291,9 +284,11 @@ export class BackroomsGenerationQueue {
       let victim: QueueEntry | undefined;
       for (const [key, entry] of this.queued) {
         if (this.waiters.has(key)) continue;
-        if (!victim
-          || entry.priority > victim.priority
-          || (entry.priority === victim.priority && entry.lastRequestedTick < victim.lastRequestedTick)) {
+        if (
+          !victim ||
+          entry.priority > victim.priority ||
+          (entry.priority === victim.priority && entry.lastRequestedTick < victim.lastRequestedTick)
+        ) {
           victimKey = key;
           victim = entry;
         }

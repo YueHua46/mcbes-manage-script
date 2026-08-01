@@ -47,7 +47,8 @@ export async function getLiveFormCapabilities(): Promise<LiveFormCapabilities | 
   try {
     const ui = await import("@minecraft/server-ui");
     const CustomForm = (ui as Record<string, unknown>).CustomForm as CustomFormConstructor | undefined;
-    const ObservableString = (ui as Record<string, unknown>).ObservableString as ObservableStringConstructor | undefined;
+    const ObservableString = (ui as Record<string, unknown>).ObservableString as
+      ObservableStringConstructor | undefined;
 
     if (!CustomForm || !ObservableString) return null;
     return {

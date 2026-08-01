@@ -229,10 +229,8 @@ function formatClaimAt(ts: number): string {
 export function openRedPacketDetailListMenu(player: Player): void {
   const list = redPacketService.listRedPacketsForDetail(40);
   if (list.length === 0) {
-    openDialogForm(
-      player,
-      { title: "领取详细", desc: `${colorCodes.gray}暂无红包记录` },
-      () => openRedPacketMenu(player)
+    openDialogForm(player, { title: "领取详细", desc: `${colorCodes.gray}暂无红包记录` }, () =>
+      openRedPacketMenu(player)
     );
     return;
   }
@@ -244,7 +242,10 @@ export function openRedPacketDetailListMenu(player: Player): void {
   list.forEach((it) => {
     const tag = redPacketStatusLine(it);
     const modeShort = it.mode === "total" ? "拼手气" : "固定";
-    form.button(`${it.senderName} · ${it.claimedCount}/${it.shareCount}份 · ${modeShort} · ${tag}`, "textures/icons/gift");
+    form.button(
+      `${it.senderName} · ${it.claimedCount}/${it.shareCount}份 · ${modeShort} · ${tag}`,
+      "textures/icons/gift"
+    );
   });
   form.button("返回", "textures/icons/back");
 
@@ -268,7 +269,9 @@ const CLAIM_DETAIL_PAGE_SIZE = 10;
 function openRedPacketDetailPage(player: Player, packetId: string, page: number): void {
   const res = redPacketService.getRedPacketClaimDetail(packetId);
   if (!res.ok) {
-    openDialogForm(player, { title: "提示", desc: `${colorCodes.red}${res.error}` }, () => openRedPacketDetailListMenu(player));
+    openDialogForm(player, { title: "提示", desc: `${colorCodes.red}${res.error}` }, () =>
+      openRedPacketDetailListMenu(player)
+    );
     return;
   }
 
@@ -369,9 +372,7 @@ export function openClaimRedPacketMenu(player: Player): void {
   const listForm = new ActionFormData().title("待领红包").body(bodyText);
   pending.forEach((p) => {
     const isLucky = p.mode === "total";
-    const btnLabel = isLucky
-      ? `§e§l${p.senderName}§r §b拼手气`
-      : `§e§l${p.senderName}§r §6§l${p.amount}§r §6金/份`;
+    const btnLabel = isLucky ? `§e§l${p.senderName}§r §b拼手气` : `§e§l${p.senderName}§r §6§l${p.amount}§r §6金/份`;
     listForm.button(btnLabel, "textures/icons/gift");
   });
   listForm.button("返回", "textures/icons/back");

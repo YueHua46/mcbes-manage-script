@@ -260,9 +260,7 @@ async function digOre(player: Player, dimension: Dimension, location: Vector3, b
 
     const chainObsidianRaw = setting.getState("digOreChainObsidian");
     const chainObsidianEnabled = chainObsidianRaw !== false && chainObsidianRaw !== "false";
-    const pickaxeForChain = chainObsidianEnabled
-      ? pickaxe
-      : pickaxe.filter((id) => !CHAIN_OBSIDIAN_TYPE_IDS.has(id));
+    const pickaxeForChain = chainObsidianEnabled ? pickaxe : pickaxe.filter((id) => !CHAIN_OBSIDIAN_TYPE_IDS.has(id));
 
     // 必须潜行且持有镐子
     if (!player.isSneaking || !currentSlotItem.hasTag("is_pickaxe")) return;

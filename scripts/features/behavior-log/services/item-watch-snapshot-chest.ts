@@ -78,29 +78,13 @@ function buildRootChestForm(payload: ItemWatchSnapshotPayload): ChestFormData {
   for (let i = 0; i < 6; i++) {
     const row = payload.equipment[i];
     if (!row?.slot) {
-      form.button(
-        i,
-        `${row?.label ?? "?"} §3空`,
-        ["§0该槽位当时无物品"],
-        GLASS,
-        1,
-        0,
-        false
-      );
+      form.button(i, `${row?.label ?? "?"} §3空`, ["§0该槽位当时无物品"], GLASS, 1, 0, false);
       continue;
     }
     const s = row.slot;
     const lore = [`§b${row.label}`, `§3${s.typeId}`, `§ex${s.amount}`];
     appendItemLore(lore, s);
-    form.button(
-      i,
-      { translate: s.localizationKey },
-      lore,
-      s.typeId,
-      Math.min(Math.max(s.amount, 1), 99),
-      0,
-      false
-    );
+    form.button(i, { translate: s.localizationKey }, lore, s.typeId, Math.min(Math.max(s.amount, 1), 99), 0, false);
   }
 
   for (let g = 6; g <= 8; g++) {
@@ -129,15 +113,7 @@ function buildRootChestForm(payload: ItemWatchSnapshotPayload): ChestFormData {
         false
       );
     } else {
-      form.button(
-        chestSlot,
-        `§0#${invIdx} 空`,
-        ["§0背包格当时为空"],
-        GLASS,
-        1,
-        0,
-        false
-      );
+      form.button(chestSlot, `§0#${invIdx} 空`, ["§0背包格当时为空"], GLASS, 1, 0, false);
     }
   }
 
@@ -180,15 +156,7 @@ function buildNestedChestForm(payload: ItemWatchSnapshotPayload, chain: DrillFra
     form.button(u, " ", ["§0─"], SEPARATOR, 1, 0, false);
   }
 
-  form.button(
-    SLOT_NEST_BACK,
-    "§e返回上一层",
-    ["§b回到上一界面"],
-    "minecraft:arrow",
-    1,
-    0,
-    false
-  );
+  form.button(SLOT_NEST_BACK, "§e返回上一层", ["§b回到上一界面"], "minecraft:arrow", 1, 0, false);
   form.button(SLOT_CLOSE, "关闭", ["§0关闭并返回存档列表"], "minecraft:barrier", 1, 0, false);
 
   return form;
@@ -212,7 +180,7 @@ function interpretRootSelection(
     }
     return { kind: "noop" };
   }
-  if (sel >= 6 && sel <= 8 || sel === SLOT_NEST_BACK || (sel >= 45 && sel <= 51)) {
+  if ((sel >= 6 && sel <= 8) || sel === SLOT_NEST_BACK || (sel >= 45 && sel <= 51)) {
     return { kind: "noop" };
   }
 

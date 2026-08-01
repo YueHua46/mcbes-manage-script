@@ -39,10 +39,7 @@ async function initializePlatformAndTeleport(
     let lastError: unknown;
     for (let attempt = 0; attempt < 40; attempt++) {
       try {
-        dimension.fillBlocks(
-          new BlockVolume({ x: 6, y: 99, z: 6 }, { x: 10, y: 99, z: 10 }),
-          "minecraft:stone"
-        );
+        dimension.fillBlocks(new BlockVolume({ x: 6, y: 99, z: 6 }, { x: 10, y: 99, z: 10 }), "minecraft:stone");
         dimensionRegistry.setRegisteredDimensionSpawn(alias, destination, player.getRotation());
         player.teleport(destination, { dimension, keepVelocity: false });
         player.sendMessage(color.green(`已预加载区块、创建安全平台并进入 ${displayName}`));

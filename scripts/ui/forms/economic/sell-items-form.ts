@@ -71,7 +71,7 @@ class SellItemsForm {
         const totalPrice = itemPrice * item.amount;
 
         const lores: string[] = [];
-        
+
         if (itemPrice === 0) {
           // 价格为0，显示未设置出售价格的提示
           lores.push(`${colorCodes.red}未设置出售价格`);
@@ -325,7 +325,9 @@ class SellItemsForm {
   private confirmSellAllItems(player: Player): void {
     const form = new ActionFormData()
       .title("一键出售")
-      .body(`${colorCodes.yellow}您确定要出售背包中的所有物品吗？\n${colorCodes.red}注意：${BRANDING.MENU_ITEM_LABEL}道具不会被出售。`)
+      .body(
+        `${colorCodes.yellow}您确定要出售背包中的所有物品吗？\n${colorCodes.red}注意：${BRANDING.MENU_ITEM_LABEL}道具不会被出售。`
+      )
       .button("确认出售", "textures/icons/accept")
       .button("取消", "textures/icons/deny");
 
@@ -448,7 +450,7 @@ class SellItemsForm {
         );
         return;
       }
-      
+
       // 显示详细的出售结果
       this.showSellAllResultForm(player, soldItems, itemsWithoutPrice, actualEarned, reachedLimit);
     } else {
@@ -489,8 +491,8 @@ class SellItemsForm {
       soldItems.forEach((soldItem, index) => {
         bodyRawText.push({ text: `${colorCodes.yellow}${index + 1}. ${colorCodes.white}` });
         bodyRawText.push({ translate: soldItem.item.localizationKey });
-        bodyRawText.push({ 
-          text: `\n   ${colorCodes.gray}数量: ${soldItem.soldAmount} | 单价: ${soldItem.price} | 获得: ${colorCodes.gold}${soldItem.totalPrice}\n` 
+        bodyRawText.push({
+          text: `\n   ${colorCodes.gray}数量: ${soldItem.soldAmount} | 单价: ${soldItem.price} | 获得: ${colorCodes.gold}${soldItem.totalPrice}\n`,
         });
       });
     }
@@ -499,13 +501,13 @@ class SellItemsForm {
     if (itemsWithoutPrice.length > 0) {
       bodyRawText.push({ text: `\n${colorCodes.red}━━━ 未出售物品清单 ━━━\n` });
       bodyRawText.push({ text: `${colorCodes.yellow}以下物品因未设置出售价格而未出售:\n\n` });
-      
+
       itemsWithoutPrice.forEach((item, index) => {
         bodyRawText.push({ text: `${colorCodes.red}${index + 1}. ${colorCodes.white}` });
         bodyRawText.push({ translate: item.item.localizationKey });
         bodyRawText.push({ text: ` ${colorCodes.gray}x${item.amount}\n` });
       });
-      
+
       bodyRawText.push({ text: `\n${colorCodes.gray}请联系管理员设置这些物品的出售价格` });
     }
 
@@ -513,17 +515,17 @@ class SellItemsForm {
     if (soldItems.length === 0 && itemsWithoutPrice.length > 0) {
       // 清空之前的内容
       bodyRawText.length = 0;
-      
+
       bodyRawText.push({ text: `${colorCodes.red}═════════ 出售失败 ═════════\n` });
       bodyRawText.push({ text: `${colorCodes.yellow}背包中的所有物品均未设置出售价格！\n\n` });
       bodyRawText.push({ text: `${colorCodes.red}━━━ 物品清单 ━━━\n` });
-      
+
       itemsWithoutPrice.forEach((item, index) => {
         bodyRawText.push({ text: `${colorCodes.red}${index + 1}. ${colorCodes.white}` });
         bodyRawText.push({ translate: item.item.localizationKey });
         bodyRawText.push({ text: ` ${colorCodes.gray}x${item.amount}\n` });
       });
-      
+
       bodyRawText.push({ text: `\n${colorCodes.gray}请联系管理员设置物品出售价格` });
     }
 

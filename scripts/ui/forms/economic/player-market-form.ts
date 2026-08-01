@@ -62,7 +62,9 @@ class PlayerMarketForm {
     const items = playerMarket.getItems();
 
     if (items.length === 0) {
-      openDialogForm(player, { title: "交易市场为空", desc: "当前没有任何上架的商品" }, () => this.openMainMenu(player));
+      openDialogForm(player, { title: "交易市场为空", desc: "当前没有任何上架的商品" }, () =>
+        this.openMainMenu(player)
+      );
       return;
     }
 
@@ -272,7 +274,9 @@ class PlayerMarketForm {
       .title("玩家交易市场管理")
       .body({
         rawtext: [
-          { text: `${colorCodes.gold}商品名称: ${colorCodes.white}${item.data.name}\n${colorCodes.aqua}本地化名称: ${colorCodes.white}` },
+          {
+            text: `${colorCodes.gold}商品名称: ${colorCodes.white}${item.data.name}\n${colorCodes.aqua}本地化名称: ${colorCodes.white}`,
+          },
           { translate: item.item.localizationKey },
           {
             text:

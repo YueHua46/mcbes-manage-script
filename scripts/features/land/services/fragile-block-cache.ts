@@ -51,7 +51,7 @@ function cloneRawMessage(message: RawMessage): RawMessage {
 function captureSignSide(sign: BlockSignComponent, side: SignSide): SignSideSnapshot {
   const raw = sign.getRawText(side);
   return {
-    text: raw ? cloneRawMessage(raw) : sign.getText(side) ?? "",
+    text: raw ? cloneRawMessage(raw) : (sign.getText(side) ?? ""),
     dyeColor: sign.getTextDyeColor(side),
   };
 }

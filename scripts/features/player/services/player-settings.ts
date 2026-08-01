@@ -3,40 +3,40 @@
  * 完整迁移自 Modules/Player/PlayerSetting.ts (145行)
  */
 
-import { Player } from '@minecraft/server';
-import { namePrefixMap } from '../../../assets/glyph-map';
+import { Player } from "@minecraft/server";
+import { namePrefixMap } from "../../../assets/glyph-map";
 
-export const PLAYER_HUD_MARKER = '[CMHUD]';
-export const PLAYER_HUD_HIDE_MARKER = '[CMHUD_HIDE]';
+export const PLAYER_HUD_MARKER = "[CMHUD]";
+export const PLAYER_HUD_HIDE_MARKER = "[CMHUD_HIDE]";
 
 export enum EFunNames {
-  TPA = 'TPA',
-  TPADoNotDisturb = 'TPADoNotDisturb',
-  Chat = 'Chat',
-  LandBoundaryParticles = 'LandBoundaryParticles',
+  TPA = "TPA",
+  TPADoNotDisturb = "TPADoNotDisturb",
+  Chat = "Chat",
+  LandBoundaryParticles = "LandBoundaryParticles",
 }
 
 // 支持的颜色列表
 export const nameColors: Record<string, string> = {
-  '§0': '黑色',
-  '§1': '深蓝色',
-  '§2': '深绿色',
-  '§3': '深青色',
-  '§4': '深红色',
-  '§5': '深紫色',
-  '§6': '金色',
-  '§7': '灰色',
-  '§8': '深灰色',
-  '§9': '蓝色',
-  '§a': '绿色',
-  '§b': '青色',
-  '§c': '红色',
-  '§d': '紫色',
-  '§e': '黄色',
-  '§f': '白色',
-  '§g': '暗黄色',
-  '§h': '彩色',
-  '§r': '重置',
+  "§0": "黑色",
+  "§1": "深蓝色",
+  "§2": "深绿色",
+  "§3": "深青色",
+  "§4": "深红色",
+  "§5": "深紫色",
+  "§6": "金色",
+  "§7": "灰色",
+  "§8": "深灰色",
+  "§9": "蓝色",
+  "§a": "绿色",
+  "§b": "青色",
+  "§c": "红色",
+  "§d": "紫色",
+  "§e": "黄色",
+  "§f": "白色",
+  "§g": "暗黄色",
+  "§h": "彩色",
+  "§r": "重置",
 };
 
 export type TNameColor = keyof typeof nameColors;
@@ -54,16 +54,16 @@ class PlayerSetting {
   turnPlayerFunction(funName: EFunNames, player: Player, value?: boolean): void {
     switch (funName) {
       case EFunNames.TPA:
-        player.setDynamicProperty('TPA', value);
+        player.setDynamicProperty("TPA", value);
         break;
       case EFunNames.TPADoNotDisturb:
-        player.setDynamicProperty('TPADoNotDisturb', value);
+        player.setDynamicProperty("TPADoNotDisturb", value);
         break;
       case EFunNames.Chat:
-        player.setDynamicProperty('Chat', value);
+        player.setDynamicProperty("Chat", value);
         break;
       case EFunNames.LandBoundaryParticles:
-        player.setDynamicProperty('LandBoundaryParticles', value);
+        player.setDynamicProperty("LandBoundaryParticles", value);
         break;
     }
   }
@@ -72,15 +72,15 @@ class PlayerSetting {
    * 获取是否持续显示当前所在领地边界（默认关闭）。
    */
   getLandBoundaryParticlesEnabled(player: Player): boolean {
-    const v = player.getDynamicProperty('LandBoundaryParticles');
-    return v === true || v === 'true';
+    const v = player.getDynamicProperty("LandBoundaryParticles");
+    return v === true || v === "true";
   }
 
   /**
    * 设置是否持续显示当前所在领地边界。
    */
   setLandBoundaryParticlesEnabled(player: Player, enabled: boolean): void {
-    player.setDynamicProperty('LandBoundaryParticles', enabled);
+    player.setDynamicProperty("LandBoundaryParticles", enabled);
   }
 
   /**
@@ -94,13 +94,13 @@ class PlayerSetting {
 
   /** 获取右上角玩家状态栏是否显示（默认开启）。 */
   getPlayerHudEnabled(player: Player): boolean {
-    const value = player.getDynamicProperty('PlayerHudEnabled');
-    return value === undefined || value === true || value === 'true';
+    const value = player.getDynamicProperty("PlayerHudEnabled");
+    return value === undefined || value === true || value === "true";
   }
 
   /** 设置右上角玩家状态栏显示状态。 */
   setPlayerHudEnabled(player: Player, enabled: boolean): void {
-    player.setDynamicProperty('PlayerHudEnabled', enabled);
+    player.setDynamicProperty("PlayerHudEnabled", enabled);
     if (!enabled) player.onScreenDisplay.setActionBar(PLAYER_HUD_HIDE_MARKER);
   }
 
@@ -112,7 +112,7 @@ class PlayerSetting {
       return false;
     }
 
-    player.setDynamicProperty('nameColor', colorCode);
+    player.setDynamicProperty("nameColor", colorCode);
     return true;
   }
 
@@ -120,7 +120,7 @@ class PlayerSetting {
    * 获取玩家名字显示颜色
    */
   getPlayerNameColor(player: Player): string {
-    return (player.getDynamicProperty('nameColor') as string) || '§f';
+    return (player.getDynamicProperty("nameColor") as string) || "§f";
   }
 
   /**
@@ -131,11 +131,11 @@ class PlayerSetting {
       return false;
     }
 
-    const cleanAlias = alias.replace(/[§]/g, '').trim();
+    const cleanAlias = alias.replace(/[§]/g, "").trim();
     if (cleanAlias.length === 0) {
-      player.setDynamicProperty('alias', '');
+      player.setDynamicProperty("alias", "");
     } else {
-      player.setDynamicProperty('alias', cleanAlias);
+      player.setDynamicProperty("alias", cleanAlias);
     }
 
     return true;
@@ -145,7 +145,7 @@ class PlayerSetting {
    * 获取玩家别名
    */
   getPlayerAlias(player: Player): string {
-    return (player.getDynamicProperty('alias') as string) || '';
+    return (player.getDynamicProperty("alias") as string) || "";
   }
 
   /**
@@ -169,7 +169,7 @@ class PlayerSetting {
     return {
       nameColor: this.getPlayerNameColor(player),
       alias: this.getPlayerAlias(player),
-      avatar: '',
+      avatar: "",
     };
   }
 
@@ -177,21 +177,19 @@ class PlayerSetting {
    * 获取 TPA 勿扰模式是否开启（默认关闭）
    */
   getTPADoNotDisturb(player: Player): boolean {
-    const v = player.getDynamicProperty('TPADoNotDisturb');
+    const v = player.getDynamicProperty("TPADoNotDisturb");
     if (v === undefined) return false;
-    return v === true || v === 'true';
+    return v === true || v === "true";
   }
 
   /**
    * 重置玩家显示设置
    */
   resetPlayerDisplaySettings(player: Player): void {
-    player.setDynamicProperty('nameColor', '§f');
-    player.setDynamicProperty('alias', '');
-    player.setDynamicProperty('avatar', '0');
+    player.setDynamicProperty("nameColor", "§f");
+    player.setDynamicProperty("alias", "");
+    player.setDynamicProperty("avatar", "0");
   }
 }
 
 export default new PlayerSetting();
-
-

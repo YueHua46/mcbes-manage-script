@@ -38,7 +38,9 @@ class BlacklistService {
       bannedBy,
     };
     this.saveEntry(xuid, entry);
-    SystemLog.info(`[Blacklist] 已将玩家 ${name}(xuid:${xuid}, persistentId:${persistentId ?? "未知"}) 加入黑名单，操作人: ${bannedBy}`);
+    SystemLog.info(
+      `[Blacklist] 已将玩家 ${name}(xuid:${xuid}, persistentId:${persistentId ?? "未知"}) 加入黑名单，操作人: ${bannedBy}`
+    );
   }
 
   /**
@@ -132,7 +134,8 @@ class BlacklistService {
     };
     this.saveEntry(xuid, updated);
     if (nameChanged) SystemLog.info(`[Blacklist] xuid:${xuid} 名字同步: ${entry.name} → ${newName}`);
-    if (pidChanged) SystemLog.info(`[Blacklist] xuid:${xuid} persistentId 同步: ${entry.persistentId ?? "无"} → ${newPersistentId}`);
+    if (pidChanged)
+      SystemLog.info(`[Blacklist] xuid:${xuid} persistentId 同步: ${entry.persistentId ?? "无"} → ${newPersistentId}`);
   }
 
   /**

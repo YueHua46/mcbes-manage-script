@@ -68,5 +68,3 @@ function createStylizer(extend: string[]): Stylizer {
 }
 
 export const color = createStylizer([]);
-
-

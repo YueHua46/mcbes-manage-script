@@ -1,10 +1,6 @@
 import { system, world, type Player, type Vector3 } from "@minecraft/server";
 import { BackroomsCell, generateRegionPlan, hashParts32 } from "./core";
-import {
-  BACKROOMS_DIMENSION_ID,
-  BACKROOMS_REGION_SIZE,
-  BACKROOMS_WALK_Y,
-} from "./constants";
+import { BACKROOMS_DIMENSION_ID, BACKROOMS_REGION_SIZE, BACKROOMS_WALK_Y } from "./constants";
 import {
   voiceApproachOutcome,
   voiceFirstDelayTicks,
@@ -17,10 +13,7 @@ const VOICE_MAX_LIFETIME_TICKS = 45 * 20;
 const VOICE_RETRY_TICKS = 20 * 20;
 const CORNER_EVENT_RETRY_TICKS = 20 * 20;
 
-const VOICE_SOUNDS = [
-  "yuehua.backrooms.voice_discussion",
-  "yuehua.backrooms.voice_call",
-] as const;
+const VOICE_SOUNDS = ["yuehua.backrooms.voice_discussion", "yuehua.backrooms.voice_call"] as const;
 
 type CornerEventKey = "isAnybody" | "creepyAmbient" | "radioRecording";
 
@@ -117,7 +110,8 @@ function scheduleFirst(player: Player): VoiceSession {
   for (const policy of CORNER_EVENTS) {
     nextCornerTicks.set(
       policy.key,
-      system.currentTick + rangedInt(player.id, `corner:${policy.key}:first`, 0, policy.firstDelay.min, policy.firstDelay.max),
+      system.currentTick +
+        rangedInt(player.id, `corner:${policy.key}:first`, 0, policy.firstDelay.min, policy.firstDelay.max)
     );
     cornerSequences.set(policy.key, 0);
   }
@@ -133,8 +127,8 @@ function scheduleFirst(player: Player): VoiceSession {
 
 function scheduleRepeat(player: Player, session: VoiceSession): void {
   const delay = voiceRepeatDelayTicks();
-  session.nextVoiceTick = system.currentTick
-    + rangedInt(player.id, "voice:repeat", session.sequence, delay.min, delay.max);
+  session.nextVoiceTick =
+    system.currentTick + rangedInt(player.id, "voice:repeat", session.sequence, delay.min, delay.max);
 }
 
 function logicalCell(worldX: number, worldZ: number): BackroomsCell {
@@ -156,7 +150,7 @@ function isLogicalCorner(worldX: number, worldZ: number): boolean {
   const east = !isLogicalWalkable(worldX + 1, worldZ);
   const south = !isLogicalWalkable(worldX, worldZ + 1);
   const west = !isLogicalWalkable(worldX - 1, worldZ);
-  return north && east || east && south || south && west || west && north;
+  return (north && east) || (east && south) || (south && west) || (west && north);
 }
 
 function isWallOccluded(from: Vector3, to: Vector3): boolean {
@@ -164,8 +158,8 @@ function isWallOccluded(from: Vector3, to: Vector3): boolean {
   const dz = to.z - from.z;
   const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) * 2));
   for (let step = 1; step < steps; step += 1) {
-    const x = Math.floor(from.x + dx * step / steps);
-    const z = Math.floor(from.z + dz * step / steps);
+    const x = Math.floor(from.x + (dx * step) / steps);
+    const z = Math.floor(from.z + (dz * step) / steps);
     if (!isLogicalWalkable(x, z)) return true;
   }
   return false;
@@ -197,17 +191,13 @@ function findVoiceLocation(player: Player, sequence: number, relocation = 0): Ve
   return cornerFallback ?? walkableFallback;
 }
 
-function findCornerLocation(
-  player: Player,
-  policy: CornerEventPolicy,
-  sequence: number,
-): Vector3 | undefined {
+function findCornerLocation(player: Player, policy: CornerEventPolicy, sequence: number): Vector3 | undefined {
   let walkableFallback: Vector3 | undefined;
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const salt = sequence * 53 + attempt;
     const angle = unit(player.id, `corner:${policy.key}:angle`, salt) * Math.PI * 2;
-    const radius = policy.minRadius
-      + unit(player.id, `corner:${policy.key}:radius`, salt) * (policy.maxRadius - policy.minRadius);
+    const radius =
+      policy.minRadius + unit(player.id, `corner:${policy.key}:radius`, salt) * (policy.maxRadius - policy.minRadius);
     const location = {
       x: Math.floor(player.location.x + Math.cos(angle) * radius) + 0.5,
       y: BACKROOMS_WALK_Y + 1,
@@ -226,20 +216,19 @@ function findCornerLocation(
 }
 
 function playerStillInBackrooms(player: Player): boolean {
-  try { return player.isValid && player.dimension.id === BACKROOMS_DIMENSION_ID; } catch { return false; }
+  try {
+    return player.isValid && player.dimension.id === BACKROOMS_DIMENSION_ID;
+  } catch {
+    return false;
+  }
 }
 
 function scheduleCornerRepeat(player: Player, session: VoiceSession, policy: CornerEventPolicy): void {
   const sequence = session.cornerSequences.get(policy.key) ?? 0;
   session.nextCornerTicks.set(
     policy.key,
-    system.currentTick + rangedInt(
-      player.id,
-      `corner:${policy.key}:repeat`,
-      sequence,
-      policy.repeatDelay.min,
-      policy.repeatDelay.max,
-    ),
+    system.currentTick +
+      rangedInt(player.id, `corner:${policy.key}:repeat`, sequence, policy.repeatDelay.min, policy.repeatDelay.max)
   );
 }
 
@@ -258,26 +247,28 @@ function playCornerEvent(player: Player, session: VoiceSession, policy: CornerEv
     try {
       if (!player.dimension.isChunkLoaded(location)) return;
       player.dimension.playSound(policy.soundId, location, { volume: policy.volume, pitch: 1 });
-    } catch { /* The player or source chunk can invalidate during a delayed repeat. */ }
+    } catch {
+      /* The player or source chunk can invalidate during a delayed repeat. */
+    }
   };
   play();
   for (let repeat = 1; repeat < policy.repeats; repeat += 1) {
     system.runTimeout(play, policy.repeatDelayTicks * repeat);
   }
-  session.cornerBusyUntilTick = system.currentTick
-    + policy.repeatDelayTicks * Math.max(0, policy.repeats - 1)
-    + policy.durationTicks;
+  session.cornerBusyUntilTick =
+    system.currentTick + policy.repeatDelayTicks * Math.max(0, policy.repeats - 1) + policy.durationTicks;
   scheduleCornerRepeat(player, session, policy);
   return true;
 }
 
 function auditCornerEvents(player: Player, session: VoiceSession): void {
   if (system.currentTick < session.cornerBusyUntilTick || session.active) return;
-  const due = CORNER_EVENTS
-    .filter((policy) => system.currentTick >= (session.nextCornerTicks.get(policy.key) ?? Infinity))
-    .sort((left, right) => (
+  const due = CORNER_EVENTS.filter(
+    (policy) => system.currentTick >= (session.nextCornerTicks.get(policy.key) ?? Infinity)
+  ).sort(
+    (left, right) =>
       (session.nextCornerTicks.get(left.key) ?? Infinity) - (session.nextCornerTicks.get(right.key) ?? Infinity)
-    ));
+  );
   if (due[0]) playCornerEvent(player, session, due[0]);
 }
 
@@ -322,7 +313,11 @@ function resolveApproach(player: Player, session: VoiceSession, options: Backroo
   if (active.outcome === "relocate" && active.relocations === 0) {
     if (playVoice(player, session, 1)) return;
   } else if (active.outcome === "lure-eligible") {
-    try { options.onLureEligible?.(player); } catch { /* Do not break the voice scheduler. */ }
+    try {
+      options.onLureEligible?.(player);
+    } catch {
+      /* Do not break the voice scheduler. */
+    }
   }
   scheduleRepeat(player, session);
 }
@@ -335,7 +330,8 @@ function auditPlayer(player: Player, options: BackroomsVoiceOptions): void {
   }
   resolveApproach(player, session, options);
   auditCornerEvents(player, session);
-  if (session.active || system.currentTick < session.cornerBusyUntilTick || system.currentTick < session.nextVoiceTick) return;
+  if (session.active || system.currentTick < session.cornerBusyUntilTick || system.currentTick < session.nextVoiceTick)
+    return;
   session.sequence += 1;
   if (!playVoice(player, session)) session.nextVoiceTick = system.currentTick + VOICE_RETRY_TICKS;
 }
@@ -364,10 +360,18 @@ export function registerBackroomsVoices(options: BackroomsVoiceOptions = {}): vo
 
   system.runInterval(() => {
     let players: Player[];
-    try { players = world.getDimension(BACKROOMS_DIMENSION_ID).getPlayers(); } catch { return; }
+    try {
+      players = world.getDimension(BACKROOMS_DIMENSION_ID).getPlayers();
+    } catch {
+      return;
+    }
     const present = new Set(players.map((player) => player.id));
     for (const player of players) {
-      try { if (player.isValid) auditPlayer(player, options); } catch { /* Player/chunk invalidated mid-audit. */ }
+      try {
+        if (player.isValid) auditPlayer(player, options);
+      } catch {
+        /* Player/chunk invalidated mid-audit. */
+      }
     }
     for (const playerId of sessions.keys()) if (!present.has(playerId)) sessions.delete(playerId);
   }, VOICE_AUDIT_TICKS);

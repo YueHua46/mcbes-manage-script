@@ -50,10 +50,7 @@ export function isRestrictedBlockInventory(block: Block): boolean {
 }
 
 /** 收纳袋可放的实体容器 */
-const ALLOWED_ENTITY_CONTAINER_IDS = new Set<string>([
-  "minecraft:chest_minecart",
-  "minecraft:chest_boat",
-]);
+const ALLOWED_ENTITY_CONTAINER_IDS = new Set<string>(["minecraft:chest_minecart", "minecraft:chest_boat"]);
 
 /** 首期实体侧仅拦截漏斗矿车（与漏斗方块同类风险） */
 export function isRestrictedEntityContainer(typeId: string): boolean {

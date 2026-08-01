@@ -2,10 +2,7 @@ import { Player, system } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 import { ChestFormData, ChestFormResponse } from "../../components/chest-ui";
 import { color } from "../../../shared/utils/color";
-import {
-  PersistedItemStack,
-  serializeItemStack,
-} from "../../../shared/utils/item-stack-persist";
+import { PersistedItemStack, serializeItemStack } from "../../../shared/utils/item-stack-persist";
 import questPlayerService from "../../../features/quest/services/quest-player";
 import questDefinitionService, {
   QuestDefinition,
@@ -38,7 +35,11 @@ type DduiObservableNumber = {
 type DduiObservableString = { getData: () => string; setData?: (value: string) => void };
 
 type RewardFieldControl =
-  | { kind: "boolean"; field: { key: string; label: string; hint: string; type: string }; booleanValue: DduiObservableBoolean }
+  | {
+      kind: "boolean";
+      field: { key: string; label: string; hint: string; type: string };
+      booleanValue: DduiObservableBoolean;
+    }
   | {
       kind: "text";
       field: { key: string; label: string; hint: string; type: string };
@@ -168,11 +169,17 @@ function setDraft(player: Player, draft: QuestDefinition): void {
 }
 
 function optionIndex<T extends string>(options: { value: T }[], value: T): number {
-  return Math.max(0, options.findIndex((option) => option.value === value));
+  return Math.max(
+    0,
+    options.findIndex((option) => option.value === value)
+  );
 }
 
 function dimensionIndex(value: string | undefined): number {
-  return Math.max(0, questDimensionOptions.findIndex((option) => option.value === (value ?? "")));
+  return Math.max(
+    0,
+    questDimensionOptions.findIndex((option) => option.value === (value ?? ""))
+  );
 }
 
 function dropdownItems(options: { label: string }[]): { label: string; value: number }[] {
@@ -287,7 +294,8 @@ function formatGoalSummary(goal: QuestGoalDefinition, index: number): string {
 
   const schema = getQuestEventSchema(goal.event);
   const filterCount = Object.keys(goal.filters).length;
-  const modeLabel = questProgressModeOptions.find((option) => option.value === goal.progress.mode)?.label ?? goal.progress.mode;
+  const modeLabel =
+    questProgressModeOptions.find((option) => option.value === goal.progress.mode)?.label ?? goal.progress.mode;
   return `${index + 1}. ${schema?.label ?? goal.event}\n${modeLabel} ${goal.progress.target}，条件 ${filterCount}个`;
 }
 
@@ -303,7 +311,8 @@ function formatGoalDetail(goal: QuestGoalDefinition): string {
   }
 
   const schema = getQuestEventSchema(goal.event);
-  const modeLabel = questProgressModeOptions.find((option) => option.value === goal.progress.mode)?.label ?? goal.progress.mode;
+  const modeLabel =
+    questProgressModeOptions.find((option) => option.value === goal.progress.mode)?.label ?? goal.progress.mode;
   const sumFieldLabel = schema?.sumFields?.find((field) => field.key === goal.progress.field)?.label;
   const lines = [
     `触发行为: ${schema?.label ?? goal.event}`,
@@ -422,16 +431,25 @@ async function showMessage(player: Player, title: string, body: string, afterClo
 }
 
 function showActionMessage(player: Player, title: string, body: string, afterClose?: () => void): void {
-  const form = new ActionFormData().title(stripFormLayoutMarkersFromText(title)).body(stripFormLayoutMarkersFromText(body));
+  const form = new ActionFormData()
+    .title(stripFormLayoutMarkersFromText(title))
+    .body(stripFormLayoutMarkersFromText(body));
   form.button("确认");
   form.show(player).then(() => afterClose?.());
 }
 
-function formatPlayerGoalLine(player: Player, quest: QuestDefinition, goal: QuestGoalDefinition, index: number): string {
+function formatPlayerGoalLine(
+  player: Player,
+  quest: QuestDefinition,
+  goal: QuestGoalDefinition,
+  index: number
+): string {
   const current = questPlayerService.getProgress(player, quest, goal);
   const target = goal.progress.target;
   if (goal.event === "entity.kill") {
-    return stripFormLayoutMarkersFromText(`${index + 1}. 击杀${formatEntityFilterLabel(goal.filters.entity)} ${current}/${target}`);
+    return stripFormLayoutMarkersFromText(
+      `${index + 1}. 击杀${formatEntityFilterLabel(goal.filters.entity)} ${current}/${target}`
+    );
   }
   const schema = getQuestEventSchema(goal.event);
   return stripFormLayoutMarkersFromText(`${index + 1}. ${schema?.label ?? goal.event} ${current}/${target}`);
@@ -459,7 +477,9 @@ function formatPlayerQuestDetail(player: Player, quest: QuestDefinition): string
     ...quest.goals.map((goal, index) => `§7${formatPlayerGoalLine(player, quest, goal, index)}`),
     "",
     "§f奖励:",
-    ...(quest.rewards.length > 0 ? quest.rewards.map((reward, index) => `§7${formatRewardSummary(reward, index)}`) : ["§7无"]),
+    ...(quest.rewards.length > 0
+      ? quest.rewards.map((reward, index) => `§7${formatRewardSummary(reward, index)}`)
+      : ["§7无"]),
   ];
   return stripFormLayoutMarkersFromText(lines.filter((line) => line !== "").join("\n"));
 }
@@ -517,7 +537,10 @@ function openQuestAcceptedListForm(player: Player, back: () => void): void {
     const completed = questPlayerService.isCompleted(player, quest);
     const state = questPlayerService.getQuestState(player, quest);
     const status = state?.claimedAt ? "已领取" : canClaim ? "可领取" : completed ? "已完成" : "进行中";
-    form.button(`${getQuestDisplayTitle(quest)}\n${status}`, canClaim ? "textures/icons/gift" : "textures/icons/quest_log");
+    form.button(
+      `${getQuestDisplayTitle(quest)}\n${status}`,
+      canClaim ? "textures/icons/gift" : "textures/icons/quest_log"
+    );
   });
   form.button("返回", "textures/icons/back");
 
@@ -541,7 +564,10 @@ function openQuestAvailableListForm(player: Player, back: () => void): void {
 
   const form = new ActionFormData().title("可接任务").body("选择任务查看详情。");
   quests.forEach((quest) => {
-    form.button(`${getQuestDisplayTitle(quest)}\n${quest.goals.length}目标/${quest.rewards.length}奖励`, "textures/icons/marker_quest");
+    form.button(
+      `${getQuestDisplayTitle(quest)}\n${quest.goals.length}目标/${quest.rewards.length}奖励`,
+      "textures/icons/marker_quest"
+    );
   });
   form.button("返回", "textures/icons/back");
 
@@ -791,7 +817,9 @@ async function openQuestEditorDdui(player: Player): Promise<void> {
     playerDrafts.delete(player.id);
     safeCloseForm(form);
     deferOpen(() => {
-      void showMessage(player, "保存成功", `任务「${getQuestDisplayTitle(draft)}」已保存。`, () => openQuestSystemManageForm(player));
+      void showMessage(player, "保存成功", `任务「${getQuestDisplayTitle(draft)}」已保存。`, () =>
+        openQuestSystemManageForm(player)
+      );
     });
   });
 
@@ -1055,7 +1083,9 @@ async function openSeparateKillGoalEditorDdui(player: Player): Promise<void> {
     }
 
     const dimension = questDimensionOptions[dimensionObs.getData()]?.value ?? "";
-    const goals = selectedRows.map((row) => createKillEntityGoal(row.mob.id, toNumber(row.count.getData(), 1), dimension));
+    const goals = selectedRows.map((row) =>
+      createKillEntityGoal(row.mob.id, toNumber(row.count.getData(), 1), dimension)
+    );
     const draft = getDraft(player);
     draft.goals.push(...goals);
     draft.updatedAt = Date.now();
@@ -1096,14 +1126,32 @@ async function openGenericGoalEditorDdui(
   }
 
   const target = writableString(ddui, String(goal.progress.target));
-  const modeIndex = writableNumber(ddui, Math.max(0, schema.progressModes.findIndex((mode) => mode === goal.progress.mode)));
-  const sumFieldIndex = writableNumber(ddui, Math.max(0, (schema.sumFields ?? []).findIndex((field) => field.key === goal.progress.field)));
+  const modeIndex = writableNumber(
+    ddui,
+    Math.max(
+      0,
+      schema.progressModes.findIndex((mode) => mode === goal.progress.mode)
+    )
+  );
+  const sumFieldIndex = writableNumber(
+    ddui,
+    Math.max(
+      0,
+      (schema.sumFields ?? []).findIndex((field) => field.key === goal.progress.field)
+    )
+  );
   const fields = schema.fields.map((field) => {
     const existing = goal.filters[field.key];
     return {
       field,
       enabled: writableBoolean(ddui, existing !== undefined),
-      operatorIndex: writableNumber(ddui, Math.max(0, field.operators.findIndex((op) => op === (existing?.op ?? field.defaultOperator)))),
+      operatorIndex: writableNumber(
+        ddui,
+        Math.max(
+          0,
+          field.operators.findIndex((op) => op === (existing?.op ?? field.defaultOperator))
+        )
+      ),
       value: writableString(ddui, existing ? formatFilterValue(existing.value) : ""),
     };
   });
@@ -1218,7 +1266,11 @@ function openEditReward(player: Player, rewardIndex: number): void {
   });
 }
 
-function openRewardEditor(player: Player, reward: QuestRewardDefinition, onSave: (reward: QuestRewardDefinition) => void): void {
+function openRewardEditor(
+  player: Player,
+  reward: QuestRewardDefinition,
+  onSave: (reward: QuestRewardDefinition) => void
+): void {
   if (reward.action === "give_item") {
     void openGiveItemRewardEditorDdui(player, reward, onSave);
     return;
@@ -1281,7 +1333,12 @@ function openInventoryItemRewardSelector(
   }
 
   const form = new ChestFormData("27_inv").title("选择奖励物品\n下方是你的背包");
-  form.button(13, "点击下方背包物品", ["会保存附魔、耐久、名称、Lore 和容器内容", "不会扣除你的背包物品"], "minecraft:chest");
+  form.button(
+    13,
+    "点击下方背包物品",
+    ["会保存附魔、耐久、名称、Lore 和容器内容", "不会扣除你的背包物品"],
+    "minecraft:chest"
+  );
 
   form.show(player, { appendViewerInventory: true }).then((response: ChestFormResponse) => {
     if (response.canceled) {

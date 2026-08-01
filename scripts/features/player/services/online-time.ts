@@ -37,10 +37,7 @@ export interface OnlineTimeRecord {
 
 /** 查询某玩家「当前离线了多久」（精确匹配玩家名） */
 export type OfflineDurationLookup =
-  | { kind: "online" }
-  | { kind: "offline"; seconds: number }
-  | { kind: "no_logout_record" }
-  | { kind: "not_in_db" };
+  { kind: "online" } | { kind: "offline"; seconds: number } | { kind: "no_logout_record" } | { kind: "not_in_db" };
 
 const anchorMsByName = new Map<string, number>();
 

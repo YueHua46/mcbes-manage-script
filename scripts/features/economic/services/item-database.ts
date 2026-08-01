@@ -8,7 +8,11 @@ import { Dimension, Entity, ItemStack, LocationInUnloadedChunkError, system, wor
 import { Database } from "../../../shared/database/database";
 import { isAdmin, SystemLog } from "../../../shared/utils/common";
 import { deserializeItemStack, PersistedItemStack, serializeItemStack } from "../../../shared/utils/item-stack-persist";
-import { getOnlineRealPlayerCount, getOnlineRealPlayers, isScriptFakePlayerEntity } from "../../../shared/utils/online-players";
+import {
+  getOnlineRealPlayerCount,
+  getOnlineRealPlayers,
+  isScriptFakePlayerEntity,
+} from "../../../shared/utils/online-players";
 
 // 每个实体可存储的最大槽位数
 const ITEM_MAX_PER_ENTITY = 256;
@@ -751,7 +755,11 @@ export default class ItemDatabase {
           if (!item) continue;
 
           const fullSlot = entityIndex * ITEM_MAX_PER_ENTITY + localSlot;
-          this.#syncSlotFromEntityItem(fullSlot, item.clone(), this.#itemData[fullSlot] ?? this.#database.get(`slot_${fullSlot}`));
+          this.#syncSlotFromEntityItem(
+            fullSlot,
+            item.clone(),
+            this.#itemData[fullSlot] ?? this.#database.get(`slot_${fullSlot}`)
+          );
           syncedSlots++;
         }
       }

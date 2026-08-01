@@ -3,13 +3,7 @@
  * 潜影盒、收纳袋等含 minecraft:inventory 的物品会递归序列化子物品（有深度与条数上限）。
  */
 
-import {
-  EntityEquippableComponent,
-  EquipmentSlot,
-  ItemInventoryComponent,
-  ItemStack,
-  Player,
-} from "@minecraft/server";
+import { EntityEquippableComponent, EquipmentSlot, ItemInventoryComponent, ItemStack, Player } from "@minecraft/server";
 import type { ItemWatchNestedSlot, ItemWatchSlotLine, ItemWatchSnapshotPayload } from "./item-watch-snapshot-store";
 
 const MAX_NEST_DEPTH = 4;
@@ -94,7 +88,8 @@ export function collectPlayerItemWatchSnapshot(
   const ctx: SerializeCtx = { totalNodes: 0 };
 
   const equipment: ItemWatchSnapshotPayload["equipment"] = [];
-  const equippable = player.getComponent(EntityEquippableComponent.componentId) as EntityEquippableComponent | undefined;
+  const equippable = player.getComponent(EntityEquippableComponent.componentId) as
+    EntityEquippableComponent | undefined;
   if (equippable) {
     const slots: [EquipmentSlot, string][] = [
       [EquipmentSlot.Mainhand, "主手"],

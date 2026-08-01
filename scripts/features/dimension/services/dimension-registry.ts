@@ -52,12 +52,14 @@ function parseRecord(value: unknown): RegisteredDimension | undefined {
     typeof item.displayName !== "string" ||
     typeof item.createdAt !== "number" ||
     typeof item.updatedAt !== "number"
-  ) return undefined;
+  )
+    return undefined;
 
   const spawn = isFiniteVector3(item.spawn) ? copyLocation(item.spawn) : undefined;
-  const rotation = item.rotation && Number.isFinite(item.rotation.x) && Number.isFinite(item.rotation.y)
-    ? { x: item.rotation.x, y: item.rotation.y }
-    : undefined;
+  const rotation =
+    item.rotation && Number.isFinite(item.rotation.x) && Number.isFinite(item.rotation.y)
+      ? { x: item.rotation.x, y: item.rotation.y }
+      : undefined;
 
   return {
     alias: item.alias,
@@ -144,7 +146,7 @@ export function addRegisteredDimension(
   alias: string,
   dimensionId: string,
   displayName?: string,
-  actor?: string,
+  actor?: string
 ): RegisteredDimension {
   const normalized = requireAlias(alias);
   const id = dimensionId.trim();
@@ -169,7 +171,7 @@ export function ensureRegisteredDimension(
   alias: string,
   dimensionId: string,
   displayName?: string,
-  actor?: string,
+  actor?: string
 ): RegisteredDimension {
   return getRegisteredDimension(alias) ?? addRegisteredDimension(alias, dimensionId, displayName, actor);
 }
@@ -188,10 +190,7 @@ export function updateRegisteredDimensionDisplayName(alias: string, displayName:
   return copyRecord(record);
 }
 
-export function resetRegisteredDimensionConfiguration(
-  alias: string,
-  defaultDisplayName?: string,
-): RegisteredDimension {
+export function resetRegisteredDimensionConfiguration(alias: string, defaultDisplayName?: string): RegisteredDimension {
   const normalized = requireAlias(alias);
   const registry = loadRegistry();
   const record = registry[normalized];
@@ -208,7 +207,7 @@ export function addRegisteredDimensionFromPlayer(
   alias: string,
   player: Player,
   displayName?: string,
-  actor: string = player.name,
+  actor: string = player.name
 ): RegisteredDimension {
   const record = addRegisteredDimension(alias, player.dimension.id, displayName, actor);
   try {
@@ -228,11 +227,7 @@ export function removeRegisteredDimension(alias: string): boolean {
   return true;
 }
 
-export function setRegisteredDimensionSpawn(
-  alias: string,
-  location: Vector3,
-  rotation?: Vector2,
-): RegisteredDimension {
+export function setRegisteredDimensionSpawn(alias: string, location: Vector3, rotation?: Vector2): RegisteredDimension {
   if (!isFiniteVector3(location)) throw new Error("传送点坐标必须是有限数值");
   if (rotation && (!Number.isFinite(rotation.x) || !Number.isFinite(rotation.y))) {
     throw new Error("传送点朝向必须是有限数值");

@@ -2,12 +2,7 @@
  * 作物 profile 定义（不含可可豆）
  */
 
-export type HarvestMode =
-  | "break-mature"
-  | "clip-mature"
-  | "sugar-cane-column"
-  | "column-above-base"
-  | "berry-blocks";
+export type HarvestMode = "break-mature" | "clip-mature" | "sugar-cane-column" | "column-above-base" | "berry-blocks";
 
 export type PlantMode =
   | "farmland-air"
@@ -95,7 +90,11 @@ export const CROP_PROFILES: CropProfile[] = [
     seedTypeId: "minecraft:wheat_seeds",
     plantBlockId: "minecraft:wheat",
     plant: { mode: "farmland-air" },
-    harvest: { mode: "clip-mature", maturity: { stateKey: "growth", min: 7 }, clipReset: { stateKey: "growth", value: 0 } },
+    harvest: {
+      mode: "clip-mature",
+      maturity: { stateKey: "growth", min: 7 },
+      clipReset: { stateKey: "growth", value: 0 },
+    },
     clipInteract: true,
   },
   {
@@ -219,7 +218,11 @@ export const CROP_PROFILES: CropProfile[] = [
   },
   {
     id: "cave_berries",
-    blockTypeIds: ["minecraft:cave_vines", "minecraft:cave_vines_body_with_berries", "minecraft:cave_vines_head_with_berries"],
+    blockTypeIds: [
+      "minecraft:cave_vines",
+      "minecraft:cave_vines_body_with_berries",
+      "minecraft:cave_vines_head_with_berries",
+    ],
     seedTypeId: "minecraft:glow_berries",
     plantBlockId: "minecraft:cave_vines",
     plant: { mode: "ceiling-vine" },

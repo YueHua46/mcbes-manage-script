@@ -93,11 +93,9 @@ function openJoinPopupAnnouncementDetailForm(player: Player, id: string): void {
   const form = new ActionFormData();
   form.title("公告详情");
   form.body(
-    [
-      `§7状态：${announcement.enabled ? "§a启用" : "§7停用"}`,
-      "",
-      renderJoinPopupAnnouncement(announcement, 0),
-    ].join("\n")
+    [`§7状态：${announcement.enabled ? "§a启用" : "§7停用"}`, "", renderJoinPopupAnnouncement(announcement, 0)].join(
+      "\n"
+    )
   );
   form.button("编辑公告", "textures/icons/edit2");
   form.button(announcement.enabled ? "停用公告" : "启用公告", "textures/icons/settings");
@@ -144,7 +142,9 @@ function openEditJoinPopupAnnouncementForm(player: Player, announcement?: JoinPo
   form.show(player).then((data) => {
     if (data.canceled || data.cancelationReason || !data.formValues) return;
 
-    const title = String(data.formValues[0] ?? "").replace(/\\n/g, " ").trim();
+    const title = String(data.formValues[0] ?? "")
+      .replace(/\\n/g, " ")
+      .trim();
     const content = String(data.formValues[1] ?? "").trim();
     const enabled = Boolean(data.formValues[2]);
     const error = validateAnnouncementInput(title, content);

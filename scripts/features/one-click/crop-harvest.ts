@@ -76,7 +76,7 @@ function processHarvestTask(ctx: HarvestJobContext, player: Player, task: Harves
   block.setType("air");
 }
 
-function *cropHarvestJob(ctx: HarvestJobContext): Generator<void, void, void> {
+function* cropHarvestJob(ctx: HarvestJobContext): Generator<void, void, void> {
   let sliceCount = 0;
 
   try {
@@ -113,12 +113,7 @@ function scheduleHarvestJob(player: Player, tasks: HarvestTask[]): void {
   );
 }
 
-function makeBreakTask(
-  profile: CropProfile,
-  location: Vector3,
-  block: Block,
-  tool?: ItemStack
-): HarvestTask {
+function makeBreakTask(profile: CropProfile, location: Vector3, block: Block, tool?: ItemStack): HarvestTask {
   return {
     profileId: profile.id,
     location,
@@ -191,7 +186,7 @@ function onPlayerBreakCrop(
   if (profile.harvest.maturity) {
     const perm =
       profile.plant.mode === "farmland-double" && brokenPerm.getState("upper_block_bit") === true
-        ? dimension.getBlock({ x: origin.x, y: origin.y - 1, z: origin.z })?.permutation ?? brokenPerm
+        ? (dimension.getBlock({ x: origin.x, y: origin.y - 1, z: origin.z })?.permutation ?? brokenPerm)
         : brokenPerm;
     const value = perm.getState(profile.harvest.maturity.stateKey);
     if (typeof value !== "number" || value < profile.harvest.maturity.min) return;
@@ -216,7 +211,14 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
     const profile = getProfileByBlock(brokenId);
     if (!profile) return;
 
-    onPlayerBreakCrop(player, dimension, block.location, profile, event.brokenBlockPermutation, event.itemStackBeforeBreak);
+    onPlayerBreakCrop(
+      player,
+      dimension,
+      block.location,
+      profile,
+      event.brokenBlockPermutation,
+      event.itemStackBeforeBreak
+    );
   } catch {
     // 忽略瞬时错误
   }

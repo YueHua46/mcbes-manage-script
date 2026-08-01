@@ -10,7 +10,11 @@ import officeShop, { OfficeShopItemData } from "../../../features/economic/servi
 import { openDialogForm } from "../../components/dialog";
 import { glyphKeys } from "../../../assets/glyph-map";
 import ChestFormData from "../../components/chest-ui/chest-forms";
-import { buildChestItemListLores, getChestItemDurabilityBarValue, getChestItemTextureKey } from "../../components/chest-ui";
+import {
+  buildChestItemListLores,
+  getChestItemDurabilityBarValue,
+  getChestItemTextureKey,
+} from "../../components/chest-ui";
 import { getItemDisplayName, hasAnyEnchantment } from "../../../shared/utils/item-utils";
 import { isAdmin } from "../../../shared/utils/common";
 
@@ -264,7 +268,15 @@ class OfficeShopSettingForm {
       const amount = itemData.data.amount; // 使用商品库存数量，而不是物品本身的数量
       const isEnchanted = hasAnyEnchantment(itemData.item);
 
-      form.button(index, displayName, lores, itemIconPath, amount, getChestItemDurabilityBarValue(itemData.item), isEnchanted);
+      form.button(
+        index,
+        displayName,
+        lores,
+        itemIconPath,
+        amount,
+        getChestItemDurabilityBarValue(itemData.item),
+        isEnchanted
+      );
     });
 
     // 添加导航按钮

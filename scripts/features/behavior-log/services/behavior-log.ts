@@ -451,11 +451,7 @@ function appendPistonAttributionMeta(rawtext: RawMessage[], entry: BehaviorLogEn
     // 兼容旧日志：早期版本把红石方块 typeId 直接拼进了证据文本。
     const legacyMatched = meta.match(/^(置信=[^ ]+ 证据=(?:放置|破坏))([a-z0-9_:.-]+)(.*)$/);
     if (legacyMatched) {
-      rawtext.push(
-        { text: `${legacyMatched[1]} ` },
-        typeNameRawMessage(legacyMatched[2]),
-        { text: legacyMatched[3] }
-      );
+      rawtext.push({ text: `${legacyMatched[1]} ` }, typeNameRawMessage(legacyMatched[2]), { text: legacyMatched[3] });
       return;
     }
     rawtext.push({ text: meta });

@@ -3,11 +3,7 @@ import setting, { type IModules } from "../../system/services/setting";
 import economic from "./economic";
 
 export type TeleportCostSettingKey =
-  | "randomTeleportCost"
-  | "backToDeathCost"
-  | "tpaTeleportCost"
-  | "waypointTeleportCost"
-  | "landTeleportCost";
+  "randomTeleportCost" | "backToDeathCost" | "tpaTeleportCost" | "waypointTeleportCost" | "landTeleportCost";
 
 export function getTeleportCost(settingKey: TeleportCostSettingKey): number {
   if (setting.getState("economy") !== true) return 0;

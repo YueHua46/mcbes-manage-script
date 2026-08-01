@@ -61,9 +61,7 @@ function resetOversizedStartupDatabase(): void {
   const index = Number(world.getDynamicProperty(`${DATABASE_NAME}Index`));
   if (!Number.isFinite(index) || index <= MAX_STARTUP_CHUNKS) return;
 
-  console.warn(
-    `[ItemWatchSnapshotStore] ${DATABASE_NAME} 数据块过多(${index})，为避免启动内存溢出已重置快照库`
-  );
+  console.warn(`[ItemWatchSnapshotStore] ${DATABASE_NAME} 数据块过多(${index})，为避免启动内存溢出已重置快照库`);
   world.setDynamicProperty(`${DATABASE_NAME}Index`, 1);
   world.setDynamicProperty(`${DATABASE_NAME}:0`, EMPTY_DATABASE_JSON);
 
@@ -161,9 +159,7 @@ class ItemWatchSnapshotStore {
   private trim(state: SnapshotState): void {
     const max = getMaxSnapshots();
     const keys = Object.keys(state.entries);
-    const sorted = keys
-      .map((k) => ({ k, t: state.entries[k]?.t ?? 0 }))
-      .sort((a, b) => a.t - b.t);
+    const sorted = keys.map((k) => ({ k, t: state.entries[k]?.t ?? 0 })).sort((a, b) => a.t - b.t);
 
     const remove = Math.max(0, sorted.length - max);
     for (let i = 0; i < remove; i++) {

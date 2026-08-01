@@ -62,7 +62,9 @@ export const openServerMenuLostForm = (player: Player): void => {
       title: "",
       desc:
         color.yellow("1. ") +
-        color.green(`如果你丢失了${BRANDING.MENU_ITEM_LABEL}，请在聊天栏里输入：${BRANDING.MENU_ITEM_LABEL}，即可打开${BRANDING.MENU_ITEM_LABEL}\n`) +
+        color.green(
+          `如果你丢失了${BRANDING.MENU_ITEM_LABEL}，请在聊天栏里输入：${BRANDING.MENU_ITEM_LABEL}，即可打开${BRANDING.MENU_ITEM_LABEL}\n`
+        ) +
         color.yellow("2. ") +
         color.green(`打开${BRANDING.MENU_ITEM_LABEL}后，点击功能：给予我${BRANDING.MENU_ITEM_LABEL} 即可\n`),
     })

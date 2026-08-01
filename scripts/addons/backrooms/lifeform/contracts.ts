@@ -1,12 +1,4 @@
-export type EncounterPhase =
-  | "dormant"
-  | "lure"
-  | "stalk"
-  | "inspect"
-  | "roar"
-  | "chase"
-  | "search"
-  | "retreat";
+export type EncounterPhase = "dormant" | "lure" | "stalk" | "inspect" | "roar" | "chase" | "search" | "retreat";
 
 export interface EncounterState {
   readonly ownerId: string;
@@ -29,11 +21,7 @@ export type EncounterAction =
   | { type: "chase-expired"; tick: number }
   | { type: "search-expired"; tick: number };
 
-export function createEncounterState(
-  ownerId: string,
-  manifestationSlot: number,
-  createdTick: number,
-): EncounterState {
+export function createEncounterState(ownerId: string, manifestationSlot: number, createdTick: number): EncounterState {
   return {
     ownerId,
     manifestationSlot,
@@ -49,9 +37,7 @@ function enterPhase(state: EncounterState, phase: EncounterPhase, tick: number):
     ...state,
     phase,
     phaseStartedTick: tick,
-    chaseStartedTick: phase === "chase" && state.chaseStartedTick === 0
-      ? tick
-      : state.chaseStartedTick,
+    chaseStartedTick: phase === "chase" && state.chaseStartedTick === 0 ? tick : state.chaseStartedTick,
   };
 }
 

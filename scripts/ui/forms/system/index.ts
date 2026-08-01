@@ -125,7 +125,10 @@ const LAND_PARTICLE_LEVEL_OPTIONS = [
 
 function openLandParticleSettingsForm(player: Player): void {
   const current = String(setting.getState("landBoundaryParticleLevel"));
-  const currentIndex = Math.max(0, LAND_PARTICLE_LEVEL_OPTIONS.findIndex((item) => item.value === current));
+  const currentIndex = Math.max(
+    0,
+    LAND_PARTICLE_LEVEL_OPTIONS.findIndex((item) => item.value === current)
+  );
   const form = new ModalFormData();
   form.title("领地粒子效果");
   form.dropdown(
@@ -1528,9 +1531,7 @@ function openMonsterRewardRangeListForm(player: Player): void {
   const monsters = Object.keys(monsterByGold).sort((a, b) => a.localeCompare(b));
   const form = new ActionFormData();
   form.title("怪物金币奖励范围");
-  form.body(
-    "§7配置每种怪物击杀后的随机金币范围。最小值与最大值相同时，会固定奖励该数量；设为 0～0 可关闭该怪物奖励。"
-  );
+  form.body("§7配置每种怪物击杀后的随机金币范围。最小值与最大值相同时，会固定奖励该数量；设为 0～0 可关闭该怪物奖励。");
   monsters.forEach((monster) => {
     const range = overrides[monster] ?? monsterByGold[monster];
     const suffix = overrides[monster] ? "自定义" : "默认";
@@ -1538,10 +1539,7 @@ function openMonsterRewardRangeListForm(player: Player): void {
     form.button(
       localizationKey
         ? {
-            rawtext: [
-              { translate: localizationKey },
-              { text: `\n${range[0]} ～ ${range[1]}  ${suffix}` },
-            ],
+            rawtext: [{ translate: localizationKey }, { text: `\n${range[0]} ～ ${range[1]}  ${suffix}` }],
           }
         : `${monster}\n${range[0]} ～ ${range[1]}  ${suffix}`,
       "textures/icons/zombi"
@@ -1588,9 +1586,7 @@ function openMonsterRewardRangeEditForm(player: Player, monster: string): void {
   const form = new ModalFormData();
   const localizationKey = getMonsterLocalizationKey(monster);
   form.title(
-    localizationKey
-      ? { rawtext: [{ text: "奖励范围 · " }, { translate: localizationKey }] }
-      : `奖励范围 · ${monster}`
+    localizationKey ? { rawtext: [{ text: "奖励范围 · " }, { translate: localizationKey }] } : `奖励范围 · ${monster}`
   );
   form.textField("最小奖励金币", "非负整数", { defaultValue: String(current[0]) });
   form.textField("最大奖励金币", "非负整数；与最小值相同时为固定奖励", { defaultValue: String(current[1]) });
@@ -1623,7 +1619,9 @@ function openMonsterRewardRangeEditForm(player: Player, monster: string): void {
       player,
       {
         title: "保存成功",
-        desc: color.green(min === max ? `${monster} 将固定奖励 ${min} 金币。` : `${monster} 将随机奖励 ${min}～${max} 金币。`),
+        desc: color.green(
+          min === max ? `${monster} 将固定奖励 ${min} 金币。` : `${monster} 将随机奖励 ${min}～${max} 金币。`
+        ),
       },
       () => openMonsterRewardRangeListForm(player)
     );
@@ -1753,16 +1751,21 @@ function openSetPlayerMoneyForm(player: Player, operation: PlayerMoneyOperation 
     }
 
     const oldBalance = economic.getWallet(targetPlayerName).gold;
-    const targetBalance = operation === "set" ? amount : operation === "add" ? oldBalance + amount : oldBalance - amount;
+    const targetBalance =
+      operation === "set" ? amount : operation === "add" ? oldBalance + amount : oldBalance - amount;
     const success =
-      Number.isSafeInteger(targetBalance) && targetBalance >= 0 && economic.setPlayerGold(targetPlayerName, targetBalance);
+      Number.isSafeInteger(targetBalance) &&
+      targetBalance >= 0 &&
+      economic.setPlayerGold(targetPlayerName, targetBalance);
     if (success) {
       const newBalance = economic.getWallet(targetPlayerName).gold;
       // 如果目标玩家在线，通知他
       const targetPlayer = getOnlineRealPlayerByName(targetPlayerName);
       if (targetPlayer) {
         targetPlayer.sendMessage(
-          color.yellow(`管理员${operationLabel}了您的金币 ${color.gold(amount.toString())}，当前余额 ${color.gold(newBalance.toString())}`)
+          color.yellow(
+            `管理员${operationLabel}了您的金币 ${color.gold(amount.toString())}，当前余额 ${color.gold(newBalance.toString())}`
+          )
         );
       }
 
@@ -1786,7 +1789,7 @@ function openSetPlayerMoneyForm(player: Player, operation: PlayerMoneyOperation 
               ? `玩家余额不足，当前只有 ${oldBalance} 金币。`
               : operation === "add" && targetBalance > MONEY_SCOREBOARD_MAX
                 ? `增加后余额会超过金币上限 ${MONEY_SCOREBOARD_MAX}。`
-              : `${operationLabel}金币失败，请检查经济系统状态。`
+                : `${operationLabel}金币失败，请检查经济系统状态。`
           ),
         },
         () => openSetPlayerMoneyForm(player, operation)

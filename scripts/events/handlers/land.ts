@@ -34,13 +34,8 @@ import setting from "../../features/system/services/setting";
 import economic from "../../features/economic/services/economic";
 import PlayerSetting from "../../features/player/services/player-settings";
 import { getOnlineRealPlayers } from "../../shared/utils/online-players";
-import {
-  findDeniedPistonMove,
-  type PistonBlockMove,
-} from "../../features/land/services/piston-boundary-policy";
-import fragileBlockCache, {
-  isFragilePistonAffectedBlock,
-} from "../../features/land/services/fragile-block-cache";
+import { findDeniedPistonMove, type PistonBlockMove } from "../../features/land/services/piston-boundary-policy";
+import fragileBlockCache, { isFragilePistonAffectedBlock } from "../../features/land/services/fragile-block-cache";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
@@ -882,7 +877,11 @@ function warnDeniedLandEntityBreaking(player: Player, entity: Entity, land: ILan
   system.run(() => {
     const p = getOnlineRealPlayers().find((pl) => pl.id === player.id);
     if (!p) return;
-    useNotify("actionbar", p, color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地展示实体`));
+    useNotify(
+      "actionbar",
+      p,
+      color.red(`无权限破坏 ${color.yellow(stripLandDisplaySection(land.owner))} 的领地展示实体`)
+    );
   });
 }
 
@@ -1309,7 +1308,8 @@ export function registerLandEvents(): void {
 
         const lands = Object.values(landManager.getLandList()).filter(
           (land) =>
-            land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location, config.renderDistance)
+            land.dimension === p.dimension.id &&
+            isLandNearPlayerForBoundaryDisplay(land, p.location, config.renderDistance)
         );
         for (const land of lands) {
           try {
@@ -1343,7 +1343,8 @@ export function registerLandEvents(): void {
 
         const lands = Object.values(landManager.getLandList()).filter(
           (land) =>
-            land.dimension === p.dimension.id && isLandNearPlayerForBoundaryDisplay(land, p.location, config.renderDistance)
+            land.dimension === p.dimension.id &&
+            isLandNearPlayerForBoundaryDisplay(land, p.location, config.renderDistance)
         );
         for (const land of lands) {
           try {
@@ -1692,15 +1693,18 @@ export function registerLandEvents(): void {
       const dimension = event.block.dimension;
       const location = { ...event.block.location };
       // 告示牌编辑界面会晚于交互事件提交；延迟刷新可取得最终文字。
-      system.runTimeout(() => {
-        try {
-          const block = dimension.getBlock(location);
-          if (block && shouldCacheFragileBlockAt(location, dimension.id)) fragileBlockCache.captureBlock(block);
-          else fragileBlockCache.remove(dimension.id, location);
-        } catch {
-          /* ignore unloaded blocks */
-        }
-      }, event.block.typeId.includes("sign") ? 20 : 1);
+      system.runTimeout(
+        () => {
+          try {
+            const block = dimension.getBlock(location);
+            if (block && shouldCacheFragileBlockAt(location, dimension.id)) fragileBlockCache.captureBlock(block);
+            else fragileBlockCache.remove(dimension.id, location);
+          } catch {
+            /* ignore unloaded blocks */
+          }
+        },
+        event.block.typeId.includes("sign") ? 20 : 1
+      );
     }
     const action = isDirectPistonActivator(event.block.typeId);
     if (!action) return;

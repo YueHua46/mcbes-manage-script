@@ -50,4 +50,3 @@ export function hasAnyEnchantment(item: ItemStack): boolean {
     return false;
   }
 }
-

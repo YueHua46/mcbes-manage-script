@@ -223,12 +223,21 @@ class FloatingTextService {
       name,
       text,
       ownerName: input.player.name,
-      location: normalizeLocation({ x: input.player.location.x, y: input.player.location.y + 1.8, z: input.player.location.z }),
+      location: normalizeLocation({
+        x: input.player.location.x,
+        y: input.player.location.y + 1.8,
+        z: input.player.location.z,
+      }),
       dimension: input.player.dimension.id,
       created: time,
       modified: time,
       scale: clampNumber(input.scale, DEFAULT_SCALE, MIN_SCALE, MAX_SCALE),
-      maximumRenderDistance: clampNumber(input.maximumRenderDistance, DEFAULT_RENDER_DISTANCE, MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE),
+      maximumRenderDistance: clampNumber(
+        input.maximumRenderDistance,
+        DEFAULT_RENDER_DISTANCE,
+        MIN_RENDER_DISTANCE,
+        MAX_RENDER_DISTANCE
+      ),
       depthTest: input.depthTest ?? false,
       backgroundAlpha: clampNumber(input.backgroundAlpha, DEFAULT_BACKGROUND_ALPHA, 0, 1),
     };
@@ -264,7 +273,11 @@ class FloatingTextService {
     item.depthTest = input.depthTest ?? item.depthTest;
     item.backgroundAlpha = clampNumber(input.backgroundAlpha, item.backgroundAlpha, 0, 1);
     if (input.updateLocation) {
-      item.location = normalizeLocation({ x: input.player.location.x, y: input.player.location.y + 1.8, z: input.player.location.z });
+      item.location = normalizeLocation({
+        x: input.player.location.x,
+        y: input.player.location.y + 1.8,
+        z: input.player.location.z,
+      });
       item.dimension = input.player.dimension.id;
     }
     item.modified = nowText();

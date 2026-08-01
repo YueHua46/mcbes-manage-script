@@ -1,9 +1,6 @@
 import { Container, ItemStack, Player, system } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
-import {
-  deserializeItemStack,
-  PersistedItemStack,
-} from "../../../shared/utils/item-stack-persist";
+import { deserializeItemStack, PersistedItemStack } from "../../../shared/utils/item-stack-persist";
 import economic from "../../economic/services/economic";
 import { isRealPlayerEntity } from "../../../shared/utils/online-players";
 import questDefinitionService, {
@@ -91,7 +88,8 @@ function matchesFilter(filter: QuestFilter | undefined, actual: string | number 
 
 function goalMatches(goal: QuestGoalDefinition, payload: QuestEventPayload): boolean {
   return Object.entries(goal.filters).every(([key, filter]) => {
-    const actual = key === "dimension" ? normalizeDimension(payload.dimension) : payload[key as keyof QuestEventPayload];
+    const actual =
+      key === "dimension" ? normalizeDimension(payload.dimension) : payload[key as keyof QuestEventPayload];
     return matchesFilter(filter, actual as string | number | boolean | undefined);
   });
 }
@@ -292,7 +290,13 @@ class QuestPlayerService {
     return undefined;
   }
 
-  getSummary(player: Player): { total: number; accepted: number; completed: number; claimable: number; available: number } {
+  getSummary(player: Player): {
+    total: number;
+    accepted: number;
+    completed: number;
+    claimable: number;
+    available: number;
+  } {
     const quests = this.getEnabledQuests();
     const acceptedStates = quests.map((quest) => this.getQuestState(player, quest)).filter(Boolean);
     const completed = quests.filter((quest) => this.isCompleted(player, quest)).length;
@@ -332,7 +336,10 @@ class QuestPlayerService {
       const itemSnapshot = getPersistedItemStack(reward.params.itemSnapshot);
       if (itemSnapshot) {
         try {
-          const template = deserializeItemStack({ ...itemSnapshot, amount: Math.min(Math.max(itemSnapshot.amount, 1), 255) });
+          const template = deserializeItemStack({
+            ...itemSnapshot,
+            amount: Math.min(Math.max(itemSnapshot.amount, 1), 255),
+          });
           addItemCopies(container, player, template, amount);
           player.sendMessage({
             rawtext: [

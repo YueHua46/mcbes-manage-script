@@ -217,7 +217,8 @@ export function openTpaSettingsForm(player: Player): void {
   const dnd = PlayerSetting.getTPADoNotDisturb(player);
   form.toggle("TPA勿扰模式", {
     defaultValue: dnd,
-    tooltip: "§a开启后，他人发来的传送请求不会弹窗，改为聊天提示；你可通过输入 /tpaccept 或 /tpreject 在限定时间内处理。",
+    tooltip:
+      "§a开启后，他人发来的传送请求不会弹窗，改为聊天提示；你可通过输入 /tpaccept 或 /tpreject 在限定时间内处理。",
   });
   form.submitButton("确认");
 
@@ -227,9 +228,7 @@ export function openTpaSettingsForm(player: Player): void {
     if (formValues) {
       const enabled = formValues[0] as boolean;
       PlayerSetting.turnPlayerFunction(EFunNames.TPADoNotDisturb, player, enabled);
-      player.sendMessage(
-        enabled ? "§a已开启 §bTPA勿扰模式§a，传送请求将通过聊天提示。" : "§a已关闭 §bTPA勿扰模式§a。"
-      );
+      player.sendMessage(enabled ? "§a已开启 §bTPA勿扰模式§a，传送请求将通过聊天提示。" : "§a已关闭 §bTPA勿扰模式§a。");
     }
     openPlayerActionForm(player);
   });

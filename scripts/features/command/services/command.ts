@@ -59,17 +59,7 @@ const CAMERA_PERSPECTIVE_VALUES = ["first", "third", "first_person", "third_pers
 const GET_ITEM_TYPE_ID_MODE_VALUES = ["hand", "all", "inventory"];
 const SUBSCRIBE_ITEM_HOLD_OPERATION_VALUES = ["add", "remove", "list", "clear"];
 const FAKE_PLAYER_OPERATION_VALUES = ["list", "add", "remove", "remove_all"];
-const DIMENSION_OPERATION_VALUES = [
-  "list",
-  "add",
-  "add_here",
-  "remove",
-  "rename",
-  "reset",
-  "info",
-  "current",
-  "test",
-];
+const DIMENSION_OPERATION_VALUES = ["list", "add", "add_here", "remove", "rename", "reset", "info", "current", "test"];
 const SETTING_KEY_VALUES = ["list", ...Object.keys(defaultSetting)];
 const NON_NEGATIVE_COST_SETTING_KEYS = new Set([
   "randomTeleportCost",
@@ -363,7 +353,8 @@ system.beforeEvents.startup.subscribe((init) => {
 
   const fakePlayerCommand: CustomCommand = {
     name: "yuehua:fakeplayer",
-    description: "假人模拟玩家。list=列出假人；add=在当前位置创建假人；remove=按名称删除假人；remove_all=管理员删除全部假人。",
+    description:
+      "假人模拟玩家。list=列出假人；add=在当前位置创建假人；remove=按名称删除假人；remove_all=管理员删除全部假人。",
     permissionLevel: CommandPermissionLevel.Any,
     optionalParameters: [
       {
@@ -549,8 +540,7 @@ system.beforeEvents.startup.subscribe((init) => {
   // 15. 自定义维度登记与跨维度传送
   const dimensionCommand: CustomCommand = {
     name: "yuehua:dimension",
-    description:
-      "维度管理。预置 custom1 至 custom5；支持 list/rename/reset/info/current/test，也可接入外部维度。",
+    description: "维度管理。预置 custom1 至 custom5；支持 list/rename/reset/info/current/test，也可接入外部维度。",
     permissionLevel: CommandPermissionLevel.Admin,
     mandatoryParameters: [
       {
@@ -1337,7 +1327,9 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
       const playerCount = allPlayers.length;
       const playerNames = allPlayers.map((p) => p.name).join(", ");
 
-      const overworldEntities = world.getDimension("overworld").getEntities({ excludeTypes: ["minecraft:item"] }).length;
+      const overworldEntities = world
+        .getDimension("overworld")
+        .getEntities({ excludeTypes: ["minecraft:item"] }).length;
       const netherEntities = world.getDimension("nether").getEntities({ excludeTypes: ["minecraft:item"] }).length;
       const endEntities = world.getDimension("the_end").getEntities({ excludeTypes: ["minecraft:item"] }).length;
 
@@ -2289,7 +2281,8 @@ function handleDimensionCommand(
             throw new Error("预置维度不能删除；如需清除名称和传送点，请使用 reset");
           }
           const record = dimensionRegistry.getRegisteredDimension(alias);
-          if (!record || !dimensionRegistry.removeRegisteredDimension(alias)) throw new Error(`未找到维度别名: ${alias}`);
+          if (!record || !dimensionRegistry.removeRegisteredDimension(alias))
+            throw new Error(`未找到维度别名: ${alias}`);
           player.sendMessage(color.green(`已移除维度登记: ${record.alias} (${record.displayName})`));
           return;
         }
@@ -2365,7 +2358,9 @@ function handleDimensionSetSpawnCommand(
   system.run(() => {
     try {
       const record = dimensionRegistry.setRegisteredDimensionSpawn(alias, location);
-      player.sendMessage(color.green(`已将 ${record.displayName} 的默认点设为 ${formatDimensionLocation(record.spawn)}。`));
+      player.sendMessage(
+        color.green(`已将 ${record.displayName} 的默认点设为 ${formatDimensionLocation(record.spawn)}。`)
+      );
     } catch (error) {
       player.sendMessage(color.red((error as Error).message));
     }
