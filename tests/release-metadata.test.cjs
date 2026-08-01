@@ -54,7 +54,7 @@ test("tag validation requires the canonical release tag", () => {
 
 test("all CreeperMenu package and manifest versions share one release version", () => {
   const config = loadReleaseConfig();
-  assert.deepEqual(config, { version: "3.2.13", minecraftVersion: "1.26.30" });
+  assert.deepEqual(config, { version: "3.2.14", minecraftVersion: "1.26.30" });
   assert.doesNotThrow(() => assertVersions(config));
 });
 

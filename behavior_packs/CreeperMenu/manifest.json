@@ -4,7 +4,7 @@
     "name": "苦力怕菜单_BP",
     "description": "苦力怕菜单行为包",
     "uuid": "c32e1f60-0ee0-4413-a760-d261d91e5fc6",
-    "version": [3, 2, 13],
+    "version": [3, 2, 14],
     "min_engine_version": [1, 26, 0]
   },
   "modules": [
@@ -12,14 +12,14 @@
       "description": "苦力怕菜单行为包",
       "type": "data",
       "uuid": "0c4dc15d-f113-4d6f-bb41-6a0b44d785e0",
-      "version": [3, 2, 13]
+      "version": [3, 2, 14]
     },
     {
       "type": "script",
       "language": "javascript",
       "uuid": "c022f157-4583-4c5e-ad08-a5828f8d0783",
       "entry": "scripts/main.js",
-      "version": [3, 2, 13]
+      "version": [3, 2, 14]
     }
   ],
   "dependencies": [
