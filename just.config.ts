@@ -22,12 +22,14 @@ import * as esbuild from "esbuild";
 const {
   artifactFilename,
   loadReleaseConfig,
+  minecraftFamily,
 }: {
   artifactFilename: (
     variant: "standard" | "realms" | "bds",
     config: { version: string; minecraftVersion: string }
   ) => string;
   loadReleaseConfig: () => { version: string; minecraftVersion: string };
+  minecraftFamily: (version: string) => string;
 } = require("./tools/release-metadata.cjs");
 const releaseConfig = loadReleaseConfig();
 
@@ -67,7 +69,11 @@ function createBundleTaskOptions(
     sourcemap: true,
     outputSourcemapPath: path.resolve(path.dirname(absoluteOutfile), "../debug"),
     dropLabels: isProduction ? ["dev"] : undefined,
-    define,
+    define: {
+      __APP_VERSION__: JSON.stringify(releaseConfig.version),
+      __MINECRAFT_VERSION_FAMILY__: JSON.stringify(minecraftFamily(releaseConfig.minecraftVersion)),
+      ...define,
+    },
     realmsRuntime,
     bdsRuntime,
   } as MainBundleOptions;

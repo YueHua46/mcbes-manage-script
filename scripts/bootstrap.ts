@@ -6,6 +6,7 @@
  */
 
 import { eventRegistry } from "./events/registry";
+import { APP_VERSION, MINECRAFT_VERSION_FAMILY } from "./build-metadata";
 import "./features/behavior-log/services/log-inspector-tool";
 import "./features/blacklist/services/blacklist";
 import "./features/command/services/command";
@@ -43,7 +44,8 @@ function logFeature(feature: string): void {
 
 export function bootstrap(variant: StartupVariant): void {
   SystemLog.info("========================================");
-  SystemLog.info("苦力怕菜单 v3.1.11 启动中...");
+  SystemLog.info(`苦力怕菜单 v${APP_VERSION} 启动中...`);
+  SystemLog.info(`适配游戏版本：MCBE ${MINECRAFT_VERSION_FAMILY} 及以上`);
   SystemLog.info(`当前构建：${variant.buildDescription}`);
   SystemLog.info("========================================");
 
