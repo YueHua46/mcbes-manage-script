@@ -2,6 +2,8 @@
  * 全局配置管理
  */
 
+import { APP_VERSION } from "../build-metadata";
+
 export interface IConfig {
   debug: boolean;
   version: string;
@@ -11,7 +13,7 @@ export interface IConfig {
 class ConfigManager {
   private _config: IConfig = {
     debug: false,
-    version: "3.1.11",
+    version: APP_VERSION,
     serverName: "杜绝熊孩服务器",
   };
 

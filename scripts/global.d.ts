@@ -6,3 +6,5 @@ declare const __BDS_BUILD__: boolean | undefined;
 declare const __SERVER_ADMIN_BUILD__: boolean | undefined;
 declare const __DEBUG_UTILITIES_BUILD__: boolean | undefined;
 declare const __REALMS_BUILD__: boolean | undefined;
+declare const __APP_VERSION__: string;
+declare const __MINECRAFT_VERSION_FAMILY__: string;
