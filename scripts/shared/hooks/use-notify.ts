@@ -2,21 +2,21 @@
  * 通知钩子
  */
 
-import { Player, world } from '@minecraft/server';
-import type { NotifyType } from '../../core/types';
+import { Player, world } from "@minecraft/server";
+import type { NotifyType } from "../../core/types";
 
 /**
  * 发送通知给玩家
  */
 export function useNotify(type: NotifyType, player: Player, message: string): void {
   switch (type) {
-    case 'chat':
+    case "chat":
       player.sendMessage(message);
       break;
-    case 'actionbar':
+    case "actionbar":
       player.onScreenDisplay.setActionBar(message);
       break;
-    case 'title':
+    case "title":
       player.onScreenDisplay.setTitle(message);
       break;
   }
@@ -28,5 +28,3 @@ export function useNotify(type: NotifyType, player: Player, message: string): vo
 export function useBroadcast(message: string): void {
   world.sendMessage(message);
 }
-
-

@@ -144,7 +144,10 @@ class PvpManager {
       setting.setState("pvpMinProtection", normalizeNonNegativeInt(config.minGoldProtection, 100).toString());
     }
     if (config.toggleCooldown !== undefined) {
-      setting.setState("pvpToggleCooldown", normalizeNonNegativeInt(config.toggleCooldown, 30, MAX_PVP_TIMER_SECONDS).toString());
+      setting.setState(
+        "pvpToggleCooldown",
+        normalizeNonNegativeInt(config.toggleCooldown, 30, MAX_PVP_TIMER_SECONDS).toString()
+      );
     }
     if (config.combatTagDuration !== undefined) {
       setting.setState("pvpCombatTagDuration", normalizePositiveInt(config.combatTagDuration, 30, 5).toString());

@@ -102,7 +102,7 @@ export class ItemPriceDatabase {
     console.warn("[ItemPriceDatabase] 开始初始化所有物品出售价格");
     let initialized = 0;
     let skipped = 0;
-    
+
     Object.entries(itemsByGold).forEach(([itemId, price]) => {
       if (typeof price === "number") {
         // 检查是否已经设置过价格
@@ -118,7 +118,7 @@ export class ItemPriceDatabase {
         }
       }
     });
-    
+
     if (initialized > 0) this.db.save();
     console.warn(`[ItemPriceDatabase] 初始化完成，已初始化 ${initialized} 个物品，跳过 ${skipped} 个已设置的物品`);
     return { initialized, skipped };

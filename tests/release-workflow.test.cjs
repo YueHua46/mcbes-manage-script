@@ -4,7 +4,9 @@ const path = require("node:path");
 const test = require("node:test");
 
 const ROOT = path.resolve(__dirname, "..");
-const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8");
+const workflow = fs
+  .readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8")
+  .replace(/\r\n?/g, "\n");
 
 test("CI builds three downloadable variants for pushes and pull requests", () => {
   assert.match(workflow, /^on:\n(?:[\s\S]*?)  push:/m);

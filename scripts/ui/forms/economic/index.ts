@@ -113,4 +113,3 @@ function openMyWalletForm(player: Player): void {
     openEconomyMenuForm(player);
   });
 }
-

@@ -35,11 +35,7 @@ function isPlantEnabled(): boolean {
   return setting.getState("enableCropPlantOneClick") === true;
 }
 
-function buildPlantChainTasks(
-  player: Player,
-  origin: Vector3,
-  profile: CropProfile
-): PlantTask[] {
+function buildPlantChainTasks(player: Player, origin: Vector3, profile: CropProfile): PlantTask[] {
   const dimension = player.dimension;
   const exclude = new Set<string>([locKey(origin)]);
   const chain = collectPlantableChain(dimension, origin, profile, exclude);
@@ -53,7 +49,7 @@ function buildPlantChainTasks(
     }));
 }
 
-function *cropPlantJob(ctx: PlantJobContext): Generator<void, void, void> {
+function* cropPlantJob(ctx: PlantJobContext): Generator<void, void, void> {
   let sliceCount = 0;
 
   try {

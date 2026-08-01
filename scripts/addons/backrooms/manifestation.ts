@@ -1,11 +1,7 @@
 import type { Player, Vector3 } from "@minecraft/server";
 import { world } from "@minecraft/server";
 import { findSafeLandingCell, generateRegionPlan } from "./core";
-import {
-  BACKROOMS_MANIFESTATION_STRIDE_REGIONS,
-  BACKROOMS_REGION_SIZE,
-  BACKROOMS_WALK_Y,
-} from "./constants";
+import { BACKROOMS_MANIFESTATION_STRIDE_REGIONS, BACKROOMS_REGION_SIZE, BACKROOMS_WALK_Y } from "./constants";
 
 const PLAYER_SLOT_PROPERTY = "yuehua:backroomsManifestationSlot";
 const NEXT_SLOT_PROPERTY = "yuehua:backroomsNextManifestationSlot";

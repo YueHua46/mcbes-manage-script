@@ -54,11 +54,12 @@ export function openFloatingTextMenu(player: Player): void {
   const myTexts = floatingTextService.listForPlayer(player.name);
   const cost = floatingTextService.getCreateCost(player);
   const economyEnabled = setting.getState("economy") === true;
-  const costText = cost > 0
-    ? `创建每次消耗 ${cost} 金币`
-    : economyEnabled
-      ? "创建免费（当前费用为 0，不扣金币）"
-      : "创建免费（经济系统已关闭）";
+  const costText =
+    cost > 0
+      ? `创建每次消耗 ${cost} 金币`
+      : economyEnabled
+        ? "创建免费（当前费用为 0，不扣金币）"
+        : "创建免费（经济系统已关闭）";
 
   const form = new ActionFormData();
   form.title("悬浮文字");
@@ -88,7 +89,12 @@ export function openFloatingTextMenu(player: Player): void {
   });
 }
 
-function openFloatingTextListForm(player: Player, mode: "mine" | "all" | "player", page: number, targetName?: string): void {
+function openFloatingTextListForm(
+  player: Player,
+  mode: "mine" | "all" | "player",
+  page: number,
+  targetName?: string
+): void {
   const admin = isAdmin(player);
   let items =
     mode === "all" && admin
@@ -197,15 +203,14 @@ function openFloatingTextCreateForm(player: Player): void {
       backgroundAlpha: Number(values[5]),
     });
     if (isResultError(result)) {
-      return openDialogForm(player, { title: "创建失败", desc: color.red(result) }, () => openFloatingTextCreateForm(player));
+      return openDialogForm(player, { title: "创建失败", desc: color.red(result) }, () =>
+        openFloatingTextCreateForm(player)
+      );
     }
-    openDialogForm(
-      player,
-      {
-        title: "创建成功",
-        desc: `${color.green("悬浮文字已创建在你当前位置上方。")}\n${cost > 0 ? color.yellow(`已扣除 ${cost} 金币。`) : color.gray("本次创建未扣金币。")}`,
-      }
-    );
+    openDialogForm(player, {
+      title: "创建成功",
+      desc: `${color.green("悬浮文字已创建在你当前位置上方。")}\n${cost > 0 ? color.yellow(`已扣除 ${cost} 金币。`) : color.gray("本次创建未扣金币。")}`,
+    });
   });
 }
 
@@ -248,7 +253,10 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
             const result = floatingTextService.update({ player, id: latest.id, updateLocation: true });
             openDialogForm(
               player,
-              { title: isResultError(result) ? "移动失败" : "移动成功", desc: isResultError(result) ? color.red(result) : color.green("已移动到当前位置上方。") },
+              {
+                title: isResultError(result) ? "移动失败" : "移动成功",
+                desc: isResultError(result) ? color.red(result) : color.green("已移动到当前位置上方。"),
+              },
               () => openFloatingTextDetailForm(player, latest, back)
             );
           },
@@ -264,7 +272,10 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
             const result = floatingTextService.delete(player, latest.id);
             openDialogForm(
               player,
-              { title: result === true ? "删除成功" : "删除失败", desc: result === true ? color.green("悬浮文字已删除。") : color.red(String(result)) },
+              {
+                title: result === true ? "删除成功" : "删除失败",
+                desc: result === true ? color.green("悬浮文字已删除。") : color.red(String(result)),
+              },
               back
             );
           },

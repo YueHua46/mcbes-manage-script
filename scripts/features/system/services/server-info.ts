@@ -8,11 +8,7 @@ import { getTPS } from "../../../shared/utils/tps";
 import { taskScheduler } from "../../platform/scheduler";
 
 const ITEM_ENTITY_TYPE_ID = "minecraft:item";
-const TRACKED_DIMENSIONS = [
-  "overworld",
-  "nether",
-  "the_end",
-];
+const TRACKED_DIMENSIONS = ["overworld", "nether", "the_end"];
 
 function countEntities(query: { type?: string; excludeTypes?: string[] }): number {
   let total = 0;

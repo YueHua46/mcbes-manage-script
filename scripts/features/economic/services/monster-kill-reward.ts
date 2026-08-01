@@ -7,11 +7,7 @@ import { world, Player } from "@minecraft/server";
 import economic from "./economic";
 import setting from "../../system/services/setting";
 import { colorCodes } from "../../../shared/utils/color";
-import {
-  getMonsterLocalizationKey,
-  getMonsterRewardOverrides,
-  monsterByGold,
-} from "../data/monster-by-gold";
+import { getMonsterLocalizationKey, getMonsterRewardOverrides, monsterByGold } from "../data/monster-by-gold";
 import { isRealPlayerEntity } from "../../../shared/utils/online-players";
 
 // 订阅实体死亡事件

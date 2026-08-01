@@ -166,13 +166,19 @@ export async function openBehaviorLogBlockInspectorForm(
   if (safePage > 0) {
     buttons.push({
       text: "上一页",
-      action: () => runAfterDelay(() => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage - 1, radius)),
+      action: () =>
+        runAfterDelay(
+          () => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage - 1, radius)
+        ),
     });
   }
   if (safePage < totalPages - 1) {
     buttons.push({
       text: "下一页",
-      action: () => runAfterDelay(() => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage + 1, radius)),
+      action: () =>
+        runAfterDelay(
+          () => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage + 1, radius)
+        ),
     });
   }
   buttons.push({

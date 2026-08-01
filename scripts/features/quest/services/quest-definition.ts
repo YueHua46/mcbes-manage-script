@@ -321,14 +321,18 @@ export const questRewardSchemas: QuestRewardSchema[] = [
     label: "发送消息",
     icon: "textures/icons/chat_bubble_white",
     permissionLevel: "normal",
-    fields: [{ key: "message", label: "消息内容", hint: "完成任务后提示给玩家看的文字", type: "string", required: true }],
+    fields: [
+      { key: "message", label: "消息内容", hint: "完成任务后提示给玩家看的文字", type: "string", required: true },
+    ],
   },
   {
     key: "run_command",
     label: "执行服务器命令",
     icon: "textures/icons/terminal",
     permissionLevel: "advanced",
-    fields: [{ key: "command", label: "命令", hint: "高级用法：不要带 /，可使用 {player}", type: "string", required: true }],
+    fields: [
+      { key: "command", label: "命令", hint: "高级用法：不要带 /，可使用 {player}", type: "string", required: true },
+    ],
   },
 ];
 
@@ -337,7 +341,11 @@ function createId(prefix: string): string {
 }
 
 function slugify(input: string): string {
-  const normalized = input.trim().toLowerCase().replace(/[^a-z0-9_\-]+/g, "_").replace(/^_+|_+$/g, "");
+  const normalized = input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_\-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
   return normalized || createId("quest");
 }
 
@@ -455,10 +463,16 @@ export function getQuestMobCategoryLabel(category: QuestMobCategory): string {
 }
 
 export function getOptionIndex<T extends string>(options: { value: T }[], value: T): number {
-  return Math.max(0, options.findIndex((option) => option.value === value));
+  return Math.max(
+    0,
+    options.findIndex((option) => option.value === value)
+  );
 }
 
-export function parseFilterValue(operator: QuestFilterOperator, rawValue: string): string | number | boolean | string[] {
+export function parseFilterValue(
+  operator: QuestFilterOperator,
+  rawValue: string
+): string | number | boolean | string[] {
   const trimmed = rawValue.trim();
   if (operator === "in") {
     return trimmed

@@ -163,9 +163,9 @@ export async function openLiveServerPanel(player: Player, returnForm?: () => voi
   }
 
   form.button("返回", () => {
-      safeClose(form);
-      system.run(() => returnForm?.());
-    });
+    safeClose(form);
+    system.run(() => returnForm?.());
+  });
 
   const refreshRun = system.runInterval(() => {
     try {

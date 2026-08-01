@@ -1,9 +1,5 @@
 import { Container, ItemStack, Player } from "@minecraft/server";
-import {
-  deserializeItemStack,
-  PersistedItemStack,
-  serializeItemStack,
-} from "../../../shared/utils/item-stack-persist";
+import { deserializeItemStack, PersistedItemStack, serializeItemStack } from "../../../shared/utils/item-stack-persist";
 
 export const FAKE_PLAYER_INVENTORY_SLOTS = 36;
 
@@ -12,7 +8,10 @@ export type PersistedFakeInventory = Record<string, PersistedFakeInventorySlot>;
 
 export { deserializeItemStack, serializeItemStack };
 
-export function snapshotContainer(container: Container, slotCount = FAKE_PLAYER_INVENTORY_SLOTS): PersistedFakeInventory {
+export function snapshotContainer(
+  container: Container,
+  slotCount = FAKE_PLAYER_INVENTORY_SLOTS
+): PersistedFakeInventory {
   const inventory: PersistedFakeInventory = {};
   const limit = Math.min(container.size, slotCount);
 
@@ -47,7 +46,10 @@ export function restoreContainer(container: Container, inventory: PersistedFakeI
   }
 }
 
-export function snapshotPlayerInventory(player: Player, slotCount = FAKE_PLAYER_INVENTORY_SLOTS): PersistedFakeInventory {
+export function snapshotPlayerInventory(
+  player: Player,
+  slotCount = FAKE_PLAYER_INVENTORY_SLOTS
+): PersistedFakeInventory {
   const container = player.getComponent("inventory")?.container;
   return container ? snapshotContainer(container, slotCount) : {};
 }

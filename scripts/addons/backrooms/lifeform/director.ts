@@ -1,11 +1,7 @@
 import { system, world, type Dimension, type Entity, type Player, type Vector3 } from "@minecraft/server";
 import type { RegionLayout } from "../core";
 import { hashParts32 } from "../core";
-import {
-  BACKROOMS_DIMENSION_ID,
-  BACKROOMS_REGION_SIZE,
-  BACKROOMS_WALK_Y,
-} from "../constants";
+import { BACKROOMS_DIMENSION_ID, BACKROOMS_REGION_SIZE, BACKROOMS_WALK_Y } from "../constants";
 import type { BackroomsManifestation } from "../manifestation";
 import { getBackroomsRegionVariant } from "../layout-adapter";
 import { locationToRegion } from "../runtime";
@@ -89,16 +85,28 @@ let handle: BackroomsLifeformDirectorHandle | undefined;
 
 function entityValid(entity: Entity | undefined): entity is Entity {
   if (!entity) return false;
-  try { return entity.isValid; } catch { return false; }
+  try {
+    return entity.isValid;
+  } catch {
+    return false;
+  }
 }
 
 function playerAvailable(player: Player | undefined): player is Player {
   if (!player) return false;
-  try { return player.isValid && player.dimension.id === BACKROOMS_DIMENSION_ID; } catch { return false; }
+  try {
+    return player.isValid && player.dimension.id === BACKROOMS_DIMENSION_ID;
+  } catch {
+    return false;
+  }
 }
 
 function playerById(id: string): Player | undefined {
-  try { return world.getAllPlayers().find((player) => player.id === id); } catch { return undefined; }
+  try {
+    return world.getAllPlayers().find((player) => player.id === id);
+  } catch {
+    return undefined;
+  }
 }
 
 function targetTag(slot: number): string {
@@ -110,7 +118,11 @@ function formatLocation(location: Vector3): string {
 }
 
 function formatEntityLocation(entity: Entity): string {
-  try { return formatLocation(entity.location); } catch { return "未知"; }
+  try {
+    return formatLocation(entity.location);
+  } catch {
+    return "未知";
+  }
 }
 
 function sendLifeformDebug(message: string, player?: Player): void {
@@ -118,16 +130,12 @@ function sendLifeformDebug(message: string, player?: Player): void {
   if (!playerAvailable(player)) return;
   try {
     if (player.hasTag(LIFEFORM_DEBUG_TAG)) player.sendMessage(`§8[细菌调试] §7${message}`);
-  } catch { /* Debug output must never affect encounter state. */ }
+  } catch {
+    /* Debug output must never affect encounter state. */
+  }
 }
 
-function reportSessionDebug(
-  player: Player,
-  session: PlayerSession,
-  key: string,
-  message: string,
-  force = false,
-): void {
+function reportSessionDebug(player: Player, session: PlayerSession, key: string, message: string, force = false): void {
   const tick = system.currentTick;
   if (!force && session.lastDebugKey === key && tick - session.lastDebugTick < DEBUG_REPEAT_TICKS) return;
   session.lastDebugKey = key;
@@ -149,7 +157,11 @@ function availableTargetSlot(): number | undefined {
 function nearestAvailableTarget(encounter: ActiveEncounter): Player | undefined {
   if (!entityValid(encounter.entity)) return undefined;
   let players: Player[];
-  try { players = encounter.entity.dimension.getPlayers(); } catch { return undefined; }
+  try {
+    players = encounter.entity.dimension.getPlayers();
+  } catch {
+    return undefined;
+  }
   const origin = encounter.entity.location;
   let nearest: Player | undefined;
   let nearestDistance = Number.POSITIVE_INFINITY;
@@ -169,15 +181,17 @@ function nearestAvailableTarget(encounter: ActiveEncounter): Player | undefined 
 
 function clearTargetTag(player: Player | undefined, slot: number): void {
   if (!player) return;
-  try { player.removeTag(targetTag(slot)); } catch { /* Player is invalid/offline. */ }
+  try {
+    player.removeTag(targetTag(slot));
+  } catch {
+    /* Player is invalid/offline. */
+  }
 }
 
 function clearTargetTagIfUnused(playerId: string | undefined, slot: number): void {
   if (!playerId) return;
   for (const encounter of encounters.values()) {
-    if (encounter.targetSlot === slot
-      && encounter.targetPlayerId === playerId
-      && entityValid(encounter.entity)) return;
+    if (encounter.targetSlot === slot && encounter.targetPlayerId === playerId && entityValid(encounter.entity)) return;
   }
   clearTargetTag(playerById(playerId), slot);
 }
@@ -201,7 +215,11 @@ function assignEncounterTarget(encounter: ActiveEncounter, player: Player): bool
   encounter.targetAssignedTick = system.currentTick;
   encounter.confirmedTargetPlayerId = undefined;
   encounter.lastTargetRepairTick = -Infinity;
-  try { Reflect.set(encounter.entity, "target", player); } catch { /* Target group remains the compatibility path. */ }
+  try {
+    Reflect.set(encounter.entity, "target", player);
+  } catch {
+    /* Target group remains the compatibility path. */
+  }
   if (previousTargetId !== player.id) clearTargetTagIfUnused(previousTargetId, encounter.targetSlot);
   if (encounter.state.phase === "search" || encounter.state.phase === "retreat") {
     enterLogicalPhase(encounter, { type: "target-reassigned", tick: system.currentTick });
@@ -217,11 +235,11 @@ function handoffEncounterTarget(encounter: ActiveEncounter, unavailablePlayerId:
   if (replacement && assignEncounterTarget(encounter, replacement)) {
     sendLifeformDebug(
       `目标 ${unavailablePlayerId} 已失效，实体 ${encounter.entity.id} 切换到 ${replacement.name}，槽位 ${encounter.targetSlot}。`,
-      replacement,
+      replacement
     );
   } else {
     sendLifeformDebug(
-      `目标 ${unavailablePlayerId} 已失效，实体 ${encounter.entity.id} 当前无人可追，将在 ${formatLocation(encounter.entity.location)} 游走等待。`,
+      `目标 ${unavailablePlayerId} 已失效，实体 ${encounter.entity.id} 当前无人可追，将在 ${formatLocation(encounter.entity.location)} 游走等待。`
     );
   }
 }
@@ -245,18 +263,22 @@ function restoreRespawnedTarget(playerId: string): void {
 
 function auditNativeTarget(encounter: ActiveEncounter, target: Player, tick: number): void {
   let nativeTarget: Entity | undefined;
-  try { nativeTarget = encounter.entity.target; } catch { return; }
+  try {
+    nativeTarget = encounter.entity.target;
+  } catch {
+    return;
+  }
   if (nativeTarget?.id === target.id) {
     if (encounter.confirmedTargetPlayerId !== target.id) {
       encounter.confirmedTargetPlayerId = target.id;
       const distance = Math.hypot(
         target.location.x - encounter.entity.location.x,
         target.location.y - encounter.entity.location.y,
-        target.location.z - encounter.entity.location.z,
+        target.location.z - encounter.entity.location.z
       );
       sendLifeformDebug(
         `锁敌确认：实体 ${encounter.entity.id} 已由原生 AI 锁定 ${target.name}，当前距离 ${distance.toFixed(1)}，阶段 ${encounter.state.phase}。`,
-        target,
+        target
       );
     }
     return;
@@ -264,9 +286,17 @@ function auditNativeTarget(encounter: ActiveEncounter, target: Player, tick: num
   // The native selector can occasionally drop a distant player even with
   // must_see/must_reach disabled. Set the beta AI target directly, then
   // periodically rebuild the slot selector as a compatibility fallback.
-  try { Reflect.set(encounter.entity, "target", target); } catch { /* Event reset below remains available. */ }
+  try {
+    Reflect.set(encounter.entity, "target", target);
+  } catch {
+    /* Event reset below remains available. */
+  }
   if (tick - encounter.lastTargetRepairTick >= ACTIVE_AUDIT_TICKS) {
-    try { encounter.entity.triggerEvent(`yuehua:target_slot_${encounter.targetSlot}`); } catch { /* Retry next audit. */ }
+    try {
+      encounter.entity.triggerEvent(`yuehua:target_slot_${encounter.targetSlot}`);
+    } catch {
+      /* Retry next audit. */
+    }
     encounter.lastTargetRepairTick = tick;
   }
   if (tick - encounter.targetAssignedTick < 20 || tick - encounter.lastTargetWaitLogTick < DEBUG_REPEAT_TICKS) return;
@@ -274,7 +304,7 @@ function auditNativeTarget(encounter: ActiveEncounter, target: Player, tick: num
   const observed = nativeTarget ? `${nativeTarget.typeId}/${nativeTarget.id}` : "无";
   sendLifeformDebug(
     `锁敌等待：实体 ${encounter.entity.id} 尚未由原生 AI 确认目标 ${target.name}，当前引擎目标 ${observed}，位置 ${formatLocation(encounter.entity.location)}。`,
-    target,
+    target
   );
 }
 
@@ -285,10 +315,7 @@ function readCooldown(player: Player): number {
     const maximumAllowed = Date.now() + ENCOUNTER_COOLDOWN_MS;
     if (value <= maximumAllowed) return value;
     player.setDynamicProperty(COOLDOWN_PROPERTY, maximumAllowed);
-    sendLifeformDebug(
-      `${player.name} 的旧版超长冷却已压缩到最多 ${ENCOUNTER_COOLDOWN_MS / 60_000} 分钟。`,
-      player,
-    );
+    sendLifeformDebug(`${player.name} 的旧版超长冷却已压缩到最多 ${ENCOUNTER_COOLDOWN_MS / 60_000} 分钟。`, player);
     return maximumAllowed;
   } catch {
     return Number.POSITIVE_INFINITY;
@@ -310,8 +337,14 @@ function createSession(player: Player): PlayerSession {
 
 function safeRemove(entity: Entity | undefined): void {
   if (!entityValid(entity)) return;
-  try { entity.triggerEvent("yuehua:despawn"); } catch {
-    try { if (entity.isValid) entity.remove(); } catch { /* Already invalid. */ }
+  try {
+    entity.triggerEvent("yuehua:despawn");
+  } catch {
+    try {
+      if (entity.isValid) entity.remove();
+    } catch {
+      /* Already invalid. */
+    }
   }
 }
 
@@ -333,15 +366,14 @@ function markEncounterRevealed(encounter: ActiveEncounter): void {
   if (session) session.sessionEncountered = true;
   const owner = playerById(encounter.state.ownerId);
   if (!owner) return;
-  try { owner.setDynamicProperty(COOLDOWN_PROPERTY, Date.now() + ENCOUNTER_COOLDOWN_MS); } catch {
+  try {
+    owner.setDynamicProperty(COOLDOWN_PROPERTY, Date.now() + ENCOUNTER_COOLDOWN_MS);
+  } catch {
     // A disconnect between the sight check and persistence must not invalidate the entity audit.
   }
 }
 
-function logicalSnapshots(
-  player: Player,
-  options: BackroomsLifeformDirectorOptions,
-): SpawnRegionSnapshot[] {
+function logicalSnapshots(player: Player, options: BackroomsLifeformDirectorOptions): SpawnRegionSnapshot[] {
   const center = locationToRegion(player.location, BACKROOMS_REGION_SIZE);
   const snapshots: SpawnRegionSnapshot[] = [];
   for (let dz = -1; dz <= 1; dz += 1) {
@@ -355,7 +387,7 @@ function logicalSnapshots(
         // Exact candidate chunk loading is checked separately; this flag means the snapshot itself is available.
         loaded: true,
         blackout: getBackroomsRegionVariant(world.seed, region).blackout,
-        getCell: (x, z) => layout.grid.contains(x, z) ? layout.grid.get(x, z) : undefined,
+        getCell: (x, z) => (layout.grid.contains(x, z) ? layout.grid.get(x, z) : undefined),
       });
     }
   }
@@ -385,11 +417,15 @@ function physicalLineOfSight(dimension: Dimension, from: Vector3, to: Vector3): 
   const distance = Math.hypot(dx, dy, dz);
   if (distance < 0.01) return true;
   try {
-    return !dimension.getBlockFromRay(from, { x: dx / distance, y: dy / distance, z: dz / distance }, {
-      maxDistance: Math.max(1, distance - 0.75),
-      includeLiquidBlocks: true,
-      includePassableBlocks: false,
-    });
+    return !dimension.getBlockFromRay(
+      from,
+      { x: dx / distance, y: dy / distance, z: dz / distance },
+      {
+        maxDistance: Math.max(1, distance - 0.75),
+        includeLiquidBlocks: true,
+        includePassableBlocks: false,
+      }
+    );
   } catch {
     return false;
   }
@@ -407,7 +443,7 @@ function ownerCanSee(owner: Player, entity: Entity): boolean {
     if (distance > 64 || distance < 0.01) return false;
     const view = owner.getViewDirection();
     const dot = (dx * view.x + dy * view.y + dz * view.z) / distance;
-    return dot >= 0.70 && physicalLineOfSight(owner.dimension, from, to);
+    return dot >= 0.7 && physicalLineOfSight(owner.dimension, from, to);
   } catch {
     return false;
   }
@@ -416,11 +452,11 @@ function ownerCanSee(owner: Player, entity: Entity): boolean {
 function directLineOfSight(owner: Player, entity: Entity): boolean {
   if (!entityValid(entity)) return false;
   try {
-    return physicalLineOfSight(
-      owner.dimension,
-      owner.getHeadLocation(),
-      { x: entity.location.x, y: entity.location.y + 1.6, z: entity.location.z },
-    );
+    return physicalLineOfSight(owner.dimension, owner.getHeadLocation(), {
+      x: entity.location.x,
+      y: entity.location.y + 1.6,
+      z: entity.location.z,
+    });
   } catch {
     return false;
   }
@@ -447,14 +483,13 @@ function activeGlobalCount(): number {
   return count;
 }
 
-function spawnEncounter(
-  player: Player,
-  session: PlayerSession,
-  options: BackroomsLifeformDirectorOptions,
-): boolean {
+function spawnEncounter(player: Player, session: PlayerSession, options: BackroomsLifeformDirectorOptions): boolean {
   const dimension = player.dimension;
   const manifestation = options.getManifestation(player);
-  const otherPlayers = dimension.getPlayers().filter((other) => other.id !== player.id).map((other) => other.location);
+  const otherPlayers = dimension
+    .getPlayers()
+    .filter((other) => other.id !== player.id)
+    .map((other) => other.location);
   const snapshots = logicalSnapshots(player, options);
   const candidate = selectLifeformSpawnSite({
     player: player.location,
@@ -464,7 +499,11 @@ function spawnEncounter(
     regions: snapshots,
     seed: `${world.seed}:${player.id}:${session.failedChecks}:${system.currentTick}`,
     isLoaded: (location) => {
-      try { return dimension.isChunkLoaded(location); } catch { return false; }
+      try {
+        return dimension.isChunkLoaded(location);
+      } catch {
+        return false;
+      }
     },
     hasClearance: (location) => hasClearance(dimension, location),
     isVoid: (location) => !hasClearance(dimension, location),
@@ -474,7 +513,7 @@ function spawnEncounter(
       player,
       session,
       "spawn-site-unavailable",
-      `${player.name} 的生成尝试失败：附近没有同时满足已加载、36-56 格、墙后遮挡和三格净空的出生点。`,
+      `${player.name} 的生成尝试失败：附近没有同时满足已加载、36-56 格、墙后遮挡和三格净空的出生点。`
     );
     return false;
   }
@@ -483,7 +522,7 @@ function spawnEncounter(
       player,
       session,
       "spawn-site-invalidated",
-      `${player.name} 的候选出生点 ${formatLocation(candidate.location)} 在生成前失效。`,
+      `${player.name} 的候选出生点 ${formatLocation(candidate.location)} 在生成前失效。`
     );
     return false;
   }
@@ -494,13 +533,18 @@ function spawnEncounter(
       player,
       session,
       "spawn-site-visible",
-      `${player.name} 的候选出生点 ${formatLocation(spawnTarget)} 因物理视线可见被取消。`,
+      `${player.name} 的候选出生点 ${formatLocation(spawnTarget)} 因物理视线可见被取消。`
     );
     return false;
   }
   const targetSlot = availableTargetSlot();
   if (targetSlot === undefined) {
-    reportSessionDebug(player, session, "target-slots-full", `${player.name} 的生成尝试被取消：4 个细菌目标槽均已占用。`);
+    reportSessionDebug(
+      player,
+      session,
+      "target-slots-full",
+      `${player.name} 的生成尝试被取消：4 个细菌目标槽均已占用。`
+    );
     return false;
   }
 
@@ -537,14 +581,14 @@ function spawnEncounter(
     const targetDistance = Math.hypot(
       target.location.x - entity.location.x,
       target.location.y - entity.location.y,
-      target.location.z - entity.location.z,
+      target.location.z - entity.location.z
     );
     reportSessionDebug(
       player,
       session,
       "spawn-success",
       `生成成功：实体 ${entity.id} 位于 ${formatLocation(entity.location)}，目标 ${target.name}，直线距离 ${targetDistance.toFixed(1)}，路径距离 ${candidate.pathDistance}，槽位 ${targetSlot}。`,
-      true,
+      true
     );
     try {
       dimension.playSound("yuehua.backrooms.lifeform.roar", entity.location, {
@@ -559,7 +603,12 @@ function spawnEncounter(
     if (encounter) clearTargetTagIfUnused(encounter.targetPlayerId, encounter.targetSlot);
     safeRemove(entity);
     console.warn(`[Backrooms] Lifeform 出现失败：${String(error)}`);
-    reportSessionDebug(player, session, `spawn-error:${String(error)}`, `${player.name} 的生成尝试异常：${String(error)}`);
+    reportSessionDebug(
+      player,
+      session,
+      `spawn-error:${String(error)}`,
+      `${player.name} 的生成尝试异常：${String(error)}`
+    );
     return false;
   }
 }
@@ -573,7 +622,7 @@ function checkEligibility(player: Player, session: PlayerSession, options: Backr
         player,
         session,
         `active:${encounter.entity.id}`,
-        `已有细菌实体 ${encounter.entity.id}，位置 ${formatLocation(encounter.entity.location)}，阶段 ${encounter.state.phase}，目标 ${target?.name ?? "无"}。`,
+        `已有细菌实体 ${encounter.entity.id}，位置 ${formatLocation(encounter.entity.location)}，阶段 ${encounter.state.phase}，目标 ${target?.name ?? "无"}。`
       );
     }
     return;
@@ -585,8 +634,8 @@ function checkEligibility(player: Player, session: PlayerSession, options: Backr
     failedChecks: session.failedChecks,
     travelDistance: session.travelDistance,
   });
-  const roll = hashParts32(world.seed, player.id, "lifeform:check", session.failedChecks, system.currentTick)
-    / 0x1_0000_0000;
+  const roll =
+    hashParts32(world.seed, player.id, "lifeform:check", session.failedChecks, system.currentTick) / 0x1_0000_0000;
   const lureBonus = session.lureEligibleUntilTick >= system.currentTick ? 1.25 : 1;
   const probability = Math.min(0.25, policy.probability * lureBonus);
   const activeGlobal = activeGlobalCount();
@@ -611,25 +660,31 @@ function checkEligibility(player: Player, session: PlayerSession, options: Backr
         player,
         session,
         "cooldown",
-        `${player.name} 已达到保底（累计移动 ${session.travelDistance.toFixed(1)}/${GUARANTEE_TRAVEL_DISTANCE} 格），但遭遇仍在冷却中，剩余 ${Math.ceil((cooldownUntilMs - Date.now()) / 1000)} 秒。`,
+        `${player.name} 已达到保底（累计移动 ${session.travelDistance.toFixed(1)}/${GUARANTEE_TRAVEL_DISTANCE} 格），但遭遇仍在冷却中，剩余 ${Math.ceil((cooldownUntilMs - Date.now()) / 1000)} 秒。`
       );
     } else if (policy.guaranteed && activeGlobal >= MAX_GLOBAL_LIFEFORMS) {
-      reportSessionDebug(player, session, "global-limit", `${player.name} 已达到时间保底，但全局已有 ${activeGlobal} 只细菌。`);
+      reportSessionDebug(
+        player,
+        session,
+        "global-limit",
+        `${player.name} 已达到时间保底，但全局已有 ${activeGlobal} 只细菌。`
+      );
     }
-    const probabilityMiss = policy.eligible
-      && !policy.guaranteed
-      && !session.sessionEncountered
-      && !session.entityId
-      && activeGlobal < MAX_GLOBAL_LIFEFORMS
-      && (travelGuaranteed || cooldownUntilMs <= Date.now())
-      && roll >= probability;
+    const probabilityMiss =
+      policy.eligible &&
+      !policy.guaranteed &&
+      !session.sessionEncountered &&
+      !session.entityId &&
+      activeGlobal < MAX_GLOBAL_LIFEFORMS &&
+      (travelGuaranteed || cooldownUntilMs <= Date.now()) &&
+      roll >= probability;
     if (probabilityMiss) {
       session.failedChecks += 1;
       reportSessionDebug(
         player,
         session,
         "probability-miss",
-        `${player.name} 本轮遭遇判定未命中，概率 ${(probability * 100).toFixed(0)}%，累计未命中 ${session.failedChecks} 次。`,
+        `${player.name} 本轮遭遇判定未命中，概率 ${(probability * 100).toFixed(0)}%，累计未命中 ${session.failedChecks} 次。`
       );
     }
     return;
@@ -659,11 +714,15 @@ function finishEncounter(entityId: string, applyCooldown = true): void {
   const owner = playerById(encounter.state.ownerId);
   sendLifeformDebug(
     `实体 ${entityId} 已结束，最后位置 ${formatEntityLocation(encounter.entity)}，最后目标 ${targetPlayerId ?? "无"}。`,
-    owner,
+    owner
   );
   clearTargetTagIfUnused(targetPlayerId, encounter.targetSlot);
   if (applyCooldown && encounter.revealed && owner) {
-    try { owner.setDynamicProperty(COOLDOWN_PROPERTY, Date.now() + ENCOUNTER_COOLDOWN_MS); } catch { /* Offline/invalid. */ }
+    try {
+      owner.setDynamicProperty(COOLDOWN_PROPERTY, Date.now() + ENCOUNTER_COOLDOWN_MS);
+    } catch {
+      /* Offline/invalid. */
+    }
   }
 }
 
@@ -695,10 +754,12 @@ function auditEncounter(entityId: string, encounter: ActiveEncounter): void {
       if (target && encounter.lurePlayed < encounter.lureCount && tick >= encounter.nextLureTick) {
         try {
           target.dimension.playSound("yuehua.backrooms.lifeform.lure", encounter.entity.location, {
-            volume: 0.40,
+            volume: 0.4,
             pitch: 0.96 + (hashParts32(world.seed, target.id, "lifeform:lure", encounter.lurePlayed) % 9) / 100,
           });
-        } catch { /* Entity or owner invalidated during playback. */ }
+        } catch {
+          /* Entity or owner invalidated during playback. */
+        }
         encounter.lurePlayed += 1;
         encounter.nextLureTick = tick + 24 + encounter.lurePlayed * 9;
       }
@@ -740,7 +801,11 @@ function auditEncounter(entityId: string, encounter: ActiveEncounter): void {
 
 function cleanupOrphans(dimension: Dimension): void {
   let entities: Entity[];
-  try { entities = dimension.getEntities({ type: LIFEFORM_TYPE_ID }); } catch { return; }
+  try {
+    entities = dimension.getEntities({ type: LIFEFORM_TYPE_ID });
+  } catch {
+    return;
+  }
   const slots = new Set<number>();
   for (const entity of entities) {
     if (!entityValid(entity)) continue;
@@ -758,12 +823,14 @@ function cleanupOrphans(dimension: Dimension): void {
     // slot entity property still reads its schema default (0), so owner absence
     // is the authoritative distinction between manual and director ownership.
     if (owner === undefined) continue;
-    if (!tracked
-      || typeof owner !== "string"
-      || owner !== tracked.state.ownerId
-      || typeof slot !== "number"
-      || slot !== tracked.state.manifestationSlot
-      || slots.has(slot)) {
+    if (
+      !tracked ||
+      typeof owner !== "string" ||
+      owner !== tracked.state.ownerId ||
+      typeof slot !== "number" ||
+      slot !== tracked.state.manifestationSlot ||
+      slots.has(slot)
+    ) {
       safeRemove(entity);
       continue;
     }
@@ -772,7 +839,7 @@ function cleanupOrphans(dimension: Dimension): void {
 }
 
 export function registerBackroomsLifeformDirector(
-  options: BackroomsLifeformDirectorOptions,
+  options: BackroomsLifeformDirectorOptions
 ): BackroomsLifeformDirectorHandle {
   if (registered && handle) return handle;
   registered = true;
@@ -813,7 +880,9 @@ export function registerBackroomsLifeformDirector(
     try {
       if (event.hurtEntity.typeId !== LIFEFORM_TYPE_ID) return;
       entityId = event.hurtEntity.id;
-    } catch { return; }
+    } catch {
+      return;
+    }
     const encounter = encounters.get(entityId);
     if (!encounter || !entityValid(encounter.entity)) return;
     if (system.currentTick - encounter.lastHurtSoundTick >= 6) {
@@ -823,7 +892,9 @@ export function registerBackroomsLifeformDirector(
           pitch: 0.94 + (hashParts32(world.seed, entityId, "lifeform:hurt", system.currentTick) % 13) / 100,
         });
         encounter.lastHurtSoundTick = system.currentTick;
-      } catch { /* Entity can invalidate while the damage event is delivered. */ }
+      } catch {
+        /* Entity can invalidate while the damage event is delivered. */
+      }
     }
   });
   world.afterEvents.entityDie.subscribe((event) => {
@@ -833,7 +904,9 @@ export function registerBackroomsLifeformDirector(
       } else if (event.deadEntity.typeId === LIFEFORM_TYPE_ID) {
         finishEncounter(event.deadEntity.id);
       }
-    } catch { /* Dead handle may already be invalid. */ }
+    } catch {
+      /* Dead handle may already be invalid. */
+    }
   });
   world.afterEvents.entityRemove.subscribe((event) => {
     if (event.typeId === LIFEFORM_TYPE_ID) finishEncounter(event.removedEntityId);
@@ -841,11 +914,19 @@ export function registerBackroomsLifeformDirector(
 
   system.runInterval(() => {
     let dimension: Dimension;
-    try { dimension = world.getDimension(BACKROOMS_DIMENSION_ID); } catch { return; }
+    try {
+      dimension = world.getDimension(BACKROOMS_DIMENSION_ID);
+    } catch {
+      return;
+    }
     const present = new Set<string>();
     for (const player of dimension.getPlayers()) {
       present.add(player.id);
-      try { sessionFor(player); } catch { /* Player invalidated. */ }
+      try {
+        sessionFor(player);
+      } catch {
+        /* Player invalidated. */
+      }
     }
     for (const playerId of sessions.keys()) {
       if (!present.has(playerId) && !sessions.get(playerId)?.entityId) sessions.delete(playerId);
@@ -856,9 +937,15 @@ export function registerBackroomsLifeformDirector(
 
   system.runInterval(() => {
     let players: Player[];
-    try { players = world.getDimension(BACKROOMS_DIMENSION_ID).getPlayers(); } catch { return; }
+    try {
+      players = world.getDimension(BACKROOMS_DIMENSION_ID).getPlayers();
+    } catch {
+      return;
+    }
     for (const player of players) {
-      try { checkEligibility(player, sessionFor(player), options); } catch (error) {
+      try {
+        checkEligibility(player, sessionFor(player), options);
+      } catch (error) {
         console.warn(`[Backrooms] Lifeform 导演跳过一次无效检查：${String(error)}`);
       }
     }
@@ -871,7 +958,9 @@ export function registerBackroomsLifeformDirector(
         for (let slot = 0; slot < TARGET_SLOT_COUNT; slot += 1) clearTargetTag(player, slot);
       }
       cleanupOrphans(world.getDimension(BACKROOMS_DIMENSION_ID));
-    } catch { /* Dimension not ready yet. */ }
+    } catch {
+      /* Dimension not ready yet. */
+    }
   });
   return handle;
 }

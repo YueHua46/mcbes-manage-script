@@ -33,9 +33,7 @@ export function addPendingRequest(
   targetPlayer: Player,
   requestPlayer: Player,
   type: "to" | "come"
-):
-  | { ok: true; requestId: number }
-  | { ok: false; requestPlayerName: string } {
+): { ok: true; requestId: number } | { ok: false; requestPlayerName: string } {
   const key = targetPlayer.name;
   const existing = pendingByTarget.get(key);
   if (existing) {

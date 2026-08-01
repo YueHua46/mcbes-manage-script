@@ -32,7 +32,12 @@ export interface ChestFormShowOptions {
 type ButtonData = [RawMessage | string, string | undefined];
 type ButtonRawtext = { rawtext: RawMessage[] };
 
-function appendRawMessage(target: ButtonRawtext, message: string | RawMessage, newline = false, reset = false): boolean {
+function appendRawMessage(
+  target: ButtonRawtext,
+  message: string | RawMessage,
+  newline = false,
+  reset = false
+): boolean {
   if (typeof message === "string") {
     target.rawtext.push({ text: `${newline ? "\n" : ""}${message}${reset ? "§r" : ""}` });
     return true;
@@ -240,7 +245,9 @@ export class ChestFormData {
                 const f = frag as { text?: string; translate?: string; with?: string[] | RawMessage };
                 if (f.translate !== undefined) {
                   buttonRawtext.rawtext.push(
-                    f.with !== undefined ? { translate: f.translate, with: f.with as string[] } : { translate: f.translate }
+                    f.with !== undefined
+                      ? { translate: f.translate, with: f.with as string[] }
+                      : { translate: f.translate }
                   );
                 } else if (f.text !== undefined) {
                   buttonRawtext.rawtext.push({ text: f.text });

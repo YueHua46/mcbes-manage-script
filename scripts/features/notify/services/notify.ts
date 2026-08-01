@@ -3,9 +3,9 @@
  * 完整迁移自 Modules/Notify/Notify.ts (74行)
  */
 
-import { system, world } from '@minecraft/server';
-import { Database } from '../../../shared/database/database';
-import { formatDateTimeBeijing } from '../../../shared/utils/datetime-beijing';
+import { system, world } from "@minecraft/server";
+import { Database } from "../../../shared/database/database";
+import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 
 interface INotify {
   id: string;
@@ -29,7 +29,7 @@ class Notify {
 
   constructor() {
     system.run(() => {
-      this.db = new Database<INotify>('notify');
+      this.db = new Database<INotify>("notify");
       this.init();
     });
   }
@@ -59,10 +59,7 @@ class Notify {
       }
       const runId = system.runInterval(() => {
         world.sendMessage({
-          rawtext: [
-            { text: '§r§l§e[§6通知§e]§r§f ' + n.title + '§r\n' },
-            { text: n.content },
-          ],
+          rawtext: [{ text: "§r§l§e[§6通知§e]§r§f " + n.title + "§r\n" }, { text: n.content }],
         });
       }, intervalTicks);
       this.runIdMap.set(id, runId);
@@ -73,7 +70,7 @@ class Notify {
   private normalizeIntervalTicks(interval: number): number {
     const minTicks = 20; // 最少 1 秒
     const defaultTicks = 72000; // 默认 1 小时
-    if (typeof interval !== 'number' || !Number.isFinite(interval) || interval < minTicks) {
+    if (typeof interval !== "number" || !Number.isFinite(interval) || interval < minTicks) {
       return defaultTicks;
     }
     return Math.max(minTicks, Math.floor(interval));
@@ -91,8 +88,8 @@ class Notify {
     this.init();
   }
 
-  createNotify(notify: Omit<INotify, 'id' | 'time'>): void | string {
-    if (!notify.title || !notify.content) return '参数错误';
+  createNotify(notify: Omit<INotify, "id" | "time">): void | string {
+    if (!notify.title || !notify.content) return "参数错误";
     const id = Date.now().toString();
     const interval = this.normalizeIntervalTicks(notify.interval);
     this.saveNotify(id, {
@@ -105,7 +102,7 @@ class Notify {
   }
 
   deleteNotify(id: string): void | string {
-    if (!this.db.has(id)) return '该通知不存在';
+    if (!this.db.has(id)) return "该通知不存在";
     const oldRunId = this.runIdMap.get(id);
     if (oldRunId != null) {
       system.clearRun(oldRunId);
@@ -117,7 +114,7 @@ class Notify {
   }
 
   updateNotify(id: string, notify: Partial<INotify>): void | string {
-    if (!this.db.has(id)) return '该通知不存在';
+    if (!this.db.has(id)) return "该通知不存在";
     const oldRunId = this.runIdMap.get(id);
     if (oldRunId != null) {
       system.clearRun(oldRunId);
@@ -125,7 +122,7 @@ class Notify {
     }
     const oldNotify = this.db.get(id);
     const next = { ...oldNotify, ...notify };
-    if (typeof notify.interval === 'number') {
+    if (typeof notify.interval === "number") {
       next.interval = this.normalizeIntervalTicks(notify.interval);
     }
     this.saveNotify(id, next);
@@ -134,4 +131,3 @@ class Notify {
 }
 
 export default new Notify();
-

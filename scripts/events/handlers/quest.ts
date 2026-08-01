@@ -84,7 +84,8 @@ export function registerQuestEvents(): void {
 
   world.afterEvents.playerInventoryItemChange.subscribe((event) => {
     if (!isRealPlayerEntity(event.player)) return;
-    if (event.inventoryType !== PlayerInventoryType.Hotbar && event.inventoryType !== PlayerInventoryType.Inventory) return;
+    if (event.inventoryType !== PlayerInventoryType.Hotbar && event.inventoryType !== PlayerInventoryType.Inventory)
+      return;
     if (event.beforeItemStack) {
       addPendingItemDelta(event.player, event.beforeItemStack.typeId, -event.beforeItemStack.amount);
     }

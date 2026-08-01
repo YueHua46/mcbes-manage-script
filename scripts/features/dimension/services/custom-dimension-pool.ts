@@ -23,12 +23,7 @@ system.beforeEvents.startup.subscribe((event) => {
 world.afterEvents.worldLoad.subscribe(() => {
   system.run(() => {
     for (const item of CUSTOM_DIMENSION_POOL) {
-      dimensionRegistry.ensureRegisteredDimension(
-        item.alias,
-        item.dimensionId,
-        item.displayName,
-        "苦力怕菜单"
-      );
+      dimensionRegistry.ensureRegisteredDimension(item.alias, item.dimensionId, item.displayName, "苦力怕菜单");
     }
   });
 });

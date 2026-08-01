@@ -50,9 +50,12 @@ export function registerBackroomsProtection(): void {
       // throw InvalidEntityError after removal.
       if (!entity.isValid) return;
       if (entity.dimension.id !== BACKROOMS_DIMENSION_ID) return;
-      if (entity.typeId === "minecraft:player"
-        || entity.typeId === LIFEFORM_TYPE_ID
-        || entity.typeId === "minecraft:xp_orb") return;
+      if (
+        entity.typeId === "minecraft:player" ||
+        entity.typeId === LIFEFORM_TYPE_ID ||
+        entity.typeId === "minecraft:xp_orb"
+      )
+        return;
     } catch {
       return;
     }

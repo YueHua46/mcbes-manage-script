@@ -86,7 +86,10 @@ export const openDeleteNotifyForm = (player: Player): void => {
 // ==================== 更新通知 ====================
 
 /** 打开某条通知的编辑表单（校验失败时可重新打开同一表单） */
-function openUpdateNotifyModal(player: Player, _notify: { id: string; title: string; content: string; interval: number }): void {
+function openUpdateNotifyModal(
+  player: Player,
+  _notify: { id: string; title: string; content: string; interval: number }
+): void {
   const updateForm = new ModalFormData();
   updateForm.title("更新通知");
   updateForm.textField("通知名称", "", {
@@ -170,18 +173,13 @@ export const openNotifyForms = (player: Player): void => {
       text: "删除所有通知数据",
       icon: "textures/ui/trash_default",
       action: () => {
-        openConfirmDialogForm(
-          player,
-          "删除所有通知数据",
-          "将清空所有通知并停止所有定时器，是否继续？",
-          () => {
-            notify.clearAllNotifys();
-            openDialogForm(player, {
-              title: "删除完成",
-              desc: color.green("已删除所有通知数据。"),
-            });
-          }
-        );
+        openConfirmDialogForm(player, "删除所有通知数据", "将清空所有通知并停止所有定时器，是否继续？", () => {
+          notify.clearAllNotifys();
+          openDialogForm(player, {
+            title: "删除完成",
+            desc: color.green("已删除所有通知数据。"),
+          });
+        });
       },
     },
   ];

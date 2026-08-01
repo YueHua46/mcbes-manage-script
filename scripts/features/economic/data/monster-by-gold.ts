@@ -76,4 +76,3 @@ export function getMonsterRewardOverrides(raw: unknown): Record<string, [number,
     return {};
   }
 }
-

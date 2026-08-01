@@ -89,4 +89,3 @@ export function clearSubscriptions(_player: Player): void {
 export function listSubscriptions(_player: Player): string[] {
   return [...getSubscribedTypeIds()].sort((a, b) => a.localeCompare(b, "en"));
 }
-

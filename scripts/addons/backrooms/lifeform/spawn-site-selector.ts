@@ -1,9 +1,4 @@
-import type {
-  HorizontalPoint,
-  SpawnCandidate,
-  SpawnRegionSnapshot,
-  SpawnSiteContext,
-} from "./contracts";
+import type { HorizontalPoint, SpawnCandidate, SpawnRegionSnapshot, SpawnSiteContext } from "./contracts";
 
 const MIN_EUCLIDEAN = 36;
 const MAX_EUCLIDEAN = 56;
@@ -22,17 +17,14 @@ function horizontalDistance(a: HorizontalPoint, b: HorizontalPoint): number {
 }
 
 function snapshotsByKey(context: SpawnSiteContext): Map<string, SpawnRegionSnapshot> {
-  return new Map(context.regions.map((snapshot) => [
-    `${snapshot.region.rx},${snapshot.region.rz}`,
-    snapshot,
-  ]));
+  return new Map(context.regions.map((snapshot) => [`${snapshot.region.rx},${snapshot.region.rz}`, snapshot]));
 }
 
 function lookupCell(
   context: SpawnSiteContext,
   snapshots: Map<string, SpawnRegionSnapshot>,
   worldX: number,
-  worldZ: number,
+  worldZ: number
 ): CellLookup | undefined {
   for (const snapshot of context.regions) {
     const originX = snapshot.region.rx * snapshot.size;
@@ -40,9 +32,7 @@ function lookupCell(
     const localX = worldX - originX;
     const localZ = worldZ - originZ;
     if (localX < 0 || localZ < 0 || localX >= snapshot.size || localZ >= snapshot.size) continue;
-    return snapshots.get(`${snapshot.region.rx},${snapshot.region.rz}`)
-      ? { snapshot, localX, localZ }
-      : undefined;
+    return snapshots.get(`${snapshot.region.rx},${snapshot.region.rz}`) ? { snapshot, localX, localZ } : undefined;
   }
   return undefined;
 }
@@ -55,17 +45,14 @@ function isWalkableWorld(
   context: SpawnSiteContext,
   snapshots: Map<string, SpawnRegionSnapshot>,
   worldX: number,
-  worldZ: number,
+  worldZ: number
 ): boolean {
   const lookup = lookupCell(context, snapshots, worldX, worldZ);
   return Boolean(lookup?.snapshot.loaded && isWalkable(lookup.snapshot.getCell(lookup.localX, lookup.localZ)));
 }
 
 /** Logical-grid ray test; physical raycasts are repeated immediately before spawning. */
-export function hasLogicalLineOfSight(
-  context: SpawnSiteContext,
-  target: { x: number; y: number; z: number },
-): boolean {
+export function hasLogicalLineOfSight(context: SpawnSiteContext, target: { x: number; y: number; z: number }): boolean {
   const snapshots = snapshotsByKey(context);
   const startX = context.player.x;
   const startZ = context.player.z;
@@ -73,8 +60,8 @@ export function hasLogicalLineOfSight(
   const dz = target.z - startZ;
   const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) * 2));
   for (let index = 1; index < steps; index += 1) {
-    const x = Math.floor(startX + dx * index / steps);
-    const z = Math.floor(startZ + dz * index / steps);
+    const x = Math.floor(startX + (dx * index) / steps);
+    const z = Math.floor(startZ + (dz * index) / steps);
     if (!isWalkableWorld(context, snapshots, x, z)) return false;
   }
   return true;
@@ -98,7 +85,7 @@ function candidateScore(
   context: SpawnSiteContext,
   lookup: CellLookup,
   location: { x: number; y: number; z: number },
-  pathDistance: number,
+  pathDistance: number
 ): number {
   const offsetX = location.x - context.player.x;
   const offsetZ = location.z - context.player.z;
@@ -133,15 +120,17 @@ export function collectSpawnCandidates(context: SpawnSiteContext): SpawnCandidat
       const lookup = lookupCell(context, snapshots, current.x, current.z);
       const farFromSpawn = horizontalDistance(context.manifestationSpawn, location) >= 24;
       const farFromPlayers = context.otherPlayers.every((player) => horizontalDistance(player, location) >= 32);
-      if (lookup?.snapshot.loaded
-        && euclideanDistance >= MIN_EUCLIDEAN
-        && euclideanDistance <= MAX_EUCLIDEAN
-        && farFromSpawn
-        && farFromPlayers
-        && context.isLoaded(location)
-        && context.hasClearance(location)
-        && !context.isVoid(location)
-        && !hasLogicalLineOfSight(context, location)) {
+      if (
+        lookup?.snapshot.loaded &&
+        euclideanDistance >= MIN_EUCLIDEAN &&
+        euclideanDistance <= MAX_EUCLIDEAN &&
+        farFromSpawn &&
+        farFromPlayers &&
+        context.isLoaded(location) &&
+        context.hasClearance(location) &&
+        !context.isVoid(location) &&
+        !hasLogicalLineOfSight(context, location)
+      ) {
         candidates.push({
           key: `${current.x},${current.z}`,
           location,
@@ -154,7 +143,12 @@ export function collectSpawnCandidates(context: SpawnSiteContext): SpawnCandidat
     }
 
     if (current.distance === MAX_PATH) continue;
-    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    for (const [dx, dz] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
       const x = current.x + dx;
       const z = current.z + dz;
       const key = `${x},${z}`;
@@ -180,4 +174,3 @@ export function selectLifeformSpawnSite(context: SpawnSiteContext): SpawnCandida
   }
   return ranked[0];
 }
-

@@ -114,11 +114,7 @@ export function deleteJoinPopupAnnouncement(id: string): boolean {
 }
 
 export function renderJoinPopupAnnouncement(announcement: JoinPopupAnnouncement, index: number): string {
-  return [
-    `§l§b${index + 1}. ${announcement.title}§r`,
-    "§8━━━━━━━━━━━━",
-    `§f${announcement.content}§r`,
-  ].join("\n");
+  return [`§l§b${index + 1}. ${announcement.title}§r`, "§8━━━━━━━━━━━━", `§f${announcement.content}§r`].join("\n");
 }
 
 export function renderJoinPopupAnnouncements(announcements: JoinPopupAnnouncement[]): string {

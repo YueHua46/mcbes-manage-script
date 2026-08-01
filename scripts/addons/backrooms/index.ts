@@ -1,19 +1,9 @@
-import {
-  CustomDimensionAlreadyRegisteredError,
-  system,
-  world,
-  type Player,
-  type Vector3,
-} from "@minecraft/server";
+import { CustomDimensionAlreadyRegisteredError, system, world, type Player, type Vector3 } from "@minecraft/server";
 import { registerIsolatedDimension } from "../../shared/dimension-isolation";
 import { registerBackroomsAmbience } from "./ambience";
 import { registerBackroomsAnomalies } from "./anomalies";
 import { registerBackroomsChatIsolation } from "./chat";
-import {
-  BACKROOMS_DIMENSION_ID,
-  BACKROOMS_RECOVERY_Y,
-  BACKROOMS_WALK_Y,
-} from "./constants";
+import { BACKROOMS_DIMENSION_ID, BACKROOMS_RECOVERY_Y, BACKROOMS_WALK_Y } from "./constants";
 import { BackroomsLayoutAdapter } from "./layout-adapter";
 import { findSafeLandingCell } from "./core";
 import { registerBackroomsLifeformDirector } from "./lifeform";
@@ -72,12 +62,12 @@ function startRuntime(): void {
   removeStaleTickingAreas();
   if (world.tickingAreaManager.maxChunkCount < 16) {
     console.error(
-      `[Backrooms] 生成器需要至少 16 个脚本常加载区块，当前上限为 ${world.tickingAreaManager.maxChunkCount}`,
+      `[Backrooms] 生成器需要至少 16 个脚本常加载区块，当前上限为 ${world.tickingAreaManager.maxChunkCount}`
     );
     return;
   }
   console.info(
-    `[Backrooms] 常加载区块 ${world.tickingAreaManager.chunkCount}/${world.tickingAreaManager.maxChunkCount}`,
+    `[Backrooms] 常加载区块 ${world.tickingAreaManager.chunkCount}/${world.tickingAreaManager.maxChunkCount}`
   );
   layouts = new BackroomsLayoutAdapter(world.seed);
   const lifeformDirector = registerBackroomsLifeformDirector({

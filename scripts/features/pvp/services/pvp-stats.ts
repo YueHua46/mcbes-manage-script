@@ -107,12 +107,7 @@ class PvpStatsManager {
   /**
    * 发送击杀通知
    */
-  private sendKillNotification(
-    killer: Player,
-    victim: Player,
-    seizeAmount: number,
-    killStreak: number
-  ): void {
+  private sendKillNotification(killer: Player, victim: Player, seizeAmount: number, killStreak: number): void {
     const economyEnabled = economic.isEconomyEnabled();
     // 击杀者通知
     const killerMessage = economyEnabled
@@ -140,10 +135,7 @@ class PvpStatsManager {
   /**
    * 获取排行榜
    */
-  getLeaderboard(
-    type: "kills" | "killStreak" | "seize",
-    limit: number = 10
-  ): Array<{ name: string; value: number }> {
+  getLeaderboard(type: "kills" | "killStreak" | "seize", limit: number = 10): Array<{ name: string; value: number }> {
     const allData = Object.fromEntries(
       Object.entries(pvpManager.getAllPlayerData()).filter(([name]) => isKnownRealPlayerName(name))
     );
@@ -180,9 +172,7 @@ class PvpStatsManager {
 
     switch (type) {
       case "kills":
-        sorted = leaderboard
-          .map(([name, data]) => [name, data.kills] as [string, number])
-          .sort((a, b) => b[1] - a[1]);
+        sorted = leaderboard.map(([name, data]) => [name, data.kills] as [string, number]).sort((a, b) => b[1] - a[1]);
         break;
       case "killStreak":
         sorted = leaderboard
@@ -202,4 +192,3 @@ class PvpStatsManager {
 }
 
 export default new PvpStatsManager();
-

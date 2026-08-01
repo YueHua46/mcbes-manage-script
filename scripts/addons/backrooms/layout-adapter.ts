@@ -37,9 +37,7 @@ export function isValidLampRowPlan(plan: LampRowPlan): boolean {
   if (!Number.isInteger(plan.gapLength) || plan.gapLength < 1 || plan.gapLength > 2) return false;
   const cycle = plan.groupLength + plan.gapLength;
   if (!Number.isInteger(plan.offset) || plan.offset < 0 || plan.offset >= cycle) return false;
-  return plan.slots.every((active, index) => (
-    active === ((index + plan.offset) % cycle < plan.groupLength)
-  ));
+  return plan.slots.every((active, index) => active === (index + plan.offset) % cycle < plan.groupLength);
 }
 
 /** Pure deterministic row policy shared by tests and physical fixture placement. */
@@ -52,10 +50,7 @@ export function planLampRowSlots(random: IntegerRandom, slotCount: number): Lamp
   const gapLength = random.integer(1, 2);
   const cycle = groupLength + gapLength;
   const offset = random.integer(0, cycle - 1);
-  const slots = Array.from(
-    { length: slotCount },
-    (_, index) => (index + offset) % cycle < groupLength,
-  );
+  const slots = Array.from({ length: slotCount }, (_, index) => (index + offset) % cycle < groupLength);
   return { baseStep, groupLength, gapLength, offset, slots };
 }
 
@@ -65,19 +60,16 @@ export interface BackroomsRegionVariant {
   holeCluster: boolean;
 }
 
-export function getBackroomsRegionVariant(
-  worldSeed: BackroomsSeed,
-  region: BackroomsRegion,
-): BackroomsRegionVariant {
+export function getBackroomsRegionVariant(worldSeed: BackroomsSeed, region: BackroomsRegion): BackroomsRegionVariant {
   return {
-    blackout: new DeterministicRandom(
-      deriveSeed32(worldSeed, 1, "variant:blackout", region.rx, region.rz),
-    ).chance(0.003),
-    redRoom: new DeterministicRandom(
-      deriveSeed32(worldSeed, 1, "variant:red-room", region.rx, region.rz),
-    ).chance(0.0001),
+    blackout: new DeterministicRandom(deriveSeed32(worldSeed, 1, "variant:blackout", region.rx, region.rz)).chance(
+      0.003
+    ),
+    redRoom: new DeterministicRandom(deriveSeed32(worldSeed, 1, "variant:red-room", region.rx, region.rz)).chance(
+      0.0001
+    ),
     holeCluster: new DeterministicRandom(
-      deriveSeed32(worldSeed, 1, "variant:hole-cluster", region.rx, region.rz),
+      deriveSeed32(worldSeed, 1, "variant:hole-cluster", region.rx, region.rz)
     ).chance(0.002),
   };
 }
@@ -94,7 +86,7 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
     const { blackout, redRoom, holeCluster } = getBackroomsRegionVariant(this.worldSeed, region);
     const wallBlock = redRoom ? "minecraft:red_terracotta" : undefined;
     const ceilingRandom = new DeterministicRandom(
-      deriveSeed32(this.worldSeed, 1, "ceiling-height", region.rx, region.rz),
+      deriveSeed32(this.worldSeed, 1, "ceiling-height", region.rx, region.rz)
     );
     const lowRooms = new Set<number>();
     layout.rooms.forEach((_, index) => {
@@ -125,11 +117,9 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
       walls,
       lamps: this.createLamps(
         layout,
-        new DeterministicRandom(
-          deriveSeed32(this.worldSeed, 1, "lighting-rows", region.rx, region.rz),
-        ),
+        new DeterministicRandom(deriveSeed32(this.worldSeed, 1, "lighting-rows", region.rx, region.rz)),
         blackout,
-        lowRooms,
+        lowRooms
       ),
       decorations: this.createFloorStains(layout, random),
       voids: holeCluster ? this.createHoleCluster(layout, random, landing) : [],
@@ -168,15 +158,13 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
     layout: RegionLayout,
     random: DeterministicRandom,
     blackout: boolean,
-    lowRooms: ReadonlySet<number>,
+    lowRooms: ReadonlySet<number>
   ): RelativeBlockPlacement[] {
     const lamps: RelativeBlockPlacement[] = [];
 
     for (let roomIndex = 0; roomIndex < layout.rooms.length; roomIndex++) {
       const room = layout.rooms[roomIndex];
-      const horizontal = room.rect.width === room.rect.depth
-        ? random.chance(0.5)
-        : room.rect.width > room.rect.depth;
+      const horizontal = room.rect.width === room.rect.depth ? random.chance(0.5) : room.rect.width > room.rect.depth;
       const longStart = horizontal ? room.rect.x : room.rect.z;
       const longLength = horizontal ? room.rect.width : room.rect.depth;
       const crossStart = horizontal ? room.rect.z : room.rect.x;
@@ -191,11 +179,7 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
       const maximumRow = crossStart + crossLength - 2;
       const rowStep = random.integer(10, 12);
       const rowOffset = random.integer(0, Math.min(rowStep - 1, maximumRow - minimumRow));
-      for (
-        let rowCoordinate = minimumRow + rowOffset;
-        rowCoordinate <= maximumRow;
-        rowCoordinate += rowStep
-      ) {
+      for (let rowCoordinate = minimumRow + rowOffset; rowCoordinate <= maximumRow; rowCoordinate += rowStep) {
         const omitRow = random.chance(blackout ? 0.65 : 0.02);
         if (omitRow) continue;
         const slotCapacity = Math.floor((maximumFixtureStart - minimumFixtureStart) / 6) + 1;
@@ -208,7 +192,7 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
         for (let fixtureStart = firstStart; fixtureStart <= maximumFixtureStart; fixtureStart += step) {
           const activeSlot = rowPlan.slots[fixtureIndex] ?? false;
           fixtureIndex++;
-          if (!activeSlot || (blackout && random.chance(0.60))) continue;
+          if (!activeSlot || (blackout && random.chance(0.6))) continue;
           const firstX = horizontal ? fixtureStart : rowCoordinate;
           const firstZ = horizontal ? rowCoordinate : fixtureStart;
           const secondX = firstX + (horizontal ? 1 : 0);
@@ -218,12 +202,10 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
           }
 
           const lampY = lowRooms.has(roomIndex) ? 4 : 5;
-          const blockId = blackout || random.chance(0.035)
-            ? "yuehua:backrooms_fluorescent_dead"
-            : undefined;
+          const blockId = blackout || random.chance(0.035) ? "yuehua:backrooms_fluorescent_dead" : undefined;
           lamps.push(
             { location: { x: firstX, y: lampY, z: firstZ }, blockId },
-            { location: { x: secondX, y: lampY, z: secondZ }, blockId },
+            { location: { x: secondX, y: lampY, z: secondZ }, blockId }
           );
         }
       }
@@ -246,7 +228,7 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
             const lampY = lowRooms.has(roomIndex) ? 4 : 5;
             lamps.push(
               { location: { x: firstX, y: lampY, z: firstZ } },
-              { location: { x: secondX, y: lampY, z: secondZ } },
+              { location: { x: secondX, y: lampY, z: secondZ } }
             );
           }
         }
@@ -273,7 +255,7 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
           {
             location: { x: secondX, y: lampY, z: secondZ },
             blockId: "yuehua:backrooms_fluorescent_dead",
-          },
+          }
         );
         break;
       }
@@ -304,7 +286,7 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
   private createArches(
     layout: RegionLayout,
     random: DeterministicRandom,
-    blockId: string | undefined,
+    blockId: string | undefined
   ): RegionBuildPlan["walls"] {
     const arches: RegionBuildPlan["walls"] = [];
     for (const partition of layout.partitions) {
@@ -331,7 +313,7 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
   private createHoleCluster(
     layout: RegionLayout,
     random: DeterministicRandom,
-    landing: { x: number; z: number },
+    landing: { x: number; z: number }
   ): NonNullable<RegionBuildPlan["voids"]> {
     const rooms = layout.rooms.filter((room) => room.rect.width >= 14 && room.rect.depth >= 14);
     if (!rooms.length) return [];
@@ -351,5 +333,4 @@ export class BackroomsLayoutAdapter implements RegionLayoutProvider, RegionGateP
     }
     return holes;
   }
-
 }
