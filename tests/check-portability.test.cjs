@@ -12,11 +12,13 @@ function read(relativePath) {
 test("repository check uses a stable LF policy", () => {
   const attributes = read(".gitattributes");
   const prettier = JSON.parse(read(".prettierrc.json"));
+  const packageJson = JSON.parse(read("package.json"));
 
   assert.match(attributes, /\*\.ts text eol=lf/);
   assert.match(attributes, /\*\.yml text eol=lf/);
   assert.match(attributes, /\*\.cjs text eol=lf/);
   assert.equal(prettier.endOfLine, "lf");
+  assert.equal(packageJson.devDependencies.prettier, "3.6.2");
 });
 
 test("lint passes a directory instead of a shell-dependent recursive glob", () => {

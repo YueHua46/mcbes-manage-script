@@ -108,7 +108,8 @@ function moveItemToAdminInventory(
   }
 
   const targetEquippable = targetPlayer.getComponent(EntityEquippableComponent.componentId) as
-    EntityEquippableComponent | undefined;
+    | EntityEquippableComponent
+    | undefined;
   if (!targetEquippable) {
     doReopen();
     return;
@@ -325,7 +326,8 @@ function openPlayerInventoryMainDualForm(adminPlayer: Player, targetPlayer: Play
   }
 
   const targetEquippable = targetPlayer.getComponent(EntityEquippableComponent.componentId) as
-    EntityEquippableComponent | undefined;
+    | EntityEquippableComponent
+    | undefined;
   if (targetEquippable) {
     EQUIPMENT_SLOTS.forEach(([slot, label, emptyTexture], idx) => {
       const buttonIndex = EQUIPMENT_BUTTON_OFFSET + idx;

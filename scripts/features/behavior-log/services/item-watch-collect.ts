@@ -89,7 +89,8 @@ export function collectPlayerItemWatchSnapshot(
 
   const equipment: ItemWatchSnapshotPayload["equipment"] = [];
   const equippable = player.getComponent(EntityEquippableComponent.componentId) as
-    EntityEquippableComponent | undefined;
+    | EntityEquippableComponent
+    | undefined;
   if (equippable) {
     const slots: [EquipmentSlot, string][] = [
       [EquipmentSlot.Mainhand, "主手"],
