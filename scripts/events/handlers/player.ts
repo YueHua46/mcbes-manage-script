@@ -134,10 +134,11 @@ export function registerPlayerEvents(): void {
       ) {
         const configuredAmount = Math.floor(Number(setting.getState("deathGoldPenaltyAmount")));
         if (Number.isFinite(configuredAmount) && configuredAmount > 0) {
-          const wallet = economic.getWallet(player.name);
-          const penaltyAmount = Math.min(configuredAmount, wallet.gold);
-          if (penaltyAmount > 0 && economic.removeGold(player.name, penaltyAmount, "死亡金币惩罚")) {
+          const allowNegativeBalance = setting.getState("deathGoldPenaltyAllowNegativeBalance") === true;
+          const previousGold = economic.getWallet(player.name).gold;
+          if (economic.removeGold(player.name, configuredAmount, "死亡金币惩罚", allowNegativeBalance)) {
             const currentGold = economic.getWallet(player.name).gold;
+            const penaltyAmount = previousGold - currentGold;
             player.sendMessage(`§c死亡惩罚：扣除 §e${penaltyAmount} §c金币，当前余额 §e${currentGold}§c。`);
           }
         }

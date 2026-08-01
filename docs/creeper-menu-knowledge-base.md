@@ -604,7 +604,7 @@ scoreboard players set @p yuehua_money 1000
 注意事项：
 
 - 双向同步仅作用于在线真实玩家；离线玩家仍使用离线金币管理指令。
-- 金币范围为 `0～2147483647`，与原版计分板整数范围一致；负分会自动归零。
+- 默认金币范围为 `0～2147483647`。开启「死亡后允许金币扣成负数」后，下限扩展为原版计分板整数下限 `-2147483648`；关闭该开关时负余额会归零。
 - 删除玩家的计分板分数或删除整个 `yuehua_money` 目标不会清空钱包，模组会根据真实钱包重新创建并恢复分数。
 - `yuehua_money` 是受支持的经济接口，不建议将它用于与金币无关的用途。
 
@@ -1763,6 +1763,7 @@ Minecraft 当前不支持运行时删除自定义维度，因此这些预置维�
 - `monsterKillGoldReward`：杀怪金币奖励开关。
 - `deathGoldPenaltyEnabled`：死亡扣金币开关。
 - `deathGoldPenaltyAmount`：死亡扣除金币数量，默认 `100`。
+- `deathGoldPenaltyAllowNegativeBalance`：死亡扣款是否允许余额变成负数，默认关闭；只影响死亡惩罚，普通消费和转账仍要求余额充足。
 - `redPacketExpiryHours`：红包有效时长，默认 `24` 小时。
 
 ### 9.4 公会相关
