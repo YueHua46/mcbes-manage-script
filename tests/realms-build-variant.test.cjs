@@ -158,10 +158,12 @@ test("fake-player service applies Realms migration before spawning and rejects s
 
 test("Realms entry and fake-player UI expose legacy-only behavior", () => {
   const entry = read("scripts/main.realms.ts");
+  const variants = read("scripts/startup-variants.ts");
   const ui = read("scripts/ui/forms/player/fake-player.ts");
 
-  assert.match(entry, /Realms 兼容版/);
-  assert.match(entry, /仅旧版实体假人/);
+  assert.match(entry, /startupVariants\.realms/);
+  assert.match(variants, /Realms 兼容版/);
+  assert.match(variants, /仅旧版实体假人/);
   assert.match(ui, /isSimulatedPlayerAvailable/);
   assert.match(ui, /Realms 版仅支持旧版实体假人/);
   assert.match(
@@ -195,10 +197,10 @@ test("README and knowledge base document Realms limitations and automatic downgr
 });
 
 test("standard build no longer advertises Realms compatibility", () => {
-  const standardEntry = read("scripts/main.standard.ts");
+  const variants = read("scripts/startup-variants.ts");
   const config = read("just.config.ts");
 
-  assert.doesNotMatch(standardEntry, /标准兼容版（本地 \/ BDS \/ Realms）/);
+  assert.doesNotMatch(variants, /标准兼容版（本地 \/ BDS \/ Realms）/);
   assert.doesNotMatch(config, /普通兼容版（适用本地、BDS、Realms领域服）/);
   assert.match(config, /普通兼容版（适用本地、BDS）/);
 });
