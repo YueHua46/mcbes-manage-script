@@ -17,8 +17,8 @@ import type { IUserWallet, IUserWalletWithDailyLimit, ITransaction } from "../mo
 export const PLAYER_MARKET_PURCHASE_REASON = "购买玩家交易市场商品";
 export const MONEY_SCOREBOARD_OBJECTIVE = "yuehua_money";
 export const MONEY_SCOREBOARD_MAX = 2_147_483_647;
+export const MONEY_SCOREBOARD_MIN = -2_147_483_648;
 
-const MONEY_SCOREBOARD_MIN = 0;
 const MONEY_SCOREBOARD_ADJUST_REASON = "原版计分板调整";
 
 export class Economic {
@@ -78,7 +78,11 @@ export class Economic {
   }
 
   private toScoreboardGold(gold: number): number {
-    return Math.max(MONEY_SCOREBOARD_MIN, Math.min(MONEY_SCOREBOARD_MAX, Math.floor(gold)));
+    return Math.max(this.getMinimumGold(), Math.min(MONEY_SCOREBOARD_MAX, Math.floor(gold)));
+  }
+
+  private getMinimumGold(): number {
+    return setting.getState("deathGoldPenaltyAllowNegativeBalance") === true ? MONEY_SCOREBOARD_MIN : 0;
   }
 
   private syncWalletToOnlinePlayer(playerName: string, gold: number): void {
@@ -307,8 +311,8 @@ export class Economic {
       needsFix = true;
     }
 
-    if (wallet.gold < 0) {
-      wallet.gold = this.toScoreboardGold(this.DEFAULT_GOLD);
+    if (wallet.gold < this.getMinimumGold()) {
+      wallet.gold = this.getMinimumGold();
       needsFix = true;
     }
 
@@ -428,7 +432,12 @@ export class Economic {
     return amount;
   }
 
-  removeGold(playerName: string, amount: number, reason: string = "系统消费"): boolean {
+  removeGold(
+    playerName: string,
+    amount: number,
+    reason: string = "系统消费",
+    allowNegativeBalance: boolean = false
+  ): boolean {
     if (!this.isEconomyEnabled()) return true;
 
     if (isNaN(amount) || !isFinite(amount) || amount <= 0) {
@@ -442,11 +451,17 @@ export class Economic {
     }
 
     const wallet = this.getWallet(playerName);
-    if (wallet.gold < amount) return false;
+    const canUseNegativeBalance =
+      allowNegativeBalance && setting.getState("deathGoldPenaltyAllowNegativeBalance") === true;
+    const minimumGold = canUseNegativeBalance ? MONEY_SCOREBOARD_MIN : 0;
+    if (!canUseNegativeBalance && wallet.gold < amount) return false;
 
-    wallet.gold -= amount;
+    const deductedAmount = Math.min(amount, wallet.gold - minimumGold);
+    if (deductedAmount <= 0) return false;
+
+    wallet.gold -= deductedAmount;
     this.saveWallet(this.resolveWalletKey(playerName), wallet);
-    this.logTransaction(playerName, "system", amount, reason);
+    this.logTransaction(playerName, "system", deductedAmount, reason);
 
     return true;
   }
@@ -643,8 +658,8 @@ export class Economic {
         needsFix = true;
       }
 
-      if (wallet.gold < 0) {
-        wallet.gold = this.toScoreboardGold(this.DEFAULT_GOLD);
+      if (wallet.gold < this.getMinimumGold()) {
+        wallet.gold = this.getMinimumGold();
         needsFix = true;
       }
 

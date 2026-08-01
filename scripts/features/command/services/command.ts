@@ -114,7 +114,9 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   monsterKillGoldReward: "杀怪掉金币开关。true 启用击杀怪物奖励，false 关闭。",
   monsterKillRewardRanges: "怪物击杀金币自定义范围 JSON；建议通过管理员菜单配置。",
   deathGoldPenaltyEnabled: "死亡扣金币开关。true 死亡时扣款，false 不扣。",
-  deathGoldPenaltyAmount: "玩家死亡时扣除的金币数量。余额不足时通常扣到 0。",
+  deathGoldPenaltyAmount: "玩家死亡时扣除的金币数量。是否允许扣成负数由独立开关控制。",
+  deathGoldPenaltyAllowNegativeBalance:
+    "死亡扣金币允许负余额开关。true 会完整扣除罚金并允许余额为负，false 最多扣到 0；默认 false。",
   allowPlayerDisplaySettings: "是否允许玩家编辑自己的名称显示设置。true 允许，false 禁止。",
   pvp: "PVP 系统菜单与插件接管总开关。true 启用相关入口，false 关闭。",
   pvpMode: "PVP 模式。vanilla=原版；plugin=个人开关；forced=强制大乱斗；off=禁止。",

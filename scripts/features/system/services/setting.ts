@@ -58,6 +58,7 @@ export type IModules =
   | "monsterKillRewardRanges"
   | "deathGoldPenaltyEnabled"
   | "deathGoldPenaltyAmount"
+  | "deathGoldPenaltyAllowNegativeBalance"
   | "allowPlayerDisplaySettings"
   | "pvp"
   | "pvpMode"
@@ -207,6 +208,7 @@ export const defaultSetting = {
   monsterKillRewardRanges: "{}",
   deathGoldPenaltyEnabled: true,
   deathGoldPenaltyAmount: "100",
+  deathGoldPenaltyAllowNegativeBalance: false,
   allowPlayerDisplaySettings: true, // 允许玩家编辑名字显示设置
   pvp: true, // PVP系统菜单显示开关
   pvpMode: "vanilla", // PVP模式：vanilla=原版，plugin=插件，forced=强制大乱斗，off=禁止

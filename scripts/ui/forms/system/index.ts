@@ -1475,9 +1475,13 @@ function openEconomyFeatureToggleForm(player: Player): void {
   const form = new ModalFormData();
   form.title("经济系统功能设置");
 
-  const features: { key: "monsterKillGoldReward" | "deathGoldPenaltyEnabled"; name: string }[] = [
+  const features: {
+    key: "monsterKillGoldReward" | "deathGoldPenaltyEnabled" | "deathGoldPenaltyAllowNegativeBalance";
+    name: string;
+  }[] = [
     { key: "monsterKillGoldReward", name: "杀怪掉金币" },
     { key: "deathGoldPenaltyEnabled", name: "死亡损失金币" },
+    { key: "deathGoldPenaltyAllowNegativeBalance", name: "死亡后允许金币扣成负数" },
   ];
 
   features.forEach((feature) => {
@@ -1486,7 +1490,7 @@ function openEconomyFeatureToggleForm(player: Player): void {
       defaultValue: currentValue as boolean,
     });
   });
-  form.textField("死亡损失金币数量", "非负整数，例如 100；余额不足时扣到 0", {
+  form.textField("死亡损失金币数量", "非负整数，例如 100；是否可透支由上方开关控制", {
     defaultValue: String(setting.getState("deathGoldPenaltyAmount")),
   });
 

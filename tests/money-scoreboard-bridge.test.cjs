@@ -4,10 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const root = path.resolve(__dirname, "..");
-const source = fs.readFileSync(
-  path.join(root, "scripts/features/economic/services/economic.ts"),
-  "utf8"
-);
+const source = fs.readFileSync(path.join(root, "scripts/features/economic/services/economic.ts"), "utf8");
 
 test("money scoreboard bridge exposes the documented vanilla objective", () => {
   assert.match(source, /MONEY_SCOREBOARD_OBJECTIVE = "yuehua_money"/);
@@ -29,7 +26,8 @@ test("external scoreboard changes are imported and audited", () => {
   assert.match(source, /if \(observedScore !== lastSyncedScore\) \{\s*this\.importScoreboardGold/);
   assert.match(source, /wallet\.gold = nextGold;[\s\S]*this\.db\.save\(\)/);
   assert.match(source, /MONEY_SCOREBOARD_ADJUST_REASON = "原版计分板调整"/);
-  assert.match(source, /Math\.max\(MONEY_SCOREBOARD_MIN, Math\.min\(MONEY_SCOREBOARD_MAX/);
+  assert.match(source, /Math\.max\(this\.getMinimumGold\(\), Math\.min\(MONEY_SCOREBOARD_MAX/);
+  assert.match(source, /deathGoldPenaltyAllowNegativeBalance/);
 });
 
 test("wallet values are kept within the vanilla scoreboard integer range", () => {
