@@ -1,3 +1,5 @@
+
+
 ![苦力怕菜单](docs/images/creeper-menu-banner.png)
 
 # 苦力怕菜单
@@ -181,7 +183,7 @@ Tag 必须严格等于 `v` 加统一发行版本，否则 CI 会拒绝发布。�
 /tag @s add admin
 ```
 
-1. 获取菜单道具：
+5. 获取菜单道具：
 
 ```mcfunction
 /give @s yuehua:sm
