@@ -1,5 +1,3 @@
-
-
 ![苦力怕菜单](docs/images/creeper-menu-banner.png)
 
 # 苦力怕菜单
@@ -254,6 +252,7 @@ npm run mcaddon:release   # 打包三个 CreeperMenu Release 产物
 npm run release:check     # 检查统一版本与全部 manifest
 npm run release:sync -- 3.2.14 # 同步下一发行版本
 npm run verify:realms-build # 检查当前 Realms manifest 和脚本不含不支持模块
+npm run update:minecraft-deps # 更新依赖到指定版本（提前先在packages.json中minecraftDependencies配置好 stableRange）
 ```
 
 本地部署需要在 `.env` 中设置 `PROJECT_NAME`；使用 BDS 部署任务时还需设置 `BDS_SERVER_DEPLOY_PATH`。普通构建和代码检查不要求部署路径。
