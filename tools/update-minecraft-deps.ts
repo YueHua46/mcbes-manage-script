@@ -194,6 +194,21 @@ if (vanillaDataCurrent) {
   }
 }
 
+// 同步 release.config.json 的 Minecraft 版本号
+const releaseConfigPath = "release.config.json";
+
+const releaseConfig = JSON.parse(readFileSync(releaseConfigPath, "utf8"));
+
+if (releaseConfig.minecraftVersion !== targetMinecraftVersion) {
+  console.log(`release.config.json: ${releaseConfig.minecraftVersion} -> ${targetMinecraftVersion}`);
+
+  releaseConfig.minecraftVersion = targetMinecraftVersion;
+
+  writeFileSync(releaseConfigPath, JSON.stringify(releaseConfig, null, 2) + "\n");
+
+  changed = true;
+}
+
 if (!changed) {
   console.log("Minecraft dependencies are already up to date.");
   process.exit(0);
