@@ -85,14 +85,25 @@ test("AI and maintainer documentation preserves the mutually exclusive routing c
 });
 
 test("project ActionForms use the themed route while unrelated and REPL forms stay native", () => {
-  const serverForm = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
+  const serverFormText = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
+  const serverForm = JSON.parse(serverFormText);
   const ui = read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json");
   const wrapper = read("scripts", "ui", "creeper-action-form.ts");
+  const nativeCustom = serverForm.custom_form_switch.controls[0]["custom_form@server_form.custom_form"];
+  const multilineCustom =
+    serverForm.custom_form_switch.controls[1]["custom_multiline_form@server_form.custom_multiline_form"];
 
-  assert.match(serverForm, /"custom_form": "@server_form\.custom_form_switch"/);
-  assert.match(serverForm, /"custom_form@server_form\.custom_form"/);
-  assert.match(serverForm, /"custom_multiline_form@server_form\.custom_multiline_form"/);
-  assert.match(serverForm, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
+  assert.match(serverFormText, /"custom_form": "@server_form\.custom_form_switch"/);
+  assert.match(serverFormText, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
+  assert.equal(nativeCustom.visible, false);
+  assert.equal(multilineCustom.visible, false);
+  assert.equal(nativeCustom.bindings[0].binding_name, "#title_text");
+  assert.equal(nativeCustom.bindings[0].binding_type, undefined);
+  assert.equal(multilineCustom.bindings[0].binding_name, "#title_text");
+  assert.equal(multilineCustom.bindings[0].binding_type, undefined);
+  assert.equal(nativeCustom.bindings[1].source_property_name, "(not (#title_text = 'JavaScript REPL'))");
+  assert.equal(multilineCustom.bindings[1].source_property_name, "(#title_text = 'JavaScript REPL')");
+  assert.doesNotMatch(JSON.stringify(serverForm.custom_form_switch), /\$flag_form_title/);
   assert.match(ui, /"project_action_form@creeper_menu\.form_type"/);
   assert.match(ui, /"\$min": "\/CMFORM "/);
   assert.match(ui, /"generic_long_form"/);
