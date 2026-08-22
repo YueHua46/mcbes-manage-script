@@ -20,6 +20,7 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
     "long_form_replacement@creeper_menu.long_form_replacement"
   );
   assert.equal(serverForm.long_form.bindings[0].source_control_name, "inside_header_panel");
+  assert.doesNotMatch(serverFormText, /\$longform_size|\$customform_size/);
   assert.match(
     serverForm.long_form_panel.modifications[0].value[0].source_property_name,
     /#title_text < '\/CMROOT '/

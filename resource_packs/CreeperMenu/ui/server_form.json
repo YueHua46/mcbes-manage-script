@@ -27,7 +27,6 @@
   },
   "long_form": {
     "type": "panel",
-    "size": "$longform_size",
     "bindings": [
       {
         "binding_type": "view",
