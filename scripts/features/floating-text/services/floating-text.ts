@@ -1,4 +1,5 @@
 import { Player, TextPrimitive, Vector3, world, system } from "@minecraft/server";
+import type { RGBA } from "@minecraft/server";
 import { Database } from "../../../shared/database/database";
 import { generateId, isAdmin, SystemLog } from "../../../shared/utils/common";
 import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
@@ -17,7 +18,14 @@ export interface IFloatingText {
   scale: number;
   maximumRenderDistance: number;
   depthTest: boolean;
-  backgroundAlpha: number;
+  textColor?: RGBA;
+  backgroundColor?: RGBA;
+  rotation?: Vector3;
+  useRotation?: boolean;
+  backfaceVisible?: boolean;
+  textBackfaceVisible?: boolean;
+  /** Legacy persisted field; migrated to backgroundColor when edited. */
+  backgroundAlpha?: number;
 }
 
 export interface FloatingTextCreateInput {
@@ -27,7 +35,12 @@ export interface FloatingTextCreateInput {
   scale?: number;
   maximumRenderDistance?: number;
   depthTest?: boolean;
-  backgroundAlpha?: number;
+  textColor?: RGBA;
+  backgroundColor?: RGBA;
+  rotation?: Vector3;
+  useRotation?: boolean;
+  backfaceVisible?: boolean;
+  textBackfaceVisible?: boolean;
 }
 
 export interface FloatingTextUpdateInput {
@@ -39,7 +52,12 @@ export interface FloatingTextUpdateInput {
   scale?: number;
   maximumRenderDistance?: number;
   depthTest?: boolean;
-  backgroundAlpha?: number;
+  textColor?: RGBA;
+  backgroundColor?: RGBA;
+  rotation?: Vector3;
+  useRotation?: boolean;
+  backfaceVisible?: boolean;
+  textBackfaceVisible?: boolean;
 }
 
 const MAX_NAME_LENGTH = 24;
@@ -50,7 +68,9 @@ const MIN_RENDER_DISTANCE = 8;
 const MAX_RENDER_DISTANCE = 256;
 const DEFAULT_SCALE = 1;
 const DEFAULT_RENDER_DISTANCE = 64;
-const DEFAULT_BACKGROUND_ALPHA = 0.35;
+const DEFAULT_TEXT_COLOR: RGBA = { red: 1, green: 1, blue: 1, alpha: 1 };
+const DEFAULT_BACKGROUND_COLOR: RGBA = { red: 0, green: 0, blue: 0, alpha: 0.35 };
+const DEFAULT_ROTATION: Vector3 = { x: 0, y: 0, z: 0 };
 
 function nowText(): string {
   return formatDateTimeBeijing(Date.now());
@@ -73,6 +93,31 @@ function clampNumber(value: unknown, fallback: number, min: number, max: number)
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));
+}
+
+function normalizeColor(value: Partial<RGBA> | undefined, fallback: RGBA): RGBA {
+  return {
+    red: clampNumber(value?.red, fallback.red, 0, 1),
+    green: clampNumber(value?.green, fallback.green, 0, 1),
+    blue: clampNumber(value?.blue, fallback.blue, 0, 1),
+    alpha: clampNumber(value?.alpha, fallback.alpha, 0, 1),
+  };
+}
+
+function normalizeRotation(value: Partial<Vector3> | undefined, fallback: Vector3 = DEFAULT_ROTATION): Vector3 {
+  return {
+    x: clampNumber(value?.x, fallback.x, -360, 360),
+    y: clampNumber(value?.y, fallback.y, -360, 360),
+    z: clampNumber(value?.z, fallback.z, -360, 360),
+  };
+}
+
+function getBackgroundColor(item: IFloatingText): RGBA {
+  const legacyFallback = {
+    ...DEFAULT_BACKGROUND_COLOR,
+    alpha: clampNumber(item.backgroundAlpha, DEFAULT_BACKGROUND_COLOR.alpha, 0, 1),
+  };
+  return normalizeColor(item.backgroundColor, legacyFallback);
 }
 
 function sanitizeName(name: string): string {
@@ -134,14 +179,20 @@ class FloatingTextService {
   private render(item: IFloatingText): void {
     this.removeRendered(item.id);
     const dimension = world.getDimension(item.dimension);
-    const shape = new TextPrimitive(item.location, item.text);
+    // Bind the primitive itself to its persisted dimension. A TextPrimitive
+    // constructed from a plain Vector3 has no dimension and is rendered in
+    // every dimension according to the Script API contract.
+    const shape = new TextPrimitive({ ...item.location, dimension }, item.text);
     shape.scale = item.scale;
     shape.maximumRenderDistance = item.maximumRenderDistance;
     shape.depthTest = item.depthTest;
-    shape.backgroundColorOverride = { red: 0, green: 0, blue: 0, alpha: item.backgroundAlpha };
-    shape.color = { red: 1, green: 1, blue: 1, alpha: 1 };
-    shape.useRotation = false;
-    this.getManager().addText(shape, dimension);
+    shape.backgroundColorOverride = getBackgroundColor(item);
+    shape.color = normalizeColor(item.textColor, DEFAULT_TEXT_COLOR);
+    shape.rotation = normalizeRotation(item.rotation);
+    shape.useRotation = item.useRotation ?? false;
+    shape.backfaceVisible = item.backfaceVisible ?? true;
+    shape.textBackfaceVisible = item.textBackfaceVisible ?? true;
+    this.getManager().addText(shape);
     this.rendered.set(item.id, shape);
   }
 
@@ -239,7 +290,12 @@ class FloatingTextService {
         MAX_RENDER_DISTANCE
       ),
       depthTest: input.depthTest ?? false,
-      backgroundAlpha: clampNumber(input.backgroundAlpha, DEFAULT_BACKGROUND_ALPHA, 0, 1),
+      textColor: normalizeColor(input.textColor, DEFAULT_TEXT_COLOR),
+      backgroundColor: normalizeColor(input.backgroundColor, DEFAULT_BACKGROUND_COLOR),
+      rotation: normalizeRotation(input.rotation),
+      useRotation: input.useRotation ?? false,
+      backfaceVisible: input.backfaceVisible ?? true,
+      textBackfaceVisible: input.textBackfaceVisible ?? true,
     };
 
     this.db.set(id, item);
@@ -271,7 +327,13 @@ class FloatingTextService {
       MAX_RENDER_DISTANCE
     );
     item.depthTest = input.depthTest ?? item.depthTest;
-    item.backgroundAlpha = clampNumber(input.backgroundAlpha, item.backgroundAlpha, 0, 1);
+    item.textColor = normalizeColor(input.textColor, normalizeColor(item.textColor, DEFAULT_TEXT_COLOR));
+    item.backgroundColor = normalizeColor(input.backgroundColor, getBackgroundColor(item));
+    item.rotation = normalizeRotation(input.rotation, normalizeRotation(item.rotation));
+    item.useRotation = input.useRotation ?? item.useRotation ?? false;
+    item.backfaceVisible = input.backfaceVisible ?? item.backfaceVisible ?? true;
+    item.textBackfaceVisible = input.textBackfaceVisible ?? item.textBackfaceVisible ?? true;
+    delete item.backgroundAlpha;
     if (input.updateLocation) {
       item.location = normalizeLocation({
         x: input.player.location.x,

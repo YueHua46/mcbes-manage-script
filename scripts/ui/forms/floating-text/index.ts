@@ -1,4 +1,5 @@
 import { Player } from "@minecraft/server";
+import type { RGBA } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color, colorCodes } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
@@ -8,6 +9,161 @@ import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/di
 import { openServerMenuForm } from "../server";
 
 const PAGE_SIZE = 9;
+const DEFAULT_TEXT_COLOR: RGBA = { red: 1, green: 1, blue: 1, alpha: 1 };
+const DEFAULT_BACKGROUND_COLOR: RGBA = { red: 0, green: 0, blue: 0, alpha: 0.35 };
+
+const SIZE_PRESETS = [
+  { label: "小巧（适合补充说明）", value: 0.7 },
+  { label: "标准（推荐）", value: 1 },
+  { label: "醒目（适合标题）", value: 1.5 },
+  { label: "特大（适合重要公告）", value: 2 },
+] as const;
+
+const DISTANCE_PRESETS = [
+  { label: "附近可见（约 32 格）", value: 32 },
+  { label: "一般距离（约 64 格，推荐）", value: 64 },
+  { label: "较远可见（约 128 格）", value: 128 },
+  { label: "超远可见（约 256 格）", value: 256 },
+] as const;
+
+const BACKGROUND_VISIBILITY_PRESETS = [
+  { label: "无背景（完全透明）", value: 0 },
+  { label: "淡淡显示（文字更突出）", value: 0.2 },
+  { label: "半透明（推荐）", value: 0.35 },
+  { label: "较明显（不易看穿）", value: 0.65 },
+  { label: "完全不透明", value: 1 },
+] as const;
+
+const TEXT_VISIBILITY_PRESETS = [
+  { label: "完全清晰（推荐）", value: 1 },
+  { label: "稍微变淡", value: 0.75 },
+  { label: "半透明", value: 0.5 },
+  { label: "很淡", value: 0.25 },
+  { label: "完全隐藏", value: 0 },
+] as const;
+
+const COLOR_PRESETS: ReadonlyArray<{ label: string; color: RGBA }> = [
+  { label: "白色（清晰通用）", color: { red: 1, green: 1, blue: 1, alpha: 1 } },
+  { label: "黑色", color: { red: 0, green: 0, blue: 0, alpha: 1 } },
+  { label: "浅灰色", color: { red: 0.75, green: 0.75, blue: 0.75, alpha: 1 } },
+  { label: "深灰色", color: { red: 0.25, green: 0.25, blue: 0.25, alpha: 1 } },
+  { label: "红色", color: { red: 1, green: 0.33, blue: 0.33, alpha: 1 } },
+  { label: "橙色", color: { red: 1, green: 0.65, blue: 0, alpha: 1 } },
+  { label: "金色", color: { red: 1, green: 0.84, blue: 0, alpha: 1 } },
+  { label: "黄色", color: { red: 1, green: 1, blue: 0.33, alpha: 1 } },
+  { label: "绿色", color: { red: 0.33, green: 1, blue: 0.33, alpha: 1 } },
+  { label: "青色", color: { red: 0.33, green: 1, blue: 1, alpha: 1 } },
+  { label: "蓝色", color: { red: 0.33, green: 0.33, blue: 1, alpha: 1 } },
+  { label: "紫色", color: { red: 0.67, green: 0, blue: 0.67, alpha: 1 } },
+  { label: "粉色", color: { red: 1, green: 0.33, blue: 1, alpha: 1 } },
+];
+
+interface ColorChoices {
+  labels: string[];
+  colors: RGBA[];
+  defaultValueIndex: number;
+}
+
+interface NumberChoices {
+  labels: string[];
+  values: number[];
+  defaultValueIndex: number;
+}
+
+function parseHexColor(value: unknown, alpha: unknown): RGBA | undefined {
+  const match = String(value ?? "")
+    .trim()
+    .match(/^#?([0-9a-f]{6})$/i);
+  if (!match) return undefined;
+  const parsedAlpha = Number(alpha);
+  if (!Number.isFinite(parsedAlpha) || parsedAlpha < 0 || parsedAlpha > 1) return undefined;
+  const hex = match[1];
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16) / 255,
+    green: Number.parseInt(hex.slice(2, 4), 16) / 255,
+    blue: Number.parseInt(hex.slice(4, 6), 16) / 255,
+    alpha: parsedAlpha,
+  };
+}
+
+function colorToHex(colorValue: RGBA | undefined, fallback: RGBA): string {
+  const color = colorValue ?? fallback;
+  const channel = (value: number) =>
+    Math.round(Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0)) * 255)
+      .toString(16)
+      .padStart(2, "0")
+      .toUpperCase();
+  return `#${channel(color.red)}${channel(color.green)}${channel(color.blue)}`;
+}
+
+function buildColorChoices(current: RGBA): ColorChoices {
+  const currentHex = colorToHex(current, current);
+  const presetIndex = COLOR_PRESETS.findIndex((preset) => colorToHex(preset.color, preset.color) === currentHex);
+  if (presetIndex >= 0) {
+    return {
+      labels: COLOR_PRESETS.map((preset) => preset.label),
+      colors: COLOR_PRESETS.map((preset) => preset.color),
+      defaultValueIndex: presetIndex,
+    };
+  }
+  return {
+    labels: [`保留当前自定义颜色（${currentHex}）`, ...COLOR_PRESETS.map((preset) => preset.label)],
+    colors: [current, ...COLOR_PRESETS.map((preset) => preset.color)],
+    defaultValueIndex: 0,
+  };
+}
+
+function buildNumberChoices(
+  current: number,
+  presets: ReadonlyArray<{ label: string; value: number }>,
+  customLabel: (value: number) => string
+): NumberChoices {
+  const presetIndex = presets.findIndex((preset) => Math.abs(preset.value - current) < 0.001);
+  if (presetIndex >= 0) {
+    return {
+      labels: presets.map((preset) => preset.label),
+      values: presets.map((preset) => preset.value),
+      defaultValueIndex: presetIndex,
+    };
+  }
+  return {
+    labels: [customLabel(current), ...presets.map((preset) => preset.label)],
+    values: [current, ...presets.map((preset) => preset.value)],
+    defaultValueIndex: 0,
+  };
+}
+
+function getCurrentViewRotation(player: Player): { x: number; y: number; z: number } {
+  try {
+    const rotation = player.getRotation();
+    return { x: rotation.x, y: rotation.y, z: 0 };
+  } catch {
+    return { x: 0, y: 0, z: 0 };
+  }
+}
+
+function findClosestLabel(value: number, presets: ReadonlyArray<{ label: string; value: number }>): string {
+  return presets.reduce((best, candidate) =>
+    Math.abs(candidate.value - value) < Math.abs(best.value - value) ? candidate : best
+  ).label;
+}
+
+function describeColor(colorValue: RGBA | undefined, fallback: RGBA): string {
+  const color = colorValue ?? fallback;
+  const hex = colorToHex(color, fallback);
+  return (
+    COLOR_PRESETS.find((preset) => colorToHex(preset.color, preset.color) === hex)?.label.split("（")[0] ?? "自定义"
+  );
+}
+
+function getBackgroundColor(item: IFloatingText): RGBA {
+  return (
+    item.backgroundColor ?? {
+      ...DEFAULT_BACKGROUND_COLOR,
+      alpha: item.backgroundAlpha ?? DEFAULT_BACKGROUND_COLOR.alpha,
+    }
+  );
+}
 
 function dimensionLabel(dimension: string): string {
   switch (dimension) {
@@ -183,24 +339,64 @@ function openFloatingTextCreateForm(player: Player): void {
           ? "当前费用为 0，创建不会扣金币。"
           : "经济系统已关闭，创建不会扣金币。",
   });
-  form.textField("显示缩放", "0.3～4，默认 1", { defaultValue: "1" });
-  form.textField("可见距离", "8～256，默认 64", { defaultValue: "64" });
-  form.toggle("被方块遮挡时隐藏", { defaultValue: false });
-  form.textField("背景透明度", "0～1，默认 0.35；0 为透明", { defaultValue: "0.35" });
+  form.dropdown(
+    "文字大小",
+    SIZE_PRESETS.map((preset) => preset.label),
+    { defaultValueIndex: 1 }
+  );
+  form.dropdown(
+    "多远还能看见",
+    DISTANCE_PRESETS.map((preset) => preset.label),
+    { defaultValueIndex: 1 }
+  );
+  form.toggle("允许墙壁遮住文字（更符合真实场景）", {
+    defaultValue: false,
+    tooltip: "关闭时隔着墙也能看见；开启后墙壁会挡住文字。",
+  });
+  form.dropdown(
+    "文字颜色",
+    COLOR_PRESETS.map((preset) => preset.label),
+    { defaultValueIndex: 0 }
+  );
+  form.dropdown(
+    "背景颜色",
+    COLOR_PRESETS.map((preset) => preset.label),
+    { defaultValueIndex: 1 }
+  );
+  form.dropdown(
+    "背景显示效果",
+    BACKGROUND_VISIBILITY_PRESETS.map((preset) => preset.label),
+    { defaultValueIndex: 2 }
+  );
+  form.dropdown("文字朝向", ["始终面向每位玩家（推荐）", "固定为我现在面对的方向"], {
+    defaultValueIndex: 0,
+    tooltip: "推荐选择自动面向玩家。固定朝向适合贴墙告示牌；保存时会采用你当前的视角方向。",
+  });
   form.submitButton(cost > 0 ? `创建（消耗 ${cost} 金币）` : "创建（免费）");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
     const values = data.formValues;
     if (!values) return;
+    const size = SIZE_PRESETS[Number(values[2])] ?? SIZE_PRESETS[1];
+    const distance = DISTANCE_PRESETS[Number(values[3])] ?? DISTANCE_PRESETS[1];
+    const textPreset = COLOR_PRESETS[Number(values[5])] ?? COLOR_PRESETS[0];
+    const backgroundPreset = COLOR_PRESETS[Number(values[6])] ?? COLOR_PRESETS[1];
+    const backgroundVisibility = BACKGROUND_VISIBILITY_PRESETS[Number(values[7])] ?? BACKGROUND_VISIBILITY_PRESETS[2];
+    const useRotation = Number(values[8]) === 1;
     const result = floatingTextService.create({
       player,
       name: String(values[0] ?? ""),
       text: String(values[1] ?? ""),
-      scale: Number(values[2]),
-      maximumRenderDistance: Number(values[3]),
+      scale: size.value,
+      maximumRenderDistance: distance.value,
       depthTest: values[4] as boolean,
-      backgroundAlpha: Number(values[5]),
+      textColor: textPreset.color,
+      backgroundColor: { ...backgroundPreset.color, alpha: backgroundVisibility.value },
+      useRotation,
+      rotation: useRotation ? getCurrentViewRotation(player) : undefined,
+      backfaceVisible: true,
+      textBackfaceVisible: true,
     });
     if (isResultError(result)) {
       return openDialogForm(player, { title: "创建失败", desc: color.red(result) }, () =>
@@ -221,19 +417,26 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
   }
 
   const form = new ActionFormData();
+  const backgroundColor = getBackgroundColor(latest);
   form.title("悬浮文字详情");
   form.body(
     [
       `所有者: ${latest.ownerName}`,
       `位置: ${formatLocation(latest)}`,
-      `缩放: ${latest.scale} · 可见距离: ${latest.maximumRenderDistance}`,
+      `大小: ${findClosestLabel(latest.scale, SIZE_PRESETS).split("（")[0]} · ${findClosestLabel(latest.maximumRenderDistance, DISTANCE_PRESETS)}`,
+      `文字颜色: ${describeColor(latest.textColor, DEFAULT_TEXT_COLOR)}`,
+      backgroundColor.alpha <= 0
+        ? "背景: 无背景"
+        : `背景: ${describeColor(backgroundColor, DEFAULT_BACKGROUND_COLOR)} · ${findClosestLabel(backgroundColor.alpha, BACKGROUND_VISIBILITY_PRESETS)}`,
+      latest.useRotation ? "朝向: 固定方向" : "朝向: 始终面向玩家",
       `创建: ${latest.created}`,
       `修改: ${latest.modified}`,
       "",
       `${colorCodes.white}${latest.text}`,
     ].join("\n")
   );
-  form.button("编辑文字和样式", "textures/icons/edit2");
+  form.button("编辑常用设置", "textures/icons/edit2");
+  form.button("高级颜色设置", "textures/icons/gear");
   form.button("移动到当前位置", "textures/icons/menu_waypoint");
   form.button("删除", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
@@ -245,6 +448,9 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
         openFloatingTextEditForm(player, latest, () => openFloatingTextDetailForm(player, latest, back));
         break;
       case 1:
+        openFloatingTextAdvancedColorForm(player, latest, () => openFloatingTextDetailForm(player, latest, back));
+        break;
+      case 2:
         openConfirmDialogForm(
           player,
           "移动悬浮文字",
@@ -263,7 +469,7 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
           () => openFloatingTextDetailForm(player, latest, back)
         );
         break;
-      case 2:
+      case 3:
         openConfirmDialogForm(
           player,
           "删除悬浮文字",
@@ -294,29 +500,69 @@ function openFloatingTextEditForm(player: Player, item: IFloatingText, back: () 
   const latest = floatingTextService.getById(item.id);
   if (!latest) return openDialogForm(player, { title: "提示", desc: "该悬浮文字已不存在。" }, back);
 
+  const textColor = latest.textColor ?? DEFAULT_TEXT_COLOR;
+  const backgroundColor = getBackgroundColor(latest);
+  const sizeChoices = buildNumberChoices(latest.scale, SIZE_PRESETS, (value) => `保留当前大小（${value}）`);
+  const distanceChoices = buildNumberChoices(
+    latest.maximumRenderDistance,
+    DISTANCE_PRESETS,
+    (value) => `保留当前距离（约 ${value} 格）`
+  );
+  const textColorChoices = buildColorChoices(textColor);
+  const backgroundColorChoices = buildColorChoices(backgroundColor);
+  const backgroundVisibilityChoices = buildNumberChoices(
+    backgroundColor.alpha,
+    BACKGROUND_VISIBILITY_PRESETS,
+    (value) => `保留当前效果（约 ${Math.round(value * 100)}% 不透明）`
+  );
+
   const form = new ModalFormData();
-  form.title("编辑悬浮文字");
+  form.title("编辑常用设置");
   form.textField("名称", "最多 24 个字符", { defaultValue: latest.name });
   form.textField("显示文本", "支持输入 \\n 换行，最多 240 字符", { defaultValue: latest.text.replace(/\n/g, "\\n") });
-  form.textField("显示缩放", "0.3～4", { defaultValue: String(latest.scale) });
-  form.textField("可见距离", "8～256", { defaultValue: String(latest.maximumRenderDistance) });
-  form.toggle("被方块遮挡时隐藏", { defaultValue: latest.depthTest });
-  form.textField("背景透明度", "0～1；0 为透明", { defaultValue: String(latest.backgroundAlpha) });
+  form.dropdown("文字大小", sizeChoices.labels, { defaultValueIndex: sizeChoices.defaultValueIndex });
+  form.dropdown("多远还能看见", distanceChoices.labels, {
+    defaultValueIndex: distanceChoices.defaultValueIndex,
+  });
+  form.toggle("允许墙壁遮住文字（更符合真实场景）", {
+    defaultValue: latest.depthTest,
+    tooltip: "关闭时隔着墙也能看见；开启后墙壁会挡住文字。",
+  });
+  form.dropdown("文字颜色", textColorChoices.labels, {
+    defaultValueIndex: textColorChoices.defaultValueIndex,
+  });
+  form.dropdown("背景颜色", backgroundColorChoices.labels, {
+    defaultValueIndex: backgroundColorChoices.defaultValueIndex,
+  });
+  form.dropdown("背景显示效果", backgroundVisibilityChoices.labels, {
+    defaultValueIndex: backgroundVisibilityChoices.defaultValueIndex,
+  });
+  form.dropdown("文字朝向", ["始终面向每位玩家（推荐）", "固定为我现在面对的方向"], {
+    defaultValueIndex: latest.useRotation ? 1 : 0,
+    tooltip: "选择固定方向后，保存时会采用你当前的视角方向。",
+  });
   form.submitButton("保存");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
     const values = data.formValues;
     if (!values) return;
+    const useRotation = Number(values[8]) === 1;
+    const selectedTextColor = textColorChoices.colors[Number(values[5])] ?? textColor;
+    const selectedBackgroundColor = backgroundColorChoices.colors[Number(values[6])] ?? backgroundColor;
+    const backgroundAlpha = backgroundVisibilityChoices.values[Number(values[7])] ?? DEFAULT_BACKGROUND_COLOR.alpha;
     const result = floatingTextService.update({
       player,
       id: latest.id,
       name: String(values[0] ?? ""),
       text: String(values[1] ?? ""),
-      scale: Number(values[2]),
-      maximumRenderDistance: Number(values[3]),
+      scale: sizeChoices.values[Number(values[2])],
+      maximumRenderDistance: distanceChoices.values[Number(values[3])],
       depthTest: values[4] as boolean,
-      backgroundAlpha: Number(values[5]),
+      textColor: { ...selectedTextColor, alpha: textColor.alpha },
+      backgroundColor: { ...selectedBackgroundColor, alpha: backgroundAlpha },
+      useRotation,
+      rotation: useRotation ? getCurrentViewRotation(player) : latest.rotation,
     });
     if (isResultError(result)) {
       return openDialogForm(player, { title: "保存失败", desc: color.red(result) }, () =>
@@ -324,6 +570,85 @@ function openFloatingTextEditForm(player: Player, item: IFloatingText, back: () 
       );
     }
     openDialogForm(player, { title: "保存成功", desc: color.green("悬浮文字已更新。") }, back);
+  });
+}
+
+function openFloatingTextAdvancedColorForm(player: Player, item: IFloatingText, back: () => void): void {
+  const latest = floatingTextService.getById(item.id);
+  if (!latest) return openDialogForm(player, { title: "提示", desc: "该悬浮文字已不存在。" }, back);
+
+  const textColor = latest.textColor ?? DEFAULT_TEXT_COLOR;
+  const backgroundColor = getBackgroundColor(latest);
+  const textVisibilityChoices = buildNumberChoices(
+    textColor.alpha,
+    TEXT_VISIBILITY_PRESETS,
+    (value) => `保留当前效果（约 ${Math.round(value * 100)}% 清晰度）`
+  );
+  const backgroundVisibilityChoices = buildNumberChoices(
+    backgroundColor.alpha,
+    BACKGROUND_VISIBILITY_PRESETS,
+    (value) => `保留当前效果（约 ${Math.round(value * 100)}% 不透明）`
+  );
+
+  const form = new ModalFormData();
+  form.title("高级颜色设置");
+  form.textField("精确文字颜色（高级）", "仅在知道色值时修改，例如 #FFFFFF", {
+    defaultValue: colorToHex(textColor, DEFAULT_TEXT_COLOR),
+    tooltip: "普通玩家建议返回并使用颜色名称。这里供需要精确颜色的玩家使用。",
+  });
+  form.dropdown("文字显示效果", textVisibilityChoices.labels, {
+    defaultValueIndex: textVisibilityChoices.defaultValueIndex,
+    tooltip: "完全清晰最容易阅读；越淡越容易看穿文字。",
+  });
+  form.textField("精确背景颜色（高级）", "仅在知道色值时修改，例如 #000000", {
+    defaultValue: colorToHex(backgroundColor, DEFAULT_BACKGROUND_COLOR),
+  });
+  form.dropdown("背景显示效果", backgroundVisibilityChoices.labels, {
+    defaultValueIndex: backgroundVisibilityChoices.defaultValueIndex,
+    tooltip: "无背景表示只显示文字；越不透明，背景底板越明显。",
+  });
+  form.toggle("固定朝向时，背面也显示文字", {
+    defaultValue: latest.textBackfaceVisible ?? true,
+    tooltip: "开启后从悬浮文字背后也能读到内容。自动面向玩家时此项没有影响。",
+  });
+  form.toggle("固定朝向时，背面也显示背景", {
+    defaultValue: latest.backfaceVisible ?? true,
+    tooltip: "开启后从背面也能看到背景底板。自动面向玩家时此项没有影响。",
+  });
+  form.submitButton("保存高级设置");
+
+  form.show(player).then((data) => {
+    if (data.cancelationReason) return;
+    const values = data.formValues;
+    if (!values) return;
+    const textAlpha = textVisibilityChoices.values[Number(values[1])] ?? textColor.alpha;
+    const backgroundAlpha = backgroundVisibilityChoices.values[Number(values[3])] ?? backgroundColor.alpha;
+    const nextTextColor = parseHexColor(values[0], textAlpha);
+    const nextBackgroundColor = parseHexColor(values[2], backgroundAlpha);
+    if (!nextTextColor || !nextBackgroundColor) {
+      return openDialogForm(
+        player,
+        {
+          title: "保存失败",
+          desc: color.red("精确颜色格式不正确。请填写井号加 6 位数字或字母，例如 #FFFFFF。"),
+        },
+        () => openFloatingTextAdvancedColorForm(player, latest, back)
+      );
+    }
+    const result = floatingTextService.update({
+      player,
+      id: latest.id,
+      textColor: nextTextColor,
+      backgroundColor: nextBackgroundColor,
+      textBackfaceVisible: values[4] as boolean,
+      backfaceVisible: values[5] as boolean,
+    });
+    if (isResultError(result)) {
+      return openDialogForm(player, { title: "保存失败", desc: color.red(result) }, () =>
+        openFloatingTextAdvancedColorForm(player, latest, back)
+      );
+    }
+    openDialogForm(player, { title: "保存成功", desc: color.green("高级颜色设置已更新。") }, back);
   });
 }
 
