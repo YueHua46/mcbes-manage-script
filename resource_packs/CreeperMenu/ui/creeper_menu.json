@@ -427,7 +427,8 @@
           "layer": 6,
           "bindings": [
             {
-              "binding_name": "#title_text"
+              "binding_name": "#title_text",
+              "binding_type": "global"
             },
             {
               "binding_type": "view",
@@ -532,27 +533,11 @@
     ]
   },
 
-  "generic_button_default_state@creeper_menu.generic_button_state": {
-    "texture": "textures/ui/creeper_menu/cards/menu_item_default",
-    "$cm_text_color": [0.9, 0.96, 0.9],
-    "offset": [0, 0]
-  },
-
-  "generic_button_hover_state@creeper_menu.generic_button_state": {
-    "texture": "textures/ui/creeper_menu/cards/menu_item_hover",
-    "$cm_text_color": [0.88, 1.0, 0.58],
-    "offset": [1, -1]
-  },
-
-  "generic_button_pressed_state@creeper_menu.generic_button_state": {
-    "texture": "textures/ui/creeper_menu/cards/menu_item_pressed",
-    "$cm_text_color": [0.65, 0.84, 0.52],
-    "offset": [1, 1]
-  },
-
-  "generic_button_state": {
+  "generic_button_default_state": {
     "type": "image",
     "size": ["100% - 2px", "100% - 3px"],
+    "texture": "textures/ui/creeper_menu/cards/menu_item_default",
+    "offset": [0, 0],
     "bindings": [
       {
         "binding_type": "collection_details",
@@ -561,32 +546,7 @@
     ],
     "controls": [
       {
-        "icon": {
-          "type": "image",
-          "anchor_from": "left_middle",
-          "anchor_to": "left_middle",
-          "offset": [7, 0],
-          "size": [34, 34],
-          "bindings": [
-            {
-              "binding_name": "#form_button_texture",
-              "binding_name_override": "#texture",
-              "binding_type": "collection",
-              "binding_collection_name": "form_buttons"
-            },
-            {
-              "binding_name": "#form_button_texture_file_system",
-              "binding_name_override": "#texture_file_system",
-              "binding_type": "collection",
-              "binding_collection_name": "form_buttons"
-            },
-            {
-              "binding_type": "view",
-              "source_property_name": "(not ((#texture = '') or (#texture = 'loading')))",
-              "target_property_name": "#visible"
-            }
-          ]
-        }
+        "icon@creeper_menu.generic_button_icon": {}
       },
       {
         "label": {
@@ -597,7 +557,7 @@
           "size": ["100% - 58px", 24],
           "text": "#form_button_text",
           "font_scale_factor": 0.76,
-          "color": "$cm_text_color",
+          "color": [0.9, 0.96, 0.9],
           "shadow": true,
           "bindings": [
             {
@@ -607,6 +567,109 @@
             }
           ]
         }
+      }
+    ]
+  },
+
+  "generic_button_hover_state": {
+    "type": "image",
+    "size": ["100% - 2px", "100% - 3px"],
+    "texture": "textures/ui/creeper_menu/cards/menu_item_hover",
+    "offset": [1, -1],
+    "bindings": [
+      {
+        "binding_type": "collection_details",
+        "binding_collection_name": "form_buttons"
+      }
+    ],
+    "controls": [
+      {
+        "icon@creeper_menu.generic_button_icon": {}
+      },
+      {
+        "label": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [48, 0],
+          "size": ["100% - 58px", 24],
+          "text": "#form_button_text",
+          "font_scale_factor": 0.76,
+          "color": [0.88, 1.0, 0.58],
+          "shadow": true,
+          "bindings": [
+            {
+              "binding_name": "#form_button_text",
+              "binding_type": "collection",
+              "binding_collection_name": "form_buttons"
+            }
+          ]
+        }
+      }
+    ]
+  },
+
+  "generic_button_pressed_state": {
+    "type": "image",
+    "size": ["100% - 2px", "100% - 3px"],
+    "texture": "textures/ui/creeper_menu/cards/menu_item_pressed",
+    "offset": [1, 1],
+    "bindings": [
+      {
+        "binding_type": "collection_details",
+        "binding_collection_name": "form_buttons"
+      }
+    ],
+    "controls": [
+      {
+        "icon@creeper_menu.generic_button_icon": {}
+      },
+      {
+        "label": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [48, 0],
+          "size": ["100% - 58px", 24],
+          "text": "#form_button_text",
+          "font_scale_factor": 0.76,
+          "color": [0.65, 0.84, 0.52],
+          "shadow": true,
+          "bindings": [
+            {
+              "binding_name": "#form_button_text",
+              "binding_type": "collection",
+              "binding_collection_name": "form_buttons"
+            }
+          ]
+        }
+      }
+    ]
+  },
+
+  "generic_button_icon": {
+    "type": "image",
+    "anchor_from": "left_middle",
+    "anchor_to": "left_middle",
+    "offset": [7, 0],
+    "size": [34, 34],
+    "bindings": [
+      {
+        "binding_name": "#form_button_texture",
+        "binding_name_override": "#texture",
+        "binding_type": "collection",
+        "binding_collection_name": "form_buttons"
+      },
+      {
+        "binding_name": "#form_button_texture_file_system",
+        "binding_name_override": "#texture_file_system",
+        "binding_type": "collection",
+        "binding_collection_name": "form_buttons"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "(not ((#texture = '') or (#texture = 'loading')))",
+        "target_property_name": "#visible"
       }
     ]
   },

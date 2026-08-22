@@ -108,6 +108,7 @@ test("generic forms render their title and keep dynamic button states isolated",
   const states = button.controls.map((control) => Object.keys(control)[0]);
 
   assert.equal(title.bindings[0].binding_name, "#title_text");
+  assert.equal(title.bindings[0].binding_type, "global");
   assert.equal(title.bindings[1].source_control_name, undefined);
   assert.equal(title.bindings[1].source_property_name, "(#title_text - '/CMFORM ')");
 
@@ -119,10 +120,15 @@ test("generic forms render their title and keep dynamic button states isolated",
     "hover@creeper_menu.generic_button_hover_state",
     "pressed@creeper_menu.generic_button_pressed_state",
   ]);
-  assert.deepEqual(ui["generic_button_default_state@creeper_menu.generic_button_state"].$cm_text_color, [0.9, 0.96, 0.9]);
-  assert.deepEqual(ui["generic_button_hover_state@creeper_menu.generic_button_state"].$cm_text_color, [0.88, 1, 0.58]);
-  assert.deepEqual(ui["generic_button_pressed_state@creeper_menu.generic_button_state"].$cm_text_color, [0.65, 0.84, 0.52]);
-  assert.equal(ui.generic_button_state.bindings[0].binding_type, "collection_details");
+  assert.deepEqual(ui.generic_button_default_state.controls[1].label.color, [0.9, 0.96, 0.9]);
+  assert.deepEqual(ui.generic_button_hover_state.controls[1].label.color, [0.88, 1, 0.58]);
+  assert.deepEqual(ui.generic_button_pressed_state.controls[1].label.color, [0.65, 0.84, 0.52]);
+  assert.equal(ui.generic_button_default_state.bindings[0].binding_type, "collection_details");
+  assert.equal(ui.generic_button_hover_state.bindings[0].binding_type, "collection_details");
+  assert.equal(ui.generic_button_pressed_state.bindings[0].binding_type, "collection_details");
+  assert.doesNotMatch(JSON.stringify(ui.generic_button_default_state), /\$cm_text_color/);
+  assert.doesNotMatch(JSON.stringify(ui.generic_button_hover_state), /\$cm_text_color/);
+  assert.doesNotMatch(JSON.stringify(ui.generic_button_pressed_state), /\$cm_text_color/);
 });
 
 test("all project ActionForms except root and inventory forms use the routed wrapper", () => {
