@@ -19,15 +19,32 @@ test("floating text exposes the supported primitive visual properties", () => {
   assert.match(service, /shape\.textBackfaceVisible = item\.textBackfaceVisible \?\? true/);
 });
 
-test("create and edit forms expose colors, opacity, rotation, and back-face controls", () => {
-  assert.match(form, /form\.textField\("文字颜色"/);
-  assert.match(form, /form\.textField\("背景颜色"/);
-  assert.match(form, /form\.toggle\("使用固定朝向/);
-  assert.match(form, /form\.textField\("俯仰角 Pitch"/);
-  assert.match(form, /form\.textField\("偏航角 Yaw"/);
-  assert.match(form, /form\.textField\("翻滚角 Roll"/);
-  assert.match(form, /form\.toggle\("固定朝向时显示背景背面"/);
-  assert.match(form, /form\.toggle\("固定朝向时显示文字背面"/);
+test("ordinary create and edit forms use player-friendly named choices", () => {
+  const createForm = form.slice(
+    form.indexOf("function openFloatingTextCreateForm"),
+    form.indexOf("function openFloatingTextDetailForm")
+  );
+  const editForm = form.slice(
+    form.indexOf("function openFloatingTextEditForm"),
+    form.indexOf("function openFloatingTextAdvancedColorForm")
+  );
+
+  assert.match(createForm, /form\.dropdown\([\s\S]*?"文字大小"/);
+  assert.match(createForm, /form\.dropdown\([\s\S]*?"多远还能看见"/);
+  assert.match(createForm, /form\.dropdown\([\s\S]*?"背景显示效果"/);
+  assert.match(createForm, /"始终面向每位玩家（推荐）", "固定为我现在面对的方向"/);
+  assert.doesNotMatch(createForm, /十六进制|不透明度|Pitch|Yaw|Roll/);
+  assert.doesNotMatch(editForm, /十六进制|Pitch|Yaw|Roll/);
+});
+
+test("technical color controls are isolated behind a clearly labeled advanced form", () => {
+  assert.match(form, /form\.button\("高级颜色设置"/);
+  assert.match(form, /form\.title\("高级颜色设置"\)/);
+  assert.match(form, /"完全清晰（推荐）"/);
+  assert.match(form, /"无背景（完全透明）"/);
+  assert.match(form, /普通玩家建议返回并使用颜色名称/);
+  assert.match(form, /固定朝向时，背面也显示文字/);
+  assert.match(form, /固定朝向时，背面也显示背景/);
 });
 
 test("legacy background alpha remains readable and is migrated on update", () => {
