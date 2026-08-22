@@ -1,6 +1,7 @@
 import { Player } from "@minecraft/server";
 import type { RGBA } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { color, colorCodes } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
 import setting from "../../../features/system/services/setting";

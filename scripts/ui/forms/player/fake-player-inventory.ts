@@ -1,5 +1,6 @@
 import { Container, Player } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import fakePlayerService, { getFakePlayerType } from "../../../features/fake-player/services/fake-player";
 import ChestFormData, { ChestFormResponse } from "../../components/chest-ui/chest-forms";
 import { getChestItemDurabilityBarValue } from "../../components/chest-ui";

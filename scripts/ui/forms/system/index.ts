@@ -4,7 +4,8 @@
  */
 
 import { Player, RawMessage, world, ItemStack } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import type { IGuild } from "../../../features/guild/models/guild.model";
 import { color, colorCodes } from "../../../shared/utils/color";
 import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";

@@ -6,6 +6,14 @@ const test = require("node:test");
 const root = path.resolve(__dirname, "..");
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
 
+function walkTypeScript(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return walkTypeScript(fullPath);
+    return entry.isFile() && entry.name.endsWith(".ts") ? [fullPath] : [];
+  });
+}
+
 test("main menu routes only its marked ActionForm into the custom JSON UI", () => {
   const constants = read("scripts", "core", "constants.ts");
   const serverFormText = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
@@ -32,14 +40,45 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
 });
 
-test("unmarked subforms keep the project's stable native and REPL routes", () => {
+test("project ActionForms use the themed route while unrelated and REPL forms stay native", () => {
   const serverForm = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
   const ui = read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json");
+  const wrapper = read("scripts", "ui", "creeper-action-form.ts");
 
   assert.match(serverForm, /"custom_form": "@server_form\.custom_form_switch"/);
   assert.match(serverForm, /"custom_form@server_form\.custom_form"/);
   assert.match(serverForm, /"custom_multiline_form@server_form\.custom_multiline_form"/);
-  assert.doesNotMatch(ui, /generic_(?:long|custom)_form|generic_screen_background/);
+  assert.match(serverForm, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
+  assert.match(ui, /"\$title_marker": "\/CMFORM "/);
+  assert.match(ui, /"generic_long_form"/);
+  assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
+  assert.match(wrapper, /CREEPER_ACTION_FORM_PREFIX = "\/CMFORM "/);
+  assert.match(wrapper, /new MinecraftActionFormData\(\)/);
+});
+
+test("all project ActionForms except root and inventory forms use the routed wrapper", () => {
+  const allowedNativeFiles = new Set([
+    path.join(root, "scripts", "shared", "hooks", "use-form.ts"),
+    path.join(root, "scripts", "ui", "creeper-action-form.ts"),
+    path.join(root, "scripts", "ui", "components", "chest-ui", "chest-forms.ts"),
+    path.join(root, "scripts", "ui", "forms", "server", "index.ts"),
+  ]);
+  const directImport = /import \{[^\r\n]*ActionFormData[^\r\n]*\} from "@minecraft\/server-ui";/;
+  const offenders = walkTypeScript(path.join(root, "scripts"))
+    .filter((filename) => !allowedNativeFiles.has(filename))
+    .filter((filename) => directImport.test(fs.readFileSync(filename, "utf8")));
+
+  assert.deepEqual(offenders, []);
+});
+
+test("atlas extraction removes enclosed chroma key and assigns whole connected artwork", () => {
+  const builder = read("design", "menu-ui", "build.py");
+
+  assert.match(builder, /def is_strong_key/);
+  assert.match(builder, /def connected_components/);
+  assert.match(builder, /components_by_cell/);
+  assert.match(builder, /center_x = sum/);
+  assert.doesNotMatch(builder, /atlas\.crop\(box\)/);
 });
 
 test("mosaic binds all thirteen fixed form collection indices exactly once", () => {

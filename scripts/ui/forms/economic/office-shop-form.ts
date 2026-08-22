@@ -5,7 +5,8 @@
  */
 
 import { Container, ItemStack, Player, RawMessage } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import officeShop, { ICategory, OfficeShopItemData } from "../../../features/economic/services/office-shop";
 import ChestFormData from "../../../ui/components/chest-ui/chest-forms";
 import { openDialogForm } from "../../components/dialog";

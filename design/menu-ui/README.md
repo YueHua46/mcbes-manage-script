@@ -8,12 +8,13 @@
 - 13 个卡片索引与 `scripts/ui/forms/server/index.ts` 保持固定契约；关闭的模块和无权限入口保留空槽，不会导致后续按钮错位。
 - 每个卡片使用独立像素场景图，文字由 JSON UI 实时绘制，不烘焙进素材。
 - 默认、悬停、按下均有独立九宫格背景；鼠标、触屏和手柄共用同一点击映射。
-- 只有带路由标记的苦力怕主菜单使用全屏 UI，其他服务器表单保持兼容。
+- 苦力怕主菜单使用 `/CMROOT` 拼图布局；项目内 ActionForm 通过 `/CMFORM` 使用统一的暗绿卡片布局。
+- 箱子、熔炉、JavaScript REPL 与其他附加包表单保留各自原有路由，避免资源包全局误接管。
 
 ## 素材来源与重建
 
 - `source/creeper-feature-atlas-imagegen.png`：使用内置 ImageGen 生成的 4×4 原创像素素材母版。
-- `build.py`：切分透明卡片图、生成九宫格状态纹理和 `preview.png`。
+- `build.py`：先清除整张图集的洋红色键背景，再按连通主体归属切分透明卡片，避免网格越界造成相邻图标残边；同时生成九宫格状态纹理和 `preview.png`。
 - `preview.png` / `submenu-preview.png`：主菜单拼图和通用子菜单的设计预览。
 
 ```powershell

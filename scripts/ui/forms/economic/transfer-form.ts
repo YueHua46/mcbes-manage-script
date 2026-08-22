@@ -4,7 +4,8 @@
  */
 
 import { Player, RawMessage } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openDialogForm } from "../../components/dialog";
 import economic from "../../../features/economic/services/economic";
 import { colorCodes } from "../../../shared/utils/color";

@@ -41,7 +41,17 @@ CARD_COLORS = {
 
 def is_key(pixel: tuple[int, int, int, int]) -> bool:
     r, g, b, _ = pixel
-    return r >= 180 and b >= 160 and g <= 100 and r + b >= 400
+    # The generated atlas uses a magenta key with a slight gradient. Include
+    # dark antialiased key pixels as long as red and blue remain balanced and
+    # clearly dominate green. Flood filling from the atlas edge keeps genuine
+    # purple artwork (which is enclosed by its black outline) intact.
+    return min(r, b) - g >= 18 and abs(r - b) <= 96 and r + b >= 36
+
+
+def is_strong_key(pixel: tuple[int, int, int, int]) -> bool:
+    """Match unmistakable key color, including holes enclosed by artwork."""
+    r, g, b, _ = pixel
+    return min(r, b) - g >= 140 and abs(r - b) <= 64 and r + b >= 300
 
 
 def remove_edge_key(image: Image.Image) -> Image.Image:
@@ -57,27 +67,91 @@ def remove_edge_key(image: Image.Image) -> Image.Image:
             continue
         seen.add((x, y))
         pixels[x, y] = (0, 0, 0, 0)
-        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+        for nx, ny in (
+            (x - 1, y - 1),
+            (x, y - 1),
+            (x + 1, y - 1),
+            (x - 1, y),
+            (x + 1, y),
+            (x - 1, y + 1),
+            (x, y + 1),
+            (x + 1, y + 1),
+        ):
             if 0 <= nx < width and 0 <= ny < height:
                 queue.append((nx, ny))
+    for y in range(height):
+        for x in range(width):
+            if is_strong_key(pixels[x, y]):
+                pixels[x, y] = (0, 0, 0, 0)
     return image
 
 
+def connected_components(image: Image.Image) -> list[list[tuple[int, int]]]:
+    """Return 8-connected opaque components from a keyed RGBA atlas."""
+    width, height = image.size
+    alpha = image.getchannel("A")
+    visited = bytearray(width * height)
+    components: list[list[tuple[int, int]]] = []
+    for y in range(height):
+        for x in range(width):
+            offset = y * width + x
+            if visited[offset] or alpha.getpixel((x, y)) == 0:
+                continue
+            visited[offset] = 1
+            queue = deque([(x, y)])
+            component: list[tuple[int, int]] = []
+            while queue:
+                px, py = queue.popleft()
+                component.append((px, py))
+                for nx, ny in (
+                    (px - 1, py - 1),
+                    (px, py - 1),
+                    (px + 1, py - 1),
+                    (px - 1, py),
+                    (px + 1, py),
+                    (px - 1, py + 1),
+                    (px, py + 1),
+                    (px + 1, py + 1),
+                ):
+                    if not (0 <= nx < width and 0 <= ny < height):
+                        continue
+                    neighbor = ny * width + nx
+                    if visited[neighbor] or alpha.getpixel((nx, ny)) == 0:
+                        continue
+                    visited[neighbor] = 1
+                    queue.append((nx, ny))
+            if len(component) >= 8:
+                components.append(component)
+    return components
+
+
 def extract_cards() -> dict[str, Image.Image]:
-    atlas = Image.open(SOURCE).convert("RGBA")
+    atlas = remove_edge_key(Image.open(SOURCE).convert("RGBA"))
+    components_by_cell: list[list[list[tuple[int, int]]]] = [[] for _ in CARD_NAMES]
+    for component in connected_components(atlas):
+        center_x = sum(point[0] for point in component) / len(component)
+        center_y = sum(point[1] for point in component) / len(component)
+        column = min(3, int(center_x * 4 / atlas.width))
+        row = min(3, int(center_y * 4 / atlas.height))
+        components_by_cell[row * 4 + column].append(component)
+
     cards: dict[str, Image.Image] = {}
     for index, name in enumerate(CARD_NAMES):
-        row, column = divmod(index, 4)
-        box = tuple(
-            round(value)
-            for value in (
-                column * atlas.width / 4,
-                row * atlas.height / 4,
-                (column + 1) * atlas.width / 4,
-                (row + 1) * atlas.height / 4,
-            )
-        )
-        subject = remove_edge_key(atlas.crop(box))
+        components = components_by_cell[index]
+        if not components:
+            raise ValueError(f"No connected artwork found for {name}")
+        left = min(x for component in components for x, _ in component)
+        top = min(y for component in components for _, y in component)
+        right = max(x for component in components for x, _ in component) + 1
+        bottom = max(y for component in components for _, y in component) + 1
+        mask = Image.new("L", atlas.size)
+        mask_pixels = mask.load()
+        for component in components:
+            for x, y in component:
+                mask_pixels[x, y] = 255
+        subject = Image.new("RGBA", (right - left, bottom - top))
+        crop = atlas.crop((left, top, right, bottom))
+        subject.paste(crop, (0, 0), mask.crop((left, top, right, bottom)))
         bounds = subject.getchannel("A").getbbox()
         if bounds is None:
             raise ValueError(f"No artwork found for {name}")

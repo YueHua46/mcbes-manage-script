@@ -3,7 +3,8 @@
  */
 
 import { Player, world } from "@minecraft/server";
-import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/server-ui";
+import { MessageFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import guildService from "../../../features/guild/services/guild-service";

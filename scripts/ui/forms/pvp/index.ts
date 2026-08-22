@@ -3,7 +3,7 @@
  */
 
 import { Player, system } from "@minecraft/server";
-import { ActionFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import pvpManager from "../../../features/pvp/services/pvp-manager";
 import statsManager from "../../../features/pvp/services/pvp-stats";
 import { color } from "../../../shared/utils/color";

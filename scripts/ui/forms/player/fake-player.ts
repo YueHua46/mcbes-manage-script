@@ -1,5 +1,6 @@
 import { Player, RawMessage, system, world } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import fakePlayerService, {
   FakePlayerBehavior,
   FakePlayerProgramStep,

@@ -7,7 +7,8 @@
  */
 
 import { Player, EntityEquippableComponent, EquipmentSlot, EntityComponentTypes, ItemStack } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openDialogForm } from "../../components/dialog";
 import { isAdmin } from "../../../shared/utils/common";
 import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";

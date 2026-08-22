@@ -1,5 +1,6 @@
 import { Player, Vector3, system } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import setting from "../../../features/system/services/setting";
 import behaviorLog, {
   BehaviorEventType,

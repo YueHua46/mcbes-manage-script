@@ -36,7 +36,7 @@
       },
       {
         "binding_type": "view",
-        "source_property_name": "((#title_text - '/CMROOT ') = #title_text)",
+        "source_property_name": "((#title_text - '/CMROOT ' - '/CMFORM ') = #title_text)",
         "target_property_name": "#visible"
       }
     ],

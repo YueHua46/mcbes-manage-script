@@ -4,7 +4,8 @@
  */
 
 import { ItemStack, Player, RawMessage } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import playerMarket, { MarketItem } from "../../../features/economic/services/player-market";
 import ChestFormData from "../../../ui/components/chest-ui/chest-forms";
 import { openConfirmDialogForm, openDialogForm } from "../../components/dialog";

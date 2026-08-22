@@ -2,7 +2,7 @@
  * 对话框UI组件
  */
 
-import { ActionFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../creeper-action-form";
 import { Player, RawMessage } from "@minecraft/server";
 
 /**

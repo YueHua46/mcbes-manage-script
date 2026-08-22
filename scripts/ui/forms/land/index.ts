@@ -3,7 +3,8 @@
  * 完整迁移自 Modules/Land/Forms.ts (1079行)
  */
 
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { Player, Vector3, world } from "@minecraft/server";

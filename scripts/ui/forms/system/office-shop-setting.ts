@@ -5,7 +5,8 @@
  */
 
 import { ItemStack, Player, RawMessage } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import officeShop, { OfficeShopItemData } from "../../../features/economic/services/office-shop";
 import { openDialogForm } from "../../components/dialog";
 import { glyphKeys } from "../../../assets/glyph-map";

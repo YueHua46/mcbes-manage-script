@@ -4,7 +4,8 @@
  */
 
 import { Player, system } from "@minecraft/server";
-import { ActionFormData, FormCancelationReason, ModalFormData } from "@minecraft/server-ui";
+import { FormCancelationReason, ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openServerMenuForm } from "../server";
 import { useAllPlayers } from "../../../shared/hooks/use-player";
 import { color } from "../../../shared/utils/color";

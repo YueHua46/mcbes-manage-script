@@ -4,7 +4,8 @@
  */
 
 import { Dimension, Player, Vector3, world } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openServerMenuForm } from "../server";
 import { RandomTp } from "../../../features/other/services/random-tp";
 import { openDialogForm } from "../../../ui/components/dialog";

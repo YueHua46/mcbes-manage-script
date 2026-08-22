@@ -1,5 +1,5 @@
 import { Player, system } from "@minecraft/server";
-import { ActionFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { ChestFormData, ChestFormResponse } from "../../components/chest-ui";
 import { color } from "../../../shared/utils/color";
 import { PersistedItemStack, serializeItemStack } from "../../../shared/utils/item-stack-persist";

@@ -3,7 +3,7 @@
  */
 
 import { Player } from "@minecraft/server";
-import { ActionFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import economic from "../../../features/economic/services/economic";
 import onlineTimeService, { formatOnlineDuration } from "../../../features/player/services/online-time";
 import playerStats from "../../../features/statistics/services/player-stats";

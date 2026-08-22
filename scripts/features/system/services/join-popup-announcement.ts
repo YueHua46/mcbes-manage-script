@@ -1,5 +1,5 @@
 import { Player } from "@minecraft/server";
-import { ActionFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../../ui/creeper-action-form";
 import setting from "./setting";
 
 export interface JoinPopupAnnouncement {

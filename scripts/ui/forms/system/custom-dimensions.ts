@@ -1,5 +1,6 @@
 import { BlockVolume, Player, system, world } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import dimensionRegistry from "../../../features/dimension/services/dimension-registry";
 import { CUSTOM_DIMENSION_POOL } from "../../../features/dimension/services/custom-dimension-pool";
 import { color } from "../../../shared/utils/color";
