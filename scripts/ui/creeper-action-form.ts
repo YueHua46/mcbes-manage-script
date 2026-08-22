@@ -1,7 +1,13 @@
-import type { Player, RawMessage } from "@minecraft/server";
+import { system, type Player, type RawMessage } from "@minecraft/server";
 import { ActionFormData as MinecraftActionFormData, type ActionFormResponse } from "@minecraft/server-ui";
 
 export const CREEPER_ACTION_FORM_PREFIX = "/CMFORM ";
+export const CREEPER_FORM_TRANSITION_TICKS = 4;
+
+/** Let the client finish dismissing the previous server form before opening another one. */
+export async function waitForCreeperFormTransition(): Promise<void> {
+  await system.waitTicks(CREEPER_FORM_TRANSITION_TICKS);
+}
 
 function routedTitle(title: RawMessage | string): RawMessage | string {
   if (typeof title === "string") return `${CREEPER_ACTION_FORM_PREFIX}${title}`;
@@ -45,7 +51,8 @@ export class CreeperActionFormData {
     return this;
   }
 
-  show(player: Player): Promise<ActionFormResponse> {
+  async show(player: Player): Promise<ActionFormResponse> {
+    await waitForCreeperFormTransition();
     return this.form.show(player);
   }
 }

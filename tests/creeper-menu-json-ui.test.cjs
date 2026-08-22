@@ -60,6 +60,9 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   assert.match(ui, /"generic_long_form"/);
   assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
   assert.match(wrapper, /CREEPER_ACTION_FORM_PREFIX = "\/CMFORM "/);
+  assert.match(wrapper, /CREEPER_FORM_TRANSITION_TICKS = 4/);
+  assert.match(wrapper, /await system\.waitTicks\(CREEPER_FORM_TRANSITION_TICKS\)/);
+  assert.match(wrapper, /async show\(player: Player\)[\s\S]*await waitForCreeperFormTransition\(\)/);
   assert.match(wrapper, /new MinecraftActionFormData\(\)/);
 });
 
@@ -146,6 +149,7 @@ test("server menu preserves fixed button slots and guards unavailable selections
   assert.match(source, /activeServerMenuPlayers\.has\(player\.id\)/);
   assert.match(source, /activeServerMenuPlayers\.add\(player\.id\)/);
   assert.match(source, /finally \{[\s\S]*activeServerMenuPlayers\.delete\(player\.id\)/);
+  assert.match(source, /await waitForCreeperFormTransition\(\);[\s\S]*form\.show\(player\)/);
   assert.match(source, /menuItems\.forEach/);
   assert.match(source, /form\.button\(available \? item\.text : "", available \? item\.icon : ""\)/);
   assert.match(source, /const selectedItem = menuItems\[data\.selection\]/);
