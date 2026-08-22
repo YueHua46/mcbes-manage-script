@@ -12,7 +12,7 @@
               "type": "factory",
               "control_ids": {
                 "long_form": "long_form_router@creeper_menu.long_form_router",
-                "custom_form": "@server_form.custom_form_switch"
+                "custom_form": "@common.empty_panel"
               }
             }
           }
@@ -90,12 +90,14 @@
     ]
   },
 
+  "custom_form@server_form.custom_form_switch": {},
+
   "custom_form_switch": {
     "type": "panel",
     "size": ["100%", "100%"],
     "controls": [
       {
-        "custom_form@server_form.custom_form": {
+        "native_custom_form@server_form.native_custom_form": {
           "visible": false,
           "bindings": [
             {
@@ -125,6 +127,17 @@
         }
       }
     ]
+  },
+
+  "native_custom_form@common_dialogs.main_panel_no_buttons": {
+    "$title_panel": "common_dialogs.standard_title_label",
+    "$title_size": ["100% - 15px", 10],
+    "$title_max_size": ["100% - 15px", 10],
+    "size": [225, 200],
+    "$text_name": "#title_text",
+    "$title_text_binding_type": "none",
+    "$child_control": "server_form.custom_form_panel",
+    "layer": 2
   },
 
   "custom_multiline_form@common_dialogs.main_panel_no_buttons": {

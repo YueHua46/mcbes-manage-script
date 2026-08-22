@@ -29,7 +29,8 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
     insertedFactory.control_ids.long_form,
     "long_form_router@creeper_menu.long_form_router"
   );
-  assert.equal(insertedFactory.control_ids.custom_form, "@server_form.custom_form_switch");
+  assert.equal(insertedFactory.control_ids.custom_form, "@common.empty_panel");
+  assert.deepEqual(serverForm["custom_form@server_form.custom_form_switch"], {});
   assert.equal(serverForm["main_screen_content/server_form_factory"], undefined);
   assert.ok(serverForm.long_form);
   assert.match(serverForm.long_form.bindings[1].source_property_name, /#title_text - '\/CMROOT '/);
@@ -89,11 +90,17 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   const serverForm = JSON.parse(serverFormText);
   const ui = read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json");
   const wrapper = read("scripts", "ui", "creeper-action-form.ts");
-  const nativeCustom = serverForm.custom_form_switch.controls[0]["custom_form@server_form.custom_form"];
+  const nativeCustom =
+    serverForm.custom_form_switch.controls[0]["native_custom_form@server_form.native_custom_form"];
   const multilineCustom =
     serverForm.custom_form_switch.controls[1]["custom_multiline_form@server_form.custom_multiline_form"];
 
-  assert.match(serverFormText, /"custom_form": "@server_form\.custom_form_switch"/);
+  assert.match(serverFormText, /"custom_form": "@common\.empty_panel"/);
+  assert.deepEqual(serverForm["custom_form@server_form.custom_form_switch"], {});
+  assert.equal(
+    serverForm["native_custom_form@common_dialogs.main_panel_no_buttons"].$child_control,
+    "server_form.custom_form_panel"
+  );
   assert.match(serverFormText, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
   assert.equal(nativeCustom.visible, false);
   assert.equal(multilineCustom.visible, false);

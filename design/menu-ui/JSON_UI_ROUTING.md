@@ -150,3 +150,16 @@ server_form_factory 生成 long_form_router
 - `scripts/ui/creeper-action-form.ts`
 - `scripts/ui/forms/server/index.ts`
 - `tests/creeper-menu-json-ui.test.cjs`
+
+## ModalFormData 的唯一渲染入口
+
+`main_screen_content.modifications` 使用 `insert_front` 新增的 factory 不会替换原版
+`server_form_factory`，两者会同时收到同一个表单数据。新增 factory 只负责自定义
+long form；它的 `custom_form` 必须映射到不可见空控件。原版 factory 继续通过
+`@server_form.custom_form` 处理 ModalFormData，而本项目将这个定义覆盖为唯一的
+`custom_form_switch`。
+
+`custom_form_switch` 内部只能有一个可见分支：普通表单使用独立命名的
+`server_form.native_custom_form`，JavaScript REPL 使用 multiline 表单。禁止同时让
+新增 factory 与原版 factory 各自实例化一份可见的 custom form；否则会出现开关、
+标签和输入框成对错位重叠，但外框因位置接近而看似只有一个的现象。
