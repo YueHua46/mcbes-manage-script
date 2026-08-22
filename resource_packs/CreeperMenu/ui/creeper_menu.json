@@ -1,7 +1,7 @@
 {
   "namespace": "creeper_menu",
 
-  "long_form_replacement": {
+  "long_form_router": {
     "type": "panel",
     "size": ["100%", "100%"],
     "bindings": [
@@ -15,6 +15,9 @@
       },
       {
         "project_action_form@creeper_menu.project_action_route": {}
+      },
+      {
+        "native_form@creeper_menu.native_route": {}
       }
     ]
   },
@@ -26,7 +29,7 @@
     "bindings": [
       {
         "binding_type": "view",
-        "source_control_name": "long_form_replacement",
+        "source_control_name": "long_form_router",
         "source_property_name": "(not ((#title_text - '/CMROOT ') = #title_text))",
         "target_property_name": "#visible"
       }
@@ -45,7 +48,7 @@
     "bindings": [
       {
         "binding_type": "view",
-        "source_control_name": "long_form_replacement",
+        "source_control_name": "long_form_router",
         "source_property_name": "(not ((#title_text - '/CMFORM ') = #title_text))",
         "target_property_name": "#visible"
       }
@@ -53,6 +56,25 @@
     "controls": [
       {
         "content@creeper_menu.generic_long_form": {}
+      }
+    ]
+  },
+
+  "native_route": {
+    "type": "panel",
+    "size": ["100%", "100%"],
+    "visible": false,
+    "bindings": [
+      {
+        "binding_type": "view",
+        "source_control_name": "long_form_router",
+        "source_property_name": "((#title_text - '/CMROOT ' - '/CMFORM ') = #title_text)",
+        "target_property_name": "#visible"
+      }
+    ],
+    "controls": [
+      {
+        "content@server_form.native_long_form": {}
       }
     ]
   },
@@ -476,7 +498,7 @@
           "bindings": [
             {
               "binding_type": "view",
-              "source_control_name": "long_form_replacement",
+              "source_control_name": "long_form_router",
               "source_property_name": "(#title_text - '/CMFORM ')",
               "target_property_name": "#text"
             }

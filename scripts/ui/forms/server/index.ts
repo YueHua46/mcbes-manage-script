@@ -28,6 +28,8 @@ interface MenuItem {
   alwaysVisible?: boolean;
 }
 
+const activeServerMenuPlayers = new Set<string>();
+
 /**
  * 创建苦力怕菜单表单
  */
@@ -52,7 +54,7 @@ function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: an
 /**
  * 打开苦力怕菜单表单
  */
-export async function openServerMenuForm(player: Player): Promise<void> {
+async function openServerMenuFormInternal(player: Player): Promise<void> {
   if (!player.isValid) return;
 
   try {
@@ -215,5 +217,16 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     if (player.isValid) {
       player.sendMessage(`§c${BRANDING.MENU_ITEM_LABEL}打开失败，请关闭其他界面后重试。`);
     }
+  }
+}
+
+export async function openServerMenuForm(player: Player): Promise<void> {
+  if (!player.isValid || activeServerMenuPlayers.has(player.id)) return;
+
+  activeServerMenuPlayers.add(player.id);
+  try {
+    await openServerMenuFormInternal(player);
+  } finally {
+    activeServerMenuPlayers.delete(player.id);
   }
 }
