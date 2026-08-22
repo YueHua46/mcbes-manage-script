@@ -101,6 +101,30 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   assert.match(wrapper, /new MinecraftActionFormData\(\)/);
 });
 
+test("generic forms render their title and keep dynamic button states isolated", () => {
+  const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
+  const title = ui.generic_header.controls[1].title;
+  const button = ui["generic_dynamic_button@common.button"];
+  const states = button.controls.map((control) => Object.keys(control)[0]);
+
+  assert.equal(title.bindings[0].binding_name, "#title_text");
+  assert.equal(title.bindings[1].source_control_name, undefined);
+  assert.equal(title.bindings[1].source_property_name, "(#title_text - '/CMFORM ')");
+
+  assert.equal(button.visible, false);
+  assert.match(button.bindings.at(-1).source_property_name, /not \(#text = ''\)/);
+  assert.equal(button.bindings.at(-1).target_property_name, "#visible");
+  assert.deepEqual(states, [
+    "default@creeper_menu.generic_button_default_state",
+    "hover@creeper_menu.generic_button_hover_state",
+    "pressed@creeper_menu.generic_button_pressed_state",
+  ]);
+  assert.deepEqual(ui["generic_button_default_state@creeper_menu.generic_button_state"].$cm_text_color, [0.9, 0.96, 0.9]);
+  assert.deepEqual(ui["generic_button_hover_state@creeper_menu.generic_button_state"].$cm_text_color, [0.88, 1, 0.58]);
+  assert.deepEqual(ui["generic_button_pressed_state@creeper_menu.generic_button_state"].$cm_text_color, [0.65, 0.84, 0.52]);
+  assert.equal(ui.generic_button_state.bindings[0].binding_type, "collection_details");
+});
+
 test("all project ActionForms except root and inventory forms use the routed wrapper", () => {
   const allowedNativeFiles = new Set([
     path.join(root, "scripts", "shared", "hooks", "use-form.ts"),

@@ -427,9 +427,11 @@
           "layer": 6,
           "bindings": [
             {
+              "binding_name": "#title_text"
+            },
+            {
               "binding_type": "view",
-              "source_control_name": "project_action_form",
-              "source_property_name": "#title",
+              "source_property_name": "(#title_text - '/CMFORM ')",
               "target_property_name": "#text"
             }
           ]
@@ -495,6 +497,7 @@
 
   "generic_dynamic_button@common.button": {
     "size": ["100%", 47],
+    "visible": false,
     "$pressed_button_name": "button.form_button_click",
     "default_control": "default",
     "hover_control": "hover",
@@ -509,38 +512,53 @@
         "binding_name_override": "#text",
         "binding_type": "collection",
         "binding_collection_name": "form_buttons"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "(not (#text = ''))",
+        "target_property_name": "#visible"
       }
     ],
     "controls": [
       {
-        "default@creeper_menu.generic_button_state": {
-          "$cm_background_texture": "textures/ui/creeper_menu/cards/menu_item_default",
-          "$cm_text_color": [0.9, 0.96, 0.9],
-          "$cm_row_offset": [0, 0]
-        }
+        "default@creeper_menu.generic_button_default_state": {}
       },
       {
-        "hover@creeper_menu.generic_button_state": {
-          "$cm_background_texture": "textures/ui/creeper_menu/cards/menu_item_hover",
-          "$cm_text_color": [0.88, 1.0, 0.58],
-          "$cm_row_offset": [1, -1]
-        }
+        "hover@creeper_menu.generic_button_hover_state": {}
       },
       {
-        "pressed@creeper_menu.generic_button_state": {
-          "$cm_background_texture": "textures/ui/creeper_menu/cards/menu_item_pressed",
-          "$cm_text_color": [0.65, 0.84, 0.52],
-          "$cm_row_offset": [1, 1]
-        }
+        "pressed@creeper_menu.generic_button_pressed_state": {}
       }
     ]
+  },
+
+  "generic_button_default_state@creeper_menu.generic_button_state": {
+    "texture": "textures/ui/creeper_menu/cards/menu_item_default",
+    "$cm_text_color": [0.9, 0.96, 0.9],
+    "offset": [0, 0]
+  },
+
+  "generic_button_hover_state@creeper_menu.generic_button_state": {
+    "texture": "textures/ui/creeper_menu/cards/menu_item_hover",
+    "$cm_text_color": [0.88, 1.0, 0.58],
+    "offset": [1, -1]
+  },
+
+  "generic_button_pressed_state@creeper_menu.generic_button_state": {
+    "texture": "textures/ui/creeper_menu/cards/menu_item_pressed",
+    "$cm_text_color": [0.65, 0.84, 0.52],
+    "offset": [1, 1]
   },
 
   "generic_button_state": {
     "type": "image",
     "size": ["100% - 2px", "100% - 3px"],
-    "offset": "$cm_row_offset",
-    "texture": "$cm_background_texture",
+    "bindings": [
+      {
+        "binding_type": "collection_details",
+        "binding_collection_name": "form_buttons"
+      }
+    ],
     "controls": [
       {
         "icon": {
