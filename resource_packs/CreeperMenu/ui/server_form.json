@@ -17,6 +17,7 @@
     "controls": [
       {
         "creeper_menu@creeper_menu.root": {
+          "visible": false,
           "bindings": [
             {
               "binding_name": "#title_text",
@@ -24,7 +25,7 @@
             },
             {
               "binding_type": "view",
-              "source_property_name": "(#title_text = '§0cm:root§r苦力怕菜单')",
+              "source_property_name": "(#title_text = '/CMROOT 苦力怕菜单')",
               "target_property_name": "#visible"
             }
           ]
@@ -32,6 +33,7 @@
       },
       {
         "special_inventory_form@server_form.long_form": {
+          "visible": false,
           "bindings": [
             {
               "binding_name": "#title_text",
@@ -47,6 +49,7 @@
       },
       {
         "generic_long_form@creeper_menu.generic_long_form": {
+          "visible": false,
           "bindings": [
             {
               "binding_name": "#title_text",
@@ -54,7 +57,7 @@
             },
             {
               "binding_type": "view",
-              "source_property_name": "(not (#title_text = '§0cm:root§r苦力怕菜单')) and (((#title_text - '§c§h§e§s§t') = #title_text) and ((#title_text - '§f§u§r§n§a§c§e') = #title_text))",
+              "source_property_name": "(not (#title_text = '/CMROOT 苦力怕菜单')) and (((#title_text - '§c§h§e§s§t') = #title_text) and ((#title_text - '§f§u§r§n§a§c§e') = #title_text))",
               "target_property_name": "#visible"
             }
           ]
@@ -126,6 +129,7 @@
     "controls": [
       {
         "custom_form@creeper_menu.generic_custom_form": {
+          "visible": false,
           "bindings": [
             {
               "binding_name": "#title_text",
@@ -141,6 +145,7 @@
       },
       {
         "custom_multiline_form@server_form.custom_multiline_form": {
+          "visible": false,
           "bindings": [
             {
               "binding_name": "#title_text",

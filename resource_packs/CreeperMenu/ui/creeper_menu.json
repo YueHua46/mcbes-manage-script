@@ -339,18 +339,9 @@
           "type": "image",
           "size": ["100%", "100%"],
           "texture": "textures/ui/White",
-          "color": [0.0, 0.02, 0.012],
-          "alpha": 0.68,
+          "color": [0.0, 0.015, 0.008],
+          "alpha": 0.38,
           "layer": 0
-        }
-      },
-      {
-        "brand": {
-          "type": "image",
-          "size": ["100%", "100%"],
-          "texture": "textures/ui/creeper_menu/background",
-          "alpha": 0.62,
-          "layer": 1
         }
       }
     ]
@@ -492,6 +483,7 @@
 
   "generic_dynamic_button@common.button": {
     "size": ["100%", 43],
+    "visible": false,
     "$pressed_button_name": "button.form_button_click",
     "default_control": "default",
     "hover_control": "hover",
@@ -500,26 +492,37 @@
       {
         "binding_type": "collection_details",
         "binding_collection_name": "form_buttons"
+      },
+      {
+        "binding_name": "#form_button_text",
+        "binding_name_override": "#text",
+        "binding_type": "collection",
+        "binding_collection_name": "form_buttons"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "(not (#text = ''))",
+        "target_property_name": "#visible"
       }
     ],
     "controls": [
       {
         "default@creeper_menu.generic_button_state": {
-          "$cm_background_texture": "textures/ui/creeper_menu/cards/other_default",
+          "$cm_background_texture": "textures/ui/creeper_menu/cards/menu_item_default",
           "$cm_row_text_color": [0.89, 0.95, 0.89],
           "$cm_row_offset": [0, 0]
         }
       },
       {
         "hover@creeper_menu.generic_button_state": {
-          "$cm_background_texture": "textures/ui/creeper_menu/cards/other_hover",
-          "$cm_row_text_color": [0.82, 1.0, 0.48],
+          "$cm_background_texture": "textures/ui/creeper_menu/cards/menu_item_hover",
+          "$cm_row_text_color": [0.96, 1.0, 0.86],
           "$cm_row_offset": [1, -1]
         }
       },
       {
         "pressed@creeper_menu.generic_button_state": {
-          "$cm_background_texture": "textures/ui/creeper_menu/cards/other_pressed",
+          "$cm_background_texture": "textures/ui/creeper_menu/cards/menu_item_pressed",
           "$cm_row_text_color": [0.64, 0.82, 0.5],
           "$cm_row_offset": [1, 1]
         }
@@ -711,6 +714,7 @@
 
   "card@common.button": {
     "collection_index": "$cm_index",
+    "visible": false,
     "$cm_art_size|default": [72, 72],
     "$pressed_button_name": "button.form_button_click",
     "default_control": "default",

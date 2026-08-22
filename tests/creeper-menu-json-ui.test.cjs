@@ -10,10 +10,11 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   const constants = read("scripts", "core", "constants.ts");
   const serverForm = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
 
-  assert.match(constants, /MENU_TITLE: "§0cm:root§r苦力怕菜单"/);
+  assert.match(constants, /MENU_TITLE: "\/CMROOT 苦力怕菜单"/);
   assert.match(serverForm, /"long_form": "@server_form\.long_form_switch"/);
-  assert.match(serverForm, /#title_text = '§0cm:root§r苦力怕菜单'/);
-  assert.match(serverForm, /not \(#title_text = '§0cm:root§r苦力怕菜单'\)/);
+  assert.match(serverForm, /#title_text = '\/CMROOT 苦力怕菜单'/);
+  assert.match(serverForm, /not \(#title_text = '\/CMROOT 苦力怕菜单'\)/);
+  assert.equal((serverForm.match(/"visible": false/g) ?? []).length, 5);
   assert.match(serverForm, /generic_long_form@creeper_menu\.generic_long_form/);
   assert.match(serverForm, /custom_form@creeper_menu\.generic_custom_form/);
   assert.match(serverForm, /special_inventory_form@server_form\.long_form/);
@@ -26,6 +27,12 @@ test("non-inventory subforms use themed action and modal layouts", () => {
   assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
   assert.match(ui, /"generic_custom_form"/);
   assert.match(ui, /"form@server_form\.custom_form_panel"/);
+  assert.doesNotMatch(
+    ui.match(/"generic_screen_background"[\s\S]*?"generic_header"/)[0],
+    /"brand"/
+  );
+  assert.match(ui, /"generic_dynamic_button@common\.button": \{[\s\S]*?"visible": false/);
+  assert.match(ui, /"source_property_name": "\(not \(#text = ''\)\)"/);
 });
 
 test("mosaic binds all thirteen fixed form collection indices exactly once", () => {
