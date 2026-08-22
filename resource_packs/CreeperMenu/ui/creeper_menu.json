@@ -25,11 +25,8 @@
     "visible": false,
     "bindings": [
       {
-        "binding_name": "#title_text",
-        "binding_type": "global"
-      },
-      {
         "binding_type": "view",
+        "source_control_name": "long_form",
         "source_property_name": "(not ((#title_text - '/CMROOT ') = #title_text))",
         "target_property_name": "#visible"
       }
@@ -47,11 +44,8 @@
     "visible": false,
     "bindings": [
       {
-        "binding_name": "#title_text",
-        "binding_type": "global"
-      },
-      {
         "binding_type": "view",
+        "source_control_name": "long_form",
         "source_property_name": "(not ((#title_text - '/CMFORM ') = #title_text))",
         "target_property_name": "#visible"
       }
@@ -442,11 +436,8 @@
           "layer": 6,
           "bindings": [
             {
-              "binding_name": "#title_text",
-              "binding_type": "global"
-            },
-            {
               "binding_type": "view",
+              "source_control_name": "long_form",
               "source_property_name": "(#title_text - '/CMFORM ')",
               "target_property_name": "#text"
             }
