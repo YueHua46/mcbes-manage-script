@@ -16,9 +16,14 @@ const TICK_INTERVAL = 5;
 /** 与基岩逻辑 tick 对齐，宽限结束用 currentTick 计算，避免与 Date.now 不同步 */
 const TPS = 20;
 const ABILITY_PROBE_COOLDOWN_MS = 60 * 1000;
+/** Five ticks of legitimate movement cannot normally cover this distance; treat it as a teleport. */
+const LONG_DISTANCE_TELEPORT_BLOCKS = 32;
+const LONG_DISTANCE_TELEPORT_DISTANCE_SQUARED = LONG_DISTANCE_TELEPORT_BLOCKS ** 2;
 
 interface LandFlightSession {
   dimensionId: string;
+  /** Last position sampled by the flight guard, used to distinguish teleports from walking out of a land. */
+  lastLocation: { x: number; y: number; z: number };
   /** 下次周期扣费时间（开启周期扣费时存在） */
   nextBillingAtMs?: number;
   phase: "normal" | "graceOutside";
@@ -59,7 +64,14 @@ function clampLeaveGraceSec(raw: number): number {
 }
 
 function getLandProbeLocation(player: Player) {
-  return player.dimension.getBlock(player.location)?.location ?? player.location;
+  return player.location;
+}
+
+function distanceSquared(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  const dz = a.z - b.z;
+  return dx * dx + dy * dy + dz * dz;
 }
 
 /**
@@ -469,6 +481,7 @@ export function tryStartLandFlightSession(player: Player): string | void {
 
   const session: LandFlightSession = {
     dimensionId: player.dimension.id,
+    lastLocation: { ...player.location },
     phase: "normal",
   };
   if (periodicCharge) {
@@ -536,6 +549,8 @@ export function initLandFlight(): void {
         }
 
         const loc = getLandProbeLocation(player);
+        const teleportedFar = distanceSquared(loc, sess.lastLocation) >= LONG_DISTANCE_TELEPORT_DISTANCE_SQUARED;
+        sess.lastLocation = { ...loc };
         const { isInside, insideLand } = landManager.testLand(loc, player.dimension.id);
         const adm = isAdmin(player);
 
@@ -560,6 +575,15 @@ export function initLandFlight(): void {
             }
             sess.nextBillingAtMs = now + intervalSec * 1000;
           }
+          continue;
+        }
+
+        // Grace is intended for crossing a land boundary under normal movement.
+        // A long-distance teleport to an untrusted location must revoke mayfly
+        // on the first guard sample so it cannot be carried elsewhere.
+        if (teleportedFar) {
+          revokeLandFlightImmediate(player);
+          player.sendMessage(color.yellow("领地飞行已结束。") + color.gray("（检测到传送离开领地）"));
           continue;
         }
 
