@@ -96,7 +96,7 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   assert.match(ui, /"project_action_form@creeper_menu\.form_type"/);
   assert.match(ui, /"\$min": "\/CMFORM "/);
   assert.match(ui, /"generic_long_form"/);
-  assert.match(ui, /"button": "creeper_menu\.generic_dynamic_button"/);
+  assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
   assert.match(wrapper, /CREEPER_ACTION_FORM_PREFIX = "\/CMFORM "/);
   assert.match(wrapper, /new MinecraftActionFormData\(\)/);
 });
@@ -104,33 +104,31 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
 test("generic forms render their title and keep dynamic button states isolated", () => {
   const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
   const title = ui.generic_header.controls[1].title;
-  const headerInstance = ui.generic_long_form.controls[0].dialog.controls[0]["header@creeper_menu.generic_header"];
-  const buttons = ui.generic_long_form_content.controls[2].buttons;
-  const button = ui.generic_dynamic_button;
-  const nativeButton = button.controls[0]["button@common_buttons.light_text_button"];
+  const button = ui["generic_dynamic_button@common.button"];
+  const states = button.controls.map((control) => Object.keys(control)[0]);
 
-  assert.equal(title.text, "$form_title");
-  assert.equal(title.bindings, undefined);
-  assert.equal(headerInstance.$form_title, "(#title_text - '/CMFORM ')");
-  assert.deepEqual(buttons.factory.control_ids, {
-    button: "creeper_menu.generic_dynamic_button",
-    label: "creeper_menu.generic_dynamic_label",
-    header: "creeper_menu.generic_dynamic_header",
-    divider: "creeper_menu.generic_dynamic_divider",
-  });
+  assert.equal(title.bindings[0].binding_name, "#title_text");
+  assert.equal(title.bindings[0].binding_type, "global");
+  assert.equal(title.bindings[1].source_control_name, undefined);
+  assert.equal(title.bindings[1].source_property_name, "(#title_text - '/CMFORM ')");
 
   assert.equal(button.visible, false);
   assert.match(button.bindings.at(-1).source_property_name, /not \(#text = ''\)/);
   assert.equal(button.bindings.at(-1).target_property_name, "#visible");
-  assert.equal(nativeButton.$button_text_binding_type, "collection");
-  assert.equal(nativeButton.$button_text_grid_collection_name, "form_buttons");
-  assert.deepEqual(nativeButton.$default_text_color, [0.9, 0.96, 0.9]);
-  assert.deepEqual(nativeButton.$hover_text_color, [0.88, 1, 0.58]);
-  assert.deepEqual(nativeButton.$pressed_text_color, [0.65, 0.84, 0.52]);
-  assert.equal(nativeButton.bindings[0].binding_type, "collection_details");
-  assert.equal(ui.generic_button_default_state, undefined);
-  assert.equal(ui.generic_button_hover_state, undefined);
-  assert.equal(ui.generic_button_pressed_state, undefined);
+  assert.deepEqual(states, [
+    "default@creeper_menu.generic_button_default_state",
+    "hover@creeper_menu.generic_button_hover_state",
+    "pressed@creeper_menu.generic_button_pressed_state",
+  ]);
+  assert.deepEqual(ui.generic_button_default_state.controls[1].label.color, [0.9, 0.96, 0.9]);
+  assert.deepEqual(ui.generic_button_hover_state.controls[1].label.color, [0.88, 1, 0.58]);
+  assert.deepEqual(ui.generic_button_pressed_state.controls[1].label.color, [0.65, 0.84, 0.52]);
+  assert.equal(ui.generic_button_default_state.bindings[0].binding_type, "collection_details");
+  assert.equal(ui.generic_button_hover_state.bindings[0].binding_type, "collection_details");
+  assert.equal(ui.generic_button_pressed_state.bindings[0].binding_type, "collection_details");
+  assert.doesNotMatch(JSON.stringify(ui.generic_button_default_state), /\$cm_text_color/);
+  assert.doesNotMatch(JSON.stringify(ui.generic_button_hover_state), /\$cm_text_color/);
+  assert.doesNotMatch(JSON.stringify(ui.generic_button_pressed_state), /\$cm_text_color/);
 });
 
 test("all project ActionForms except root and inventory forms use the routed wrapper", () => {
