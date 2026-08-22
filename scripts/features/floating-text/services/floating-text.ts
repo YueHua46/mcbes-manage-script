@@ -134,14 +134,17 @@ class FloatingTextService {
   private render(item: IFloatingText): void {
     this.removeRendered(item.id);
     const dimension = world.getDimension(item.dimension);
-    const shape = new TextPrimitive(item.location, item.text);
+    // Bind the primitive itself to its persisted dimension. A TextPrimitive
+    // constructed from a plain Vector3 has no dimension and is rendered in
+    // every dimension according to the Script API contract.
+    const shape = new TextPrimitive({ ...item.location, dimension }, item.text);
     shape.scale = item.scale;
     shape.maximumRenderDistance = item.maximumRenderDistance;
     shape.depthTest = item.depthTest;
     shape.backgroundColorOverride = { red: 0, green: 0, blue: 0, alpha: item.backgroundAlpha };
     shape.color = { red: 1, green: 1, blue: 1, alpha: 1 };
     shape.useRotation = false;
-    this.getManager().addText(shape, dimension);
+    this.getManager().addText(shape);
     this.rendered.set(item.id, shape);
   }
 

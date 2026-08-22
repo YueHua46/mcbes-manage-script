@@ -20,3 +20,9 @@ test("startup reloads all persisted records and administrators list the entire d
   assert.match(source, /listAllForAdmin\(\): IFloatingText\[\] \{\s*return this\.db\.values\(\)/);
 });
 
+test("rendered floating text is bound to its persisted dimension", () => {
+  assert.match(source, /const dimension = world\.getDimension\(item\.dimension\);/);
+  assert.match(source, /new TextPrimitive\(\{ \.\.\.item\.location, dimension \}, item\.text\)/);
+  assert.match(source, /this\.getManager\(\)\.addText\(shape\);/);
+  assert.doesNotMatch(source, /new TextPrimitive\(item\.location, item\.text\)/);
+});
