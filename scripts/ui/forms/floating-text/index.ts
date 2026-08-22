@@ -1,4 +1,5 @@
 import { Player } from "@minecraft/server";
+import type { RGBA, Vector3 } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { color, colorCodes } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
@@ -8,6 +9,44 @@ import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/di
 import { openServerMenuForm } from "../server";
 
 const PAGE_SIZE = 9;
+const DEFAULT_TEXT_COLOR: RGBA = { red: 1, green: 1, blue: 1, alpha: 1 };
+const DEFAULT_BACKGROUND_COLOR: RGBA = { red: 0, green: 0, blue: 0, alpha: 0.35 };
+const DEFAULT_ROTATION: Vector3 = { x: 0, y: 0, z: 0 };
+
+function parseHexColor(value: unknown, alpha: unknown): RGBA | undefined {
+  const match = String(value ?? "")
+    .trim()
+    .match(/^#?([0-9a-f]{6})$/i);
+  if (!match) return undefined;
+  const parsedAlpha = Number(alpha);
+  if (!Number.isFinite(parsedAlpha) || parsedAlpha < 0 || parsedAlpha > 1) return undefined;
+  const hex = match[1];
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16) / 255,
+    green: Number.parseInt(hex.slice(2, 4), 16) / 255,
+    blue: Number.parseInt(hex.slice(4, 6), 16) / 255,
+    alpha: parsedAlpha,
+  };
+}
+
+function colorToHex(colorValue: RGBA | undefined, fallback: RGBA): string {
+  const color = colorValue ?? fallback;
+  const channel = (value: number) =>
+    Math.round(Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0)) * 255)
+      .toString(16)
+      .padStart(2, "0")
+      .toUpperCase();
+  return `#${channel(color.red)}${channel(color.green)}${channel(color.blue)}`;
+}
+
+function getBackgroundColor(item: IFloatingText): RGBA {
+  return (
+    item.backgroundColor ?? {
+      ...DEFAULT_BACKGROUND_COLOR,
+      alpha: item.backgroundAlpha ?? DEFAULT_BACKGROUND_COLOR.alpha,
+    }
+  );
+}
 
 function dimensionLabel(dimension: string): string {
   switch (dimension) {
@@ -186,13 +225,34 @@ function openFloatingTextCreateForm(player: Player): void {
   form.textField("显示缩放", "0.3～4，默认 1", { defaultValue: "1" });
   form.textField("可见距离", "8～256，默认 64", { defaultValue: "64" });
   form.toggle("被方块遮挡时隐藏", { defaultValue: false });
-  form.textField("背景透明度", "0～1，默认 0.35；0 为透明", { defaultValue: "0.35" });
+  form.textField("文字颜色", "十六进制颜色，例如 #FFFFFF", { defaultValue: "#FFFFFF" });
+  form.textField("文字不透明度", "0～1，默认 1", { defaultValue: "1" });
+  form.textField("背景颜色", "十六进制颜色，例如 #000000", { defaultValue: "#000000" });
+  form.textField("背景不透明度", "0～1，默认 0.35；0 为透明", { defaultValue: "0.35" });
+  form.toggle("使用固定朝向（关闭时始终面向玩家）", { defaultValue: false });
+  form.textField("俯仰角 Pitch", "-360～360 度，默认 0", { defaultValue: "0" });
+  form.textField("偏航角 Yaw", "-360～360 度，默认 0", { defaultValue: "0" });
+  form.textField("翻滚角 Roll", "-360～360 度，默认 0", { defaultValue: "0" });
+  form.toggle("固定朝向时显示背景背面", { defaultValue: true });
+  form.toggle("固定朝向时显示文字背面", { defaultValue: true });
   form.submitButton(cost > 0 ? `创建（消耗 ${cost} 金币）` : "创建（免费）");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
     const values = data.formValues;
     if (!values) return;
+    const textColor = parseHexColor(values[5], values[6]);
+    const backgroundColor = parseHexColor(values[7], values[8]);
+    if (!textColor || !backgroundColor) {
+      return openDialogForm(
+        player,
+        {
+          title: "创建失败",
+          desc: color.red("颜色必须是 #RRGGBB 格式（例如 #FFFFFF），不透明度必须在 0～1 之间。"),
+        },
+        () => openFloatingTextCreateForm(player)
+      );
+    }
     const result = floatingTextService.create({
       player,
       name: String(values[0] ?? ""),
@@ -200,7 +260,12 @@ function openFloatingTextCreateForm(player: Player): void {
       scale: Number(values[2]),
       maximumRenderDistance: Number(values[3]),
       depthTest: values[4] as boolean,
-      backgroundAlpha: Number(values[5]),
+      textColor,
+      backgroundColor,
+      useRotation: values[9] as boolean,
+      rotation: { x: Number(values[10]), y: Number(values[11]), z: Number(values[12]) },
+      backfaceVisible: values[13] as boolean,
+      textBackfaceVisible: values[14] as boolean,
     });
     if (isResultError(result)) {
       return openDialogForm(player, { title: "创建失败", desc: color.red(result) }, () =>
@@ -227,6 +292,10 @@ function openFloatingTextDetailForm(player: Player, item: IFloatingText, back: (
       `所有者: ${latest.ownerName}`,
       `位置: ${formatLocation(latest)}`,
       `缩放: ${latest.scale} · 可见距离: ${latest.maximumRenderDistance}`,
+      `文字: ${colorToHex(latest.textColor, DEFAULT_TEXT_COLOR)} · 背景: ${colorToHex(getBackgroundColor(latest), DEFAULT_BACKGROUND_COLOR)}`,
+      latest.useRotation
+        ? `固定朝向: Pitch ${latest.rotation?.x ?? 0}° / Yaw ${latest.rotation?.y ?? 0}° / Roll ${latest.rotation?.z ?? 0}°`
+        : "朝向: 自动面向玩家",
       `创建: ${latest.created}`,
       `修改: ${latest.modified}`,
       "",
@@ -301,13 +370,37 @@ function openFloatingTextEditForm(player: Player, item: IFloatingText, back: () 
   form.textField("显示缩放", "0.3～4", { defaultValue: String(latest.scale) });
   form.textField("可见距离", "8～256", { defaultValue: String(latest.maximumRenderDistance) });
   form.toggle("被方块遮挡时隐藏", { defaultValue: latest.depthTest });
-  form.textField("背景透明度", "0～1；0 为透明", { defaultValue: String(latest.backgroundAlpha) });
+  const textColor = latest.textColor ?? DEFAULT_TEXT_COLOR;
+  const backgroundColor = getBackgroundColor(latest);
+  const rotation = latest.rotation ?? DEFAULT_ROTATION;
+  form.textField("文字颜色", "#RRGGBB", { defaultValue: colorToHex(textColor, DEFAULT_TEXT_COLOR) });
+  form.textField("文字不透明度", "0～1", { defaultValue: String(textColor.alpha) });
+  form.textField("背景颜色", "#RRGGBB", { defaultValue: colorToHex(backgroundColor, DEFAULT_BACKGROUND_COLOR) });
+  form.textField("背景不透明度", "0～1；0 为透明", { defaultValue: String(backgroundColor.alpha) });
+  form.toggle("使用固定朝向（关闭时始终面向玩家）", { defaultValue: latest.useRotation ?? false });
+  form.textField("俯仰角 Pitch", "-360～360 度", { defaultValue: String(rotation.x) });
+  form.textField("偏航角 Yaw", "-360～360 度", { defaultValue: String(rotation.y) });
+  form.textField("翻滚角 Roll", "-360～360 度", { defaultValue: String(rotation.z) });
+  form.toggle("固定朝向时显示背景背面", { defaultValue: latest.backfaceVisible ?? true });
+  form.toggle("固定朝向时显示文字背面", { defaultValue: latest.textBackfaceVisible ?? true });
   form.submitButton("保存");
 
   form.show(player).then((data) => {
     if (data.cancelationReason) return;
     const values = data.formValues;
     if (!values) return;
+    const nextTextColor = parseHexColor(values[5], values[6]);
+    const nextBackgroundColor = parseHexColor(values[7], values[8]);
+    if (!nextTextColor || !nextBackgroundColor) {
+      return openDialogForm(
+        player,
+        {
+          title: "保存失败",
+          desc: color.red("颜色必须是 #RRGGBB 格式（例如 #FFFFFF），不透明度必须在 0～1 之间。"),
+        },
+        () => openFloatingTextEditForm(player, latest, back)
+      );
+    }
     const result = floatingTextService.update({
       player,
       id: latest.id,
@@ -316,7 +409,12 @@ function openFloatingTextEditForm(player: Player, item: IFloatingText, back: () 
       scale: Number(values[2]),
       maximumRenderDistance: Number(values[3]),
       depthTest: values[4] as boolean,
-      backgroundAlpha: Number(values[5]),
+      textColor: nextTextColor,
+      backgroundColor: nextBackgroundColor,
+      useRotation: values[9] as boolean,
+      rotation: { x: Number(values[10]), y: Number(values[11]), z: Number(values[12]) },
+      backfaceVisible: values[13] as boolean,
+      textBackfaceVisible: values[14] as boolean,
     });
     if (isResultError(result)) {
       return openDialogForm(player, { title: "保存失败", desc: color.red(result) }, () =>
