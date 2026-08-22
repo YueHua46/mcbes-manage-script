@@ -56,7 +56,7 @@
             },
             {
               "binding_type": "view",
-              "source_property_name": "(((#title_text - '§c§h§e§s§t') = #title_text) and ((#title_text - '§f§u§r§n§a§c§e') = #title_text))",
+              "source_property_name": "((#title_text - '§c§h§e§s§t' - '§f§u§r§n§a§c§e' - '/CMROOT ' - '/CMFORM ') = #title_text)",
               "target_property_name": "#visible"
             }
           ]

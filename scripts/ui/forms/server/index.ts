@@ -18,7 +18,6 @@ import { openGuildMenuForm } from "../guild";
 import { openFloatingTextMenu } from "../floating-text";
 import { openQuestPlayerForm } from "../quest-system";
 import { BRANDING } from "../../../core/constants";
-import { waitForCreeperFormTransition } from "../../creeper-action-form";
 
 interface MenuItem {
   text: string;
@@ -185,8 +184,6 @@ async function openServerMenuFormInternal(player: Player): Promise<void> {
   const form = createServerMenuForm(player, menuItems, setting);
 
   try {
-    await waitForCreeperFormTransition();
-    if (!player.isValid) return;
     const data = await form.show(player);
     if (data.cancelationReason === FormCancelationReason.UserBusy) {
       player.sendMessage(`§e请关闭你当前的聊天窗口，以便显示${BRANDING.MENU_ITEM_LABEL}。`);
