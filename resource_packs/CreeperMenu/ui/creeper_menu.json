@@ -11,21 +11,15 @@
     ],
     "controls": [
       {
-        "main_menu@creeper_menu.form_type": {
-          "$title_marker": "/CMROOT ",
-          "$content": "creeper_menu.root"
-        }
+        "main_menu@creeper_menu.root_route": {}
       },
       {
-        "project_action_form@creeper_menu.form_type": {
-          "$title_marker": "/CMFORM ",
-          "$content": "creeper_menu.generic_long_form"
-        }
+        "project_action_form@creeper_menu.project_action_route": {}
       }
     ]
   },
 
-  "form_type": {
+  "root_route": {
     "type": "panel",
     "size": ["100%", "100%"],
     "visible": false,
@@ -33,13 +27,32 @@
       {
         "binding_type": "view",
         "source_control_name": "long_form_replacement",
-        "source_property_name": "(not ((#title_text - $title_marker) = #title_text))",
+        "source_property_name": "(not ((#title_text - '/CMROOT ') = #title_text))",
         "target_property_name": "#visible"
       }
     ],
     "controls": [
       {
-        "content@$content": {}
+        "content@creeper_menu.root": {}
+      }
+    ]
+  },
+
+  "project_action_route": {
+    "type": "panel",
+    "size": ["100%", "100%"],
+    "visible": false,
+    "bindings": [
+      {
+        "binding_type": "view",
+        "source_control_name": "long_form_replacement",
+        "source_property_name": "(not ((#title_text - '/CMFORM ') = #title_text))",
+        "target_property_name": "#visible"
+      }
+    ],
+    "controls": [
+      {
+        "content@creeper_menu.generic_long_form": {}
       }
     ]
   },

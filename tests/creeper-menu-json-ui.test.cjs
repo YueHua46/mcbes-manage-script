@@ -34,9 +34,12 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   );
   assert.doesNotMatch(serverFormText, /inside_header_panel|creeper_menu_native_visible/);
   assert.doesNotMatch(serverFormText, /\$longform_size|\$customform_size/);
-  assert.equal(ui.form_type.visible, false);
-  assert.equal(ui.form_type.bindings[0].source_control_name, "long_form_replacement");
-  assert.match(ui.form_type.bindings[0].source_property_name, /#title_text - \$title_marker/);
+  assert.equal(ui.root_route.visible, false);
+  assert.equal(ui.project_action_route.visible, false);
+  assert.equal(ui.root_route.bindings[0].source_control_name, "long_form_replacement");
+  assert.match(ui.root_route.bindings[0].source_property_name, /#title_text - '\/CMROOT '/);
+  assert.match(ui.project_action_route.bindings[0].source_property_name, /#title_text - '\/CMFORM '/);
+  assert.doesNotMatch(serverFormText + JSON.stringify(ui), /\$content|\$title_marker/);
   assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
 });
 
@@ -49,7 +52,7 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   assert.match(serverForm, /"custom_form@server_form\.custom_form"/);
   assert.match(serverForm, /"custom_multiline_form@server_form\.custom_multiline_form"/);
   assert.match(serverForm, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
-  assert.match(ui, /"\$title_marker": "\/CMFORM "/);
+  assert.match(ui, /"project_action_route"/);
   assert.match(ui, /"generic_long_form"/);
   assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
   assert.match(wrapper, /CREEPER_ACTION_FORM_PREFIX = "\/CMFORM "/);
