@@ -38,13 +38,13 @@ function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: an
   form.title(BRANDING.MENU_TITLE);
   form.body("");
 
-  menuItems
-    .filter(({ id, alwaysVisible }) => alwaysVisible || setting.getState(id))
-    .forEach((item) => {
-      if (!item.adminOnly || _isAdmin) {
-        form.button(item.text, item.icon);
-      }
-    });
+  menuItems.forEach((item) => {
+    const available = (item.alwaysVisible || setting.getState(item.id)) && (!item.adminOnly || _isAdmin);
+    // The custom JSON UI uses fixed collection indices for its asymmetric card
+    // mosaic. Empty placeholders preserve that contract when modules are off or
+    // an entry requires administrator permission.
+    form.button(available ? item.text : "", available ? item.icon : "");
+  });
 
   return form;
 }
@@ -188,12 +188,12 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       const forceForm = await useForceOpen(player, form);
       if (forceForm?.canceled) return;
       if (forceForm?.selection !== undefined) {
-        const availableItems = menuItems.filter(
-          ({ id, adminOnly, alwaysVisible }) =>
-            (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
-        );
-        const selectedItem = availableItems[forceForm.selection];
-        if (selectedItem) {
+        const selectedItem = menuItems[forceForm.selection];
+        const available =
+          selectedItem &&
+          (selectedItem.alwaysVisible || setting.getState(selectedItem.id as IModules)) &&
+          (!selectedItem.adminOnly || isAdmin(player));
+        if (selectedItem && available) {
           await selectedItem.action(player);
         }
       }
@@ -202,12 +202,12 @@ export async function openServerMenuForm(player: Player): Promise<void> {
 
     if (data.canceled) return;
     if (data.selection !== undefined) {
-      const availableItems = menuItems.filter(
-        ({ id, adminOnly, alwaysVisible }) =>
-          (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
-      );
-      const selectedItem = availableItems[data.selection];
-      if (selectedItem) {
+      const selectedItem = menuItems[data.selection];
+      const available =
+        selectedItem &&
+        (selectedItem.alwaysVisible || setting.getState(selectedItem.id as IModules)) &&
+        (!selectedItem.adminOnly || isAdmin(player));
+      if (selectedItem && available) {
         await selectedItem.action(player);
       }
     }

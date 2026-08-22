@@ -6,8 +6,61 @@
 
   "main_screen_content/server_form_factory": {
     "control_ids": {
+      "long_form": "@server_form.long_form_switch",
       "custom_form": "@server_form.custom_form_switch"
     }
+  },
+
+  "long_form_switch": {
+    "type": "panel",
+    "size": ["100%", "100%"],
+    "controls": [
+      {
+        "creeper_menu@creeper_menu.root": {
+          "bindings": [
+            {
+              "binding_name": "#title_text",
+              "binding_type": "global"
+            },
+            {
+              "binding_type": "view",
+              "source_property_name": "(#title_text = '§0cm:root§r苦力怕菜单')",
+              "target_property_name": "#visible"
+            }
+          ]
+        }
+      },
+      {
+        "special_inventory_form@server_form.long_form": {
+          "bindings": [
+            {
+              "binding_name": "#title_text",
+              "binding_type": "global"
+            },
+            {
+              "binding_type": "view",
+              "source_property_name": "(not ((#title_text - '§c§h§e§s§t') = #title_text)) or (not ((#title_text - '§f§u§r§n§a§c§e') = #title_text))",
+              "target_property_name": "#visible"
+            }
+          ]
+        }
+      },
+      {
+        "generic_long_form@creeper_menu.generic_long_form": {
+          "bindings": [
+            {
+              "binding_name": "#title_text",
+              "binding_type": "global"
+            },
+            {
+              "binding_type": "view",
+              "source_property_name": "(not (#title_text = '§0cm:root§r苦力怕菜单')) and (((#title_text - '§c§h§e§s§t') = #title_text) and ((#title_text - '§f§u§r§n§a§c§e') = #title_text))",
+              "target_property_name": "#visible"
+            }
+          ]
+        }
+      }
+    ]
   },
   "long_form": {
     "type": "panel",
@@ -72,7 +125,7 @@
     "$flag_form_title": "JavaScript REPL",
     "controls": [
       {
-        "custom_form@server_form.custom_form": {
+        "custom_form@creeper_menu.generic_custom_form": {
           "bindings": [
             {
               "binding_name": "#title_text",
