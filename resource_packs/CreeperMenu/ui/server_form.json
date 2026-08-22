@@ -5,16 +5,14 @@
     "modifications": [
       {
         "array_name": "controls",
-        "operation": "insert_back",
+        "operation": "insert_front",
         "value": [
           {
-            "creeper_menu_factory": {
-              "type": "panel",
-              "factory": {
-                "name": "server_form_factory",
-                "control_ids": {
-                  "long_form": "@creeper_menu.long_form_router"
-                }
+            "server_form_factory": {
+              "type": "factory",
+              "control_ids": {
+                "long_form": "long_form_router@creeper_menu.long_form_router",
+                "custom_form": "@server_form.custom_form_switch"
               }
             }
           }
@@ -23,11 +21,6 @@
     ]
   },
 
-  "main_screen_content/server_form_factory": {
-    "control_ids": {
-      "custom_form": "@server_form.custom_form_switch"
-    }
-  },
   "long_form": {
     "type": "panel",
     "bindings": [

@@ -19,30 +19,49 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   const serverFormText = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
   const serverForm = JSON.parse(serverFormText);
   const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
-  const insertedFactory = serverForm.main_screen_content.modifications[0].value[0].creeper_menu_factory;
+  const factoryModification = serverForm.main_screen_content.modifications[0];
+  const insertedFactory = factoryModification.value[0].server_form_factory;
 
   assert.match(constants, /MENU_TITLE: "\/CMROOT 苦力怕菜单"/);
-  assert.equal(insertedFactory.factory.name, "server_form_factory");
-  assert.equal(insertedFactory.factory.control_ids.long_form, "@creeper_menu.long_form_router");
+  assert.equal(factoryModification.operation, "insert_front");
+  assert.equal(insertedFactory.type, "factory");
   assert.equal(
-    serverForm["main_screen_content/server_form_factory"].control_ids.long_form,
-    undefined
+    insertedFactory.control_ids.long_form,
+    "long_form_router@creeper_menu.long_form_router"
   );
+  assert.equal(insertedFactory.control_ids.custom_form, "@server_form.custom_form_switch");
+  assert.equal(serverForm["main_screen_content/server_form_factory"], undefined);
   assert.ok(serverForm.long_form);
   assert.match(serverForm.long_form.bindings[1].source_property_name, /#title_text - '\/CMROOT '/);
   const nativeDialog = serverForm.long_form.controls[0]["long_form@common_dialogs.main_panel_no_buttons"];
   assert.match(nativeDialog.bindings[1].source_property_name, /#title_text[\s\S]*'\/CMROOT '[\s\S]*'\/CMFORM '/);
   assert.doesNotMatch(serverFormText, /inside_header_panel|creeper_menu_native_visible/);
   assert.doesNotMatch(serverFormText, /\$longform_size|\$customform_size/);
-  assert.equal(ui.root_route.visible, false);
-  assert.equal(ui.project_action_route.visible, false);
+  assert.equal(ui.form_type.visible, false);
   assert.equal(ui.native_route, undefined);
-  assert.equal(ui.root_route.bindings[0].source_control_name, "long_form");
-  assert.match(ui.root_route.bindings[0].source_property_name, /#title_text - '\/CMROOT '/);
-  assert.equal(ui.project_action_route.bindings[0].source_control_name, "long_form");
-  assert.match(ui.project_action_route.bindings[0].source_property_name, /#title_text - '\/CMFORM '/);
-  assert.doesNotMatch(JSON.stringify(ui), /"source_control_name":"long_form_router"/);
-  assert.doesNotMatch(serverFormText + JSON.stringify(ui), /\$content|\$title_marker/);
+  assert.equal(ui.form_type.bindings[0].binding_name, "#title_text");
+  assert.equal(ui.form_type.bindings[0].source_control_name, undefined);
+  assert.match(
+    ui.form_type.bindings[1].source_property_name,
+    /#title_text = \$min[\s\S]*#title_text > \$min[\s\S]*#title_text < \$max/
+  );
+  assert.equal(ui.form_type.bindings[2].target_property_name, "#title");
+  const rootRoute = ui.long_form_router.controls[0]["main_menu@creeper_menu.form_type"];
+  const projectRoute = ui.long_form_router.controls[1]["project_action_form@creeper_menu.form_type"];
+  assert.deepEqual(rootRoute, {
+    $min: "/CMROOT ",
+    $max: "/CMROOT 􀐏",
+    $content: "creeper_menu.root",
+  });
+  assert.deepEqual(projectRoute, {
+    $min: "/CMFORM ",
+    $max: "/CMFORM 􀐏",
+    $content: "creeper_menu.generic_long_form",
+  });
+  assert.notEqual(rootRoute.$min, projectRoute.$min);
+  assert.notEqual(rootRoute.$max, projectRoute.$max);
+  assert.doesNotMatch(JSON.stringify(ui.form_type), /source_control_name/);
+  assert.doesNotMatch(JSON.stringify(ui), /root_route|project_action_route/);
   assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
   assert.equal(ui.root.controls.some((control) => control.screen_dim || control.ambient_background), false);
   assert.equal(
@@ -60,7 +79,8 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   assert.match(serverForm, /"custom_form@server_form\.custom_form"/);
   assert.match(serverForm, /"custom_multiline_form@server_form\.custom_multiline_form"/);
   assert.match(serverForm, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
-  assert.match(ui, /"project_action_route"/);
+  assert.match(ui, /"project_action_form@creeper_menu\.form_type"/);
+  assert.match(ui, /"\$min": "\/CMFORM "/);
   assert.match(ui, /"generic_long_form"/);
   assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
   assert.match(wrapper, /CREEPER_ACTION_FORM_PREFIX = "\/CMFORM "/);

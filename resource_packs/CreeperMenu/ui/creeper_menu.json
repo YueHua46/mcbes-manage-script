@@ -4,55 +4,46 @@
   "long_form_router": {
     "type": "panel",
     "size": ["100%", "100%"],
+    "controls": [
+      {
+        "main_menu@creeper_menu.form_type": {
+          "$min": "/CMROOT ",
+          "$max": "/CMROOT 􀐏",
+          "$content": "creeper_menu.root"
+        }
+      },
+      {
+        "project_action_form@creeper_menu.form_type": {
+          "$min": "/CMFORM ",
+          "$max": "/CMFORM 􀐏",
+          "$content": "creeper_menu.generic_long_form"
+        }
+      }
+    ]
+  },
+
+  "form_type": {
+    "type": "panel",
+    "size": ["100%", "100%"],
+    "visible": false,
     "bindings": [
       {
         "binding_name": "#title_text"
-      }
-    ],
-    "controls": [
-      {
-        "main_menu@creeper_menu.root_route": {}
       },
       {
-        "project_action_form@creeper_menu.project_action_route": {}
-      }
-    ]
-  },
-
-  "root_route": {
-    "type": "panel",
-    "size": ["100%", "100%"],
-    "visible": false,
-    "bindings": [
+        "binding_type": "view",
+        "source_property_name": "(#title_text = $min) or (#title_text > $min and #title_text < $max)",
+        "target_property_name": "#visible"
+      },
       {
         "binding_type": "view",
-        "source_control_name": "long_form",
-        "source_property_name": "(not ((#title_text - '/CMROOT ') = #title_text))",
-        "target_property_name": "#visible"
+        "source_property_name": "(#title_text - $min)",
+        "target_property_name": "#title"
       }
     ],
     "controls": [
       {
-        "content@creeper_menu.root": {}
-      }
-    ]
-  },
-
-  "project_action_route": {
-    "type": "panel",
-    "size": ["100%", "100%"],
-    "visible": false,
-    "bindings": [
-      {
-        "binding_type": "view",
-        "source_control_name": "long_form",
-        "source_property_name": "(not ((#title_text - '/CMFORM ') = #title_text))",
-        "target_property_name": "#visible"
-      }
-    ],
-    "controls": [
-      {
-        "content@creeper_menu.generic_long_form": {}
+        "content@$content": {}
       }
     ]
   },
@@ -437,8 +428,8 @@
           "bindings": [
             {
               "binding_type": "view",
-              "source_control_name": "long_form",
-              "source_property_name": "(#title_text - '/CMFORM ')",
+              "source_control_name": "project_action_form",
+              "source_property_name": "#title",
               "target_property_name": "#text"
             }
           ]
