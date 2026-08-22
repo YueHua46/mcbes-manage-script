@@ -14,19 +14,21 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   const insertedFactory = serverForm.main_screen_content.modifications[0].value[0].creeper_menu_factory;
 
   assert.match(constants, /MENU_TITLE: "\/CMROOT 苦力怕菜单"/);
-  assert.equal(insertedFactory.type, "factory");
+  assert.equal(insertedFactory.type, "panel");
+  assert.equal(insertedFactory.factory.name, "server_form_factory");
   assert.equal(
-    insertedFactory.control_ids.long_form,
-    "long_form_replacement@creeper_menu.long_form_replacement"
+    insertedFactory.factory.control_ids.long_form,
+    "@creeper_menu.long_form_replacement"
   );
-  assert.equal(serverForm.long_form.bindings[0].source_control_name, "inside_header_panel");
-  assert.doesNotMatch(serverFormText, /\$longform_size|\$customform_size/);
   assert.match(
-    serverForm.long_form_panel.modifications[0].value[0].source_property_name,
-    /#title_text < '\/CMROOT '/
+    serverForm.long_form.bindings[1].source_property_name,
+    /#title_text - '\/CMROOT '/
   );
+  assert.doesNotMatch(serverFormText, /inside_header_panel|creeper_menu_native_visible/);
+  assert.doesNotMatch(serverFormText, /\$longform_size|\$customform_size/);
   assert.equal(ui.form_type.visible, false);
-  assert.match(ui.form_type.bindings[1].source_property_name, /#title_text > \$min/);
+  assert.equal(ui.form_type.bindings[0].source_control_name, "long_form_replacement");
+  assert.match(ui.form_type.bindings[0].source_property_name, /#title_text - \$title_marker/);
   assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
 });
 

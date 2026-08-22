@@ -4,11 +4,15 @@
   "long_form_replacement": {
     "type": "panel",
     "size": ["100%", "100%"],
+    "bindings": [
+      {
+        "binding_name": "#title_text"
+      }
+    ],
     "controls": [
       {
         "main_menu@creeper_menu.form_type": {
-          "$min": "/CMROOT ",
-          "$max": "/CMROOT 􀐏",
+          "$title_marker": "/CMROOT ",
           "$content": "creeper_menu.root"
         }
       }
@@ -21,11 +25,9 @@
     "visible": false,
     "bindings": [
       {
-        "binding_name": "#title_text"
-      },
-      {
         "binding_type": "view",
-        "source_property_name": "(#title_text = $min) or (#title_text > $min and #title_text < $max)",
+        "source_control_name": "long_form_replacement",
+        "source_property_name": "(not ((#title_text - $title_marker) = #title_text))",
         "target_property_name": "#visible"
       }
     ],
