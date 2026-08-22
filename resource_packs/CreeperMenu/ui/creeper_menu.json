@@ -15,9 +15,6 @@
       },
       {
         "project_action_form@creeper_menu.project_action_route": {}
-      },
-      {
-        "native_form@creeper_menu.native_route": {}
       }
     ]
   },
@@ -60,25 +57,6 @@
     ]
   },
 
-  "native_route": {
-    "type": "panel",
-    "size": ["100%", "100%"],
-    "visible": false,
-    "bindings": [
-      {
-        "binding_type": "view",
-        "source_control_name": "long_form_router",
-        "source_property_name": "((#title_text - '/CMROOT ' - '/CMFORM ') = #title_text)",
-        "target_property_name": "#visible"
-      }
-    ],
-    "controls": [
-      {
-        "content@server_form.native_long_form": {}
-      }
-    ]
-  },
-
   "root": {
     "type": "panel",
     "size": ["100%", "100%"],
@@ -95,25 +73,6 @@
       }
     ],
     "controls": [
-      {
-        "screen_dim": {
-          "type": "image",
-          "size": ["100%", "100%"],
-          "texture": "textures/ui/White",
-          "color": [0.0, 0.025, 0.015],
-          "alpha": 0.72,
-          "layer": 0
-        }
-      },
-      {
-        "ambient_background": {
-          "type": "image",
-          "size": ["100%", "100%"],
-          "texture": "textures/ui/creeper_menu/background",
-          "alpha": 0.76,
-          "layer": 1
-        }
-      },
       {
         "dialog": {
           "type": "image",
@@ -413,26 +372,6 @@
     "type": "panel",
     "size": ["100%", "100%"],
     "controls": [
-      {
-        "ambient_background": {
-          "type": "image",
-          "size": ["100%", "100%"],
-          "texture": "textures/ui/creeper_menu/background",
-          "color": [0.54, 0.7, 0.58],
-          "alpha": 0.82,
-          "layer": 0
-        }
-      },
-      {
-        "screen_dim": {
-          "type": "image",
-          "size": ["100%", "100%"],
-          "texture": "textures/ui/White",
-          "color": [0.0, 0.025, 0.015],
-          "alpha": 0.5,
-          "layer": 1
-        }
-      },
       {
         "dialog": {
           "type": "image",

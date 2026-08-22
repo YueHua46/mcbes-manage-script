@@ -19,26 +19,32 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   const serverFormText = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
   const serverForm = JSON.parse(serverFormText);
   const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
+  const insertedFactory = serverForm.main_screen_content.modifications[0].value[0].creeper_menu_factory;
 
   assert.match(constants, /MENU_TITLE: "\/CMROOT 苦力怕菜单"/);
+  assert.equal(insertedFactory.factory.name, "server_form_factory");
+  assert.equal(insertedFactory.factory.control_ids.long_form, "@creeper_menu.long_form_router");
   assert.equal(
     serverForm["main_screen_content/server_form_factory"].control_ids.long_form,
-    "@creeper_menu.long_form_router"
+    undefined
   );
-  assert.equal(serverForm.main_screen_content.modifications, undefined);
-  assert.equal(serverForm.long_form, undefined);
-  assert.ok(serverForm.native_long_form);
+  assert.ok(serverForm.long_form);
+  assert.match(serverForm.long_form.bindings[1].source_property_name, /#title_text - '\/CMROOT '/);
   assert.doesNotMatch(serverFormText, /inside_header_panel|creeper_menu_native_visible/);
   assert.doesNotMatch(serverFormText, /\$longform_size|\$customform_size/);
   assert.equal(ui.root_route.visible, false);
   assert.equal(ui.project_action_route.visible, false);
-  assert.equal(ui.native_route.visible, false);
+  assert.equal(ui.native_route, undefined);
   assert.equal(ui.root_route.bindings[0].source_control_name, "long_form_router");
   assert.match(ui.root_route.bindings[0].source_property_name, /#title_text - '\/CMROOT '/);
   assert.match(ui.project_action_route.bindings[0].source_property_name, /#title_text - '\/CMFORM '/);
-  assert.match(ui.native_route.bindings[0].source_property_name, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
   assert.doesNotMatch(serverFormText + JSON.stringify(ui), /\$content|\$title_marker/);
   assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
+  assert.equal(ui.root.controls.some((control) => control.screen_dim || control.ambient_background), false);
+  assert.equal(
+    ui.generic_long_form.controls.some((control) => control.screen_dim || control.ambient_background),
+    false
+  );
 });
 
 test("project ActionForms use the themed route while unrelated and REPL forms stay native", () => {
@@ -49,7 +55,7 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   assert.match(serverForm, /"custom_form": "@server_form\.custom_form_switch"/);
   assert.match(serverForm, /"custom_form@server_form\.custom_form"/);
   assert.match(serverForm, /"custom_multiline_form@server_form\.custom_multiline_form"/);
-  assert.match(ui, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
+  assert.match(serverForm, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
   assert.match(ui, /"project_action_route"/);
   assert.match(ui, /"generic_long_form"/);
   assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
@@ -120,6 +126,10 @@ test("custom menu is registered and every card has generated runtime artwork", (
   ];
 
   assert.ok(definitions.ui_defs.includes("ui/creeper_menu.json"));
+  assert.equal(
+    fs.existsSync(path.join(root, "resource_packs", "CreeperMenu", "ui", "server_form_dark.json")),
+    false
+  );
   for (const name of names) {
     assert.ok(fs.existsSync(path.join(textureRoot, `${name}.png`)), `${name} artwork`);
     for (const state of ["default", "hover", "pressed"]) {
