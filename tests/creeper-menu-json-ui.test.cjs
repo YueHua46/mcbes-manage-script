@@ -70,6 +70,20 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   );
 });
 
+test("AI and maintainer documentation preserves the mutually exclusive routing contract", () => {
+  const agents = read("AGENTS.md");
+  const routing = read("design", "menu-ui", "JSON_UI_ROUTING.md");
+
+  assert.match(agents, /按标题命名空间路由的互斥表单渲染/);
+  assert.match(agents, /不得通过 `source_control_name`/);
+  assert.match(routing, /"type": "factory"/);
+  assert.match(routing, /#title_text = \$min/);
+  assert.match(routing, /#title_text > \$min and #title_text < \$max/);
+  assert.match(routing, /同一个表单 factory 内的多个自定义分支同时可见/);
+  assert.match(routing, /\/CMROOT /);
+  assert.match(routing, /\/CMFORM /);
+});
+
 test("project ActionForms use the themed route while unrelated and REPL forms stay native", () => {
   const serverForm = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
   const ui = read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json");
