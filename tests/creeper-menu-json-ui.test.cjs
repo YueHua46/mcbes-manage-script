@@ -96,7 +96,7 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   assert.match(ui, /"project_action_form@creeper_menu\.form_type"/);
   assert.match(ui, /"\$min": "\/CMFORM "/);
   assert.match(ui, /"generic_long_form"/);
-  assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
+  assert.match(ui, /"button": "creeper_menu\.generic_dynamic_button"/);
   assert.match(wrapper, /CREEPER_ACTION_FORM_PREFIX = "\/CMFORM "/);
   assert.match(wrapper, /new MinecraftActionFormData\(\)/);
 });
@@ -104,31 +104,37 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
 test("generic forms render their title and keep dynamic button states isolated", () => {
   const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
   const title = ui.generic_header.controls[1].title;
-  const button = ui["generic_dynamic_button@common.button"];
-  const states = button.controls.map((control) => Object.keys(control)[0]);
+  const buttons = ui.generic_long_form_content.controls[0].buttons;
+  const button = ui.generic_dynamic_button;
+  const nativeButton = button.controls[0]["button@common_buttons.light_text_button"];
 
-  assert.equal(title.bindings[0].binding_name, "#title_text");
-  assert.equal(title.bindings[0].binding_type, "global");
-  assert.equal(title.bindings[1].source_control_name, undefined);
-  assert.equal(title.bindings[1].source_property_name, "(#title_text - '/CMFORM ')");
+  assert.equal(title.text, "#form_text");
+  assert.equal(title.bindings[0].binding_name, "#form_text");
+  assert.equal(buttons.factory.control_ids.button, "creeper_menu.generic_dynamic_button");
+  assert.equal(buttons.bindings[0].binding_name, "#form_button_contents");
+  assert.notEqual(buttons.bindings[0].binding_name, "#form_button_length");
 
   assert.equal(button.visible, false);
   assert.match(button.bindings.at(-1).source_property_name, /not \(#text = ''\)/);
   assert.equal(button.bindings.at(-1).target_property_name, "#visible");
-  assert.deepEqual(states, [
-    "default@creeper_menu.generic_button_default_state",
-    "hover@creeper_menu.generic_button_hover_state",
-    "pressed@creeper_menu.generic_button_pressed_state",
-  ]);
-  assert.deepEqual(ui.generic_button_default_state.controls[1].label.color, [0.9, 0.96, 0.9]);
-  assert.deepEqual(ui.generic_button_hover_state.controls[1].label.color, [0.88, 1, 0.58]);
-  assert.deepEqual(ui.generic_button_pressed_state.controls[1].label.color, [0.65, 0.84, 0.52]);
-  assert.equal(ui.generic_button_default_state.bindings[0].binding_type, "collection_details");
-  assert.equal(ui.generic_button_hover_state.bindings[0].binding_type, "collection_details");
-  assert.equal(ui.generic_button_pressed_state.bindings[0].binding_type, "collection_details");
-  assert.doesNotMatch(JSON.stringify(ui.generic_button_default_state), /\$cm_text_color/);
-  assert.doesNotMatch(JSON.stringify(ui.generic_button_hover_state), /\$cm_text_color/);
-  assert.doesNotMatch(JSON.stringify(ui.generic_button_pressed_state), /\$cm_text_color/);
+  assert.equal(nativeButton.$button_text_binding_type, "collection");
+  assert.equal(nativeButton.$button_text_grid_collection_name, "form_buttons");
+  assert.deepEqual(nativeButton.$default_text_color, [0.9, 0.96, 0.9]);
+  assert.deepEqual(nativeButton.$hover_text_color, [0.88, 1, 0.58]);
+  assert.deepEqual(nativeButton.$pressed_text_color, [0.65, 0.84, 0.52]);
+  assert.equal(nativeButton.bindings.length, 1);
+  assert.equal(nativeButton.bindings[0].binding_type, "collection_details");
+  assert.equal(ui.generic_button_default_state, undefined);
+  assert.equal(ui.generic_button_hover_state, undefined);
+  assert.equal(ui.generic_button_pressed_state, undefined);
+});
+
+test("project ActionForm wrapper sends visible titles through form text and bodies through labels", () => {
+  const wrapper = read("scripts", "ui", "creeper-action-form.ts");
+
+  assert.match(wrapper, /\.title\(routedTitle\(this\.titleText\)\)\.body\(this\.titleText\)/);
+  assert.match(wrapper, /if \(this\.bodyText !== undefined\) form\.label\(this\.bodyText\)/);
+  assert.doesNotMatch(wrapper, /private readonly form = new MinecraftActionFormData/);
 });
 
 test("all project ActionForms except root and inventory forms use the routed wrapper", () => {
