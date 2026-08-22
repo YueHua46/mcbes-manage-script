@@ -37,9 +37,13 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   assert.equal(ui.root_route.visible, false);
   assert.equal(ui.project_action_route.visible, false);
   assert.equal(ui.native_route, undefined);
-  assert.equal(ui.root_route.bindings[0].source_control_name, "long_form_router");
-  assert.match(ui.root_route.bindings[0].source_property_name, /#title_text - '\/CMROOT '/);
-  assert.match(ui.project_action_route.bindings[0].source_property_name, /#title_text - '\/CMFORM '/);
+  assert.equal(ui.root_route.bindings[0].binding_type, "global");
+  assert.equal(ui.root_route.bindings[0].binding_name, "#title_text");
+  assert.match(ui.root_route.bindings[1].source_property_name, /#title_text - '\/CMROOT '/);
+  assert.equal(ui.project_action_route.bindings[0].binding_type, "global");
+  assert.equal(ui.project_action_route.bindings[0].binding_name, "#title_text");
+  assert.match(ui.project_action_route.bindings[1].source_property_name, /#title_text - '\/CMFORM '/);
+  assert.doesNotMatch(JSON.stringify(ui), /"source_control_name":"long_form_router"/);
   assert.doesNotMatch(serverFormText + JSON.stringify(ui), /\$content|\$title_marker/);
   assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
   assert.equal(ui.root.controls.some((control) => control.screen_dim || control.ambient_background), false);

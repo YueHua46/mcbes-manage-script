@@ -32,7 +32,8 @@
     "type": "panel",
     "bindings": [
       {
-        "binding_name": "#title_text"
+        "binding_name": "#title_text",
+        "binding_type": "global"
       },
       {
         "binding_type": "view",
@@ -52,7 +53,8 @@
           "layer": 2,
           "bindings": [
             {
-              "binding_name": "#title_text"
+              "binding_name": "#title_text",
+              "binding_type": "global"
             },
             {
               "binding_type": "view",
