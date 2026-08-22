@@ -8,31 +8,35 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
 
 test("main menu routes only its marked ActionForm into the custom JSON UI", () => {
   const constants = read("scripts", "core", "constants.ts");
-  const serverForm = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
+  const serverFormText = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
+  const serverForm = JSON.parse(serverFormText);
+  const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
+  const insertedFactory = serverForm.main_screen_content.modifications[0].value[0].creeper_menu_factory;
 
   assert.match(constants, /MENU_TITLE: "\/CMROOT 苦力怕菜单"/);
-  assert.match(serverForm, /"long_form": "@server_form\.long_form_switch"/);
-  assert.match(serverForm, /#title_text = '\/CMROOT 苦力怕菜单'/);
-  assert.match(serverForm, /not \(#title_text = '\/CMROOT 苦力怕菜单'\)/);
-  assert.equal((serverForm.match(/"visible": false/g) ?? []).length, 5);
-  assert.match(serverForm, /generic_long_form@creeper_menu\.generic_long_form/);
-  assert.match(serverForm, /custom_form@creeper_menu\.generic_custom_form/);
-  assert.match(serverForm, /special_inventory_form@server_form\.long_form/);
+  assert.equal(insertedFactory.type, "factory");
+  assert.equal(
+    insertedFactory.control_ids.long_form,
+    "long_form_replacement@creeper_menu.long_form_replacement"
+  );
+  assert.equal(serverForm.long_form.bindings[0].source_control_name, "inside_header_panel");
+  assert.match(
+    serverForm.long_form_panel.modifications[0].value[0].source_property_name,
+    /#title_text < '\/CMROOT '/
+  );
+  assert.equal(ui.form_type.visible, false);
+  assert.match(ui.form_type.bindings[1].source_property_name, /#title_text > \$min/);
+  assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
 });
 
-test("non-inventory subforms use themed action and modal layouts", () => {
+test("unmarked subforms keep the project's stable native and REPL routes", () => {
+  const serverForm = read("resource_packs", "CreeperMenu", "ui", "server_form.json");
   const ui = read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json");
 
-  assert.match(ui, /"generic_long_form"/);
-  assert.match(ui, /"control_name": "creeper_menu\.generic_dynamic_button"/);
-  assert.match(ui, /"generic_custom_form"/);
-  assert.match(ui, /"form@server_form\.custom_form_panel"/);
-  assert.doesNotMatch(
-    ui.match(/"generic_screen_background"[\s\S]*?"generic_header"/)[0],
-    /"brand"/
-  );
-  assert.match(ui, /"generic_dynamic_button@common\.button": \{[\s\S]*?"visible": false/);
-  assert.match(ui, /"source_property_name": "\(not \(#text = ''\)\)"/);
+  assert.match(serverForm, /"custom_form": "@server_form\.custom_form_switch"/);
+  assert.match(serverForm, /"custom_form@server_form\.custom_form"/);
+  assert.match(serverForm, /"custom_multiline_form@server_form\.custom_multiline_form"/);
+  assert.doesNotMatch(ui, /generic_(?:long|custom)_form|generic_screen_background/);
 });
 
 test("mosaic binds all thirteen fixed form collection indices exactly once", () => {
@@ -42,6 +46,7 @@ test("mosaic binds all thirteen fixed form collection indices exactly once", () 
   assert.deepEqual(indices.sort((a, b) => a - b), Array.from({ length: 13 }, (_, index) => index));
   assert.match(ui, /"binding_collection_name": "form_buttons"/);
   assert.match(ui, /"source_property_name": "\(not \(#text = ''\)\)"/);
+  assert.match(ui, /"quick_row": \{[\s\S]*?"collection_name": "form_buttons"/);
 });
 
 test("custom menu is registered and every card has generated runtime artwork", () => {

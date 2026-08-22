@@ -1,72 +1,41 @@
 {
   "namespace": "server_form",
   "main_screen_content": {
-    "size": ["100%", "100%"]
+    "size": ["100%", "100%"],
+    "modifications": [
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": [
+          {
+            "creeper_menu_factory": {
+              "type": "factory",
+              "control_ids": {
+                "long_form": "long_form_replacement@creeper_menu.long_form_replacement"
+              }
+            }
+          }
+        ]
+      }
+    ]
   },
 
   "main_screen_content/server_form_factory": {
     "control_ids": {
-      "long_form": "@server_form.long_form_switch",
       "custom_form": "@server_form.custom_form_switch"
     }
   },
-
-  "long_form_switch": {
-    "type": "panel",
-    "size": ["100%", "100%"],
-    "controls": [
-      {
-        "creeper_menu@creeper_menu.root": {
-          "visible": false,
-          "bindings": [
-            {
-              "binding_name": "#title_text",
-              "binding_type": "global"
-            },
-            {
-              "binding_type": "view",
-              "source_property_name": "(#title_text = '/CMROOT 苦力怕菜单')",
-              "target_property_name": "#visible"
-            }
-          ]
-        }
-      },
-      {
-        "special_inventory_form@server_form.long_form": {
-          "visible": false,
-          "bindings": [
-            {
-              "binding_name": "#title_text",
-              "binding_type": "global"
-            },
-            {
-              "binding_type": "view",
-              "source_property_name": "(not ((#title_text - '§c§h§e§s§t') = #title_text)) or (not ((#title_text - '§f§u§r§n§a§c§e') = #title_text))",
-              "target_property_name": "#visible"
-            }
-          ]
-        }
-      },
-      {
-        "generic_long_form@creeper_menu.generic_long_form": {
-          "visible": false,
-          "bindings": [
-            {
-              "binding_name": "#title_text",
-              "binding_type": "global"
-            },
-            {
-              "binding_type": "view",
-              "source_property_name": "(not (#title_text = '/CMROOT 苦力怕菜单')) and (((#title_text - '§c§h§e§s§t') = #title_text) and ((#title_text - '§f§u§r§n§a§c§e') = #title_text))",
-              "target_property_name": "#visible"
-            }
-          ]
-        }
-      }
-    ]
-  },
   "long_form": {
     "type": "panel",
+    "size": "$longform_size",
+    "bindings": [
+      {
+        "binding_type": "view",
+        "source_control_name": "inside_header_panel",
+        "source_property_name": "#creeper_menu_native_visible",
+        "target_property_name": "#visible"
+      }
+    ],
     "controls": [
       {
         "long_form@common_dialogs.main_panel_no_buttons": {
@@ -122,14 +91,29 @@
     ]
   },
 
+  "long_form_panel": {
+    "modifications": [
+      {
+        "array_name": "bindings",
+        "operation": "insert_front",
+        "value": [
+          {
+            "binding_type": "view",
+            "source_property_name": "(#title_text < '/CMROOT ' or #title_text > '/CMROOT 􀐏')",
+            "target_property_name": "#creeper_menu_native_visible"
+          }
+        ]
+      }
+    ]
+  },
+
   "custom_form_switch": {
     "type": "panel",
     "size": ["100%", "100%"],
     "$flag_form_title": "JavaScript REPL",
     "controls": [
       {
-        "custom_form@creeper_menu.generic_custom_form": {
-          "visible": false,
+        "custom_form@server_form.custom_form": {
           "bindings": [
             {
               "binding_name": "#title_text",
@@ -145,7 +129,6 @@
       },
       {
         "custom_multiline_form@server_form.custom_multiline_form": {
-          "visible": false,
           "bindings": [
             {
               "binding_name": "#title_text",
