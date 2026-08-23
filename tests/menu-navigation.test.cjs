@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const ts = require("typescript");
 
 const root = path.resolve(__dirname, "..");
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
@@ -12,6 +13,14 @@ function section(source, start, end) {
   assert.notEqual(startIndex, -1, `missing section start: ${start}`);
   assert.notEqual(endIndex, -1, `missing section end: ${end}`);
   return source.slice(startIndex, endIndex);
+}
+
+function walkTypeScript(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return walkTypeScript(fullPath);
+    return entry.isFile() && entry.name.endsWith(".ts") ? [fullPath] : [];
+  });
 }
 
 test("submenu cards stay compact with a visible three-pixel gap", () => {
@@ -47,6 +56,35 @@ test("project ActionForms supply icons for implicit navigation buttons", () => {
   assert.match(read("scripts", "ui", "components", "dialog.ts"), /button\("返回", "textures\/icons\/back"\)/);
 });
 
+test("project menu business buttons never omit their icon", () => {
+  const allowedImplicitNavigation = /^(上一页|下一页|返回|关闭)/;
+  const offenders = [];
+
+  for (const filename of walkTypeScript(path.join(root, "scripts", "ui", "forms"))) {
+    const source = fs.readFileSync(filename, "utf8");
+    const sourceFile = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
+    const visit = (node) => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "button" &&
+        node.arguments.length < 2
+      ) {
+        const firstArgument = node.arguments[0];
+        const label = firstArgument && ts.isStringLiteralLike(firstArgument) ? firstArgument.text : undefined;
+        if (!label || !allowedImplicitNavigation.test(label)) {
+          const position = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+          offenders.push(`${path.relative(root, filename)}:${position.line + 1}`);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+  }
+
+  assert.deepEqual(offenders, []);
+});
+
 test("root and nested menus return to their immediate parent", () => {
   const server = read("scripts", "ui", "forms", "server", "index.ts");
   const guildEntry = section(server, 'id: "guild"', 'id: "floatingText"');
@@ -67,4 +105,10 @@ test("root and nested menus return to their immediate parent", () => {
   const chat = section(player, "export function openChatForm", "export function openDeleteChatBlackListForm");
   assert.match(chat, /openPlayerActionForm\(player\)/);
   assert.doesNotMatch(chat, /openServerMenuForm\(player\)/);
+
+  const behaviorLog = read("scripts", "ui", "forms", "behavior-log", "index.ts");
+  const behaviorRoot = section(behaviorLog, "export async function openBehaviorLogForm", "function executeBehaviorLogQuery");
+  assert.match(behaviorRoot, /button\("返回", "textures\/icons\/back"\)/);
+  assert.match(behaviorRoot, /result\.selection === 4/);
+  assert.match(behaviorRoot, /openSystemSettingForm\(player\)/);
 });

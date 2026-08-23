@@ -4,7 +4,7 @@
 
 import { Player, world } from "@minecraft/server";
 import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
-import { MessageFormData } from "@minecraft/server-ui";
+import { CreeperMessageFormData as MessageFormData } from "../../creeper-message-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";

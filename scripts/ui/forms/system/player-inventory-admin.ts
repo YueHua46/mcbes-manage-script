@@ -178,10 +178,10 @@ function openShulkerActionForm(
         ? `§b你选择的是潜影盒（${placeLabel}）。\n\n§0可先取走整盒，或复制一份；无法在脚本内展开盒内格子（与游戏内打开盒子不同）。`
         : `§b你选择的是潜影盒（${placeLabel}）。\n\n§0普通玩家只能取出整盒，不能复制潜影盒。`
     )
-    .button(`取走潜影盒（从目标${placeLabel}移除）`);
+    .button(`取走潜影盒（从目标${placeLabel}移除）`, "textures/icons/shulker_take");
 
-  if (canCopy) form.button("复制一份潜影盒（目标保留原件）");
-  form.button("返回");
+  if (canCopy) form.button("复制一份潜影盒（目标保留原件）", "textures/icons/shulker_copy");
+  form.button("返回", "textures/icons/back");
 
   form.show(adminPlayer).then((res) => {
     const backSelection = canCopy ? 2 : 1;

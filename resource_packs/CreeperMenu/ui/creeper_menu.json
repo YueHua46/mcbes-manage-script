@@ -18,6 +18,13 @@
           "$max": "/CMFORM 􀐏",
           "$content": "creeper_menu.generic_long_form"
         }
+      },
+      {
+        "project_message_form@creeper_menu.form_type": {
+          "$min": "/CMMESSAGE ",
+          "$max": "/CMMESSAGE 􀐏",
+          "$content": "creeper_menu.message_form"
+        }
       }
     ]
   },
@@ -47,6 +54,8 @@
       }
     ]
   },
+
+  "message_form@creeper_message.form": {},
 
   "root": {
     "type": "panel",
@@ -545,7 +554,19 @@
           "offset": [6, 0],
           "size": [25, 25],
           "texture": "textures/ui/creeper_menu/icon_chip",
-          "layer": 7
+          "layer": 7,
+          "bindings": [
+            {
+              "binding_name": "#form_button_texture",
+              "binding_type": "collection",
+              "binding_collection_name": "form_buttons"
+            },
+            {
+              "binding_type": "view",
+              "source_property_name": "(not ((#form_button_texture = '') or (#form_button_texture = 'loading')))",
+              "target_property_name": "#visible"
+            }
+          ]
         }
       },
       {

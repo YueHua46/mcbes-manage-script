@@ -442,26 +442,26 @@ function openFakePlayerControlHub(player: Player, item: IFakePlayer, adminView: 
   })();
 }
 
-const PROGRAM_STEP_OPTIONS: Array<{ type: FakePlayerProgramStep["type"]; label: string }> = [
-  { type: "wait", label: "等待" },
-  { type: "teleport", label: "瞬移到坐标" },
-  { type: "move_to", label: "寻路到坐标" },
-  { type: "move_relative", label: "相对方向移动" },
-  { type: "move_stop", label: "停止移动" },
-  { type: "follow", label: "跟随玩家" },
-  { type: "look_at", label: "看向坐标" },
-  { type: "select_slot", label: "切换手持快捷栏" },
-  { type: "use_start", label: "开始使用手持物品" },
-  { type: "use_stop", label: "停止使用物品" },
-  { type: "attack", label: "攻击一次" },
-  { type: "interact", label: "视线交互一次" },
-  { type: "interact_block", label: "交互指定方块" },
-  { type: "use_on_block", label: "对方块使用物品" },
-  { type: "break_start", label: "开始挖掘方块" },
-  { type: "break_stop", label: "停止挖掘" },
-  { type: "jump", label: "跳跃" },
-  { type: "sneak_start", label: "开始蹲下" },
-  { type: "sneak_stop", label: "停止蹲下" },
+const PROGRAM_STEP_OPTIONS: Array<{ type: FakePlayerProgramStep["type"]; label: string; icon: string }> = [
+  { type: "wait", label: "等待", icon: "textures/icons/clock" },
+  { type: "teleport", label: "瞬移到坐标", icon: "textures/icons/fast_travel" },
+  { type: "move_to", label: "寻路到坐标", icon: "textures/icons/program_path_target" },
+  { type: "move_relative", label: "相对方向移动", icon: "textures/icons/program_move_relative" },
+  { type: "move_stop", label: "停止移动", icon: "textures/icons/program_stop" },
+  { type: "follow", label: "跟随玩家", icon: "textures/icons/program_follow" },
+  { type: "look_at", label: "看向坐标", icon: "textures/icons/program_look_target" },
+  { type: "select_slot", label: "切换手持快捷栏", icon: "textures/icons/program_hotbar" },
+  { type: "use_start", label: "开始使用手持物品", icon: "textures/icons/program_use_item" },
+  { type: "use_stop", label: "停止使用物品", icon: "textures/icons/program_stop" },
+  { type: "attack", label: "攻击一次", icon: "textures/icons/sword" },
+  { type: "interact", label: "视线交互一次", icon: "textures/icons/program_interact" },
+  { type: "interact_block", label: "交互指定方块", icon: "textures/icons/program_interact_block" },
+  { type: "use_on_block", label: "对方块使用物品", icon: "textures/icons/program_interact_block" },
+  { type: "break_start", label: "开始挖掘方块", icon: "textures/icons/pickaxe" },
+  { type: "break_stop", label: "停止挖掘", icon: "textures/icons/program_stop" },
+  { type: "jump", label: "跳跃", icon: "textures/icons/program_jump" },
+  { type: "sneak_start", label: "开始蹲下", icon: "textures/icons/program_sneak" },
+  { type: "sneak_stop", label: "停止蹲下", icon: "textures/icons/program_stop" },
 ];
 
 function formatProgramStep(step: FakePlayerProgramStep, index: number): string {
@@ -552,7 +552,7 @@ function openAddProgramStepForm(
   back: () => void
 ): void {
   const form = new ActionFormData().title("添加原子动作");
-  PROGRAM_STEP_OPTIONS.forEach((option) => form.button(option.label));
+  PROGRAM_STEP_OPTIONS.forEach((option) => form.button(option.label, option.icon));
   form.button("返回");
   form.show(player).then((response) => {
     if (response.canceled || response.selection === undefined || response.selection >= PROGRAM_STEP_OPTIONS.length) {

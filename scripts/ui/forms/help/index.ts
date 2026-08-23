@@ -4,8 +4,8 @@
  */
 
 import { Player } from "@minecraft/server";
-import { MessageFormData } from "@minecraft/server-ui";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
+import { CreeperMessageFormData as MessageFormData } from "../../creeper-message-form";
 import { useFormatInfo } from "../../../shared/hooks/use-form";
 import { color } from "../../../shared/utils/color";
 import { openServerMenuForm } from "../server";

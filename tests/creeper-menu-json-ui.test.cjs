@@ -34,7 +34,10 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   assert.ok(serverForm.long_form);
   assert.match(serverForm.long_form.bindings[1].source_property_name, /#title_text - '\/CMROOT '/);
   const nativeDialog = serverForm.long_form.controls[0]["long_form@common_dialogs.main_panel_no_buttons"];
-  assert.match(nativeDialog.bindings[1].source_property_name, /#title_text[\s\S]*'\/CMROOT '[\s\S]*'\/CMFORM '/);
+  assert.match(
+    nativeDialog.bindings[1].source_property_name,
+    /#title_text[\s\S]*'\/CMROOT '[\s\S]*'\/CMFORM '[\s\S]*'\/CMMESSAGE '/
+  );
   assert.doesNotMatch(serverFormText, /inside_header_panel|creeper_menu_native_visible/);
   assert.doesNotMatch(serverFormText, /\$longform_size|\$customform_size/);
   assert.equal(ui.form_type.visible, false);
@@ -48,6 +51,7 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   assert.equal(ui.form_type.bindings[2].target_property_name, "#title");
   const rootRoute = ui.long_form_router.controls[0]["main_menu@creeper_menu.form_type"];
   const projectRoute = ui.long_form_router.controls[1]["project_action_form@creeper_menu.form_type"];
+  const messageRoute = ui.long_form_router.controls[2]["project_message_form@creeper_menu.form_type"];
   assert.deepEqual(rootRoute, {
     $min: "/CMROOT ",
     $max: "/CMROOT 􀐏",
@@ -58,8 +62,14 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
     $max: "/CMFORM 􀐏",
     $content: "creeper_menu.generic_long_form",
   });
-  assert.notEqual(rootRoute.$min, projectRoute.$min);
-  assert.notEqual(rootRoute.$max, projectRoute.$max);
+  assert.deepEqual(messageRoute, {
+    $min: "/CMMESSAGE ",
+    $max: "/CMMESSAGE 􀐏",
+    $content: "creeper_menu.message_form",
+  });
+  assert.deepEqual(ui["message_form@creeper_message.form"], {});
+  assert.equal(new Set([rootRoute.$min, projectRoute.$min, messageRoute.$min]).size, 3);
+  assert.equal(new Set([rootRoute.$max, projectRoute.$max, messageRoute.$max]).size, 3);
   assert.doesNotMatch(JSON.stringify(ui.form_type), /source_control_name/);
   assert.doesNotMatch(JSON.stringify(ui), /root_route|project_action_route/);
   assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
@@ -85,6 +95,7 @@ test("AI and maintainer documentation preserves the mutually exclusive routing c
   assert.match(routing, /同一个表单 factory 内的多个自定义分支同时可见/);
   assert.match(routing, /\/CMROOT /);
   assert.match(routing, /\/CMFORM /);
+  assert.match(routing, /\/CMMESSAGE /);
 });
 
 test("project ActionForms use the themed route while unrelated and REPL forms stay native", () => {
@@ -93,8 +104,7 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   const ui = read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json");
   const wrapper = read("scripts", "ui", "creeper-action-form.ts");
   const nativeCustom = serverForm.custom_form.controls[0]["native_custom_form@server_form.native_custom_form"];
-  const multilineCustom =
-    serverForm.custom_form.controls[1]["custom_multiline_form@server_form.custom_multiline_form"];
+  const multilineCustom = serverForm.custom_form.controls[1]["custom_multiline_form@server_form.custom_multiline_form"];
 
   assert.match(serverFormText, /"custom_form": "custom_form_router@creeper_modal\.custom_form_router"/);
   assert.equal(serverForm.custom_form.bindings[0].binding_name, "#title_text");
@@ -103,7 +113,7 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
     serverForm["native_custom_form@common_dialogs.main_panel_no_buttons"].$child_control,
     "server_form.custom_form_panel"
   );
-  assert.match(serverFormText, /#title_text - '\/CMROOT ' - '\/CMFORM '/);
+  assert.match(serverFormText, /#title_text - '\/CMROOT ' - '\/CMFORM ' - '\/CMMESSAGE '/);
   assert.equal(nativeCustom.visible, false);
   assert.equal(multilineCustom.visible, false);
   assert.equal(nativeCustom.bindings[0].binding_name, "#title_text");
@@ -123,6 +133,90 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   assert.match(ui, /"button": "creeper_menu\.generic_dynamic_button"/);
   assert.match(wrapper, /CREEPER_ACTION_FORM_PREFIX = "\/CMFORM "/);
   assert.match(wrapper, /new MinecraftActionFormData\(\)/);
+});
+
+test("project MessageForms use a dedicated two-button themed route", () => {
+  const serverForm = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "server_form.json"));
+  const menu = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
+  const message = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_message.json"));
+  const definitions = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "_ui_defs.json"));
+  const wrapper = read("scripts", "ui", "creeper-message-form.ts");
+  const route = menu.long_form_router.controls[2]["project_message_form@creeper_menu.form_type"];
+  const nativeDialog = serverForm.long_form.controls[0]["long_form@common_dialogs.main_panel_no_buttons"];
+  const titleBindings = message.header.controls[0].title.bindings;
+  const footerControls = message.footer.controls;
+  const button = message["message_button@common.button"];
+
+  assert.ok(definitions.ui_defs.includes("ui/creeper_message.json"));
+  assert.ok(
+    definitions.ui_defs.indexOf("ui/creeper_message.json") < definitions.ui_defs.indexOf("ui/creeper_menu.json"),
+    "creeper_message must be registered before creeper_menu inherits its controls"
+  );
+  assert.ok(fs.existsSync(path.join(root, "design", "menu-ui", "message-preview.png")));
+  assert.deepEqual(route, {
+    $min: "/CMMESSAGE ",
+    $max: "/CMMESSAGE 􀐏",
+    $content: "creeper_menu.message_form",
+  });
+  assert.deepEqual(menu["message_form@creeper_message.form"], {});
+  assert.match(nativeDialog.bindings[1].source_property_name, /'\/CMMESSAGE '/);
+  assert.equal(titleBindings[0].binding_name, "#title_text");
+  assert.equal(titleBindings[0].source_control_name, undefined);
+  assert.equal(titleBindings[1].source_property_name, "(#title_text - '/CMMESSAGE ')");
+  assert.equal(message.body_content.controls[0].body.text, "#form_text");
+  assert.equal(message.body_content.controls[0].body.bindings[0].binding_name, "#form_text");
+  assert.deepEqual(message.form.controls[0].dialog.controls[1].body_frame.size, ["100% - 14px", "100% - 94px"]);
+  assert.equal(footerControls[0]["button_one@creeper_message.message_button"].$cm_index, 0);
+  assert.deepEqual(footerControls[0]["button_one@creeper_message.message_button"].size, ["50% - 3px", 28]);
+  assert.equal(footerControls[2]["button_two@creeper_message.message_button"].$cm_index, 1);
+  assert.deepEqual(footerControls[2]["button_two@creeper_message.message_button"].size, ["50% - 3px", 28]);
+  assert.deepEqual(message.footer.size, ["100% - 14px", 33]);
+  assert.equal(button.$pressed_button_name, "button.form_button_click");
+  assert.equal(button.bindings[0].binding_type, "collection_details");
+  assert.equal(button.bindings[0].binding_collection_name, "form_buttons");
+  const messageButtonLabel = message.button_state.controls[0].label;
+  assert.deepEqual(messageButtonLabel.offset, [0, 0]);
+  assert.deepEqual(messageButtonLabel.size, ["100% - 12px", "default"]);
+  assert.deepEqual(messageButtonLabel.max_size, ["100% - 12px", 10]);
+  assert.match(wrapper, /CREEPER_MESSAGE_FORM_PREFIX = "\/CMMESSAGE "/);
+  assert.match(wrapper, /ActionFormData as MinecraftActionFormData/);
+  assert.doesNotMatch(wrapper, /MessageFormData as MinecraftMessageFormData/);
+  assert.match(wrapper, /new MinecraftActionFormData\(\)/);
+  assert.match(wrapper, /\.body\(applyCreeperTextPalette\(this\.bodyText\)\)/);
+  assert.match(wrapper, /\.button\(applyCreeperTextPalette\(this\.buttonOneText\)\)/);
+  assert.match(wrapper, /\.button\(applyCreeperTextPalette\(this\.buttonTwoText\)\)/);
+  assert.match(wrapper, /return form\.show\(player\)/);
+});
+
+test("root, action, message, and native long-form title routes are mutually exclusive", () => {
+  const serverForm = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "server_form.json"));
+  const menu = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
+  const nativeDialog = serverForm.long_form.controls[0]["long_form@common_dialogs.main_panel_no_buttons"];
+  const nativeVisibility = nativeDialog.bindings[1].source_property_name;
+  const routes = menu.long_form_router.controls.map((control) => Object.values(control)[0]);
+  const isRange = (title, route) => title === route.$min || (title > route.$min && title < route.$max);
+  const isNative = (title) =>
+    !title.includes("§c§h§e§s§t") &&
+    !title.includes("§f§u§r§n§a§c§e") &&
+    !title.includes("/CMROOT ") &&
+    !title.includes("/CMFORM ") &&
+    !title.includes("/CMMESSAGE ");
+
+  assert.equal(
+    nativeVisibility,
+    "((#title_text - '§c§h§e§s§t' - '§f§u§r§n§a§c§e' - '/CMROOT ' - '/CMFORM ' - '/CMMESSAGE ') = #title_text)"
+  );
+  for (const title of [
+    "/CMROOT 苦力怕菜单",
+    "/CMFORM 公会菜单",
+    "/CMMESSAGE 公开信息",
+    "/CMMESSAGE ",
+    "普通原版 MessageForm",
+    "",
+  ]) {
+    const matches = routes.filter((route) => isRange(title, route)).length + Number(isNative(title));
+    assert.equal(matches, 1, `expected exactly one long-form route for ${JSON.stringify(title)}`);
+  }
 });
 
 test("project ModalForms use one complete themed custom-form route", () => {
@@ -231,6 +325,22 @@ test("project ModalForms use one complete themed custom-form route", () => {
   assert.equal(lockedSubmitState.alpha, undefined);
   assert.match(wrapper, /CREEPER_MODAL_FORM_PREFIX = "\/CMMODAL "/);
   assert.match(wrapper, /new MinecraftModalFormData\(\)\.title/);
+  assert.match(wrapper, /this\.form\.label\(applyCreeperTextPalette\(text\)\)/);
+  assert.match(wrapper, /this\.form\.header\(applyCreeperTextPalette\(text\)\)/);
+  assert.match(
+    wrapper,
+    /this\.form\.dropdown\(applyCreeperTextPalette\(label\), applyCreeperTextPalette\(items\), dropdownOptions\)/
+  );
+  assert.match(
+    wrapper,
+    /this\.form\.slider\(applyCreeperTextPalette\(label\), minimumValue, maximumValue, sliderOptions\)/
+  );
+  assert.match(
+    wrapper,
+    /this\.form\.textField\(applyCreeperTextPalette\(label\), applyCreeperTextPalette\(placeholderText\), textFieldOptions\)/
+  );
+  assert.match(wrapper, /this\.form\.toggle\(applyCreeperTextPalette\(label\), toggleOptions\)/);
+  assert.match(wrapper, /this\.form\.submitButton\(applyCreeperTextPalette\(submitButtonText\)\)/);
   assert.match(wrapper, /return this\.form\.show\(player\)/);
 });
 
@@ -248,23 +358,13 @@ test("ModalForm project, native, and REPL title routes are mutually exclusive", 
   const isNative = (title) => !title.includes(min) && !title.includes(repl);
   const isRepl = (title) => title === repl;
 
-  assert.equal(
-    projectVisibility,
-    "(#title_text = $min) or (#title_text > $min and #title_text < $max)"
-  );
+  assert.equal(projectVisibility, "(#title_text = $min) or (#title_text > $min and #title_text < $max)");
   assert.equal(nativeVisibility, "((#title_text - '/CMMODAL ' - 'JavaScript REPL') = #title_text)");
   assert.equal(replCustom.bindings[1].source_property_name, "(#title_text = 'JavaScript REPL')");
   assert.equal(nativeCustom.bindings[0].binding_type, "global");
   assert.equal(replCustom.bindings[0].binding_type, "global");
 
-  for (const title of [
-    "/CMMODAL 玩家传送",
-    min,
-    `${min}A`,
-    "普通 ModalForm",
-    "",
-    repl,
-  ]) {
+  for (const title of ["/CMMODAL 玩家传送", min, `${min}A`, "普通 ModalForm", "", repl]) {
     assert.equal(
       Number(isProject(title)) + Number(isNative(title)) + Number(isRepl(title)),
       1,
@@ -288,6 +388,24 @@ test("all project ModalForms use the routed wrapper", () => {
   assert.ok(wrapperImports.length >= 27);
 });
 
+test("all project MessageForms use the routed wrapper", () => {
+  const allowedNativeFiles = new Set([
+    path.join(root, "scripts", "shared", "hooks", "use-form.ts"),
+    path.join(root, "scripts", "ui", "creeper-message-form.ts"),
+  ]);
+  const directImport = /import \{[^\r\n]*MessageFormData[^\r\n]*\} from "@minecraft\/server-ui";/;
+  const offenders = walkTypeScript(path.join(root, "scripts"))
+    .filter((filename) => !allowedNativeFiles.has(filename))
+    .filter((filename) => directImport.test(fs.readFileSync(filename, "utf8")));
+  const wrapperImports = walkTypeScript(path.join(root, "scripts"))
+    .filter((filename) => filename !== path.join(root, "scripts", "ui", "creeper-message-form.ts"))
+    .map((filename) => fs.readFileSync(filename, "utf8"))
+    .filter((source) => /CreeperMessageFormData as MessageFormData/.test(source));
+
+  assert.deepEqual(offenders, []);
+  assert.ok(wrapperImports.length >= 2);
+});
+
 test("generic forms render their title and keep dynamic button states isolated", () => {
   const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
   const title = ui.generic_header.controls.find((control) => control.title).title;
@@ -296,6 +414,8 @@ test("generic forms render their title and keep dynamic button states isolated",
   const customButton = button.controls[0]["button@creeper_menu.generic_button"];
   const buttonTemplate = ui["generic_button@common.button"];
   const buttonState = ui.generic_button_state;
+  const iconChip = buttonState.controls[1].icon_chip;
+  const behaviorLogForm = read("scripts", "ui", "forms", "behavior-log", "index.ts");
 
   assert.equal(title.text, "#form_text");
   assert.equal(title.bindings[0].binding_name, "#form_text");
@@ -312,23 +432,67 @@ test("generic forms render their title and keep dynamic button states isolated",
   assert.equal(buttonState.type, "image");
   assert.equal(buttonState.keep_ratio, false);
   assert.equal(buttonState.controls[0].label.bindings[0].binding_collection_name, "form_buttons");
+  assert.equal(iconChip.bindings[0].binding_name, "#form_button_texture");
+  assert.equal(iconChip.bindings[0].binding_name_override, undefined);
+  assert.match(
+    iconChip.bindings[1].source_property_name,
+    /not \(\(#form_button_texture = ''\) or \(#form_button_texture = 'loading'\)\)/
+  );
+  assert.equal(iconChip.texture, "textures/ui/creeper_menu/icon_chip");
+  assert.match(behaviorLogForm, /\.button\("查看日志", "textures\/icons\/eyes"\)/);
+  assert.match(behaviorLogForm, /\.button\("监控设置", "textures\/icons\/settings"\)/);
+  assert.match(behaviorLogForm, /\.button\("重新筛选", "textures\/icons\/filter_refresh"\)/);
+  assert.match(behaviorLogForm, /\.button\("返回", "textures\/icons\/back"\)/);
+  assert.match(behaviorLogForm, /result\.selection === 4/);
+  assert.match(behaviorLogForm, /openSystemSettingForm\(player\)/);
   assert.doesNotMatch(JSON.stringify(button), /common_buttons\.light_text_button/);
 });
 
 test("project ActionForm wrapper sends visible titles through form text and bodies through labels", () => {
   const wrapper = read("scripts", "ui", "creeper-action-form.ts");
 
-  assert.match(wrapper, /const visibleTitle = neutralizeFormatting\(this\.titleText\)/);
+  assert.match(wrapper, /const visibleTitle = neutralizeCreeperTitle\(this\.titleText\)/);
   assert.match(wrapper, /\.title\(routedTitle\(visibleTitle\)\)\.body\(visibleTitle\)/);
-  assert.match(wrapper, /form\.label\(neutralizeFormatting\(this\.bodyText\)\)/);
-  assert.match(wrapper, /MINECRAFT_FORMATTING_CODE = \/§\[0-9a-fk-or\]\/gi/);
+  assert.match(wrapper, /form\.label\(applyCreeperTextPalette\(this\.bodyText\)\)/);
+  assert.match(wrapper, /form\.button\(applyCreeperTextPalette\(element\.text\), element\.iconPath\)/);
+  assert.match(wrapper, /form\.header\(applyCreeperTextPalette\(element\.text\)\)/);
+  assert.match(wrapper, /form\.label\(applyCreeperTextPalette\(element\.text\)\)/);
   assert.doesNotMatch(wrapper, /private readonly form = new MinecraftActionFormData/);
+});
+
+test("all themed forms share a readable multi-color paper palette", () => {
+  const palette = read("scripts", "ui", "creeper-text-palette.ts");
+  const action = read("scripts", "ui", "creeper-action-form.ts");
+  const message = read("scripts", "ui", "creeper-message-form.ts");
+  const modal = read("scripts", "ui", "creeper-modal-form.ts");
+
+  for (const [source, themed] of Object.entries({
+    7: "8",
+    9: "t",
+    a: "2",
+    b: "t",
+    c: "m",
+    d: "5",
+    e: "n",
+    f: "j",
+  })) {
+    assert.match(palette, new RegExp(`(?:"${source}"|${source}): "${themed}"`));
+  }
+  assert.match(palette, /MINECRAFT_FORMATTING_CODE = \/§\[0-9a-u\]\/gi/);
+  assert.match(palette, /text\.replace\(MINECRAFT_COLOR_CODE/);
+  assert.match(action, /from "\.\/creeper-text-palette"/);
+  assert.match(message, /from "\.\/creeper-text-palette"/);
+  assert.match(modal, /from "\.\/creeper-text-palette"/);
+
+  // Form option objects can contain persisted user input. They must never be rewritten.
+  assert.doesNotMatch(modal, /applyCreeperTextPalette\((?:dropdown|slider|textField|toggle)Options\)/);
 });
 
 test("all project ActionForms except root and inventory forms use the routed wrapper", () => {
   const allowedNativeFiles = new Set([
     path.join(root, "scripts", "shared", "hooks", "use-form.ts"),
     path.join(root, "scripts", "ui", "creeper-action-form.ts"),
+    path.join(root, "scripts", "ui", "creeper-message-form.ts"),
     path.join(root, "scripts", "ui", "components", "chest-ui", "chest-forms.ts"),
     path.join(root, "scripts", "ui", "forms", "server", "index.ts"),
   ]);

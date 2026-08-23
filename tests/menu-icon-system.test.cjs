@@ -58,18 +58,19 @@ function readRgbaAlpha(file) {
   return { width, height, alpha: Array.from({ length: width * height }, (_, index) => pixels[index * 4 + 3]) };
 }
 
-function countOpaqueComponents(file) {
+function opaqueComponentSizes(file) {
   const { width, height, alpha } = readRgbaAlpha(file);
   const visited = new Set();
-  let componentCount = 0;
+  const sizes = [];
   for (let start = 0; start < alpha.length; start += 1) {
     if (!alpha[start] || visited.has(start)) continue;
-    componentCount += 1;
+    let size = 0;
     const queue = [start];
     while (queue.length) {
       const current = queue.pop();
       if (visited.has(current) || !alpha[current]) continue;
       visited.add(current);
+      size += 1;
       const x = current % width;
       const y = Math.floor(current / width);
       for (let nextY = Math.max(0, y - 1); nextY <= Math.min(height - 1, y + 1); nextY += 1) {
@@ -79,8 +80,13 @@ function countOpaqueComponents(file) {
         }
       }
     }
+    sizes.push(size);
   }
-  return componentCount;
+  return sizes;
+}
+
+function countOpaqueComponents(file) {
+  return opaqueComponentSizes(file).length;
 }
 
 test("every referenced custom menu icon is a native 32x32 RGBA PNG", () => {
@@ -129,10 +135,49 @@ test("main menu entries use dedicated function-semantic icons", () => {
 });
 
 test("single-subject icon crops do not retain neighboring atlas fragments", () => {
-  for (const name of ["faces", "heart", "suicide"]) {
+  for (const name of ["faces", "heart", "suicide", "program_sneak"]) {
     const file = path.join(iconRoot, `${name}.png`);
     assert.equal(countOpaqueComponents(file), 1, `${name} contains disconnected atlas artwork`);
   }
+});
+
+test("generated action icons keep a transparent safety edge", () => {
+  const names = [
+    "filter_search",
+    "filter_refresh",
+    "program_path_target",
+    "program_move_relative",
+    "program_stop",
+    "program_follow",
+    "program_look_target",
+    "program_hotbar",
+    "program_use_item",
+    "program_interact",
+    "program_interact_block",
+    "program_jump",
+    "program_sneak",
+    "name_color",
+    "whitelist_remove",
+    "shulker_take",
+    "shulker_copy",
+  ];
+
+  for (const name of names) {
+    const file = path.join(iconRoot, `${name}.png`);
+    const { width, height, alpha } = readRgbaAlpha(file);
+    assert.equal(width, 32, `${name} width`);
+    assert.equal(height, 32, `${name} height`);
+    for (let position = 0; position < 32; position += 1) {
+      assert.equal(alpha[position], 0, `${name} top edge`);
+      assert.equal(alpha[31 * width + position], 0, `${name} bottom edge`);
+      assert.equal(alpha[position * width], 0, `${name} left edge`);
+      assert.equal(alpha[position * width + 31], 0, `${name} right edge`);
+    }
+  }
+
+  const build = fs.readFileSync(path.join(root, "design", "menu-ui", "build.py"), "utf8");
+  assert.match(build, /def extract_action_icons\(\)/);
+  assert.match(build, /extract_submenu_icons\(\)[\s\S]{0,80}extract_action_icons\(\)/);
 });
 
 test("ambiguous submenu actions use distinct semantic icon artwork", () => {
@@ -169,6 +214,23 @@ test("ambiguous submenu actions use distinct semantic icon artwork", () => {
     "floating_text_admin",
     "inventory_snapshot_archive",
     "waypoint_admin_all",
+    "filter_search",
+    "filter_refresh",
+    "program_path_target",
+    "program_move_relative",
+    "program_stop",
+    "program_follow",
+    "program_look_target",
+    "program_hotbar",
+    "program_use_item",
+    "program_interact",
+    "program_interact_block",
+    "program_jump",
+    "program_sneak",
+    "name_color",
+    "whitelist_remove",
+    "shulker_take",
+    "shulker_copy",
   ];
   const hashes = generatedIcons.map((name) => {
     const file = path.join(iconRoot, `${name}.png`);
@@ -192,6 +254,14 @@ test("ambiguous submenu actions use distinct semantic icon artwork", () => {
     ["ui/forms/system/index.ts", "领地飞行设置", "land_flight"],
     ["ui/forms/system/index.ts", "领地传送设置", "land_teleport_settings"],
     ["ui/forms/system/index.ts", "公会坐标（管理员）", "guild_waypoint"],
+    ["ui/forms/behavior-log/index.ts", "打开完整筛选", "filter_search"],
+    ["ui/forms/item-watch/index.ts", "重新筛选", "filter_refresh"],
+    ["ui/forms/player/fake-player.ts", "寻路到坐标", "program_path_target"],
+    ["ui/forms/player/fake-player.ts", "切换手持快捷栏", "program_hotbar"],
+    ["ui/forms/player/index.ts", "form.button(name", "name_color"],
+    ["ui/forms/system/anti-dupe-settings.ts", "form.button(`${n}`", "whitelist_remove"],
+    ["ui/forms/system/player-inventory-admin.ts", "取走潜影盒", "shulker_take"],
+    ["ui/forms/system/player-inventory-admin.ts", "复制一份潜影盒", "shulker_copy"],
   ];
   for (const [relativeFile, label, icon] of contracts) {
     const source = fs.readFileSync(path.join(scriptsRoot, ...relativeFile.split("/")), "utf8");

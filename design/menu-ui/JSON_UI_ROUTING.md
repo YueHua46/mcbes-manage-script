@@ -6,6 +6,7 @@
 
 - `/CMROOT `：苦力怕菜单的拼图主界面。
 - `/CMFORM `：项目内其他 ActionForm 的统一纵向卡片界面。
+- `/CMMESSAGE `：项目内 MessageForm 的统一双按钮消息界面。
 - `/CMMODAL `：项目内 ModalForm 的统一暖色表单控件界面。
 - 无上述前缀：Minecraft 原生表单、其他附加包表单、JavaScript REPL、箱子和熔炉专用界面。
 
@@ -17,7 +18,7 @@
 SAPI 创建一个 ActionFormData
           |
           v
-标题加 /CMROOT 或 /CMFORM 前缀
+标题加 /CMROOT、/CMFORM 或 /CMMESSAGE 前缀
           |
           v
 server_form_factory 生成 long_form_router
@@ -28,6 +29,8 @@ server_form_factory 生成 long_form_router
           +-- /CMROOT 区间 --> creeper_menu.root
           |
           +-- /CMFORM 区间 --> creeper_menu.generic_long_form
+          |
+          +-- /CMMESSAGE 区间 --> creeper_message.form
           |
           +-- 均不命中 -----> Minecraft 原生 long_form
 ```
@@ -69,6 +72,13 @@ server_form_factory 生成 long_form_router
     "$min": "/CMFORM ",
     "$max": "/CMFORM 􀐏",
     "$content": "creeper_menu.generic_long_form"
+  }
+},
+{
+  "project_message_form@creeper_menu.form_type": {
+    "$min": "/CMMESSAGE ",
+    "$max": "/CMMESSAGE 􀐏",
+    "$content": "creeper_menu.message_form"
   }
 }
 ```
@@ -118,7 +128,7 @@ server_form_factory 生成 long_form_router
 - 不要在父路由绑定一次 `#title_text`，再让子路由跨控件读取它。
 - 不要用 `source_control_name: "long_form"` 或 `source_control_name: "long_form_router"` 控制路由可见性。
 - 不要为根菜单和子菜单分别复制两套含糊的“字符串包含前缀”判断。
-- 不要让 `/CMROOT` 和 `/CMFORM` 共用同一个前缀或相交的字典序区间。
+- 不要让 `/CMROOT`、`/CMFORM` 和 `/CMMESSAGE` 共用同一个前缀或相交的字典序区间。
 - 不要在 JSON UI 重叠尚未排除前，先通过 SAPI 延迟、多次关闭或重复 `show()` 来掩盖问题。
 - 不要只检查源码；本地部署后还要确认游戏加载目录中的 JSON 与源码一致。
 
@@ -135,7 +145,7 @@ server_form_factory 生成 long_form_router
 ## 修改与排错清单
 
 - SAPI 每次用户操作是否只调用一次目标表单的 `show()`？
-- 当前标题是否准确使用 `/CMROOT ` 或 `/CMFORM `？
+- 当前标题是否准确使用 `/CMROOT `、`/CMFORM ` 或 `/CMMESSAGE `？
 - factory 是否为直接的 `type: "factory"`？
 - 每个 `form_type` 是否自行绑定 `#title_text`？
 - 所有 `$min`/`$max` 是否唯一且不相交？
@@ -148,9 +158,38 @@ server_form_factory 生成 long_form_router
 
 - `resource_packs/CreeperMenu/ui/server_form.json`
 - `resource_packs/CreeperMenu/ui/creeper_menu.json`
+- `resource_packs/CreeperMenu/ui/creeper_message.json`
 - `scripts/ui/creeper-action-form.ts`
+- `scripts/ui/creeper-message-form.ts`
 - `scripts/ui/forms/server/index.ts`
 - `tests/creeper-menu-json-ui.test.cjs`
+
+## MessageFormData 的唯一渲染入口
+
+项目消息必须通过 `scripts/ui/creeper-message-form.ts` 创建。该包装器保留 MessageFormData 的
+`title/body/button1/button2/show` 外观，但底层必须使用已验证会进入并行 JSON UI factory 的
+`ActionFormData` 创建双按钮表单；不得直接实例化原生 `MessageFormData`。包装器统一添加
+`/CMMESSAGE `，再由
+`creeper_menu.long_form_router` 中独立的 `project_message_form@creeper_menu.form_type` 路由到
+同命名空间的 `creeper_menu.message_form`。该控件再通过静态继承
+`message_form@creeper_message.form` 接入独立消息 UI。不得让通用的 `content@$content`
+直接动态跨命名空间解析消息控件。
+
+`_ui_defs.json` 必须先注册 `creeper_message.json`，再注册引用它的 `creeper_menu.json`；禁止让
+`message_form@creeper_message.form` 成为尚未定义的跨文件前向引用。
+
+Message 路由必须同时满足两层互斥：
+
+- 新增 factory 内，只有 `/CMMESSAGE ` 到 `/CMMESSAGE 􀐏` 的区间能够显示主题 Message UI；
+- 原版 factory 的最终 `long_form@common_dialogs.main_panel_no_buttons` 节点必须排除
+  `/CMMESSAGE `，与排除 `/CMROOT `、`/CMFORM ` 的方式完全一致。
+
+双按钮仍使用原生 `form_buttons` 集合和 `button.form_button_click`：`button1` 固定绑定
+`collection_index: 0`，`button2` 固定绑定 `collection_index: 1`。不得交换索引，也不得为了
+换皮在脚本侧重写 `MessageFormResponse.selection`。ActionFormResponse 与 MessageFormResponse
+在项目使用的 `canceled`、`cancelationReason`、`selection` 字段上保持同构，包装器直接透传响应。
+无 `/CMMESSAGE ` 标记的游戏或其他附加包
+MessageForm 继续只显示原版 long form。
 
 ## ModalFormData 的唯一渲染入口
 

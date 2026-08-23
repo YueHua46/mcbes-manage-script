@@ -7,25 +7,12 @@ import {
   type ModalFormDataToggleOptions,
   type ModalFormResponse,
 } from "@minecraft/server-ui";
+import { applyCreeperTextPalette, neutralizeCreeperTitle } from "./creeper-text-palette";
 
 export const CREEPER_MODAL_FORM_PREFIX = "/CMMODAL ";
-const MINECRAFT_FORMATTING_CODE = /§[0-9a-fk-or]/gi;
-
-function neutralizeFormatting<T>(value: T): T {
-  const visit = (node: unknown): unknown => {
-    if (typeof node === "string") return node.replace(MINECRAFT_FORMATTING_CODE, "");
-    if (Array.isArray(node)) return node.map(visit);
-    if (node !== null && typeof node === "object") {
-      return Object.fromEntries(Object.entries(node).map(([key, child]) => [key, visit(child)]));
-    }
-    return node;
-  };
-
-  return visit(value) as T;
-}
 
 function routedTitle(title: RawMessage | string): RawMessage | string {
-  const visibleTitle = neutralizeFormatting(title);
+  const visibleTitle = neutralizeCreeperTitle(title);
   if (typeof visibleTitle === "string") return `${CREEPER_MODAL_FORM_PREFIX}${visibleTitle}`;
   return { rawtext: [{ text: CREEPER_MODAL_FORM_PREFIX }, visibleTitle] };
 }
@@ -43,12 +30,12 @@ export class CreeperModalFormData {
   }
 
   label(text: RawMessage | string): CreeperModalFormData {
-    this.form.label(neutralizeFormatting(text));
+    this.form.label(applyCreeperTextPalette(text));
     return this;
   }
 
   header(text: RawMessage | string): CreeperModalFormData {
-    this.form.header(neutralizeFormatting(text));
+    this.form.header(applyCreeperTextPalette(text));
     return this;
   }
 
@@ -62,7 +49,7 @@ export class CreeperModalFormData {
     items: (RawMessage | string)[],
     dropdownOptions?: ModalFormDataDropdownOptions
   ): CreeperModalFormData {
-    this.form.dropdown(neutralizeFormatting(label), neutralizeFormatting(items), neutralizeFormatting(dropdownOptions));
+    this.form.dropdown(applyCreeperTextPalette(label), applyCreeperTextPalette(items), dropdownOptions);
     return this;
   }
 
@@ -72,7 +59,7 @@ export class CreeperModalFormData {
     maximumValue: number,
     sliderOptions?: ModalFormDataSliderOptions
   ): CreeperModalFormData {
-    this.form.slider(neutralizeFormatting(label), minimumValue, maximumValue, neutralizeFormatting(sliderOptions));
+    this.form.slider(applyCreeperTextPalette(label), minimumValue, maximumValue, sliderOptions);
     return this;
   }
 
@@ -81,21 +68,17 @@ export class CreeperModalFormData {
     placeholderText: RawMessage | string,
     textFieldOptions?: ModalFormDataTextFieldOptions
   ): CreeperModalFormData {
-    this.form.textField(
-      neutralizeFormatting(label),
-      neutralizeFormatting(placeholderText),
-      neutralizeFormatting(textFieldOptions)
-    );
+    this.form.textField(applyCreeperTextPalette(label), applyCreeperTextPalette(placeholderText), textFieldOptions);
     return this;
   }
 
   toggle(label: RawMessage | string, toggleOptions?: ModalFormDataToggleOptions): CreeperModalFormData {
-    this.form.toggle(neutralizeFormatting(label), neutralizeFormatting(toggleOptions));
+    this.form.toggle(applyCreeperTextPalette(label), toggleOptions);
     return this;
   }
 
   submitButton(submitButtonText: RawMessage | string): CreeperModalFormData {
-    this.form.submitButton(neutralizeFormatting(submitButtonText));
+    this.form.submitButton(applyCreeperTextPalette(submitButtonText));
     return this;
   }
 

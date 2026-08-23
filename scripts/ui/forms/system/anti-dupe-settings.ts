@@ -126,7 +126,7 @@ function openRemoveFromAntiDupeWhitelistForm(player: Player): void {
 
   const form = new ActionFormData();
   form.title("从防刷白名单移除");
-  names.forEach((n) => form.button(`${n}`));
+  names.forEach((n) => form.button(`${n}`, "textures/icons/whitelist_remove"));
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {

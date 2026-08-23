@@ -504,7 +504,7 @@ export function openNameColorSettingsForm(player: Player): void {
 
   const colorEntries = Object.entries(nameColors);
   colorEntries.forEach(([, name]) => {
-    form.button(name);
+    form.button(name, "textures/icons/name_color");
   });
 
   form.button("返回", "textures/icons/back");

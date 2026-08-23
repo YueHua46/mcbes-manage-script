@@ -13,6 +13,7 @@ LEFT_MOSAIC_SOURCE = Path(__file__).parent / "source" / "creeper-mosaic-left-323
 RIGHT_MOSAIC_SOURCE = Path(__file__).parent / "source" / "creeper-mosaic-right-113-imagegen.png"
 SUBMENU_CORE_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-icons-core-imagegen.png"
 SUBMENU_ADMIN_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-icons-admin-imagegen.png"
+ACTION_ICON_SOURCE = Path(__file__).parent / "source" / "creeper-action-icons-imagegen.png"
 BRAND_BACKGROUND = ROOT / "design" / "brand" / "source" / "background-imagegen.png"
 OUTPUT = ROOT / "resource_packs" / "CreeperMenu" / "textures" / "ui" / "creeper_menu"
 CARD_OUTPUT = OUTPUT / "cards"
@@ -20,6 +21,7 @@ ICON_OUTPUT = ROOT / "resource_packs" / "CreeperMenu" / "textures" / "icons"
 PREVIEW = Path(__file__).parent / "preview.png"
 SUBMENU_PREVIEW = Path(__file__).parent / "submenu-preview.png"
 MODAL_PREVIEW = Path(__file__).parent / "modal-preview.png"
+MESSAGE_PREVIEW = Path(__file__).parent / "message-preview.png"
 
 CARD_NAMES = (
     "player waypoint land economy guild floating_text pvp stats "
@@ -41,6 +43,14 @@ SUBMENU_ICON_ATLASES = {
     ).split(),
 }
 SUBMENU_SINGLE_COMPONENT_ICONS = {"suicide"}
+
+ACTION_ICON_NAMES = (
+    "filter_search filter_refresh program_path_target program_move_relative "
+    "program_stop program_follow program_look_target program_hotbar "
+    "program_use_item program_interact program_interact_block program_jump "
+    "program_sneak name_color whitelist_remove shulker_take shulker_copy"
+).split()
+ACTION_SINGLE_COMPONENT_ICONS = {"program_sneak"}
 
 CARD_COLORS = {
     "player": (174, 211, 219),
@@ -571,6 +581,41 @@ def save_preview(image: Image.Image, target: Path) -> None:
             sleep(0.05 * (attempt + 1))
 
 
+def extract_action_icons() -> None:
+    """Extract a 4x5 high-resolution atlas without ever crossing cell bounds."""
+    ICON_OUTPUT.mkdir(parents=True, exist_ok=True)
+    atlas = Image.open(ACTION_ICON_SOURCE).convert("RGBA")
+    columns, rows = 4, 5
+    for index, name in enumerate(ACTION_ICON_NAMES):
+        row, column = divmod(index, columns)
+        left = round(column * atlas.width / columns)
+        top = round(row * atlas.height / rows)
+        right = round((column + 1) * atlas.width / columns)
+        bottom = round((row + 1) * atlas.height / rows)
+        cell = atlas.crop((left, top, right, bottom))
+        if name in ACTION_SINGLE_COMPONENT_ICONS:
+            components = connected_components(cell)
+            if not components:
+                raise ValueError(f"No connected action icon artwork found for {name}")
+            mask = Image.new("L", cell.size)
+            mask_pixels = mask.load()
+            for x, y in max(components, key=len):
+                mask_pixels[x, y] = 255
+            cell.putalpha(mask)
+        bounds = cell.getchannel("A").getbbox()
+        if bounds is None:
+            raise ValueError(f"No action icon artwork found for {name}")
+        subject = cell.crop(bounds)
+        scale = min(29 / subject.width, 29 / subject.height)
+        size = (max(1, round(subject.width * scale)), max(1, round(subject.height * scale)))
+        subject = subject.resize(size, Image.Resampling.LANCZOS)
+        canvas = Image.new("RGBA", (32, 32))
+        canvas.alpha_composite(subject, ((32 - size[0]) // 2, (32 - size[1]) // 2))
+        canvas.save(ICON_OUTPUT / f"{name}.png", optimize=True)
+
+
+
+
 def make_runtime_textures(scenes: dict[str, Image.Image]) -> None:
     background = Image.open(BRAND_BACKGROUND).convert("RGB")
     side = min(background.size)
@@ -734,16 +779,66 @@ def make_modal_preview() -> None:
     save_preview(canvas, MODAL_PREVIEW)
 
 
+def make_message_preview() -> None:
+    background = Image.open(BRAND_BACKGROUND).convert("RGBA").resize((1600, 900), Image.Resampling.LANCZOS)
+    background = ImageEnhance.Brightness(background).enhance(0.82)
+    canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (54, 47, 40, 45)))
+    draw = ImageDraw.Draw(canvas)
+    dialog = (430, 135, 1170, 765)
+    draw.rounded_rectangle((437, 142, 1177, 772), radius=18, fill=(31, 28, 25, 105))
+    draw.rounded_rectangle(dialog, radius=18, fill=(236, 231, 219, 252), outline=(105, 93, 78), width=2)
+    draw.text((462, 158), "公开信息", font=get_font(34), fill=(51, 46, 41))
+    close = Image.open(OUTPUT / "close_default.png").resize((38, 38), Image.Resampling.NEAREST)
+    canvas.alpha_composite(close, (1104, 155))
+
+    body = (462, 215, 1138, 650)
+    draw.rounded_rectangle(body, radius=12, fill=(244, 240, 230, 255), outline=(154, 140, 118, 245), width=2)
+    lines = (
+        "会长：YingLin3467",
+        "副会长：（无）",
+        "创建时间：2026-08-23 17:52:08",
+        "成员数：1",
+        "",
+        "成员",
+        "YingLin3467",
+        "",
+        "公告",
+        "欢迎来到我们的公会。",
+    )
+    y = 244
+    for line in lines:
+        draw.text((490, y), line, font=get_font(22), fill=(64, 56, 49))
+        y += 34
+    draw.rounded_rectangle((1119, 239, 1126, 626), radius=3, fill=(209, 202, 188, 220))
+    draw.rounded_rectangle((1119, 239, 1126, 385), radius=3, fill=(132, 119, 101, 245))
+
+    buttons = ((462, 671, 794, 724, "刷新"), (806, 671, 1138, 724, "返回"))
+    for left, top, right, bottom, label in buttons:
+        draw.rounded_rectangle(
+            (left, top, right, bottom),
+            radius=11,
+            fill=(230, 226, 216, 252),
+            outline=(154, 140, 118, 235),
+            width=2,
+        )
+        text_box = draw.textbbox((0, 0), label, font=get_font(23))
+        text_width = text_box[2] - text_box[0]
+        draw.text(((left + right - text_width) // 2, top + 13), label, font=get_font(23), fill=(56, 50, 44))
+    save_preview(canvas, MESSAGE_PREVIEW)
+
+
 def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     CARD_OUTPUT.mkdir(parents=True, exist_ok=True)
     extract_submenu_icons()
+    extract_action_icons()
     cards = extract_cards()
     scenes = extract_scene_cards()
     make_runtime_textures(scenes)
     make_preview(cards, scenes)
     make_submenu_preview(cards)
     make_modal_preview()
+    make_message_preview()
     print(f"Built {len(cards)} card illustrations and previews in {PREVIEW.parent}")
 
 

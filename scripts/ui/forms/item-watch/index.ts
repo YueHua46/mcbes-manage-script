@@ -283,7 +283,7 @@ async function openSnapshotResultPage(
   if (!isLastPage) {
     form.button("下一页");
   }
-  form.button("重新筛选");
+  form.button("重新筛选", "textures/icons/filter_refresh");
   form.button("返回");
 
   const navOffset = finalItems.length;

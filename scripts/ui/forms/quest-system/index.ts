@@ -434,7 +434,7 @@ function showActionMessage(player: Player, title: string, body: string, afterClo
   const form = new ActionFormData()
     .title(stripFormLayoutMarkersFromText(title))
     .body(stripFormLayoutMarkersFromText(body));
-  form.button("确认");
+  form.button("确认", "textures/icons/accept");
   form.show(player).then(() => afterClose?.());
 }
 

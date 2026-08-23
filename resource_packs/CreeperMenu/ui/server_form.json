@@ -30,7 +30,7 @@
       },
       {
         "binding_type": "view",
-        "source_property_name": "((#title_text - '/CMROOT ' - '/CMFORM ') = #title_text)",
+        "source_property_name": "((#title_text - '/CMROOT ' - '/CMFORM ' - '/CMMESSAGE ') = #title_text)",
         "target_property_name": "#visible"
       }
     ],
@@ -51,7 +51,7 @@
             },
             {
               "binding_type": "view",
-              "source_property_name": "((#title_text - '§c§h§e§s§t' - '§f§u§r§n§a§c§e' - '/CMROOT ' - '/CMFORM ') = #title_text)",
+              "source_property_name": "((#title_text - '§c§h§e§s§t' - '§f§u§r§n§a§c§e' - '/CMROOT ' - '/CMFORM ' - '/CMMESSAGE ') = #title_text)",
               "target_property_name": "#visible"
             }
           ]

@@ -184,7 +184,7 @@ export const openLeaveMessageListForm = (player: Player, page: number = 1): void
   form.body(`第 ${page} 页 / 共 ${totalPages} 页`);
 
   currentPageMessages.forEach((lm) => {
-    form.button(` ${lm.title}`);
+    form.button(` ${lm.title}`, "textures/icons/chat_bubble_white");
   });
 
   let previousButtonIndex = currentPageMessages.length;
