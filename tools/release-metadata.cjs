@@ -8,10 +8,11 @@ const yauzl = require("yauzl");
 const ROOT = path.resolve(__dirname, "..");
 const CONFIG_PATH = path.join(ROOT, "release.config.json");
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+// GitHub Release strips non-ASCII characters from uploaded asset filenames.
 const VARIANT_LABELS = Object.freeze({
-  standard: "普通兼容版",
-  realms: "Realms兼容版",
-  bds: "BDS增强版",
+  standard: "Standard",
+  realms: "Realms",
+  bds: "BDS",
 });
 const VARIANT_MODULES = Object.freeze({
   standard: Object.freeze([
