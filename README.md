@@ -35,9 +35,9 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 同时生成三个 CreeperMenu 发行产物：`npm run mcaddon:release`。当前版本的
 Release 附件名称为：
 
-- `CreeperMenu-v3.3.0-MCBE-1.26.4x-普通兼容版.mcaddon`
-- `CreeperMenu-v3.3.0-MCBE-1.26.4x-Realms兼容版.mcaddon`
-- `CreeperMenu-v3.3.0-MCBE-1.26.4x-BDS增强版.mcaddon`
+- `CreeperMenu-v3.3.0-MCBE-1.26.4x-Standard.mcaddon`
+- `CreeperMenu-v3.3.0-MCBE-1.26.4x-Realms.mcaddon`
+- `CreeperMenu-v3.3.0-MCBE-1.26.4x-BDS.mcaddon`
 
 三个 CreeperMenu 变体统一使用 **3.3.0** 发行版本。构建依赖精确锁定
 Minecraft Bedrock **1.26.44**，面向用户标记为 **1.26.4x**，表示适配
