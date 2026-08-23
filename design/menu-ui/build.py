@@ -3,11 +3,13 @@
 from collections import deque
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = Path(__file__).parent / "source" / "creeper-feature-atlas-imagegen.png"
+SOURCE = Path(__file__).parent / "source" / "creeper-feature-atlas-cozy-imagegen.png"
+LEFT_MOSAIC_SOURCE = Path(__file__).parent / "source" / "creeper-mosaic-left-323-imagegen.png"
+RIGHT_MOSAIC_SOURCE = Path(__file__).parent / "source" / "creeper-mosaic-right-113-imagegen.png"
 BRAND_BACKGROUND = ROOT / "design" / "brand" / "source" / "background-imagegen.png"
 OUTPUT = ROOT / "resource_packs" / "CreeperMenu" / "textures" / "ui" / "creeper_menu"
 CARD_OUTPUT = OUTPUT / "cards"
@@ -20,22 +22,56 @@ CARD_NAMES = (
 ).split()
 
 CARD_COLORS = {
-    "player": (42, 98, 88),
-    "waypoint": (36, 86, 122),
-    "land": (50, 105, 52),
-    "economy": (121, 78, 26),
-    "guild": (51, 67, 104),
-    "floating_text": (30, 104, 108),
-    "pvp": (116, 48, 41),
-    "stats": (45, 83, 117),
-    "quest": (97, 83, 38),
-    "other": (76, 58, 102),
-    "help": (40, 85, 125),
-    "menu_item": (42, 112, 48),
-    "server_settings": (57, 68, 72),
-    "shop": (106, 71, 28),
-    "player_market": (54, 87, 63),
-    "transfer": (103, 76, 26),
+    "player": (174, 211, 219),
+    "waypoint": (192, 218, 199),
+    "land": (215, 228, 183),
+    "economy": (241, 214, 166),
+    "guild": (202, 201, 224),
+    "floating_text": (184, 218, 211),
+    "pvp": (232, 187, 179),
+    "stats": (188, 207, 230),
+    "quest": (240, 219, 173),
+    "other": (216, 198, 223),
+    "help": (194, 216, 232),
+    "menu_item": (201, 219, 181),
+    "server_settings": (207, 214, 213),
+    "shop": (242, 210, 163),
+    "player_market": (193, 218, 199),
+    "transfer": (238, 216, 174),
+}
+
+ROOT_CARD_LABELS = {
+    "player": "玩家操作",
+    "waypoint": "坐标点",
+    "land": "领地管理",
+    "economy": "经济系统",
+    "guild": "公会",
+    "pvp": "PVP系统",
+    "stats": "数据统计",
+    "other": "其他功能",
+    "quest": "任务系统",
+    "menu_item": "菜单道具",
+    "floating_text": "悬浮文字",
+    "help": "帮助",
+    "server_settings": "设置",
+}
+
+# Crop boxes follow the authored separators in the two fixed source atlases.
+# Each scene is composed for the same aspect class used by the runtime mosaic.
+SCENE_SPECS = {
+    "player": ("left", (12, 13, 516, 380), (192, 128), "top_right"),
+    "waypoint": ("left", (528, 13, 1010, 380), (192, 128), "top_right"),
+    "land": ("left", (1023, 13, 1528, 380), (192, 128), "top_right"),
+    "economy": ("left", (12, 392, 758, 695), (288, 128), "top_right"),
+    "guild": ("left", (771, 392, 1528, 695), (288, 128), "top_right"),
+    "pvp": ("left", (12, 707, 481, 1012), (192, 128), "top_right"),
+    "stats": ("left", (494, 707, 988, 1012), (192, 128), "top_right"),
+    "other": ("left", (1000, 707, 1528, 1012), (192, 128), "top_right"),
+    "quest": ("right", (16, 16, 1008, 756), (256, 192), "bottom_left"),
+    "menu_item": ("right", (16, 773, 1008, 1141), (288, 96), "right_middle"),
+    "floating_text": ("right", (16, 1157, 320, 1520), (128, 128), "top_right"),
+    "help": ("right", (336, 1157, 646, 1520), (128, 128), "top_right"),
+    "server_settings": ("right", (662, 1157, 1008, 1520), (128, 128), "top_right"),
 }
 
 
@@ -166,6 +202,23 @@ def extract_cards() -> dict[str, Image.Image]:
     return cards
 
 
+def extract_scene_cards() -> dict[str, Image.Image]:
+    """Crop every root card from its final-ratio authored mosaic atlas."""
+    atlases = {
+        "left": Image.open(LEFT_MOSAIC_SOURCE).convert("RGB"),
+        "right": Image.open(RIGHT_MOSAIC_SOURCE).convert("RGB"),
+    }
+    if atlases["left"].size != (1536, 1024):
+        raise ValueError(f"Unexpected left mosaic size: {atlases['left'].size}")
+    if atlases["right"].size != (1024, 1536):
+        raise ValueError(f"Unexpected right mosaic size: {atlases['right'].size}")
+
+    scenes: dict[str, Image.Image] = {}
+    for name, (atlas_name, box, output_size, _label_anchor) in SCENE_SPECS.items():
+        scenes[name] = atlases[atlas_name].crop(box).resize(output_size, Image.Resampling.NEAREST)
+    return scenes
+
+
 def save_nineslice(name: str, image: Image.Image, border: int) -> None:
     image.save(OUTPUT / f"{name}.png", optimize=True)
     (OUTPUT / f"{name}.json").write_text(
@@ -174,40 +227,180 @@ def save_nineslice(name: str, image: Image.Image, border: int) -> None:
     )
 
 
-def make_panel() -> None:
-    panel = Image.new("RGBA", (32, 32), (4, 16, 11, 248))
-    draw = ImageDraw.Draw(panel)
-    draw.rectangle((0, 0, 31, 31), outline=(8, 28, 18, 255), width=2)
-    draw.rectangle((2, 2, 29, 29), outline=(57, 111, 43, 255), width=1)
-    draw.line((7, 3, 25, 3), fill=(137, 222, 67, 230), width=1)
-    draw.line((3, 7, 3, 24), fill=(47, 91, 37, 255), width=1)
-    save_nineslice("panel", panel, 8)
+def make_panels() -> None:
+    submenu = Image.new("RGBA", (32, 32))
+    draw = ImageDraw.Draw(submenu)
+    draw.rounded_rectangle(
+        (0, 0, 31, 31),
+        radius=7,
+        fill=(244, 238, 224, 246),
+        outline=(67, 58, 49, 255),
+        width=2,
+    )
+    draw.arc((3, 3, 28, 28), 195, 342, fill=(255, 252, 241, 235), width=1)
+    save_nineslice("submenu_panel", submenu, 8)
+
+    close_frame = Image.new("RGBA", (16, 16))
+    draw = ImageDraw.Draw(close_frame)
+    draw.rounded_rectangle(
+        (0, 0, 15, 15),
+        radius=4,
+        fill=(47, 42, 37, 125),
+        outline=(255, 252, 240, 255),
+        width=2,
+    )
+    save_nineslice("close_frame", close_frame, 4)
+
+    icon_chip = Image.new("RGBA", (16, 16))
+    draw = ImageDraw.Draw(icon_chip)
+    draw.rounded_rectangle(
+        (0, 0, 15, 15),
+        radius=4,
+        fill=(207, 220, 199, 250),
+        outline=(86, 75, 62, 255),
+        width=2,
+    )
+    draw.arc((2, 2, 13, 13), 195, 335, fill=(255, 252, 239, 255), width=1)
+    save_nineslice("icon_chip", icon_chip, 4)
+
+    line = Image.new("RGBA", (8, 1), (126, 113, 96, 120))
+    line.save(OUTPUT / "line.png", optimize=True)
 
 
 def make_card_background(name: str, base: tuple[int, int, int], state: str) -> Image.Image:
     if state == "hover":
-        base = tuple(min(255, round(channel * 1.22)) for channel in base)
-        border = (151, 232, 76, 255)
-        accent = (200, 255, 111, 255)
+        base = tuple(min(255, round(channel + (255 - channel) * 0.14)) for channel in base)
+        border = (255, 249, 224, 255)
+        accent = (255, 253, 240, 255)
     elif state == "pressed":
-        base = tuple(round(channel * 0.7) for channel in base)
-        border = (61, 116, 46, 255)
-        accent = (105, 174, 62, 255)
+        base = tuple(round(channel * 0.88) for channel in base)
+        border = (84, 73, 61, 255)
+        accent = (225, 211, 184, 255)
     else:
-        border = (31, 66, 39, 255)
-        accent = (91, 158, 58, 255)
-    image = Image.new("RGBA", (32, 32), (*base, 248))
+        border = (72, 64, 55, 255)
+        accent = (255, 249, 229, 230)
+    image = Image.new("RGBA", (32, 32), (*base, 250))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 31, 31), outline=(8, 18, 13, 255), width=2)
+    draw.rectangle((0, 0, 31, 31), outline=(48, 43, 38, 255), width=2)
     draw.rectangle((2, 2, 29, 29), outline=border, width=1)
     draw.line((6, 3, 25, 3), fill=accent, width=1)
-    draw.rectangle((3, 24, 28, 28), fill=(4, 12, 8, 92))
+    draw.line((3, 27, 28, 27), fill=(90, 76, 61, 70), width=1)
     draw.point((4, 4), fill=accent)
-    draw.point((27, 27), fill=(13, 39, 22, 255))
+    draw.point((27, 27), fill=(105, 90, 72, 190))
     return image
 
 
-def make_runtime_textures() -> None:
+def make_generic_button_background(state: str) -> Image.Image:
+    if state == "hover":
+        fill = (242, 232, 207, 252)
+        border = (255, 251, 236, 255)
+    elif state == "pressed":
+        fill = (211, 202, 183, 252)
+        border = (91, 78, 65, 255)
+    else:
+        fill = (235, 229, 214, 252)
+        border = (91, 78, 65, 255)
+    image = Image.new("RGBA", (24, 24))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((0, 0, 23, 23), radius=5, fill=fill, outline=border, width=2)
+    draw.arc((2, 2, 21, 21), 195, 340, fill=(255, 252, 241, 255), width=1)
+    draw.arc((2, 2, 21, 21), 15, 160, fill=(115, 97, 78, 90), width=1)
+    return image
+
+
+def make_scene_state(name: str, scene: Image.Image, state: str) -> Image.Image:
+    image = scene.convert("RGBA")
+    if state == "hover":
+        image = ImageEnhance.Brightness(image).enhance(1.08)
+        border = (255, 247, 218, 255)
+        inner = (255, 255, 245, 230)
+    elif state == "pressed":
+        image = ImageEnhance.Brightness(image).enhance(0.84)
+        border = (63, 54, 46, 255)
+        inner = (181, 157, 125, 220)
+    else:
+        image = ImageEnhance.Brightness(image).enhance(0.96)
+        border = (56, 49, 43, 255)
+        inner = (235, 222, 194, 210)
+
+    radius = max(7, min(image.size) // 14)
+    rounded_mask = Image.new("L", image.size)
+    ImageDraw.Draw(rounded_mask).rounded_rectangle(
+        (0, 0, image.width - 1, image.height - 1), radius=radius, fill=255
+    )
+    image.putalpha(ImageChops.multiply(image.getchannel("A"), rounded_mask))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle(
+        (1, 1, image.width - 2, image.height - 2),
+        radius=radius,
+        outline=border,
+        width=4,
+    )
+    draw.rounded_rectangle(
+        (4, 4, image.width - 5, image.height - 5),
+        radius=max(3, radius - 4),
+        outline=inner,
+        width=1,
+    )
+
+    label = ROOT_CARD_LABELS[name]
+    anchor = SCENE_SPECS[name][3]
+    if anchor == "bottom_left":
+        font_size = 27
+    elif anchor == "right_middle":
+        font_size = 23
+    elif image.width <= 132:
+        font_size = 16
+    elif image.width >= 260:
+        font_size = 21
+    else:
+        font_size = 18
+    font = get_font(font_size)
+    bounds = draw.textbbox((0, 0), label, font=font, stroke_width=2)
+    text_width = bounds[2] - bounds[0]
+    text_height = bounds[3] - bounds[1]
+    pressed_offset = 1 if state == "pressed" else 0
+
+    if anchor == "bottom_left":
+        band_height = text_height + 18
+        shade = Image.new("RGBA", image.size)
+        ImageDraw.Draw(shade).rectangle(
+            (4, image.height - band_height - 4, image.width - 5, image.height - 5),
+            fill=(30, 26, 23, 158),
+        )
+        image = Image.alpha_composite(image, shade)
+        draw = ImageDraw.Draw(image)
+        position = (12 + pressed_offset, image.height - text_height - 13 + pressed_offset)
+    elif anchor == "right_middle":
+        position = (
+            image.width - text_width - 14 + pressed_offset,
+            (image.height - text_height) // 2 - 2 + pressed_offset,
+        )
+    else:
+        position = (
+            image.width - text_width - 10 + pressed_offset,
+            8 + pressed_offset,
+        )
+
+    draw.text(
+        position,
+        label,
+        font=font,
+        fill=(255, 251, 239, 255),
+        stroke_width=3 if image.width > 150 else 2,
+        stroke_fill=(63, 53, 45, 255),
+    )
+    return image
+
+
+def save_full_texture(name: str, image: Image.Image) -> None:
+    image.save(OUTPUT / f"{name}.png", optimize=True)
+    # Full-scene artwork must scale as one image. A stale nineslice descriptor
+    # would split the illustration into corners and a stretched center.
+    (OUTPUT / f"{name}.json").unlink(missing_ok=True)
+
+
+def make_runtime_textures(scenes: dict[str, Image.Image]) -> None:
     background = Image.open(BRAND_BACKGROUND).convert("RGB")
     side = min(background.size)
     left = (background.width - side) // 2
@@ -215,20 +408,34 @@ def make_runtime_textures() -> None:
     background.crop((left, top, left + side, top + side)).resize(
         (512, 512), Image.Resampling.LANCZOS
     ).save(OUTPUT / "background.png", optimize=True)
-    make_panel()
-    for card, base in CARD_COLORS.items():
+    make_panels()
+    for card, scene in scenes.items():
+        for state in ("default", "hover", "pressed"):
+            save_full_texture(
+                f"cards/{card}_{state}",
+                make_scene_state(card, scene, state),
+            )
+    for card in ("shop", "player_market", "transfer"):
         for state in ("default", "hover", "pressed"):
             save_nineslice(
                 f"cards/{card}_{state}",
-                make_card_background(card, base, state),
+                make_card_background(card, CARD_COLORS[card], state),
                 8,
             )
+    for state in ("default", "hover", "pressed"):
+        save_nineslice(
+            f"cards/generic_{state}",
+            make_generic_button_background(state),
+            6,
+        )
 
 
 def get_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     candidates = (
-        Path("C:/Windows/Fonts/msyh.ttc"),
+        Path("C:/Windows/Fonts/msyhbd.ttc"),
         Path("C:/Windows/Fonts/simhei.ttf"),
+        Path("C:/Windows/Fonts/msyh.ttc"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
         Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
     )
     for candidate in candidates:
@@ -237,72 +444,63 @@ def get_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def draw_card(
-    canvas: Image.Image,
-    cards: dict[str, Image.Image],
-    name: str,
-    label: str,
-    rect: tuple[int, int, int, int],
-) -> None:
+def draw_card(canvas: Image.Image, scenes: dict[str, Image.Image], name: str, rect: tuple[int, int, int, int]) -> None:
     x, y, width, height = rect
-    base = CARD_COLORS[name]
     draw = ImageDraw.Draw(canvas)
-    draw.rounded_rectangle((x, y, x + width, y + height), radius=4, fill=(*base, 244), outline=(15, 30, 20), width=4)
-    draw.line((x + 8, y + 5, x + width - 8, y + 5), fill=(137, 222, 67), width=2)
-    art = cards[name]
-    art_size = min(height - 18, width // 2 + 18, 96)
-    art = art.resize((art_size, art_size), Image.Resampling.NEAREST)
-    canvas.alpha_composite(art, (x + 7, y + (height - art_size) // 2 - 3))
-    font = get_font(max(18, min(30, height // 5)))
-    label_box = draw.textbbox((0, 0), label, font=font)
-    text_width = label_box[2] - label_box[0]
-    text_x = max(x + width - text_width - 12, x + art_size - 4)
-    draw.text((text_x + 2, y + height - font.size - 8 + 2), label, font=font, fill=(0, 0, 0, 180))
-    draw.text((text_x, y + height - font.size - 8), label, font=font, fill=(236, 247, 232))
+    draw.rounded_rectangle((x + 4, y + 5, x + width + 4, y + height + 5), radius=11, fill=(26, 24, 22, 145))
+    scene = scenes[name].resize((width, height), Image.Resampling.LANCZOS)
+    canvas.alpha_composite(make_scene_state(name, scene, "default"), (x, y))
 
 
-def make_preview(cards: dict[str, Image.Image]) -> None:
+def make_preview(cards: dict[str, Image.Image], scenes: dict[str, Image.Image]) -> None:
     background = Image.open(BRAND_BACKGROUND).convert("RGBA").resize((1600, 900), Image.Resampling.LANCZOS)
-    background = ImageEnhance.Brightness(background).enhance(0.58)
-    overlay = Image.new("RGBA", background.size, (0, 8, 5, 90))
+    background = ImageEnhance.Brightness(background).enhance(0.9)
+    overlay = Image.new("RGBA", background.size, (44, 39, 35, 30))
     canvas = Image.alpha_composite(background, overlay)
     draw = ImageDraw.Draw(canvas)
-    draw.rounded_rectangle((48, 48, 1552, 852), radius=10, fill=(3, 16, 10, 230), outline=(88, 167, 53), width=3)
-    icon = cards["menu_item"].resize((82, 82), Image.Resampling.NEAREST)
-    canvas.alpha_composite(icon, (72, 55))
-    draw.text((165, 68), "苦力怕菜单", font=get_font(42), fill=(189, 255, 91))
-    draw.text((168, 116), "CREEPER MENU · SERVER HUB", font=get_font(18), fill=(108, 150, 116))
+    draw.text((62, 36), "主菜单", font=get_font(42), fill=(255, 255, 255), stroke_width=2, stroke_fill=(56, 49, 43))
+    draw.rounded_rectangle((1512, 34, 1558, 80), radius=8, fill=(47, 42, 37, 105), outline=(255, 252, 240), width=3)
+    draw.text((1523, 34), "×", font=get_font(35), fill=(255, 255, 255))
 
-    x0, y0, gap = 70, 165, 12
-    left_width, right_x, right_width = 1010, 1092, 438
-    row_h = 210
-    draw_card(canvas, cards, "player", "玩家操作", (x0, y0, 326, row_h))
-    draw_card(canvas, cards, "waypoint", "坐标点", (x0 + 338, y0, 326, row_h))
-    draw_card(canvas, cards, "land", "领地管理", (x0 + 676, y0, 334, row_h))
-    draw_card(canvas, cards, "economy", "经济系统", (x0, y0 + 222, 396, row_h))
-    draw_card(canvas, cards, "guild", "公会", (x0 + 408, y0 + 222, 294, row_h))
-    draw_card(canvas, cards, "pvp", "PVP", (x0 + 714, y0 + 222, 296, row_h))
-    draw_card(canvas, cards, "quest", "任务系统", (x0, y0 + 444, 414, row_h))
-    draw_card(canvas, cards, "stats", "数据统计", (x0 + 426, y0 + 444, 252, row_h))
-    draw_card(canvas, cards, "other", "其他功能", (x0 + 690, y0 + 444, 320, row_h))
-    draw_card(canvas, cards, "menu_item", "菜单道具", (right_x, y0, right_width, 294))
-    draw_card(canvas, cards, "floating_text", "悬浮文字", (right_x, y0 + 306, 258, 164))
-    draw_card(canvas, cards, "help", "帮助", (right_x + 270, y0 + 306, 168, 164))
-    draw_card(canvas, cards, "server_settings", "服务器设置", (right_x, y0 + 482, right_width, 172))
+    x0, y0, gap = 62, 112, 8
+    left_width, right_x, right_width = 970, 1040, 498
+    row_h = 242
+    small_width = (left_width - gap * 2) // 3
+    wide_width = (left_width - gap) // 2
+    draw_card(canvas, scenes, "player", (x0, y0, small_width, row_h))
+    draw_card(canvas, scenes, "waypoint", (x0 + small_width + gap, y0, small_width, row_h))
+    draw_card(canvas, scenes, "land", (x0 + (small_width + gap) * 2, y0, left_width - (small_width + gap) * 2, row_h))
+    draw_card(canvas, scenes, "economy", (x0, y0 + row_h + gap, wide_width, row_h))
+    draw_card(canvas, scenes, "guild", (x0 + wide_width + gap, y0 + row_h + gap, left_width - wide_width - gap, row_h))
+    draw_card(canvas, scenes, "pvp", (x0, y0 + (row_h + gap) * 2, small_width, row_h))
+    draw_card(canvas, scenes, "stats", (x0 + small_width + gap, y0 + (row_h + gap) * 2, small_width, row_h))
+    draw_card(canvas, scenes, "other", (x0 + (small_width + gap) * 2, y0 + (row_h + gap) * 2, left_width - (small_width + gap) * 2, row_h))
+
+    quest_h, banner_h = 384, 170
+    quick_h = row_h * 3 + gap * 2 - quest_h - banner_h - gap * 2
+    draw_card(canvas, scenes, "quest", (right_x, y0, right_width, quest_h))
+    draw_card(canvas, scenes, "menu_item", (right_x, y0 + quest_h + gap, right_width, banner_h))
+    quick_y = y0 + quest_h + gap + banner_h + gap
+    quick_width = (right_width - gap * 2) // 3
+    draw_card(canvas, scenes, "floating_text", (right_x, quick_y, quick_width, quick_h))
+    draw_card(canvas, scenes, "help", (right_x + quick_width + gap, quick_y, quick_width, quick_h))
+    draw_card(canvas, scenes, "server_settings", (right_x + (quick_width + gap) * 2, quick_y, right_width - (quick_width + gap) * 2, quick_h))
     canvas.convert("RGB").save(PREVIEW, quality=95)
 
 
 def make_submenu_preview(cards: dict[str, Image.Image]) -> None:
     background = Image.open(BRAND_BACKGROUND).convert("RGBA").resize((1600, 900), Image.Resampling.LANCZOS)
-    background = ImageEnhance.Brightness(background).enhance(0.5)
-    canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (0, 8, 5, 110)))
+    background = ImageEnhance.Brightness(background).enhance(0.88)
+    canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (56, 48, 41, 36)))
     draw = ImageDraw.Draw(canvas)
-    dialog = (270, 70, 1330, 830)
-    draw.rounded_rectangle(dialog, radius=10, fill=(3, 16, 10, 238), outline=(88, 167, 53), width=3)
-    icon = cards["economy"].resize((72, 72), Image.Resampling.NEAREST)
-    canvas.alpha_composite(icon, (298, 82))
-    draw.text((382, 91), "经济系统", font=get_font(38), fill=(189, 255, 91))
-    draw.text((384, 137), "选择你要使用的经济功能", font=get_font(18), fill=(132, 164, 139))
+    dialog = (390, 100, 1210, 800)
+    draw.rounded_rectangle((397, 107, 1217, 807), radius=18, fill=(31, 28, 25, 125))
+    draw.rounded_rectangle(dialog, radius=18, fill=(244, 238, 224, 250), outline=(67, 58, 49), width=3)
+    draw.line((411, 106, 1189, 106), fill=(255, 252, 241), width=2)
+    draw.text((425, 124), "经济系统", font=get_font(35), fill=(63, 56, 49))
+    draw.text((427, 167), "选择一项继续", font=get_font(17), fill=(129, 113, 94))
+    draw.rounded_rectangle((1148, 122, 1186, 160), radius=7, fill=(47, 42, 37, 105), outline=(255, 252, 240), width=2)
+    draw.text((1157, 119), "×", font=get_font(30), fill=(255, 255, 255))
 
     rows = [
         ("shop", "官方商店", "购买服务器商品与限时物资"),
@@ -311,17 +509,16 @@ def make_submenu_preview(cards: dict[str, Image.Image]) -> None:
         ("economy", "红包", "发送或领取服务器红包"),
         ("other", "出售背包物品", "按服务器回收价快速出售"),
     ]
-    y = 190
+    y = 212
     for name, title, description in rows:
-        base = CARD_COLORS[name]
-        draw.rounded_rectangle((300, y, 1300, y + 104), radius=5, fill=(*base, 242), outline=(41, 92, 48), width=3)
-        draw.line((310, y + 5, 1290, y + 5), fill=(137, 222, 67), width=2)
-        art = cards[name].resize((88, 88), Image.Resampling.NEAREST)
-        canvas.alpha_composite(art, (312, y + 7))
-        draw.text((418, y + 19), title, font=get_font(28), fill=(236, 247, 232))
-        draw.text((420, y + 61), description, font=get_font(17), fill=(178, 204, 184))
-        draw.text((1252, y + 36), "›", font=get_font(32), fill=(189, 255, 91))
-        y += 116
+        draw.rounded_rectangle((422, y, 1178, y + 92), radius=13, fill=(235, 229, 214, 252), outline=(91, 78, 65), width=2)
+        draw.line((436, y + 4, 1164, y + 4), fill=(255, 252, 241), width=2)
+        draw.rounded_rectangle((437, y + 12, 505, y + 80), radius=10, fill=(207, 220, 199), outline=(86, 75, 62), width=2)
+        art = cards[name].resize((60, 60), Image.Resampling.NEAREST)
+        canvas.alpha_composite(art, (441, y + 16))
+        draw.text((528, y + 29), title, font=get_font(25), fill=(63, 56, 49))
+        draw.text((1138, y + 24), "›", font=get_font(34), fill=(105, 91, 75))
+        y += 105
     canvas.convert("RGB").save(SUBMENU_PREVIEW, quality=95)
 
 
@@ -329,8 +526,9 @@ def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     CARD_OUTPUT.mkdir(parents=True, exist_ok=True)
     cards = extract_cards()
-    make_runtime_textures()
-    make_preview(cards)
+    scenes = extract_scene_cards()
+    make_runtime_textures(scenes)
+    make_preview(cards, scenes)
     make_submenu_preview(cards)
     print(f"Built {len(cards)} card illustrations and previews in {PREVIEW.parent}")
 

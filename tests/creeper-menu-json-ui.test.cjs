@@ -25,10 +25,7 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   assert.match(constants, /MENU_TITLE: "\/CMROOT 苦力怕菜单"/);
   assert.equal(factoryModification.operation, "insert_front");
   assert.equal(insertedFactory.type, "factory");
-  assert.equal(
-    insertedFactory.control_ids.long_form,
-    "long_form_router@creeper_menu.long_form_router"
-  );
+  assert.equal(insertedFactory.control_ids.long_form, "long_form_router@creeper_menu.long_form_router");
   assert.equal(insertedFactory.control_ids.custom_form, "@common.empty_panel");
   assert.deepEqual(serverForm["custom_form@server_form.custom_form_switch"], {});
   assert.equal(serverForm["main_screen_content/server_form_factory"], undefined);
@@ -64,7 +61,10 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
   assert.doesNotMatch(JSON.stringify(ui.form_type), /source_control_name/);
   assert.doesNotMatch(JSON.stringify(ui), /root_route|project_action_route/);
   assert.doesNotMatch(serverFormText, /long_form_switch|generic_long_form|special_inventory_form/);
-  assert.equal(ui.root.controls.some((control) => control.screen_dim || control.ambient_background), false);
+  assert.equal(
+    ui.root.controls.some((control) => control.screen_dim || control.ambient_background),
+    false
+  );
   assert.equal(
     ui.generic_long_form.controls.some((control) => control.screen_dim || control.ambient_background),
     false
@@ -90,8 +90,7 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
   const serverForm = JSON.parse(serverFormText);
   const ui = read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json");
   const wrapper = read("scripts", "ui", "creeper-action-form.ts");
-  const nativeCustom =
-    serverForm.custom_form_switch.controls[0]["native_custom_form@server_form.native_custom_form"];
+  const nativeCustom = serverForm.custom_form_switch.controls[0]["native_custom_form@server_form.native_custom_form"];
   const multilineCustom =
     serverForm.custom_form_switch.controls[1]["custom_multiline_form@server_form.custom_multiline_form"];
 
@@ -121,7 +120,7 @@ test("project ActionForms use the themed route while unrelated and REPL forms st
 
 test("generic forms render their title and keep dynamic button states isolated", () => {
   const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
-  const title = ui.generic_header.controls[1].title;
+  const title = ui.generic_header.controls.find((control) => control.title).title;
   const buttons = ui.generic_long_form_content.controls[0].buttons;
   const button = ui.generic_dynamic_button;
   const nativeButton = button.controls[0]["button@common_buttons.light_text_button"];
@@ -137,9 +136,9 @@ test("generic forms render their title and keep dynamic button states isolated",
   assert.equal(button.bindings.at(-1).target_property_name, "#visible");
   assert.equal(nativeButton.$button_text_binding_type, "collection");
   assert.equal(nativeButton.$button_text_grid_collection_name, "form_buttons");
-  assert.deepEqual(nativeButton.$default_text_color, [0.9, 0.96, 0.9]);
-  assert.deepEqual(nativeButton.$hover_text_color, [0.88, 1, 0.58]);
-  assert.deepEqual(nativeButton.$pressed_text_color, [0.65, 0.84, 0.52]);
+  assert.deepEqual(nativeButton.$default_text_color, [0.25, 0.22, 0.19]);
+  assert.deepEqual(nativeButton.$hover_text_color, [0.18, 0.16, 0.14]);
+  assert.deepEqual(nativeButton.$pressed_text_color, [0.34, 0.29, 0.24]);
   assert.equal(nativeButton.bindings.length, 1);
   assert.equal(nativeButton.bindings[0].binding_type, "collection_details");
   assert.equal(ui.generic_button_default_state, undefined);
@@ -177,6 +176,9 @@ test("atlas extraction removes enclosed chroma key and assigns whole connected a
   assert.match(builder, /def connected_components/);
   assert.match(builder, /components_by_cell/);
   assert.match(builder, /center_x = sum/);
+  assert.match(builder, /def extract_scene_cards/);
+  assert.match(builder, /def save_full_texture/);
+  assert.match(builder, /SCENE_SPECS/);
   assert.doesNotMatch(builder, /atlas\.crop\(box\)/);
 });
 
@@ -184,7 +186,10 @@ test("mosaic binds all thirteen fixed form collection indices exactly once", () 
   const ui = read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json");
   const indices = [...ui.matchAll(/"\$cm_index": (\d+)/g)].map((match) => Number(match[1]));
 
-  assert.deepEqual(indices.sort((a, b) => a - b), Array.from({ length: 13 }, (_, index) => index));
+  assert.deepEqual(
+    indices.sort((a, b) => a - b),
+    Array.from({ length: 13 }, (_, index) => index)
+  );
   assert.match(ui, /"binding_collection_name": "form_buttons"/);
   assert.match(ui, /"source_property_name": "\(not \(#text = ''\)\)"/);
   assert.match(ui, /"quick_row": \{[\s\S]*?"collection_name": "form_buttons"/);
@@ -192,15 +197,10 @@ test("mosaic binds all thirteen fixed form collection indices exactly once", () 
 
 test("custom menu is registered and every card has generated runtime artwork", () => {
   const definitions = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "_ui_defs.json"));
-  const textureRoot = path.join(
-    root,
-    "resource_packs",
-    "CreeperMenu",
-    "textures",
-    "ui",
-    "creeper_menu",
-    "cards"
-  );
+  const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
+  const builder = read("design", "menu-ui", "build.py");
+  const uiTextureRoot = path.join(root, "resource_packs", "CreeperMenu", "textures", "ui", "creeper_menu");
+  const textureRoot = path.join(uiTextureRoot, "cards");
   const names = [
     "player",
     "waypoint",
@@ -218,15 +218,38 @@ test("custom menu is registered and every card has generated runtime artwork", (
   ];
 
   assert.ok(definitions.ui_defs.includes("ui/creeper_menu.json"));
-  assert.equal(
-    fs.existsSync(path.join(root, "resource_packs", "CreeperMenu", "ui", "server_form_dark.json")),
-    false
-  );
+  assert.equal(ui.root.controls[0].dialog.type, "panel");
+  assert.equal(ui.root.controls[0].dialog.texture, undefined);
+  assert.equal(ui.generic_long_form.controls[0].dialog.texture, "textures/ui/creeper_menu/submenu_panel");
+  assert.equal(ui.card_state.controls.length, 0);
+  assert.match(builder, /creeper-feature-atlas-cozy-imagegen\.png/);
+  assert.match(builder, /creeper-mosaic-left-323-imagegen\.png/);
+  assert.match(builder, /creeper-mosaic-right-113-imagegen\.png/);
+  for (const texture of [
+    "submenu_panel.png",
+    "submenu_panel.json",
+    "close_frame.png",
+    "close_frame.json",
+    "icon_chip.png",
+    "icon_chip.json",
+    "line.png",
+  ]) {
+    assert.ok(fs.existsSync(path.join(uiTextureRoot, texture)), texture);
+  }
+  for (const state of ["default", "hover", "pressed"]) {
+    assert.ok(fs.existsSync(path.join(textureRoot, `generic_${state}.png`)), `generic ${state}`);
+    assert.ok(fs.existsSync(path.join(textureRoot, `generic_${state}.json`)), `generic ${state} metadata`);
+  }
+  assert.equal(fs.existsSync(path.join(root, "resource_packs", "CreeperMenu", "ui", "server_form_dark.json")), false);
   for (const name of names) {
     assert.ok(fs.existsSync(path.join(textureRoot, `${name}.png`)), `${name} artwork`);
     for (const state of ["default", "hover", "pressed"]) {
       assert.ok(fs.existsSync(path.join(textureRoot, `${name}_${state}.png`)), `${name} ${state}`);
-      assert.ok(fs.existsSync(path.join(textureRoot, `${name}_${state}.json`)), `${name} ${state} metadata`);
+      assert.equal(
+        fs.existsSync(path.join(textureRoot, `${name}_${state}.json`)),
+        false,
+        `${name} ${state} must remain a full image instead of a nineslice`
+      );
     }
   }
 });

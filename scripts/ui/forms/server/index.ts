@@ -164,7 +164,7 @@ async function openServerMenuFormInternal(player: Player): Promise<void> {
     },
     {
       id: "sm",
-      text: `给予我${BRANDING.MENU_ITEM_LABEL}道具`,
+      text: "领取菜单道具",
       icon: "textures/icons/menu_item",
       action: (player: Player) => {
         player.runCommand("give @s yuehua:sm");
