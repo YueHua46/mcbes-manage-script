@@ -1,0 +1,838 @@
+{
+  "namespace": "creeper_modal",
+
+  "custom_form_router": {
+    "type": "panel",
+    "size": ["100%", "100%"],
+    "controls": [
+      {
+        "project_custom_form@creeper_modal.form_type": {
+          "$min": "/CMMODAL ",
+          "$max": "/CMMODAL 􀐏",
+          "$content": "creeper_modal.form"
+        }
+      }
+    ]
+  },
+
+  "form_type": {
+    "type": "panel",
+    "size": ["100%", "100%"],
+    "visible": false,
+    "bindings": [
+      {
+        "binding_name": "#title_text"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "(#title_text = $min) or (#title_text > $min and #title_text < $max)",
+        "target_property_name": "#visible"
+      }
+    ],
+    "controls": [
+      {
+        "content@$content": {}
+      }
+    ]
+  },
+
+  "form": {
+    "type": "panel",
+    "size": ["100%", "100%"],
+    "controls": [
+      {
+        "dialog": {
+          "type": "image",
+          "size": ["58%", "72%"],
+          "max_size": [520, 380],
+          "min_size": [286, 210],
+          "texture": "textures/ui/creeper_menu/submenu_panel",
+          "layer": 2,
+          "controls": [
+            {
+              "header@creeper_modal.header": {}
+            },
+            {
+              "scroll@common.scrolling_panel": {
+                "anchor_from": "bottom_middle",
+                "anchor_to": "bottom_middle",
+                "size": ["100% - 14px", "100% - 52px"],
+                "offset": [0, -5],
+                "$show_background": false,
+                "$scrolling_content": "creeper_modal.scrolling_content",
+                "$scroll_size": [2, "100% - 4px"],
+                "$scrolling_pane_size": ["100% - 5px", "100%"],
+                "$scroll_bar_right_padding_size": [0, 0],
+                "layer": 4
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+
+  "header": {
+    "type": "panel",
+    "anchor_from": "top_middle",
+    "anchor_to": "top_middle",
+    "size": ["100% - 14px", 42],
+    "offset": [0, 4],
+    "controls": [
+      {
+        "title": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "size": ["100% - 54px", 20],
+          "font_size": "large",
+          "font_scale_factor": 0.7,
+          "color": [0.2, 0.18, 0.16],
+          "shadow": false,
+          "layer": 6,
+          "text": "#visible_title",
+          "bindings": [
+            {
+              "binding_name": "#title_text"
+            },
+            {
+              "binding_type": "view",
+              "source_property_name": "(#title_text - '/CMMODAL ')",
+              "target_property_name": "#visible_title"
+            }
+          ]
+        }
+      },
+      {
+        "close_button@creeper_menu.close_button": {
+          "anchor_from": "right_middle",
+          "anchor_to": "right_middle",
+          "offset": [-3, 0]
+        }
+      }
+    ]
+  },
+
+  "scrolling_content": {
+    "type": "stack_panel",
+    "orientation": "vertical",
+    "size": ["100%", "100%c"],
+    "controls": [
+      {
+        "generated_form@creeper_modal.generated_contents": {}
+      },
+      {
+        "submit_spacing": {
+          "type": "panel",
+          "size": ["100%", 5]
+        }
+      },
+      {
+        "submit_button@creeper_modal.submit_button": {}
+      }
+    ]
+  },
+
+  "generated_contents": {
+    "type": "stack_panel",
+    "size": ["100%", "100%c"],
+    "orientation": "vertical",
+    "factory": {
+      "name": "buttons",
+      "control_ids": {
+        "label": "@creeper_modal.custom_label",
+        "header": "@creeper_modal.custom_header",
+        "divider": "@creeper_modal.custom_divider",
+        "toggle": "@creeper_modal.custom_toggle",
+        "slider": "@creeper_modal.custom_slider",
+        "step_slider": "@creeper_modal.custom_step_slider",
+        "dropdown": "@creeper_modal.custom_dropdown",
+        "input": "@creeper_modal.custom_input"
+      }
+    },
+    "collection_name": "custom_form",
+    "bindings": [
+      {
+        "binding_name": "#custom_form_length",
+        "binding_name_override": "#collection_length"
+      }
+    ]
+  },
+
+  "custom_label": {
+    "type": "label",
+    "size": ["100% - 8px", "default"],
+    "offset": [4, 3],
+    "text": "#custom_text",
+    "color": [0.27, 0.24, 0.21],
+    "font_scale_factor": 0.7,
+    "bindings": [
+      {
+        "binding_name": "#custom_text",
+        "binding_type": "collection",
+        "binding_collection_name": "custom_form"
+      }
+    ]
+  },
+
+  "custom_header@creeper_modal.custom_label": {
+    "size": ["100% - 4px", 25],
+    "offset": [2, 5],
+    "font_size": "large",
+    "font_scale_factor": 0.7,
+    "color": [0.22, 0.2, 0.17]
+  },
+
+  "custom_divider": {
+    "type": "panel",
+    "size": ["100%", 9],
+    "controls": [
+      {
+        "line": {
+          "type": "image",
+          "size": ["100% - 8px", 1],
+          "texture": "textures/ui/creeper_menu/line",
+          "color": [0.5, 0.44, 0.36],
+          "alpha": 0.65
+        }
+      }
+    ]
+  },
+
+  "custom_toggle@settings_common.option_toggle": {
+    "$control_name": "creeper_modal.toggle_control",
+    "$option_label": "#custom_text",
+    "$toggle_name": "custom_toggle",
+    "$toggle_state_binding_name": "#custom_toggle_state",
+    "$option_binding_name": "#custom_toggle_state",
+    "$toggle_binding_type": "collection",
+    "$toggle_enabled_binding_name": "#custom_toggle_enabled",
+    "$toggle_enabled_binding_type": "collection",
+    "$toggle_grid_collection_name": "custom_form",
+    "$option_tooltip_binding_type": "collection",
+    "$option_tooltip_collection_name": "custom_form",
+    "$option_tooltip_text_binding_name": "#custom_tooltip_text",
+    "$option_tooltip_area": "inside_header_panel",
+    "$option_tooltip_icon": "textures/ui/creeper_menu/modal_info",
+    "$main_header_text_color": [0.27, 0.24, 0.21],
+    "$label_bindings": [
+      {
+        "binding_name": "#custom_text",
+        "binding_type": "collection",
+        "binding_collection_name": "custom_form"
+      }
+    ]
+  },
+
+  "toggle_control@common.toggle": {
+    "layer": 2,
+    "size": ["100%", "100%c"],
+    "$toggle_state_binding_name|default": "$option_binding_name",
+    "$toggle_enabled_binding_name|default": "$option_enabled_binding_name",
+    "$toggle_enabled_binding_type|default": "global",
+    "$binding_type": "global",
+    "$binding_condition": "once",
+    "$unchecked_control": "creeper_modal.toggle_off",
+    "$checked_control": "creeper_modal.toggle_on",
+    "$unchecked_hover_control": "creeper_modal.toggle_off_hover",
+    "$checked_hover_control": "creeper_modal.toggle_on_hover",
+    "$unchecked_locked_control": "creeper_modal.toggle_off_locked",
+    "$unchecked_locked_hover_control": "creeper_modal.toggle_off_locked",
+    "$checked_locked_control": "creeper_modal.toggle_on_locked",
+    "$checked_locked_hover_control": "creeper_modal.toggle_on_locked",
+    "$enable_directional_toggling": false,
+    "enabled": "$enabled",
+    "variables": [
+      {
+        "requires": "(not $option_enabled_binding_name or not $enabled)",
+        "$toggle_enabled_binding_name": "#not_data_bound",
+        "$toggle_enabled_binding_type": "none"
+      }
+    ]
+  },
+
+  "toggle_state": {
+    "type": "image",
+    "size": [30, 16],
+    "anchor_from": "top_left",
+    "anchor_to": "top_left",
+    "keep_ratio": false,
+    "texture": "$cm_toggle_texture"
+  },
+
+  "toggle_off@creeper_modal.toggle_state": {
+    "$cm_toggle_texture": "textures/ui/creeper_menu/modal_toggle_off"
+  },
+  "toggle_on@creeper_modal.toggle_state": {
+    "$cm_toggle_texture": "textures/ui/creeper_menu/modal_toggle_on"
+  },
+  "toggle_off_hover@creeper_modal.toggle_state": {
+    "$cm_toggle_texture": "textures/ui/creeper_menu/modal_toggle_off_hover"
+  },
+  "toggle_on_hover@creeper_modal.toggle_state": {
+    "$cm_toggle_texture": "textures/ui/creeper_menu/modal_toggle_on_hover"
+  },
+  "toggle_off_locked@creeper_modal.toggle_off": {
+    "alpha": 0.5
+  },
+  "toggle_on_locked@creeper_modal.toggle_on": {
+    "alpha": 0.5
+  },
+
+  "custom_slider@settings_common.option_slider": {
+    "$control_name": "creeper_modal.slider_control",
+    "$option_label": "#custom_slider_text",
+    "$slider_name": "custom_slider",
+    "$slider_value_binding_name": "#custom_slider_value",
+    "$slider_tts_text_value": "#custom_slider_text_value",
+    "$slider_binding_type": "collection",
+    "$slider_collection_name": "custom_form",
+    "$slider_enabled_binding_name": "#custom_slider_enabled",
+    "$slider_enabled_binding_type": "collection",
+    "$slider_timeout_binding_type": "collection",
+    "$slider_timeout_binding_name": "#custom_slider_timeout",
+    "$option_tooltip_binding_type": "collection",
+    "$option_tooltip_collection_name": "custom_form",
+    "$option_tooltip_text_binding_name": "#custom_tooltip_text",
+    "$option_tooltip_area": "inside_header_panel",
+    "$option_tooltip_icon": "textures/ui/creeper_menu/modal_info",
+    "$main_header_text_color": [0.27, 0.24, 0.21],
+    "$label_bindings": [
+      {
+        "binding_name": "#custom_slider_text",
+        "binding_type": "collection",
+        "binding_collection_name": "custom_form"
+      }
+    ]
+  },
+
+  "custom_step_slider@creeper_modal.custom_slider": {
+    "$option_label": "#custom_slider_step_text",
+    "$slider_name": "custom_slider_step",
+    "$slider_value_binding_name": "#custom_slider_step_value",
+    "$slider_tts_text_value": "#custom_slider_step_text_value",
+    "$slider_steps_binding_type": "collection",
+    "$slider_steps_binding_name": "#custom_slider_steps",
+    "$label_bindings": [
+      {
+        "binding_name": "#custom_slider_step_text",
+        "binding_type": "collection",
+        "binding_collection_name": "custom_form"
+      }
+    ]
+  },
+
+  "slider_control": {
+    "type": "panel",
+    "size": ["100% - 2px", 18],
+    "controls": [
+      {
+        "slider@creeper_modal.slider": {
+          "size": ["100% - 8px", 10],
+          "$slider_box_size": [12, 18],
+          "offset": [1, 0],
+          "$option_label|default": "",
+          "$slider_tts_header": "$option_label",
+          "$slider_tts_header_binding_type": "global",
+          "enabled": "$enabled",
+          "$slider_enabled_binding_name": "$option_enabled_binding_name",
+          "$slider_enabled_binding_type": "global",
+          "variables": [
+            {
+              "requires": "(not $option_enabled_binding_name or not $enabled)",
+              "$slider_enabled_binding_name": "#not_data_bound",
+              "$slider_enabled_binding_type": "none"
+            }
+          ]
+        }
+      }
+    ]
+  },
+
+  "slider@common.slider": {
+    "$slider_box_layout": "creeper_modal.slider_thumb",
+    "$slider_box_hover_layout": "creeper_modal.slider_thumb_hover",
+    "$slider_box_locked_layout": "creeper_modal.slider_thumb_locked",
+    "$slider_box_indent_layout": "creeper_modal.slider_thumb_pressed",
+    "$slider_step_factory_control_ids": {
+      "slider_step": "@creeper_modal.slider_step",
+      "slider_step_hover": "@creeper_modal.slider_step_hover",
+      "slider_step_progress": "@creeper_modal.slider_step_progress",
+      "slider_step_progress_hover": "@creeper_modal.slider_step_progress_hover"
+    },
+    "controls": [
+      {
+        "slider_box@common.slider_box": {
+          "$slider_box_layout": "$slider_box_layout",
+          "$slider_box_hover_layout": "$slider_box_hover_layout",
+          "$slider_box_locked_layout": "$slider_box_locked_layout",
+          "$slider_box_indent_layout": "$slider_box_indent_layout",
+          "$slider_box_size": "$slider_box_size",
+          "$slider_track_button": "$slider_name"
+        }
+      },
+      {
+        "slider_bar_default@common.slider_bar_default": {
+          "$background_control": "creeper_modal.slider_track",
+          "$progress_control": "creeper_modal.slider_progress",
+          "$background_control_name": "slider_background",
+          "$progress_control_name": "slider_progress",
+          "color": [1, 1, 1]
+        }
+      },
+      {
+        "slider_bar_hover@common.slider_bar_hover": {
+          "$background_control": "creeper_modal.slider_track_hover",
+          "$progress_control": "creeper_modal.slider_progress_hover",
+          "$background_control_name": "slider_background_hover",
+          "$progress_control_name": "slider_progress_hover",
+          "color": [1, 1, 1],
+          "visible": false
+        }
+      }
+    ]
+  },
+
+  "slider_image": {
+    "type": "image",
+    "size": ["100%", "100%"],
+    "keep_ratio": false,
+    "texture": "$cm_slider_texture"
+  },
+  "slider_track@creeper_modal.slider_image": {
+    "$cm_slider_texture": "textures/ui/creeper_menu/modal_slider_track"
+  },
+  "slider_track_hover@creeper_modal.slider_image": {
+    "$cm_slider_texture": "textures/ui/creeper_menu/modal_slider_track_hover"
+  },
+  "slider_progress@creeper_modal.slider_image": {
+    "$cm_slider_texture": "textures/ui/creeper_menu/modal_slider_progress"
+  },
+  "slider_progress_hover@creeper_modal.slider_image": {
+    "$cm_slider_texture": "textures/ui/creeper_menu/modal_slider_progress_hover"
+  },
+  "slider_thumb@creeper_modal.slider_image": {
+    "$cm_slider_texture": "textures/ui/creeper_menu/modal_slider_thumb"
+  },
+  "slider_thumb_hover@creeper_modal.slider_image": {
+    "$cm_slider_texture": "textures/ui/creeper_menu/modal_slider_thumb_hover"
+  },
+  "slider_thumb_pressed@creeper_modal.slider_image": {
+    "$cm_slider_texture": "textures/ui/creeper_menu/modal_slider_thumb_pressed"
+  },
+  "slider_thumb_locked@creeper_modal.slider_thumb": {
+    "alpha": 0.5
+  },
+
+  "slider_step": {
+    "type": "image",
+    "size": [2, 6],
+    "offset": "$step_offset",
+    "texture": "textures/ui/creeper_menu/modal_slider_step",
+    "layer": 4
+  },
+  "slider_step_hover@creeper_modal.slider_step": {
+    "texture": "textures/ui/creeper_menu/modal_slider_step_hover"
+  },
+  "slider_step_progress@creeper_modal.slider_step": {
+    "texture": "textures/ui/creeper_menu/modal_slider_step_progress"
+  },
+  "slider_step_progress_hover@creeper_modal.slider_step": {
+    "texture": "textures/ui/creeper_menu/modal_slider_step_progress_hover"
+  },
+
+  "custom_dropdown": {
+    "type": "panel",
+    "size": ["100%", "100%c"],
+    "layer": 2,
+    "controls": [
+      {
+        "dropdown@settings_common.option_dropdown": {
+          "$control_name": "creeper_modal.dropdown_control",
+          "$option_label": "#custom_text",
+          "$dropdown_content": "creeper_modal.custom_dropdown_content",
+          "$dropdown_area": "inside_header_panel",
+          "$dropdown_name": "custom_dropdown",
+          "$toggle_binding_type": "collection",
+          "$toggle_grid_collection_name": "custom_form",
+          "$options_dropdown_toggle_label_binding": "#dropdown_option_text",
+          "$options_dropdown_toggle_label_binding_type": "collection",
+          "$options_dropdown_toggle_label_binding_collection_name": "custom_form",
+          "$option_tooltip_binding_type": "collection",
+          "$option_tooltip_collection_name": "custom_form",
+          "$option_tooltip_text_binding_name": "#custom_tooltip_text",
+          "$option_tooltip_area": "inside_header_panel",
+          "$option_tooltip_icon": "textures/ui/creeper_menu/modal_info",
+          "$dropdown_scroll_content_size": ["100%", "200%"],
+          "$main_header_text_color": [0.27, 0.24, 0.21],
+          "$label_bindings": [
+            {
+              "binding_name": "#custom_text",
+              "binding_type": "collection",
+              "binding_collection_name": "custom_form"
+            }
+          ]
+        }
+      }
+    ]
+  },
+
+  "dropdown_control": {
+    "type": "panel",
+    "size": ["100%", 25],
+    "anchor_from": "center",
+    "anchor_to": "center",
+    "layer": 2,
+    "controls": [
+      {
+        "dropdown@common.dropdown": {
+          "$dropdown_toggle": "creeper_modal.dropdown_toggle_control",
+          "$dropdown_background": "creeper_modal.dropdown_popup_background",
+          "$dropdown_content|default": "unset_dropdown_content",
+          "$dropdown_name|default": "unset $dropdown_name",
+          "$options_dropdown_toggle_label_binding|default": "unset $options_dropdown_toggle_label_text",
+          "$locked_alpha": 0.5,
+          "$toggle_tts_header": "$option_label"
+        }
+      }
+    ]
+  },
+
+  "dropdown_toggle_control@common_toggles.light_template_toggle": {
+    "size": ["100%", "100%"],
+    "$button_type_panel": "creeper_modal.dropdown_toggle_content",
+    "$unchecked_hover_control": "common_toggles.toggle_unchecked_hover_with_chevron",
+    "$checked_hover_control": "common_toggles.toggle_checked_hover_with_chevron",
+    "$default_texture": "textures/ui/creeper_menu/modal_field_default",
+    "$hover_texture": "textures/ui/creeper_menu/modal_field_hover",
+    "$pressed_texture": "textures/ui/creeper_menu/modal_field_pressed",
+    "$pressed_no_hover_texture": "textures/ui/creeper_menu/modal_field_pressed",
+    "$locked_texture": "textures/ui/creeper_menu/modal_field_default",
+    "$default_text_color": [0.27, 0.24, 0.21],
+    "$hover_text_color": [0.2, 0.18, 0.16],
+    "$default_checked_text_color": [0.27, 0.24, 0.21],
+    "$hover_checked_text_color": [0.2, 0.18, 0.16],
+    "$default_border_visible": false,
+    "$hover_border_visible": false,
+    "enabled": "$enabled",
+    "$toggle_enabled_binding_name|default": "$option_enabled_binding_name",
+    "$toggle_enabled_binding_type|default": "global",
+    "$toggle_binding_type|default": "global",
+    "variables": [
+      {
+        "requires": "(not $option_enabled_binding_name or not $enabled)",
+        "$toggle_enabled_binding_name": "#not_data_bound",
+        "$toggle_enabled_binding_type": "none"
+      }
+    ]
+  },
+
+  "dropdown_toggle_content": {
+    "type": "panel",
+    "size": ["100% - 14px", "100%"],
+    "anchor_from": "center",
+    "anchor_to": "center",
+    "layer": 3,
+    "controls": [
+      {
+        "label": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [2, -1],
+          "size": ["100% - 14px", "default"],
+          "text": "$options_dropdown_toggle_label_binding",
+          "color": "$text_color",
+          "alpha": "$content_alpha",
+          "font_scale_factor": 0.72,
+          "text_alignment": "left",
+          "bindings": [
+            {
+              "binding_name": "$options_dropdown_toggle_label_binding",
+              "binding_type": "$options_dropdown_toggle_label_binding_type",
+              "binding_collection_name": "$options_dropdown_toggle_label_binding_collection_name"
+            }
+          ]
+        }
+      },
+      {
+        "chevron": {
+          "type": "image",
+          "anchor_from": "right_middle",
+          "anchor_to": "right_middle",
+          "offset": [-1, 0],
+          "size": [8, 8],
+          "texture": "textures/ui/dropdown_chevron",
+          "color": "$text_color",
+          "alpha": "$content_alpha"
+        }
+      }
+    ]
+  },
+
+  "dropdown_popup_background": {
+    "type": "image",
+    "texture": "textures/ui/creeper_menu/modal_dropdown_panel",
+    "keep_ratio": false,
+    "layer": 1
+  },
+
+  "custom_dropdown_content@settings_common.option_radio_dropdown_group": {
+    "$radio_buttons": [],
+    "$toggle_focus_id_binding_type": "collection",
+    "$toggle_focus_id_collection_name": "custom_form",
+    "$toggle_focus_id_binding_name": "#custom_toggle_focus_id",
+    "$radio_factory": {
+      "name": "buttons",
+      "control_name": "creeper_modal.custom_dropdown_radio"
+    },
+    "$radio_collection_name": "custom_dropdown",
+    "$radio_bindings": [
+      {
+        "binding_name": "#custom_dropdown_length",
+        "binding_type": "collection",
+        "binding_name_override": "#collection_length",
+        "binding_collection_name": "custom_form"
+      }
+    ]
+  },
+
+  "custom_dropdown_radio@settings_common.radio_with_label": {
+    "$toggle_name": "custom_dropdown_radio_toggle",
+    "$toggle_state_binding_name": "#custom_radio_toggled",
+    "$toggle_binding_type": "collection",
+    "$toggle_grid_collection_name": "custom_dropdown",
+    "$toggle_collection_details_type": "collection_details",
+    "$radio_label_text": "#custom_radio_text",
+    "$radio_label_color": [0.27, 0.24, 0.21],
+    "$unchecked_control": "creeper_modal.radio_off",
+    "$checked_control": "creeper_modal.radio_on",
+    "$unchecked_hover_control": "creeper_modal.radio_off_hover",
+    "$checked_hover_control": "creeper_modal.radio_on_hover",
+    "$unchecked_locked_control": "creeper_modal.radio_off_locked",
+    "$unchecked_locked_hover_control": "creeper_modal.radio_off_locked",
+    "$checked_locked_control": "creeper_modal.radio_on_locked",
+    "$checked_locked_hover_control": "creeper_modal.radio_on_locked",
+    "$radio_label_bindings": [
+      {
+        "binding_name": "#custom_radio_text",
+        "binding_type": "collection",
+        "binding_collection_name": "custom_dropdown"
+      },
+      {
+        "binding_type": "collection_details"
+      }
+    ]
+  },
+
+  "radio_visuals": {
+    "type": "panel",
+    "size": ["100%", 17],
+    "$cm_radio_texture|default": "textures/ui/creeper_menu/modal_radio_off",
+    "$cm_row_alpha|default": 0.0,
+    "$cm_content_alpha|default": 1.0,
+    "$radio_label_color|default": [0.27, 0.24, 0.21],
+    "$radio_label_bindings|default": [],
+    "controls": [
+      {
+        "row_background": {
+          "type": "image",
+          "size": ["100%", "100%"],
+          "texture": "textures/ui/creeper_menu/modal_field_hover",
+          "keep_ratio": false,
+          "alpha": "$cm_row_alpha",
+          "layer": 1
+        }
+      },
+      {
+        "radio_image": {
+          "type": "image",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [4, 0],
+          "size": [12, 12],
+          "texture": "$cm_radio_texture",
+          "alpha": "$cm_content_alpha",
+          "layer": 2
+        }
+      },
+      {
+        "radio_label": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [21, 0],
+          "size": ["100% - 25px", "default"],
+          "text": "$radio_label_text",
+          "color": "$radio_label_color",
+          "alpha": "$cm_content_alpha",
+          "font_scale_factor": 0.72,
+          "bindings": "$radio_label_bindings",
+          "layer": 2,
+          "tts_override_control_value": "$radio_label_text"
+        }
+      }
+    ]
+  },
+  "radio_off@creeper_modal.radio_visuals": {
+    "$cm_radio_texture": "textures/ui/creeper_menu/modal_radio_off"
+  },
+  "radio_on@creeper_modal.radio_visuals": {
+    "$cm_radio_texture": "textures/ui/creeper_menu/modal_radio_on",
+    "$cm_row_alpha": 0.32
+  },
+  "radio_off_hover@creeper_modal.radio_visuals": {
+    "$cm_radio_texture": "textures/ui/creeper_menu/modal_radio_off_hover",
+    "$cm_row_alpha": 0.55
+  },
+  "radio_on_hover@creeper_modal.radio_visuals": {
+    "$cm_radio_texture": "textures/ui/creeper_menu/modal_radio_on_hover",
+    "$cm_row_alpha": 0.55
+  },
+  "radio_off_locked@creeper_modal.radio_visuals": {
+    "$cm_radio_texture": "textures/ui/creeper_menu/modal_radio_off",
+    "$cm_content_alpha": 0.5
+  },
+  "radio_on_locked@creeper_modal.radio_visuals": {
+    "$cm_radio_texture": "textures/ui/creeper_menu/modal_radio_on",
+    "$cm_content_alpha": 0.5,
+    "$cm_row_alpha": 0.18
+  },
+
+  "custom_input@settings_common.option_text_edit": {
+    "$control_name": "creeper_modal.input_control",
+    "$option_label": "#custom_text",
+    "$option_place_holder_text": "#custom_placeholder_text",
+    "$text_edit_box_placeholder_content_binding_name": "$option_place_holder_text",
+    "$text_edit_box_placeholder_content_binding_type": "collection",
+    "$text_edit_box_grid_collection_name": "custom_form",
+    "$max_text_edit_length": 100,
+    "$text_edit_box_content_binding_type": "collection",
+    "$text_edit_box_content_binding_name": "#custom_input_text",
+    "$option_binding_name": "#custom_input_text",
+    "$text_box_enabled_binding_name": "#custom_input_enabled",
+    "$text_box_name": "custom_input",
+    "$option_tooltip_binding_type": "collection",
+    "$option_tooltip_collection_name": "custom_form",
+    "$option_tooltip_text_binding_name": "#custom_tooltip_text",
+    "$option_tooltip_area": "inside_header_panel",
+    "$option_tooltip_icon": "textures/ui/creeper_menu/modal_info",
+    "$main_header_text_color": [0.27, 0.24, 0.21],
+    "$label_bindings": [
+      {
+        "binding_name": "#custom_text",
+        "binding_type": "collection",
+        "binding_collection_name": "custom_form"
+      }
+    ]
+  },
+
+  "input_control@creeper_modal.text_edit_box": {
+    "size": ["100%", 31],
+    "max_length": "$max_text_edit_length",
+    "$text_edit_box_content_binding_name": "$option_binding_name",
+    "$text_edit_box_binding_collection_name": "$option_binding_name",
+    "$text_edit_box_binding_type": "global",
+    "$text_box_enabled_binding_name": "$option_enabled_binding_name",
+    "enabled": "$enabled",
+    "$place_holder_text": "$option_place_holder_text",
+    "$text_box_tts_header": "$option_label",
+    "$tts_override_control_value|default": " ",
+    "tts_override_control_value": "$tts_override_control_value",
+    "variables": [
+      {
+        "requires": "(not $option_enabled_binding_name or not $enabled)",
+        "$text_box_enabled_binding_name": "#not_data_bound",
+        "$text_edit_box_enabled_binding_type": "none"
+      }
+    ]
+  },
+
+  "text_edit_box@common.text_edit_box": {
+    "$text_background_default": "creeper_modal.input_background_default",
+    "$text_background_hover": "creeper_modal.input_background_hover",
+    "$text_box_text_color": [0.25, 0.22, 0.19],
+    "$place_holder_text_color": [0.49, 0.44, 0.38],
+    "$place_holder_text_hover_color": [0.4, 0.35, 0.3],
+    "$color": [0.25, 0.22, 0.19],
+    "$text_offset": [2, 0]
+  },
+
+  "input_background_default": {
+    "type": "image",
+    "texture": "textures/ui/creeper_menu/modal_field_default",
+    "keep_ratio": false
+  },
+  "input_background_hover@creeper_modal.input_background_default": {
+    "texture": "textures/ui/creeper_menu/modal_field_hover"
+  },
+
+  "submit_button@common.button": {
+    "size": ["100%", 26],
+    "enabled": true,
+    "$pressed_button_name": "button.submit_custom_form",
+    "default_control": "default",
+    "hover_control": "hover",
+    "pressed_control": "pressed",
+    "locked_control": "locked",
+    "bindings": [
+      {
+        "binding_name": "#submit_button_visible",
+        "binding_name_override": "#visible"
+      }
+    ],
+    "controls": [
+      {
+        "default@creeper_modal.submit_state": {
+          "$cm_submit_texture": "textures/ui/creeper_menu/cards/generic_default",
+          "$cm_submit_color": [0.22, 0.2, 0.17],
+          "$cm_submit_offset": [0, 0]
+        }
+      },
+      {
+        "hover@creeper_modal.submit_state": {
+          "$cm_submit_texture": "textures/ui/creeper_menu/cards/generic_hover",
+          "$cm_submit_color": [0.17, 0.15, 0.13],
+          "$cm_submit_offset": [0, 1]
+        }
+      },
+      {
+        "pressed@creeper_modal.submit_state": {
+          "$cm_submit_texture": "textures/ui/creeper_menu/cards/generic_pressed",
+          "$cm_submit_color": [0.31, 0.27, 0.23],
+          "$cm_submit_offset": [0, 2]
+        }
+      },
+      {
+        "locked@creeper_modal.submit_state": {
+          "$cm_submit_texture": "textures/ui/creeper_menu/cards/generic_default",
+          "$cm_submit_color": [0.3, 0.27, 0.23],
+          "$cm_submit_offset": [0, 0]
+        }
+      }
+    ]
+  },
+
+  "submit_state": {
+    "type": "image",
+    "size": ["100%", "100%"],
+    "$button_offset": [0, -1],
+    "offset": "$cm_submit_offset",
+    "texture": "$cm_submit_texture",
+    "keep_ratio": false,
+    "controls": [
+      {
+        "label@common_buttons.new_ui_binding_button_label": {
+          "$button_text": "#submit_text",
+          "$button_text_binding_type": "global",
+          "$button_binding_condition": "once",
+          "$button_text_grid_collection_name": "",
+          "$button_font_scale_factor": 0.72,
+          "$button_text_size": ["100% - 16px", "default"],
+          "$button_text_max_size": ["100% - 16px", 10],
+          "$text_color": "$cm_submit_color"
+        }
+      }
+    ]
+  }
+}

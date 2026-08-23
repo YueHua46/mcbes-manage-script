@@ -106,8 +106,8 @@ async function openServerMenuFormInternal(player: Player): Promise<void> {
       id: "guild",
       text: "公会",
       icon: "textures/icons/menu_guild",
-      action: async (player: Player) => {
-        await openGuildMenuForm(player);
+      action: (player: Player) => {
+        void openGuildMenuForm(player);
       },
     },
     {

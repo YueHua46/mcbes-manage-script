@@ -1,5 +1,5 @@
 import { Player, system } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { getLiveFormCapabilities } from "../../../features/platform/sapi-capabilities";
 import { taskScheduler } from "../../../features/platform/scheduler";

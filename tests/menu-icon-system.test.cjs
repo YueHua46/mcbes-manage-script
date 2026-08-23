@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const zlib = require("node:zlib");
 
 const root = path.resolve(__dirname, "..");
 const scriptsRoot = path.join(root, "scripts");
@@ -13,6 +14,73 @@ function walk(directory, extension) {
     if (entry.isDirectory()) return walk(target, extension);
     return entry.name.endsWith(extension) ? [target] : [];
   });
+}
+
+function readRgbaAlpha(file) {
+  const png = fs.readFileSync(file);
+  const width = png.readUInt32BE(16);
+  const height = png.readUInt32BE(20);
+  const chunks = [];
+  for (let offset = 8; offset < png.length; ) {
+    const length = png.readUInt32BE(offset);
+    const type = png.toString("ascii", offset + 4, offset + 8);
+    if (type === "IDAT") chunks.push(png.subarray(offset + 8, offset + 8 + length));
+    offset += length + 12;
+  }
+
+  const packed = zlib.inflateSync(Buffer.concat(chunks));
+  const stride = width * 4;
+  const pixels = Buffer.alloc(stride * height);
+  const paeth = (left, above, upperLeft) => {
+    const estimate = left + above - upperLeft;
+    const leftDistance = Math.abs(estimate - left);
+    const aboveDistance = Math.abs(estimate - above);
+    const upperLeftDistance = Math.abs(estimate - upperLeft);
+    if (leftDistance <= aboveDistance && leftDistance <= upperLeftDistance) return left;
+    return aboveDistance <= upperLeftDistance ? above : upperLeft;
+  };
+
+  for (let y = 0; y < height; y += 1) {
+    const packedRow = y * (stride + 1);
+    const filter = packed[packedRow];
+    for (let x = 0; x < stride; x += 1) {
+      const raw = packed[packedRow + x + 1];
+      const output = y * stride + x;
+      const left = x >= 4 ? pixels[output - 4] : 0;
+      const above = y > 0 ? pixels[output - stride] : 0;
+      const upperLeft = x >= 4 && y > 0 ? pixels[output - stride - 4] : 0;
+      const predictor = [0, left, above, Math.floor((left + above) / 2), paeth(left, above, upperLeft)][filter];
+      assert.notEqual(predictor, undefined, `unsupported PNG filter ${filter}`);
+      pixels[output] = (raw + predictor) & 0xff;
+    }
+  }
+
+  return { width, height, alpha: Array.from({ length: width * height }, (_, index) => pixels[index * 4 + 3]) };
+}
+
+function countOpaqueComponents(file) {
+  const { width, height, alpha } = readRgbaAlpha(file);
+  const visited = new Set();
+  let componentCount = 0;
+  for (let start = 0; start < alpha.length; start += 1) {
+    if (!alpha[start] || visited.has(start)) continue;
+    componentCount += 1;
+    const queue = [start];
+    while (queue.length) {
+      const current = queue.pop();
+      if (visited.has(current) || !alpha[current]) continue;
+      visited.add(current);
+      const x = current % width;
+      const y = Math.floor(current / width);
+      for (let nextY = Math.max(0, y - 1); nextY <= Math.min(height - 1, y + 1); nextY += 1) {
+        for (let nextX = Math.max(0, x - 1); nextX <= Math.min(width - 1, x + 1); nextX += 1) {
+          const next = nextY * width + nextX;
+          if (!visited.has(next) && alpha[next]) queue.push(next);
+        }
+      }
+    }
+  }
+  return componentCount;
 }
 
 test("every referenced custom menu icon is a native 32x32 RGBA PNG", () => {
@@ -57,5 +125,77 @@ test("main menu entries use dedicated function-semantic icons", () => {
   for (const [id, icon] of Object.entries(expected)) {
     const entry = new RegExp(`id: ["']${id}["'][\\s\\S]{0,160}?icon: ["']textures/icons/${icon}["']`);
     assert.match(source, entry, `${id} must use ${icon}`);
+  }
+});
+
+test("single-subject icon crops do not retain neighboring atlas fragments", () => {
+  for (const name of ["faces", "heart", "suicide"]) {
+    const file = path.join(iconRoot, `${name}.png`);
+    assert.equal(countOpaqueComponents(file), 1, `${name} contains disconnected atlas artwork`);
+  }
+});
+
+test("ambiguous submenu actions use distinct semantic icon artwork", () => {
+  const generatedIcons = [
+    "waypoint_add_private",
+    "waypoint_add_public",
+    "fake_player_manage",
+    "fake_player_list",
+    "simulated_player",
+    "fake_player_admin",
+    "guild_directory",
+    "guild_mine",
+    "suicide",
+    "death_return",
+    "death_ranking",
+    "custom_dimensions",
+    "land_flight",
+    "land_teleport_settings",
+    "guild_waypoint",
+    "tpa_settings",
+    "blacklist_list",
+    "anti_dupe_whitelist",
+    "author_list",
+    "guild_applications",
+    "guild_invite",
+    "guild_leader_transfer",
+    "land_public_access",
+    "land_members",
+    "player_inventory_admin",
+    "marketplace_browse",
+    "server_live_dashboard",
+    "join_popup_announcement",
+    "status_bar_settings",
+    "floating_text_admin",
+    "inventory_snapshot_archive",
+    "waypoint_admin_all",
+  ];
+  const hashes = generatedIcons.map((name) => {
+    const file = path.join(iconRoot, `${name}.png`);
+    assert.ok(fs.existsSync(file), `missing generated semantic icon: ${name}`);
+    return require("node:crypto").createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+  });
+  assert.equal(new Set(hashes).size, generatedIcons.length, "semantic icons must not be duplicate artwork");
+
+  const contracts = [
+    ["ui/forms/waypoint/index.ts", "添加当前私人坐标点", "waypoint_add_private"],
+    ["ui/forms/waypoint/index.ts", "添加当前公共坐标点", "waypoint_add_public"],
+    ["ui/forms/player/index.ts", "假人管理", "fake_player_manage"],
+    ["ui/forms/player/fake-player.ts", "我的假人列表", "fake_player_list"],
+    ["ui/forms/player/fake-player.ts", "全服假人管理", "fake_player_admin"],
+    ["ui/forms/guild/index.ts", "公会列表", "guild_directory"],
+    ["ui/forms/guild/index.ts", "我的公会", "guild_mine"],
+    ["ui/forms/other/index.ts", "自杀", "suicide"],
+    ["ui/forms/other/index.ts", "回到上次死亡地点", "death_return"],
+    ["ui/forms/stats/index.ts", "死亡次数排行榜", "death_ranking"],
+    ["ui/forms/system/index.ts", "自定义维度管理", "custom_dimensions"],
+    ["ui/forms/system/index.ts", "领地飞行设置", "land_flight"],
+    ["ui/forms/system/index.ts", "领地传送设置", "land_teleport_settings"],
+    ["ui/forms/system/index.ts", "公会坐标（管理员）", "guild_waypoint"],
+  ];
+  for (const [relativeFile, label, icon] of contracts) {
+    const source = fs.readFileSync(path.join(scriptsRoot, ...relativeFile.split("/")), "utf8");
+    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(source, new RegExp(`${escapedLabel}[\\s\\S]{0,180}?textures/icons/${icon}`));
   }
 });

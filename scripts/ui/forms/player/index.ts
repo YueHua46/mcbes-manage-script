@@ -4,7 +4,8 @@
  */
 
 import { Player, system } from "@minecraft/server";
-import { FormCancelationReason, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { FormCancelationReason } from "@minecraft/server-ui";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openServerMenuForm } from "../server";
 import { useAllPlayers } from "../../../shared/hooks/use-player";
@@ -171,11 +172,11 @@ function createPlayerActionForm(): ActionFormData {
   const form = new ActionFormData();
   form.title("玩家操作");
   form.button("TPA玩家传送", "textures/icons/social");
-  form.button("TPA设置", "textures/icons/chatCooldown");
-  form.button("假人管理", "textures/icons/spectator");
+  form.button("TPA设置", "textures/icons/tpa_settings");
+  form.button("假人管理", "textures/icons/fake_player_manage");
   form.button("聊天栏配置", "textures/icons/chat_bubble_white");
   form.button("名字显示设置", "textures/icons/profile");
-  form.button("状态栏显示设置", "textures/icons/info");
+  form.button("状态栏显示设置", "textures/icons/status_bar_settings");
   form.button("返回", "textures/icons/back");
   return form;
 }
@@ -287,7 +288,7 @@ export function openChatForm(player: Player): void {
     if (data.cancelationReason || data.canceled) return;
     switch (data.selection) {
       case buttons.length:
-        openServerMenuForm(player);
+        openPlayerActionForm(player);
         break;
       default:
         if (typeof data.selection !== "number") return;

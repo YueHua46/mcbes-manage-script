@@ -6,7 +6,7 @@
  */
 
 import { Player } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { color } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
@@ -58,7 +58,7 @@ export function openBlacklistManageForm(player: Player): void {
     : "§c✘ 黑名单进服前拦截【未启用】\n§e请先前往系统设置开启「黑名单系统」";
   form.body(`§e⚠ 当前为 BDS 增强版\n${warningLine}\n§0管理员可在此添加、查看、移除被封禁的玩家`);
 
-  form.button("查看黑名单列表", "textures/icons/social");
+  form.button("查看黑名单列表", "textures/icons/blacklist_list");
   form.button("添加到黑名单", "textures/icons/deny");
   form.button("从黑名单移除", "textures/icons/requeue");
   form.button("返回", "textures/icons/back");

@@ -95,7 +95,7 @@ export function openStatsHubForm(player: Player, options?: OpenStatsHubOptions):
     },
     {
       text: "死亡次数排行榜",
-      icon: "textures/icons/dead",
+      icon: "textures/icons/death_ranking",
       action: () => openStatsSubForm(player, "totalDeaths", () => openStatsHubForm(player, { back })),
     },
     {

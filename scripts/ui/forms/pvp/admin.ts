@@ -3,7 +3,7 @@
  */
 
 import { Player } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { isAdmin } from "../../../shared/utils/common";
 import pvpManager from "../../../features/pvp/services/pvp-manager";
 import { color } from "../../../shared/utils/color";

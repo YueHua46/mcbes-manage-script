@@ -1,5 +1,5 @@
 import { Player, RawMessage, system, world } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import fakePlayerService, {
   FakePlayerBehavior,
@@ -60,9 +60,9 @@ export function openFakePlayerMenu(player: Player, back: () => void): void {
     ].join("\n")
   );
   form.button("在当前位置创建假人", "textures/icons/add");
-  form.button("我的假人列表", "textures/icons/spectator");
+  form.button("我的假人列表", "textures/icons/fake_player_list");
   if (isAdmin(player)) {
-    form.button("全服假人管理", "textures/icons/mod_shield");
+    form.button("全服假人管理", "textures/icons/fake_player_admin");
   }
   form.button("返回", "textures/icons/back");
 
@@ -109,7 +109,7 @@ function openCreateFakePlayerForm(player: Player, back: () => void): void {
     ].join("\n")
   );
   form.button("旧版实体假人\n兼容性好 · 支持换肤", "textures/icons/profile");
-  form.button("新版模拟玩家\n支持原版刷怪机制", "textures/icons/spectator");
+  form.button("新版模拟玩家\n支持原版刷怪机制", "textures/icons/simulated_player");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -198,7 +198,11 @@ function openFakePlayerListForm(player: Player, adminView: boolean, back: () => 
     const status = item.isDead ? "§c[已死亡]§r " : "";
     form.button(
       `${status}${item.name}\n[${typeLabel}] ${item.ownerName} · ${formatLocation(item)}`,
-      item.isDead ? "textures/icons/dead" : "textures/icons/spectator"
+      item.isDead
+        ? "textures/icons/dead"
+        : getFakePlayerType(item) === "simulated"
+          ? "textures/icons/simulated_player"
+          : "textures/icons/fake_player_manage"
     );
   });
   if (adminView && items.length > 0) {

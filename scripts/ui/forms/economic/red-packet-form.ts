@@ -3,7 +3,7 @@
  */
 
 import { Player } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openDialogForm } from "../../components/dialog";
 import redPacketService, {

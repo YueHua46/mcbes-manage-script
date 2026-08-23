@@ -9,6 +9,7 @@ SOURCE = Path(__file__).parent / "source"
 OUTPUT = ROOT / "resource_packs/CreeperMenu/textures/icons"
 CANVAS = 32
 CONTENT = 28
+SINGLE_COMPONENT_ICONS = {"faces", "heart"}
 
 ATLASES = {
     "atlas-actions.png": "accept add back deny edit2 leave leave_queue left_arrow right_arrow requeue settings gear info eyes wisdom terminal".split(),
@@ -76,8 +77,38 @@ def remove_crumbs(image):
                     px[x, y] = (0, 0, 0, 0)
 
 
+def keep_largest_component(image):
+    """Remove disconnected artwork leaking in from a neighboring atlas cell."""
+    px, visited, components = image.load(), set(), []
+    for sy in range(image.height):
+        for sx in range(image.width):
+            if (sx, sy) in visited or not px[sx, sy][3]:
+                continue
+            component, queue = [], deque([(sx, sy)])
+            while queue:
+                x, y = queue.popleft()
+                if (x, y) in visited or not px[x, y][3]:
+                    continue
+                visited.add((x, y))
+                component.append((x, y))
+                queue.extend(
+                    (nx, ny)
+                    for nx in range(max(0, x - 1), min(image.width, x + 2))
+                    for ny in range(max(0, y - 1), min(image.height, y + 2))
+                )
+            components.append(component)
+    if not components:
+        return image
+    for component in sorted(components, key=len, reverse=True)[1:]:
+        for x, y in component:
+            px[x, y] = (0, 0, 0, 0)
+    return image
+
+
 def icon_from(tile, name):
     subject = remove_matte(tile)
+    if name in SINGLE_COMPONENT_ICONS:
+        subject = keep_largest_component(subject)
     subject = subject.crop(subject.getchannel("A").getbbox())
     scale = min(CONTENT / subject.width, CONTENT / subject.height)
     size = (max(1, round(subject.width*scale)), max(1, round(subject.height*scale)))
@@ -85,7 +116,7 @@ def icon_from(tile, name):
     keep_purple = name in {"carneval", "carneval_unavailable"}
     output = Image.new("RGBA", size)
     colors = []
-    for r, g, b, a in subject.get_flattened_data():
+    for r, g, b, a in subject.getdata():
         color = nearest_palette((r, g, b))
         if color in PURPLE and not keep_purple:
             color = PALETTE[1]

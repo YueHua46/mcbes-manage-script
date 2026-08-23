@@ -3,7 +3,7 @@
  */
 
 import { Player, RawMessage, system } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import {
   addSubscription,
@@ -270,7 +270,10 @@ async function openSnapshotResultPage(
     const sid = parseItemWatchSnapshotId(entry.m);
     const snap = sid ? itemWatchSnapshotStore.get(sid) : undefined;
     const locKey = resolveItemLocalizationKey(entry.v ?? "", snap?.acquiredLocalizationKey);
-    form.button(snapshotArchiveRowLabel(entry.p, shortTs, entry.v, locKey), "textures/icons/quest_chest");
+    form.button(
+      snapshotArchiveRowLabel(entry.p, shortTs, entry.v, locKey),
+      "textures/icons/inventory_snapshot_archive"
+    );
   }
 
   // 导航按钮不传 iconPath：客户端会把路径当按钮下方辅助小字，浅灰在白色底上几乎看不清
@@ -432,7 +435,7 @@ export function openItemWatchSubscribeForm(player: Player, onBack: () => void): 
   form.button("取消对某一种物品的监控", "textures/icons/requeue");
   form.button("清空全部物品监控", "textures/icons/deny");
   form.button("登记全部生成蛋\n任意 …_spawn_egg 的物品", "textures/items/spawn_egg");
-  form.button("查看背包存档记录", "textures/icons/quest_chest");
+  form.button("查看背包存档记录", "textures/icons/inventory_snapshot_archive");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {

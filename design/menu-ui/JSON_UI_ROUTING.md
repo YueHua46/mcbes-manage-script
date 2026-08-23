@@ -6,6 +6,7 @@
 
 - `/CMROOT `：苦力怕菜单的拼图主界面。
 - `/CMFORM `：项目内其他 ActionForm 的统一纵向卡片界面。
+- `/CMMODAL `：项目内 ModalForm 的统一暖色表单控件界面。
 - 无上述前缀：Minecraft 原生表单、其他附加包表单、JavaScript REPL、箱子和熔炉专用界面。
 
 这套机制称为**按标题命名空间路由的互斥表单渲染**。标题前缀既是 SAPI 与资源包之间的协议，也是 JSON UI 的路由键，不是面向玩家显示的普通标题内容。
@@ -43,7 +44,7 @@ server_form_factory 生成 long_form_router
     "type": "factory",
     "control_ids": {
       "long_form": "long_form_router@creeper_menu.long_form_router",
-      "custom_form": "@server_form.custom_form_switch"
+      "custom_form": "custom_form_router@creeper_modal.custom_form_router"
     }
   }
 }
@@ -154,12 +155,26 @@ server_form_factory 生成 long_form_router
 ## ModalFormData 的唯一渲染入口
 
 `main_screen_content.modifications` 使用 `insert_front` 新增的 factory 不会替换原版
-`server_form_factory`，两者会同时收到同一个表单数据。新增 factory 只负责自定义
-long form；它的 `custom_form` 必须映射到不可见空控件。原版 factory 继续通过
-`@server_form.custom_form` 处理 ModalFormData，而本项目将这个定义覆盖为唯一的
-`custom_form_switch`。
+`server_form_factory`，两者会同时收到同一个表单数据。这一点与主菜单完全相同：新增
+factory 的 `long_form` 指向 `creeper_menu.long_form_router`，`custom_form` 指向
+`creeper_modal.custom_form_router`；原版 factory 仍分别实例化 `@server_form.long_form` 和
+`@server_form.custom_form`。
 
-`custom_form_switch` 内部只能有一个可见分支：普通表单使用独立命名的
-`server_form.native_custom_form`，JavaScript REPL 使用 multiline 表单。禁止同时让
-新增 factory 与原版 factory 各自实例化一份可见的 custom form；否则会出现开关、
-标签和输入框成对错位重叠，但外框因位置接近而看似只有一个的现象。
+互斥不能只在新增 factory 内部实现，必须像 `/CMROOT`、`/CMFORM` 一样同时关闭原版
+factory 的最终渲染节点：
+
+- `creeper_modal.custom_form_router` 只在标题位于 `/CMMODAL ` 到 `/CMMODAL 􀐏` 的区间时渲染主题表单。
+- 原版 factory 使用的 `server_form.custom_form` 只包含原生与 REPL 渲染器，不得再包含主题分支。
+- `native_custom_form@server_form.native_custom_form` 必须在自身实际渲染节点上以 global
+  `#title_text` 排除 `/CMMODAL ` 和 `JavaScript REPL`。
+- multiline renderer 只在 global 标题精确等于 `JavaScript REPL` 时可见。
+
+这与主菜单在 `long_form@common_dialogs.main_panel_no_buttons` 上排除 `/CMROOT`、`/CMFORM`
+是同一个模式。禁止把主题 Modal、原生 Modal 和 REPL 都塞入原版 factory 的一个
+`custom_form_switch` 后仅靠子节点互斥；该结构仍可能让原版 renderer 与主题 renderer
+同时收到并绘制同一份 `custom_form` 集合。
+
+新增 factory 与原版 factory 会各自实例化 custom-form 数据，但任何标题只能有一边的
+最终渲染节点可见；否则会出现开关、标签、输入框、边框和关闭按钮成对重叠。
+项目代码必须通过 `scripts/ui/creeper-modal-form.ts` 创建 ModalFormData，避免主题资源包
+接管其他附加包或游戏自身的 custom form。

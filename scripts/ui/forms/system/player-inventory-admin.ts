@@ -7,7 +7,7 @@
  */
 
 import { Player, EntityEquippableComponent, EquipmentSlot, EntityComponentTypes, ItemStack } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openDialogForm } from "../../components/dialog";
 import { isAdmin } from "../../../shared/utils/common";
@@ -219,7 +219,7 @@ export function openPlayerInventoryAdminForm(adminPlayer: Player): void {
   const form = new ActionFormData()
     .title("§6玩家背包管理")
     .body("§b请选择要查看的内容，然后选择在线玩家。")
-    .button("查看玩家背包", "textures/icons/quest_chest")
+    .button("查看玩家背包", "textures/icons/player_inventory_admin")
     .button("查看玩家末影箱", "textures/blocks/ender_chest_front")
     .button("返回", "textures/icons/back");
 

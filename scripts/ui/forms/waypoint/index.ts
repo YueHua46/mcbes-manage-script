@@ -4,7 +4,7 @@
  */
 
 import { Player, world } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { color } from "../../../shared/utils/color";
 import { openServerMenuForm } from "../server";
@@ -667,12 +667,12 @@ export const openWayPointMenuForms = (player: Player): void => {
     },
     {
       text: "添加当前私人坐标点",
-      icon: "textures/icons/carneval",
+      icon: "textures/icons/waypoint_add_private",
       action: () => openAddWayPointForm(player),
     },
     {
       text: "添加当前公共坐标点",
-      icon: "textures/icons/carneval_unavailable",
+      icon: "textures/icons/waypoint_add_public",
       action: () => openAddWayPointForm(player, "public"),
     },
   ];

@@ -2,6 +2,7 @@
 
 from collections import deque
 from pathlib import Path
+from time import sleep
 
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont
 
@@ -10,16 +11,36 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = Path(__file__).parent / "source" / "creeper-feature-atlas-cozy-imagegen.png"
 LEFT_MOSAIC_SOURCE = Path(__file__).parent / "source" / "creeper-mosaic-left-323-imagegen.png"
 RIGHT_MOSAIC_SOURCE = Path(__file__).parent / "source" / "creeper-mosaic-right-113-imagegen.png"
+SUBMENU_CORE_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-icons-core-imagegen.png"
+SUBMENU_ADMIN_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-icons-admin-imagegen.png"
 BRAND_BACKGROUND = ROOT / "design" / "brand" / "source" / "background-imagegen.png"
 OUTPUT = ROOT / "resource_packs" / "CreeperMenu" / "textures" / "ui" / "creeper_menu"
 CARD_OUTPUT = OUTPUT / "cards"
+ICON_OUTPUT = ROOT / "resource_packs" / "CreeperMenu" / "textures" / "icons"
 PREVIEW = Path(__file__).parent / "preview.png"
 SUBMENU_PREVIEW = Path(__file__).parent / "submenu-preview.png"
+MODAL_PREVIEW = Path(__file__).parent / "modal-preview.png"
 
 CARD_NAMES = (
     "player waypoint land economy guild floating_text pvp stats "
     "quest other help menu_item server_settings shop player_market transfer"
 ).split()
+
+SUBMENU_ICON_ATLASES = {
+    SUBMENU_CORE_SOURCE: (
+        "waypoint_add_private waypoint_add_public fake_player_manage fake_player_list "
+        "simulated_player fake_player_admin guild_directory guild_mine "
+        "suicide death_return death_ranking custom_dimensions "
+        "land_flight land_teleport_settings guild_waypoint tpa_settings"
+    ).split(),
+    SUBMENU_ADMIN_SOURCE: (
+        "blacklist_list anti_dupe_whitelist author_list guild_applications "
+        "guild_invite guild_leader_transfer land_public_access land_members "
+        "player_inventory_admin marketplace_browse server_live_dashboard join_popup_announcement "
+        "status_bar_settings floating_text_admin inventory_snapshot_archive waypoint_admin_all"
+    ).split(),
+}
+SUBMENU_SINGLE_COMPONENT_ICONS = {"suicide"}
 
 CARD_COLORS = {
     "player": (174, 211, 219),
@@ -202,6 +223,39 @@ def extract_cards() -> dict[str, Image.Image]:
     return cards
 
 
+def extract_submenu_icons() -> None:
+    """Split the two authored 4x4 atlases into native 32x32 RGBA icons."""
+    ICON_OUTPUT.mkdir(parents=True, exist_ok=True)
+    for source, names in SUBMENU_ICON_ATLASES.items():
+        atlas = remove_edge_key(Image.open(source).convert("RGBA"))
+        for index, name in enumerate(names):
+            row, column = divmod(index, 4)
+            left = round(column * atlas.width / 4)
+            top = round(row * atlas.height / 4)
+            right = round((column + 1) * atlas.width / 4)
+            bottom = round((row + 1) * atlas.height / 4)
+            subject = atlas.crop((left, top, right, bottom))
+            mask = Image.new("L", subject.size)
+            mask_pixels = mask.load()
+            components = [component for component in connected_components(subject) if len(component) >= 32]
+            if name in SUBMENU_SINGLE_COMPONENT_ICONS and components:
+                components = [max(components, key=len)]
+            for component in components:
+                for x, y in component:
+                    mask_pixels[x, y] = 255
+            subject.putalpha(mask)
+            bounds = subject.getchannel("A").getbbox()
+            if bounds is None:
+                raise ValueError(f"No submenu icon artwork found for {name}")
+            subject = subject.crop(bounds)
+            scale = min(29 / subject.width, 29 / subject.height)
+            size = (max(1, round(subject.width * scale)), max(1, round(subject.height * scale)))
+            subject = subject.resize(size, Image.Resampling.NEAREST)
+            canvas = Image.new("RGBA", (32, 32))
+            canvas.alpha_composite(subject, ((32 - size[0]) // 2, (32 - size[1]) // 2))
+            canvas.save(ICON_OUTPUT / f"{name}.png", optimize=True)
+
+
 def extract_scene_cards() -> dict[str, Image.Image]:
     """Crop every root card from its final-ratio authored mosaic atlas."""
     atlases = {
@@ -233,38 +287,131 @@ def make_panels() -> None:
     draw.rounded_rectangle(
         (0, 0, 31, 31),
         radius=7,
-        fill=(244, 238, 224, 246),
-        outline=(67, 58, 49, 255),
-        width=2,
+        fill=(236, 231, 219, 252),
+        outline=(105, 93, 78, 255),
+        width=1,
     )
-    draw.arc((3, 3, 28, 28), 195, 342, fill=(255, 252, 241, 235), width=1)
     save_nineslice("submenu_panel", submenu, 8)
 
-    close_frame = Image.new("RGBA", (16, 16))
-    draw = ImageDraw.Draw(close_frame)
-    draw.rounded_rectangle(
-        (0, 0, 15, 15),
-        radius=4,
-        fill=(47, 42, 37, 125),
-        outline=(255, 252, 240, 255),
-        width=2,
-    )
-    save_nineslice("close_frame", close_frame, 4)
+    for state, fill, border in (
+        ("default", (72, 68, 63, 245), (242, 237, 224, 255)),
+        ("hover", (101, 89, 72, 250), (255, 248, 226, 255)),
+        ("pressed", (57, 52, 47, 250), (213, 203, 184, 255)),
+    ):
+        close = Image.new("RGBA", (24, 24))
+        close_draw = ImageDraw.Draw(close)
+        close_draw.rounded_rectangle((1, 1, 22, 22), radius=5, fill=fill, outline=border, width=1)
+        close_draw.line((8, 8, 15, 15), fill=(239, 235, 226, 255), width=2)
+        close_draw.line((15, 8, 8, 15), fill=(239, 235, 226, 255), width=2)
+        save_full_texture(f"close_{state}", close)
+    (OUTPUT / "close_frame.png").unlink(missing_ok=True)
+    (OUTPUT / "close_frame.json").unlink(missing_ok=True)
 
     icon_chip = Image.new("RGBA", (16, 16))
     draw = ImageDraw.Draw(icon_chip)
     draw.rounded_rectangle(
         (0, 0, 15, 15),
-        radius=4,
-        fill=(207, 220, 199, 250),
-        outline=(86, 75, 62, 255),
-        width=2,
+        radius=5,
+        fill=(210, 219, 204, 248),
+        outline=(151, 141, 119, 235),
+        width=1,
     )
-    draw.arc((2, 2, 13, 13), 195, 335, fill=(255, 252, 239, 255), width=1)
     save_nineslice("icon_chip", icon_chip, 4)
 
     line = Image.new("RGBA", (8, 1), (126, 113, 96, 120))
     line.save(OUTPUT / "line.png", optimize=True)
+
+    field_states = {
+        "default": ((244, 240, 230, 255), (154, 140, 118, 245)),
+        "hover": ((250, 246, 235, 255), (176, 150, 111, 255)),
+        "pressed": ((224, 218, 204, 255), (132, 117, 97, 255)),
+    }
+    for state, (fill, border) in field_states.items():
+        field = Image.new("RGBA", (24, 24))
+        field_draw = ImageDraw.Draw(field)
+        field_draw.rounded_rectangle((0, 0, 23, 23), radius=6, fill=fill, outline=border, width=1)
+        save_nineslice(f"modal_field_{state}", field, 6)
+
+    dropdown_panel = Image.new("RGBA", (24, 24))
+    dropdown_draw = ImageDraw.Draw(dropdown_panel)
+    dropdown_draw.rounded_rectangle(
+        (0, 0, 23, 23), radius=5, fill=(238, 233, 221, 255), outline=(132, 117, 97, 255), width=1
+    )
+    save_nineslice("modal_dropdown_panel", dropdown_panel, 6)
+
+    for selected in (False, True):
+        for hovered in (False, True):
+            name = "modal_toggle_on" if selected else "modal_toggle_off"
+            if hovered:
+                name += "_hover"
+            toggle = Image.new("RGBA", (30, 16))
+            toggle_draw = ImageDraw.Draw(toggle)
+            fill = (164, 190, 161, 255) if selected else (201, 196, 184, 255)
+            border = (112, 126, 99, 255) if selected else (139, 127, 110, 255)
+            if hovered:
+                fill = tuple(min(255, channel + 14) for channel in fill[:3]) + (255,)
+                border = (163, 132, 91, 255)
+            toggle_draw.rounded_rectangle((0, 0, 29, 15), radius=7, fill=fill, outline=border, width=1)
+            knob_x = 21 if selected else 8
+            toggle_draw.ellipse(
+                (knob_x - 5, 3, knob_x + 5, 13),
+                fill=(247, 242, 230, 255),
+                outline=(102, 91, 76, 255),
+                width=1,
+            )
+            save_full_texture(name, toggle)
+
+    for name, fill, border in (
+        ("modal_slider_track", (207, 201, 187, 255), (139, 127, 110, 255)),
+        ("modal_slider_track_hover", (219, 211, 194, 255), (163, 132, 91, 255)),
+        ("modal_slider_progress", (171, 194, 165, 255), (111, 127, 99, 255)),
+        ("modal_slider_progress_hover", (188, 207, 180, 255), (143, 117, 82, 255)),
+    ):
+        track = Image.new("RGBA", (24, 8))
+        track_draw = ImageDraw.Draw(track)
+        track_draw.rounded_rectangle((0, 0, 23, 7), radius=3, fill=fill, outline=border, width=1)
+        save_nineslice(name, track, 3)
+
+    for state, fill, border in (
+        ("", (238, 233, 220, 255), (116, 104, 88, 255)),
+        ("_hover", (249, 243, 227, 255), (168, 135, 91, 255)),
+        ("_pressed", (208, 202, 190, 255), (111, 98, 81, 255)),
+    ):
+        thumb = Image.new("RGBA", (12, 18))
+        thumb_draw = ImageDraw.Draw(thumb)
+        thumb_draw.rounded_rectangle((0, 0, 11, 17), radius=5, fill=fill, outline=border, width=1)
+        thumb_draw.line((4, 5, 4, 12), fill=(151, 139, 119, 210), width=1)
+        thumb_draw.line((7, 5, 7, 12), fill=(151, 139, 119, 210), width=1)
+        save_full_texture(f"modal_slider_thumb{state}", thumb)
+
+    step_colors = {
+        "modal_slider_step": (139, 127, 110, 210),
+        "modal_slider_step_hover": (163, 132, 91, 235),
+        "modal_slider_step_progress": (101, 126, 96, 230),
+        "modal_slider_step_progress_hover": (126, 151, 119, 255),
+    }
+    for name, color in step_colors.items():
+        Image.new("RGBA", (2, 6), color).save(OUTPUT / f"{name}.png", optimize=True)
+
+    for selected in (False, True):
+        for hovered in (False, True):
+            name = "modal_radio_on" if selected else "modal_radio_off"
+            if hovered:
+                name += "_hover"
+            radio = Image.new("RGBA", (12, 12))
+            radio_draw = ImageDraw.Draw(radio)
+            border = (164, 132, 91, 255) if hovered else (128, 116, 99, 255)
+            radio_draw.ellipse((0, 0, 11, 11), fill=(244, 240, 230, 255), outline=border, width=1)
+            if selected:
+                radio_draw.ellipse((3, 3, 8, 8), fill=(126, 153, 119, 255))
+            save_full_texture(name, radio)
+
+    info = Image.new("RGBA", (7, 11))
+    info_draw = ImageDraw.Draw(info)
+    info_draw.ellipse((0, 2, 6, 8), fill=(205, 216, 199, 255), outline=(112, 101, 85, 255), width=1)
+    info_draw.point((3, 4), fill=(73, 65, 56, 255))
+    info_draw.line((3, 6, 3, 7), fill=(73, 65, 56, 255), width=1)
+    save_full_texture("modal_info", info)
 
 
 def make_card_background(name: str, base: tuple[int, int, int], state: str) -> Image.Image:
@@ -292,19 +439,17 @@ def make_card_background(name: str, base: tuple[int, int, int], state: str) -> I
 
 def make_generic_button_background(state: str) -> Image.Image:
     if state == "hover":
-        fill = (242, 232, 207, 252)
-        border = (255, 251, 236, 255)
+        fill = (242, 236, 222, 252)
+        border = (176, 150, 111, 255)
     elif state == "pressed":
-        fill = (211, 202, 183, 252)
-        border = (91, 78, 65, 255)
+        fill = (211, 205, 193, 252)
+        border = (132, 117, 97, 255)
     else:
-        fill = (235, 229, 214, 252)
-        border = (91, 78, 65, 255)
+        fill = (230, 226, 216, 252)
+        border = (154, 140, 118, 235)
     image = Image.new("RGBA", (24, 24))
     draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((0, 0, 23, 23), radius=5, fill=fill, outline=border, width=2)
-    draw.arc((2, 2, 21, 21), 195, 340, fill=(255, 252, 241, 255), width=1)
-    draw.arc((2, 2, 21, 21), 15, 160, fill=(115, 97, 78, 90), width=1)
+    draw.rounded_rectangle((0, 0, 23, 23), radius=6, fill=fill, outline=border, width=1)
     return image
 
 
@@ -323,7 +468,10 @@ def make_scene_state(name: str, scene: Image.Image, state: str) -> Image.Image:
         border = (56, 49, 43, 255)
         inner = (235, 222, 194, 210)
 
-    radius = max(7, min(image.size) // 14)
+    # The authored textures use different aspect ratios. A fixed source-space
+    # radius keeps their perceived runtime corner radius aligned after each is
+    # scaled into the common mosaic columns.
+    radius = 8
     rounded_mask = Image.new("L", image.size)
     ImageDraw.Draw(rounded_mask).rounded_rectangle(
         (0, 0, image.width - 1, image.height - 1), radius=radius, fill=255
@@ -394,10 +542,33 @@ def make_scene_state(name: str, scene: Image.Image, state: str) -> Image.Image:
 
 
 def save_full_texture(name: str, image: Image.Image) -> None:
-    image.save(OUTPUT / f"{name}.png", optimize=True)
+    target = OUTPUT / f"{name}.png"
+    for attempt in range(5):
+        try:
+            image.save(target, optimize=True)
+            break
+        except OSError:
+            if attempt == 4:
+                raise
+            sleep(0.05 * (attempt + 1))
     # Full-scene artwork must scale as one image. A stale nineslice descriptor
     # would split the illustration into corners and a stretched center.
     (OUTPUT / f"{name}.json").unlink(missing_ok=True)
+
+
+def save_preview(image: Image.Image, target: Path) -> None:
+    """Atomically refresh previews even while another process is reading them."""
+    temporary = target.with_name(f".{target.stem}.tmp{target.suffix}")
+    for attempt in range(5):
+        try:
+            image.convert("RGB").save(temporary, quality=95)
+            temporary.replace(target)
+            return
+        except OSError:
+            temporary.unlink(missing_ok=True)
+            if attempt == 4:
+                raise
+            sleep(0.05 * (attempt + 1))
 
 
 def make_runtime_textures(scenes: dict[str, Image.Image]) -> None:
@@ -459,8 +630,8 @@ def make_preview(cards: dict[str, Image.Image], scenes: dict[str, Image.Image]) 
     canvas = Image.alpha_composite(background, overlay)
     draw = ImageDraw.Draw(canvas)
     draw.text((62, 36), "主菜单", font=get_font(42), fill=(255, 255, 255), stroke_width=2, stroke_fill=(56, 49, 43))
-    draw.rounded_rectangle((1512, 34, 1558, 80), radius=8, fill=(47, 42, 37, 105), outline=(255, 252, 240), width=3)
-    draw.text((1523, 34), "×", font=get_font(35), fill=(255, 255, 255))
+    close = Image.open(OUTPUT / "close_default.png").resize((46, 46), Image.Resampling.NEAREST)
+    canvas.alpha_composite(close, (1512, 34))
 
     x0, y0, gap = 62, 112, 8
     left_width, right_x, right_width = 970, 1040, 498
@@ -485,7 +656,7 @@ def make_preview(cards: dict[str, Image.Image], scenes: dict[str, Image.Image]) 
     draw_card(canvas, scenes, "floating_text", (right_x, quick_y, quick_width, quick_h))
     draw_card(canvas, scenes, "help", (right_x + quick_width + gap, quick_y, quick_width, quick_h))
     draw_card(canvas, scenes, "server_settings", (right_x + (quick_width + gap) * 2, quick_y, right_width - (quick_width + gap) * 2, quick_h))
-    canvas.convert("RGB").save(PREVIEW, quality=95)
+    save_preview(canvas, PREVIEW)
 
 
 def make_submenu_preview(cards: dict[str, Image.Image]) -> None:
@@ -493,14 +664,15 @@ def make_submenu_preview(cards: dict[str, Image.Image]) -> None:
     background = ImageEnhance.Brightness(background).enhance(0.88)
     canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (56, 48, 41, 36)))
     draw = ImageDraw.Draw(canvas)
-    dialog = (390, 100, 1210, 800)
-    draw.rounded_rectangle((397, 107, 1217, 807), radius=18, fill=(31, 28, 25, 125))
-    draw.rounded_rectangle(dialog, radius=18, fill=(244, 238, 224, 250), outline=(67, 58, 49), width=3)
-    draw.line((411, 106, 1189, 106), fill=(255, 252, 241), width=2)
-    draw.text((425, 124), "经济系统", font=get_font(35), fill=(63, 56, 49))
-    draw.text((427, 167), "选择一项继续", font=get_font(17), fill=(129, 113, 94))
-    draw.rounded_rectangle((1148, 122, 1186, 160), radius=7, fill=(47, 42, 37, 105), outline=(255, 252, 240), width=2)
-    draw.text((1157, 119), "×", font=get_font(30), fill=(255, 255, 255))
+    dialog = (420, 120, 1180, 760)
+    draw.rounded_rectangle((426, 126, 1186, 766), radius=18, fill=(31, 28, 25, 105))
+    draw.rounded_rectangle(dialog, radius=18, fill=(236, 231, 219, 252), outline=(105, 93, 78), width=2)
+    draw.text((454, 144), "经济系统", font=get_font(35), fill=(51, 46, 41))
+    draw.text((456, 187), "选择一项继续", font=get_font(17), fill=(112, 99, 84))
+    close = Image.open(OUTPUT / "close_default.png").resize((38, 38), Image.Resampling.NEAREST)
+    canvas.alpha_composite(close, (1118, 142))
+    draw.text((456, 216), "请选择你要进行的操作。", font=get_font(16), fill=(69, 62, 55))
+    draw.text((456, 239), "当前余额：0 金币", font=get_font(16), fill=(69, 62, 55))
 
     rows = [
         ("shop", "官方商店", "购买服务器商品与限时物资"),
@@ -509,27 +681,69 @@ def make_submenu_preview(cards: dict[str, Image.Image]) -> None:
         ("economy", "红包", "发送或领取服务器红包"),
         ("other", "出售背包物品", "按服务器回收价快速出售"),
     ]
-    y = 212
+    y = 270
     for name, title, description in rows:
-        draw.rounded_rectangle((422, y, 1178, y + 92), radius=13, fill=(235, 229, 214, 252), outline=(91, 78, 65), width=2)
-        draw.line((436, y + 4, 1164, y + 4), fill=(255, 252, 241), width=2)
-        draw.rounded_rectangle((437, y + 12, 505, y + 80), radius=10, fill=(207, 220, 199), outline=(86, 75, 62), width=2)
-        art = cards[name].resize((60, 60), Image.Resampling.NEAREST)
-        canvas.alpha_composite(art, (441, y + 16))
-        draw.text((528, y + 29), title, font=get_font(25), fill=(63, 56, 49))
-        draw.text((1138, y + 24), "›", font=get_font(34), fill=(105, 91, 75))
-        y += 105
-    canvas.convert("RGB").save(SUBMENU_PREVIEW, quality=95)
+        draw.rounded_rectangle((450, y, 1150, y + 76), radius=12, fill=(226, 222, 211, 252), outline=(112, 99, 83), width=1)
+        draw.rounded_rectangle((463, y + 8, 523, y + 68), radius=9, fill=(205, 216, 199), outline=(112, 101, 85), width=1)
+        art = cards[name].resize((56, 56), Image.Resampling.NEAREST)
+        canvas.alpha_composite(art, (465, y + 10))
+        draw.text((544, y + 21), title, font=get_font(24), fill=(51, 46, 41))
+        draw.text((1110, y + 16), "›", font=get_font(32), fill=(105, 91, 75))
+        y += 86
+    save_preview(canvas, SUBMENU_PREVIEW)
+
+
+def make_modal_preview() -> None:
+    background = Image.open(BRAND_BACKGROUND).convert("RGBA").resize((1600, 900), Image.Resampling.LANCZOS)
+    background = ImageEnhance.Brightness(background).enhance(0.82)
+    canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (54, 47, 40, 45)))
+    draw = ImageDraw.Draw(canvas)
+    dialog = (440, 120, 1160, 780)
+    draw.rounded_rectangle((447, 127, 1167, 787), radius=18, fill=(31, 28, 25, 105))
+    draw.rounded_rectangle(dialog, radius=18, fill=(236, 231, 219, 252), outline=(105, 93, 78), width=2)
+    draw.text((472, 145), "玩家传送", font=get_font(34), fill=(51, 46, 41))
+    close = Image.open(OUTPUT / "close_default.png").resize((38, 38), Image.Resampling.NEAREST)
+    canvas.alpha_composite(close, (1094, 142))
+
+    rows = (("选择玩家", "YingLin3467"), ("选择传送方式", "传送到玩家"))
+    y = 225
+    for label, value in rows:
+        draw.text((474, y), label, font=get_font(20), fill=(69, 61, 54))
+        draw.rounded_rectangle(
+            (472, y + 35, 1128, y + 103),
+            radius=12,
+            fill=(244, 240, 230, 255),
+            outline=(154, 140, 118, 245),
+            width=2,
+        )
+        draw.text((500, y + 53), value, font=get_font(24), fill=(62, 55, 48))
+        draw.polygon(((1083, y + 62), (1101, y + 62), (1092, y + 72)), fill=(101, 89, 74))
+        y += 145
+
+    draw.rounded_rectangle(
+        (472, 535, 1128, 605),
+        radius=12,
+        fill=(230, 226, 216, 252),
+        outline=(154, 140, 118, 235),
+        width=2,
+    )
+    confirm = "确认"
+    confirm_box = draw.textbbox((0, 0), confirm, font=get_font(25))
+    confirm_width = confirm_box[2] - confirm_box[0]
+    draw.text((800 - confirm_width // 2, 553), confirm, font=get_font(25), fill=(56, 50, 44))
+    save_preview(canvas, MODAL_PREVIEW)
 
 
 def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     CARD_OUTPUT.mkdir(parents=True, exist_ok=True)
+    extract_submenu_icons()
     cards = extract_cards()
     scenes = extract_scene_cards()
     make_runtime_textures(scenes)
     make_preview(cards, scenes)
     make_submenu_preview(cards)
+    make_modal_preview()
     print(f"Built {len(cards)} card illustrations and previews in {PREVIEW.parent}")
 
 

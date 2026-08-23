@@ -107,22 +107,10 @@
         }
       },
       {
-        "close_frame": {
-          "type": "image",
+        "close_button@creeper_menu.close_button": {
           "anchor_from": "right_middle",
           "anchor_to": "right_middle",
-          "offset": [-3, 0],
-          "size": [24, 24],
-          "texture": "textures/ui/creeper_menu/close_frame",
-          "layer": 6
-        }
-      },
-      {
-        "close_button@common.close_button": {
-          "anchor_from": "right_middle",
-          "anchor_to": "right_middle",
-          "offset": [-3, 0],
-          "$close_button_to_button_id": "button.menu_exit"
+          "offset": [-3, 0]
         }
       }
     ]
@@ -207,7 +195,7 @@
       },
       {
         "land@creeper_menu.card_land": {
-          "size": ["33.34%", "100%"],
+          "size": ["33.34% - 2px", "100%"],
           "$cm_index": 2
         }
       }
@@ -264,7 +252,7 @@
       },
       {
         "other@creeper_menu.card_other": {
-          "size": ["33.34%", "100%"],
+          "size": ["33.34% - 2px", "100%"],
           "$cm_index": 9
         }
       }
@@ -322,7 +310,7 @@
             },
             {
               "server_settings@creeper_menu.card_server_settings": {
-                "size": ["33.34%", "100%"],
+                "size": ["33.34% - 2px", "100%"],
                 "$cm_index": 12
               }
             }
@@ -349,9 +337,9 @@
       {
         "dialog": {
           "type": "image",
-          "size": ["58%", "72%"],
-          "max_size": [520, 380],
-          "min_size": [280, 200],
+          "size": ["56%", "66%"],
+          "max_size": [500, 330],
+          "min_size": [280, 180],
           "texture": "textures/ui/creeper_menu/submenu_panel",
           "layer": 2,
           "controls": [
@@ -390,11 +378,11 @@
           "type": "label",
           "anchor_from": "left_middle",
           "anchor_to": "left_middle",
-          "offset": [9, -5],
+          "offset": [0, 0],
           "size": ["100% - 54px", 20],
           "font_size": "large",
           "font_scale_factor": 0.7,
-          "color": [0.25, 0.22, 0.19],
+          "color": [0.2, 0.18, 0.16],
           "shadow": false,
           "layer": 6,
           "text": "#form_text",
@@ -406,35 +394,10 @@
         }
       },
       {
-        "subtitle": {
-          "type": "label",
-          "anchor_from": "left_middle",
-          "anchor_to": "left_middle",
-          "offset": [10, 10],
-          "size": ["100% - 56px", 12],
-          "text": "选择一项继续",
-          "font_scale_factor": 0.5,
-          "color": [0.5, 0.43, 0.35],
-          "layer": 6
-        }
-      },
-      {
-        "close_frame": {
-          "type": "image",
+        "close_button@creeper_menu.close_button": {
           "anchor_from": "right_middle",
           "anchor_to": "right_middle",
-          "offset": [-3, 0],
-          "size": [24, 24],
-          "texture": "textures/ui/creeper_menu/close_frame",
-          "layer": 5
-        }
-      },
-      {
-        "close_button@common.close_button": {
-          "anchor_from": "right_middle",
-          "anchor_to": "right_middle",
-          "offset": [-3, 0],
-          "$close_button_to_button_id": "button.menu_exit"
+          "offset": [-3, 0]
         }
       }
     ]
@@ -473,7 +436,7 @@
 
   "generic_dynamic_button": {
     "type": "panel",
-    "size": ["100%", 37],
+    "size": ["100%", 36],
     "visible": false,
     "bindings": [
       {
@@ -494,31 +457,81 @@
     ],
     "controls": [
       {
-        "button@common_buttons.light_text_button": {
-          "size": ["100%", "100%"],
-          "$pressed_button_name": "button.form_button_click",
-          "$button_text": "#form_button_text",
-          "$button_text_binding_type": "collection",
-          "$button_text_grid_collection_name": "form_buttons",
-          "$button_binding_condition": "none",
-          "$button_font_scale_factor": 0.68,
-          "$button_text_size": ["100% - 54px", 22],
-          "$button_text_max_size": ["100% - 54px", 22],
-          "$anchor": "left_middle",
-          "$text_alignment": "left",
-          "$button_offset": [43, 0],
-          "$button_pressed_offset": [44, 1],
-          "$default_button_texture": "textures/ui/creeper_menu/cards/generic_default",
-          "$hover_button_texture": "textures/ui/creeper_menu/cards/generic_hover",
-          "$pressed_button_texture": "textures/ui/creeper_menu/cards/generic_pressed",
-          "$locked_button_texture": "textures/ui/creeper_menu/cards/generic_default",
-          "$default_text_color": [0.25, 0.22, 0.19],
-          "$hover_text_color": [0.18, 0.16, 0.14],
-          "$pressed_text_color": [0.34, 0.29, 0.24],
-          "$locked_text_color": [0.52, 0.49, 0.44],
+        "button@creeper_menu.generic_button": {}
+      }
+    ]
+  },
+
+  "generic_button@common.button": {
+    "size": ["100%", 33],
+    "$pressed_button_name": "button.form_button_click",
+    "default_control": "default",
+    "hover_control": "hover",
+    "pressed_control": "pressed",
+    "locked_control": "locked",
+    "bindings": [
+      {
+        "binding_type": "collection_details",
+        "binding_collection_name": "form_buttons"
+      }
+    ],
+    "controls": [
+      {
+        "default@creeper_menu.generic_button_state": {
+          "$cm_state_texture": "textures/ui/creeper_menu/cards/generic_default",
+          "$cm_state_text_color": [0.2, 0.18, 0.16],
+          "$cm_state_offset": [0, 0]
+        }
+      },
+      {
+        "hover@creeper_menu.generic_button_state": {
+          "$cm_state_texture": "textures/ui/creeper_menu/cards/generic_hover",
+          "$cm_state_text_color": [0.16, 0.14, 0.12],
+          "$cm_state_offset": [0, 1]
+        }
+      },
+      {
+        "pressed@creeper_menu.generic_button_state": {
+          "$cm_state_texture": "textures/ui/creeper_menu/cards/generic_pressed",
+          "$cm_state_text_color": [0.29, 0.25, 0.21],
+          "$cm_state_offset": [0, 2]
+        }
+      },
+      {
+        "locked@creeper_menu.generic_button_state": {
+          "$cm_state_texture": "textures/ui/creeper_menu/cards/generic_default",
+          "$cm_state_text_color": [0.52, 0.49, 0.44],
+          "$cm_state_offset": [0, 0],
+          "alpha": 0.55
+        }
+      }
+    ]
+  },
+
+  "generic_button_state": {
+    "type": "image",
+    "size": ["100%", "100%"],
+    "offset": "$cm_state_offset",
+    "keep_ratio": false,
+    "texture": "$cm_state_texture",
+    "layer": 5,
+    "controls": [
+      {
+        "label": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [40, 0],
+          "size": ["100% - 50px", 20],
+          "text": "#form_button_text",
+          "font_scale_factor": 0.65,
+          "text_alignment": "left",
+          "color": "$cm_state_text_color",
+          "layer": 7,
           "bindings": [
             {
-              "binding_type": "collection_details",
+              "binding_name": "#form_button_text",
+              "binding_type": "collection",
               "binding_collection_name": "form_buttons"
             }
           ]
@@ -530,7 +543,7 @@
           "anchor_from": "left_middle",
           "anchor_to": "left_middle",
           "offset": [6, 0],
-          "size": [28, 28],
+          "size": [25, 25],
           "texture": "textures/ui/creeper_menu/icon_chip",
           "layer": 7
         }
@@ -546,10 +559,10 @@
           "anchor_from": "right_middle",
           "anchor_to": "right_middle",
           "offset": [-8, -1],
-          "size": [12, 18],
+          "size": [11, 16],
           "text": "›",
           "font_size": "large",
-          "font_scale_factor": 0.72,
+          "font_scale_factor": 0.66,
           "color": [0.42, 0.36, 0.29],
           "layer": 9
         }
@@ -562,7 +575,7 @@
     "size": ["100% - 8px", "default"],
     "offset": [4, 2],
     "text": "#form_button_text",
-    "color": [0.38, 0.33, 0.27],
+    "color": [0.26, 0.23, 0.2],
     "font_scale_factor": 0.72,
     "bindings": [
       {
@@ -576,7 +589,7 @@
   "generic_dynamic_header@creeper_menu.generic_dynamic_label": {
     "font_size": "large",
     "font_scale_factor": 0.72,
-    "color": [0.29, 0.25, 0.21],
+    "color": [0.22, 0.2, 0.17],
     "size": ["100%", 26]
   },
 
@@ -592,7 +605,7 @@
     "anchor_from": "left_middle",
     "anchor_to": "left_middle",
     "offset": [9, 0],
-    "size": [22, 22],
+    "size": [20, 20],
     "bindings": [
       {
         "binding_name": "#form_button_texture",
@@ -612,6 +625,44 @@
         "target_property_name": "#visible"
       }
     ]
+  },
+
+  "close_button@common.button": {
+    "size": [24, 24],
+    "$pressed_button_name": "button.menu_exit",
+    "default_control": "default",
+    "hover_control": "hover",
+    "pressed_control": "pressed",
+    "locked_control": "default",
+    "controls": [
+      {
+        "default@creeper_menu.close_state": {
+          "$cm_close_texture": "textures/ui/creeper_menu/close_default",
+          "$cm_close_offset": [0, 0]
+        }
+      },
+      {
+        "hover@creeper_menu.close_state": {
+          "$cm_close_texture": "textures/ui/creeper_menu/close_hover",
+          "$cm_close_offset": [0, 0]
+        }
+      },
+      {
+        "pressed@creeper_menu.close_state": {
+          "$cm_close_texture": "textures/ui/creeper_menu/close_pressed",
+          "$cm_close_offset": [0, 1]
+        }
+      }
+    ]
+  },
+
+  "close_state": {
+    "type": "image",
+    "size": ["100%", "100%"],
+    "offset": "$cm_close_offset",
+    "keep_ratio": false,
+    "texture": "$cm_close_texture",
+    "layer": 8
   },
 
   "card_player@creeper_menu.card": {
@@ -734,25 +785,29 @@
       {
         "default@creeper_menu.card_state": {
           "$cm_background_texture": "$cm_default_texture",
-          "$cm_text_color": [1.0, 0.98, 0.93]
+          "$cm_text_color": [1.0, 0.98, 0.93],
+          "$cm_state_offset": [0, 0]
         }
       },
       {
         "hover@creeper_menu.card_state": {
           "$cm_background_texture": "$cm_hover_texture",
-          "$cm_text_color": [1.0, 1.0, 0.96]
+          "$cm_text_color": [1.0, 1.0, 0.96],
+          "$cm_state_offset": [0, 1]
         }
       },
       {
         "pressed@creeper_menu.card_state": {
           "$cm_background_texture": "$cm_pressed_texture",
-          "$cm_text_color": [0.86, 0.82, 0.74]
+          "$cm_text_color": [0.86, 0.82, 0.74],
+          "$cm_state_offset": [0, 2]
         }
       },
       {
         "locked@creeper_menu.card_state": {
           "$cm_background_texture": "$cm_default_texture",
           "$cm_text_color": [0.62, 0.6, 0.55],
+          "$cm_state_offset": [0, 0],
           "alpha": 0.45
         }
       }
@@ -762,6 +817,8 @@
   "card_state": {
     "type": "image",
     "size": ["100%", "100%"],
+    "offset": "$cm_state_offset",
+    "keep_ratio": false,
     "texture": "$cm_background_texture",
     "layer": 4,
     "controls": []

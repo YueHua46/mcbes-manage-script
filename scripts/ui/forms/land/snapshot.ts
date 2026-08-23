@@ -1,5 +1,5 @@
 import { Player } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import type { ILand } from "../../../core/types";
 import landSnapshotService, { LandSnapshotRecord } from "../../../features/land/services/land-snapshot";

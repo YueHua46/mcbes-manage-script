@@ -4,7 +4,7 @@
  */
 
 import { Dimension, Player, Vector3, world } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openServerMenuForm } from "../server";
 import { RandomTp } from "../../../features/other/services/random-tp";
@@ -38,7 +38,7 @@ function openAuthorListForm(player: Player): void {
     if (data.canceled || data.cancelationReason) return;
     switch (data.selection) {
       case authors.length:
-        openServerMenuForm(player);
+        openBaseFunctionForm(player);
         break;
     }
   });
@@ -63,12 +63,12 @@ export function openBaseFunctionForm(player: Player): void {
     });
   }
 
-  buttons.push({ text: "自杀", icon: "textures/icons/dead", action: () => player.kill() });
+  buttons.push({ text: "自杀", icon: "textures/icons/suicide", action: () => player.kill() });
 
   if (backToDeath) {
     buttons.push({
       text: "回到上次死亡地点",
-      icon: "textures/icons/dead",
+      icon: "textures/icons/death_return",
       action: () => {
         let charged = false;
         try {
@@ -115,7 +115,7 @@ export function openBaseFunctionForm(player: Player): void {
     action: () => openMyEnderChestForm(player, () => openBaseFunctionForm(player)),
   });
 
-  buttons.push({ text: "制作者名单", icon: "textures/icons/social", action: () => openAuthorListForm(player) });
+  buttons.push({ text: "制作者名单", icon: "textures/icons/author_list", action: () => openAuthorListForm(player) });
   form.title("其他功能");
 
   buttons.forEach((button) => {
@@ -161,7 +161,7 @@ export const openLeaveMessageForms = (player: Player): void => {
     if (data.canceled || data.cancelationReason) return;
     switch (data.selection) {
       case buttons.length:
-        openServerMenuForm(player);
+        openBaseFunctionForm(player);
         break;
       default:
         if (typeof data.selection !== "number") return;

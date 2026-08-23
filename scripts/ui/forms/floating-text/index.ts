@@ -1,6 +1,6 @@
 import { Player } from "@minecraft/server";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import type { RGBA } from "@minecraft/server";
-import { ModalFormData } from "@minecraft/server-ui";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { color, colorCodes } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
@@ -229,7 +229,7 @@ export function openFloatingTextMenu(player: Player): void {
   form.button("我的悬浮文字", "textures/icons/catalogue");
   form.button(cost > 0 ? `创建悬浮文字\n${costText}` : "创建悬浮文字\n免费", "textures/icons/add");
   if (admin) {
-    form.button("管理全部悬浮文字", "textures/icons/gear");
+    form.button("管理全部悬浮文字", "textures/icons/floating_text_admin");
     form.button("系统设置", "textures/icons/settings");
   }
   form.button("返回", "textures/icons/back");
