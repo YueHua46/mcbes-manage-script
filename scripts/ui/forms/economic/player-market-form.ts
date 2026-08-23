@@ -4,7 +4,8 @@
  */
 
 import { ItemStack, Player, RawMessage } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import playerMarket, { MarketItem } from "../../../features/economic/services/player-market";
 import ChestFormData from "../../../ui/components/chest-ui/chest-forms";
 import { openConfirmDialogForm, openDialogForm } from "../../components/dialog";
@@ -30,7 +31,7 @@ class PlayerMarketForm {
     const form = new ActionFormData()
       .title("玩家交易市场")
       .body(`${colorCodes.green}欢迎来到玩家交易市场！这里有全服玩家正在出售的物品。`)
-      .button("浏览所有商品", "textures/icons/quest_chest")
+      .button("浏览所有商品", "textures/icons/marketplace_browse")
       .button("我的上架商品", "textures/icons/sandik")
       .button("上架新商品", "textures/icons/add")
       .button("返回", "textures/icons/back");

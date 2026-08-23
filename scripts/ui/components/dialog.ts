@@ -2,7 +2,7 @@
  * 对话框UI组件
  */
 
-import { ActionFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../creeper-action-form";
 import { Player, RawMessage } from "@minecraft/server";
 
 /**
@@ -12,7 +12,7 @@ function createErrorForm(title: string | RawMessage, body: string | RawMessage):
   const form = new ActionFormData();
   form.title(title);
   form.body(body);
-  form.button("返回");
+  form.button("返回", "textures/icons/back");
   return form;
 }
 

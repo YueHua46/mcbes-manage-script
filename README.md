@@ -35,13 +35,13 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 同时生成三个 CreeperMenu 发行产物：`npm run mcaddon:release`。当前版本的
 Release 附件名称为：
 
-- `CreeperMenu-v3.2.13-MCBE-1.26.3x-普通兼容版.mcaddon`
-- `CreeperMenu-v3.2.13-MCBE-1.26.3x-Realms兼容版.mcaddon`
-- `CreeperMenu-v3.2.13-MCBE-1.26.3x-BDS增强版.mcaddon`
+- `CreeperMenu-v3.3.0-MCBE-1.26.4x-普通兼容版.mcaddon`
+- `CreeperMenu-v3.3.0-MCBE-1.26.4x-Realms兼容版.mcaddon`
+- `CreeperMenu-v3.3.0-MCBE-1.26.4x-BDS增强版.mcaddon`
 
-三个 CreeperMenu 变体统一使用 **3.2.13** 发行版本。构建依赖精确锁定
-Minecraft Bedrock **1.26.30**，面向用户标记为 **1.26.3x**，表示适配
-正常的 `1.26.30` 至 `1.26.39` 小版本族。manifest 最低引擎版本仍为
+三个 CreeperMenu 变体统一使用 **3.3.0** 发行版本。构建依赖精确锁定
+Minecraft Bedrock **1.26.44**，面向用户标记为 **1.26.4x**，表示适配
+正常的 `1.26.40` 至 `1.26.49` 小版本族。manifest 最低引擎版本仍为
 **1.26.0**。
 
 Backrooms 行为包和资源包继续使用独立版本 **1.0.0**，不会进入
@@ -153,13 +153,13 @@ Minecraft、Realms 或 BDS 游戏内测试。
 发布新版本时：
 
 ```bash
-npm run release:sync -- 3.2.14
+npm run release:sync -- 3.3.0
 npm run check
 git add release.config.json package.json package-lock.json behavior_packs/CreeperMenu resource_packs/CreeperMenu
-git commit -m "chore: 发布苦力怕菜单 3.2.14"
-git tag v3.2.14
+git commit -m "chore: 发布苦力怕菜单 3.3.0"
+git tag v3.3.0
 git push origin HEAD
-git push origin v3.2.14
+git push origin v3.3.0
 ```
 
 Tag 必须严格等于 `v` 加统一发行版本，否则 CI 会拒绝发布。失败的 Tag 发布
@@ -250,7 +250,7 @@ npm run mcaddon:backrooms # 打包独立 Backrooms
 npm run mcaddon:all       # 打包全部产物
 npm run mcaddon:release   # 打包三个 CreeperMenu Release 产物
 npm run release:check     # 检查统一版本与全部 manifest
-npm run release:sync -- 3.2.14 # 同步下一发行版本
+npm run release:sync -- 3.3.0 # 同步下一发行版本
 npm run verify:realms-build # 检查当前 Realms manifest 和脚本不含不支持模块
 npm run update:minecraft-deps # 更新依赖到指定版本（提前先在packages.json中minecraftDependencies配置好 stableRange）
 ```
@@ -265,7 +265,7 @@ npm run update:minecraft-deps # 更新依赖到指定版本（提前先在packag
 
 ```bash
 npm run build:vanilla-icon-map
-npm run build:vanilla-icon-map -- 1.26.30
+npm run build:vanilla-icon-map -- 1.26.45
 ```
 
 生成器会从 Mojang 官方 `bedrock-samples` 获取物品和贴图元数据，诊断报告输出到 `out/vanilla-icon-map/`。

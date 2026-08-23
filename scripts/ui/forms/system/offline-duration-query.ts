@@ -3,7 +3,8 @@
  */
 
 import { Player } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import onlineTimeService, { formatOnlineDuration } from "../../../features/player/services/online-time";
 import { openDialogForm } from "../../../ui/components/dialog";
 import { color } from "../../../shared/utils/color";

@@ -4,7 +4,8 @@
  */
 
 import { Player, RawMessage, world, ItemStack } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import type { IGuild } from "../../../features/guild/models/guild.model";
 import { color, colorCodes } from "../../../shared/utils/color";
 import { getOnlineRealPlayerByName, getOnlineRealPlayers } from "../../../shared/utils/online-players";
@@ -194,7 +195,7 @@ export function openSystemSettingForm(player: Player): void {
   const buttons = [
     {
       text: "服务器实时面板",
-      icon: "textures/icons/info",
+      icon: "textures/icons/server_live_dashboard",
       action: () => void openLiveServerPanel(player, () => openSystemSettingForm(player)),
     },
     {
@@ -238,7 +239,7 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "进服弹窗公告",
-      icon: "textures/icons/info",
+      icon: "textures/icons/join_popup_announcement",
       action: () => openJoinPopupAnnouncementManageForm(player),
     },
     {
@@ -253,7 +254,7 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "自定义维度管理",
-      icon: "textures/icons/checkpoint",
+      icon: "textures/icons/custom_dimensions",
       action: () => openCustomDimensionManageForm(player, () => openSystemSettingForm(player)),
     },
     {
@@ -271,7 +272,7 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "黑名单管理",
-      icon: "textures/icons/mod_shield",
+      icon: "textures/icons/blacklist_list",
       action: async () => {
         if (isServerAdminBuild()) {
           const { openBlacklistManageForm } = await import("../blacklist");
@@ -310,7 +311,7 @@ export function openSystemSettingForm(player: Player): void {
     },
     {
       text: "玩家背包管理",
-      icon: "textures/icons/quest_chest",
+      icon: "textures/icons/player_inventory_admin",
       action: () => openPlayerInventoryAdminForm(player),
     },
   ];
@@ -1055,7 +1056,7 @@ export const openWayPointManageMenu = (player: Player): void => {
   const form = new ActionFormData();
   form.title("坐标点管理");
 
-  form.button("所有玩家坐标点管理", "textures/icons/menu_waypoint");
+  form.button("所有玩家坐标点管理", "textures/icons/waypoint_admin_all");
   form.button("搜索玩家坐标点", "textures/ui/magnifyingGlass");
   form.button("返回", "textures/icons/back");
 
@@ -1194,7 +1195,7 @@ function openAdminGuildWaypointForGuildForm(
     const wp = wayPoint.getPointByDbKey(dbKey);
     const label = wp ? wp.name : dbKey;
     const sub = wp ? wp.dimension : "?";
-    form.button(`${label}\n${sub}`, "textures/icons/fast_travel");
+    form.button(`${label}\n${sub}`, "textures/icons/guild_waypoint");
     actions.push(() => {
       openConfirmDialogForm(
         player,
@@ -1378,12 +1379,12 @@ export const openLandManageForm = async (player: Player): Promise<void> => {
 
   form.button("所有玩家领地管理", "textures/icons/topraklar");
   form.button("搜索玩家领地", "textures/ui/magnifyingGlass");
-  form.button("领地飞行设置", "textures/icons/fast_travel");
+  form.button("领地飞行设置", "textures/icons/land_flight");
   form.button("领地粒子效果", "textures/icons/gadgets");
-  form.button("领地传送设置", "textures/icons/fast_travel");
+  form.button("领地传送设置", "textures/icons/land_teleport_settings");
   form.button("快照功能设置", "textures/icons/fotograf");
   form.button("公会领地（管理员）", "textures/icons/menu_land");
-  form.button("公会坐标（管理员）", "textures/icons/fast_travel");
+  form.button("公会坐标（管理员）", "textures/icons/guild_waypoint");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then(async (data) => {
@@ -1923,7 +1924,7 @@ function openItemPriceManageForm(player: Player): void {
       `§a当前状态:\n§e已设置物品出售价格: ${customPricesCount} 个\n§e配置文件默认价格: ${totalItemsCount} 个\n§c注意：未设置价格的物品无法出售！\n§a请选择要进行的操作:`
     )
     .button("初始化所有物品出售价格", "textures/icons/requeue")
-    .button("浏览已设置的物品出售价格", "textures/icons/quest_chest")
+    .button("浏览已设置的物品出售价格", "textures/icons/marketplace_browse")
     .button("手动修改物品出售价格", "textures/icons/edit2")
     .button("搜索物品出售价格", "textures/ui/magnifyingGlass")
     .button("清空所有物品出售价格", "textures/icons/deny")

@@ -230,6 +230,13 @@ async function copyFileWithRetry(source: string, destination: string): Promise<v
 async function copyDirectoryContents(source: string, destination: string): Promise<void> {
   await fs.promises.mkdir(destination, { recursive: true });
   const entries = await fs.promises.readdir(source, { withFileTypes: true });
+  const sourceNames = new Set(entries.map((entry) => entry.name));
+  const destinationEntries = await fs.promises.readdir(destination, { withFileTypes: true });
+  await Promise.all(
+    destinationEntries
+      .filter((entry) => !sourceNames.has(entry.name))
+      .map((entry) => fs.promises.rm(path.join(destination, entry.name), { recursive: true, force: true }))
+  );
   await Promise.all(
     entries.map(async (entry) => {
       const sourcePath = path.join(source, entry.name);
@@ -237,6 +244,15 @@ async function copyDirectoryContents(source: string, destination: string): Promi
       if (entry.isDirectory()) {
         await copyDirectoryContents(sourcePath, destinationPath);
       } else if (entry.isFile()) {
+        try {
+          const [sourceData, destinationData] = await Promise.all([
+            fs.promises.readFile(sourcePath),
+            fs.promises.readFile(destinationPath),
+          ]);
+          if (sourceData.equals(destinationData)) return;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
         await copyFileWithRetry(sourcePath, destinationPath);
       }
     })

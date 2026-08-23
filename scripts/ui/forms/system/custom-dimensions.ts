@@ -1,5 +1,6 @@
 import { BlockVolume, Player, system, world } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import dimensionRegistry from "../../../features/dimension/services/dimension-registry";
 import { CUSTOM_DIMENSION_POOL } from "../../../features/dimension/services/custom-dimension-pool";
 import { color } from "../../../shared/utils/color";
@@ -70,7 +71,7 @@ export function openCustomDimensionManageForm(player: Player, back: () => void):
     const record = dimensionRegistry.getRegisteredDimension(item.alias);
     form.button(
       `${record?.displayName ?? item.displayName}\n${item.alias} · 默认点 ${locationText(record?.spawn)}`,
-      "textures/icons/checkpoint"
+      "textures/icons/custom_dimensions"
     );
   }
   form.button("返回", "textures/icons/back");

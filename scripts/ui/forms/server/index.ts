@@ -28,6 +28,8 @@ interface MenuItem {
   alwaysVisible?: boolean;
 }
 
+const activeServerMenuPlayers = new Set<string>();
+
 /**
  * 创建苦力怕菜单表单
  */
@@ -38,13 +40,13 @@ function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: an
   form.title(BRANDING.MENU_TITLE);
   form.body("");
 
-  menuItems
-    .filter(({ id, alwaysVisible }) => alwaysVisible || setting.getState(id))
-    .forEach((item) => {
-      if (!item.adminOnly || _isAdmin) {
-        form.button(item.text, item.icon);
-      }
-    });
+  menuItems.forEach((item) => {
+    const available = (item.alwaysVisible || setting.getState(item.id)) && (!item.adminOnly || _isAdmin);
+    // The custom JSON UI uses fixed collection indices for its asymmetric card
+    // mosaic. Empty placeholders preserve that contract when modules are off or
+    // an entry requires administrator permission.
+    form.button(available ? item.text : "", available ? item.icon : "");
+  });
 
   return form;
 }
@@ -52,7 +54,7 @@ function createServerMenuForm(player: Player, menuItems: MenuItem[], setting: an
 /**
  * 打开苦力怕菜单表单
  */
-export async function openServerMenuForm(player: Player): Promise<void> {
+async function openServerMenuFormInternal(player: Player): Promise<void> {
   if (!player.isValid) return;
 
   try {
@@ -104,8 +106,8 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       id: "guild",
       text: "公会",
       icon: "textures/icons/menu_guild",
-      action: async (player: Player) => {
-        await openGuildMenuForm(player);
+      action: (player: Player) => {
+        void openGuildMenuForm(player);
       },
     },
     {
@@ -162,7 +164,7 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     },
     {
       id: "sm",
-      text: `给予我${BRANDING.MENU_ITEM_LABEL}道具`,
+      text: "领取菜单道具",
       icon: "textures/icons/menu_item",
       action: (player: Player) => {
         player.runCommand("give @s yuehua:sm");
@@ -188,12 +190,12 @@ export async function openServerMenuForm(player: Player): Promise<void> {
       const forceForm = await useForceOpen(player, form);
       if (forceForm?.canceled) return;
       if (forceForm?.selection !== undefined) {
-        const availableItems = menuItems.filter(
-          ({ id, adminOnly, alwaysVisible }) =>
-            (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
-        );
-        const selectedItem = availableItems[forceForm.selection];
-        if (selectedItem) {
+        const selectedItem = menuItems[forceForm.selection];
+        const available =
+          selectedItem &&
+          (selectedItem.alwaysVisible || setting.getState(selectedItem.id as IModules)) &&
+          (!selectedItem.adminOnly || isAdmin(player));
+        if (selectedItem && available) {
           await selectedItem.action(player);
         }
       }
@@ -202,12 +204,12 @@ export async function openServerMenuForm(player: Player): Promise<void> {
 
     if (data.canceled) return;
     if (data.selection !== undefined) {
-      const availableItems = menuItems.filter(
-        ({ id, adminOnly, alwaysVisible }) =>
-          (alwaysVisible || setting.getState(id as IModules)) && (!adminOnly || isAdmin(player))
-      );
-      const selectedItem = availableItems[data.selection];
-      if (selectedItem) {
+      const selectedItem = menuItems[data.selection];
+      const available =
+        selectedItem &&
+        (selectedItem.alwaysVisible || setting.getState(selectedItem.id as IModules)) &&
+        (!selectedItem.adminOnly || isAdmin(player));
+      if (selectedItem && available) {
         await selectedItem.action(player);
       }
     }
@@ -215,5 +217,16 @@ export async function openServerMenuForm(player: Player): Promise<void> {
     if (player.isValid) {
       player.sendMessage(`§c${BRANDING.MENU_ITEM_LABEL}打开失败，请关闭其他界面后重试。`);
     }
+  }
+}
+
+export async function openServerMenuForm(player: Player): Promise<void> {
+  if (!player.isValid || activeServerMenuPlayers.has(player.id)) return;
+
+  activeServerMenuPlayers.add(player.id);
+  try {
+    await openServerMenuFormInternal(player);
+  } finally {
+    activeServerMenuPlayers.delete(player.id);
   }
 }

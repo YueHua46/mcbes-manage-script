@@ -1,16 +1,39 @@
 {
   "namespace": "server_form",
   "main_screen_content": {
-    "size": ["100%", "100%"]
+    "size": ["100%", "100%"],
+    "modifications": [
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": [
+          {
+            "server_form_factory": {
+              "type": "factory",
+              "control_ids": {
+                "long_form": "long_form_router@creeper_menu.long_form_router",
+                "custom_form": "custom_form_router@creeper_modal.custom_form_router"
+              }
+            }
+          }
+        ]
+      }
+    ]
   },
 
-  "main_screen_content/server_form_factory": {
-    "control_ids": {
-      "custom_form": "@server_form.custom_form_switch"
-    }
-  },
   "long_form": {
     "type": "panel",
+    "bindings": [
+      {
+        "binding_name": "#title_text",
+        "binding_type": "global"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "((#title_text - '/CMROOT ' - '/CMFORM ' - '/CMMESSAGE ') = #title_text)",
+        "target_property_name": "#visible"
+      }
+    ],
     "controls": [
       {
         "long_form@common_dialogs.main_panel_no_buttons": {
@@ -23,11 +46,12 @@
           "layer": 2,
           "bindings": [
             {
-              "binding_name": "#title_text"
+              "binding_name": "#title_text",
+              "binding_type": "global"
             },
             {
               "binding_type": "view",
-              "source_property_name": "(((#title_text - '§c§h§e§s§t') = #title_text) and ((#title_text - '§f§u§r§n§a§c§e') = #title_text))",
+              "source_property_name": "((#title_text - '§c§h§e§s§t' - '§f§u§r§n§a§c§e' - '/CMROOT ' - '/CMFORM ' - '/CMMESSAGE ') = #title_text)",
               "target_property_name": "#visible"
             }
           ]
@@ -66,13 +90,19 @@
     ]
   },
 
-  "custom_form_switch": {
+  "custom_form": {
     "type": "panel",
     "size": ["100%", "100%"],
-    "$flag_form_title": "JavaScript REPL",
+    "bindings": [
+      {
+        "binding_name": "#title_text",
+        "binding_type": "global"
+      }
+    ],
     "controls": [
       {
-        "custom_form@server_form.custom_form": {
+        "native_custom_form@server_form.native_custom_form": {
+          "visible": false,
           "bindings": [
             {
               "binding_name": "#title_text",
@@ -80,7 +110,7 @@
             },
             {
               "binding_type": "view",
-              "source_property_name": "(#title_text - $flag_form_title = #title_text)",
+              "source_property_name": "((#title_text - '/CMMODAL ' - 'JavaScript REPL') = #title_text)",
               "target_property_name": "#visible"
             }
           ]
@@ -88,6 +118,7 @@
       },
       {
         "custom_multiline_form@server_form.custom_multiline_form": {
+          "visible": false,
           "bindings": [
             {
               "binding_name": "#title_text",
@@ -95,13 +126,24 @@
             },
             {
               "binding_type": "view",
-              "source_property_name": "(not (#title_text - $flag_form_title = #title_text))",
+              "source_property_name": "(#title_text = 'JavaScript REPL')",
               "target_property_name": "#visible"
             }
           ]
         }
       }
     ]
+  },
+
+  "native_custom_form@common_dialogs.main_panel_no_buttons": {
+    "$title_panel": "common_dialogs.standard_title_label",
+    "$title_size": ["100% - 15px", 10],
+    "$title_max_size": ["100% - 15px", 10],
+    "size": [225, 200],
+    "$text_name": "#title_text",
+    "$title_text_binding_type": "none",
+    "$child_control": "server_form.custom_form_panel",
+    "layer": 2
   },
 
   "custom_multiline_form@common_dialogs.main_panel_no_buttons": {

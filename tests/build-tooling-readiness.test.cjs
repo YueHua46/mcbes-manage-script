@@ -40,6 +40,14 @@ test("lint and build configuration do not require a deployment path at module lo
   );
 });
 
+test("local deployment replaces pack directories so removed assets cannot survive", () => {
+  const config = fs.readFileSync(path.join(root, "just.config.ts"), "utf8");
+  assert.match(config, /const sourceNames = new Set\(entries\.map/);
+  assert.match(config, /filter\(\(entry\) => !sourceNames\.has\(entry\.name\)\)/);
+  assert.match(config, /fs\.promises\.rm\(path\.join\(destination, entry\.name\)/);
+  assert.match(config, /if \(sourceData\.equals\(destinationData\)\) return/);
+});
+
 test("GitHub Actions pip cache tracks the repository development requirements file", () => {
   const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
   assert.match(

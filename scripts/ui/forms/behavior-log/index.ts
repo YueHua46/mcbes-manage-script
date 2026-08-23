@@ -1,5 +1,6 @@
 import { Player, Vector3, system } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import setting from "../../../features/system/services/setting";
 import behaviorLog, {
   BehaviorEventType,
@@ -161,11 +162,12 @@ export async function openBehaviorLogBlockInspectorForm(
   const summary = `筛选条件：方块 ${Math.floor(location.x)}, ${Math.floor(location.y)}, ${Math.floor(location.z)} 附近 ${radius} 格 / 全部时间 / 全部事件`;
   const body = formatBehaviorMessageBoxPage(summary, finalResult.items, safePage, totalPages, finalResult.total);
   const form = new ActionFormData().title("方块行为记录").body(body);
-  const buttons: Array<{ text: string; action: () => void }> = [];
+  const buttons: Array<{ text: string; icon: string; action: () => void }> = [];
 
   if (safePage > 0) {
     buttons.push({
       text: "上一页",
+      icon: "textures/icons/left_arrow",
       action: () =>
         runAfterDelay(
           () => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage - 1, radius)
@@ -175,6 +177,7 @@ export async function openBehaviorLogBlockInspectorForm(
   if (safePage < totalPages - 1) {
     buttons.push({
       text: "下一页",
+      icon: "textures/icons/right_arrow",
       action: () =>
         runAfterDelay(
           () => void openBehaviorLogBlockInspectorForm(player, dimensionId, location, safePage + 1, radius)
@@ -183,15 +186,17 @@ export async function openBehaviorLogBlockInspectorForm(
   }
   buttons.push({
     text: "打开完整筛选",
+    icon: "textures/icons/filter_search",
     action: () => runAfterDelay(() => void openBehaviorLogQueryForm(player)),
   });
   buttons.push({
     text: "关闭",
+    icon: "textures/icons/back",
     action: () => undefined,
   });
 
   for (const button of buttons) {
-    form.button(button.text);
+    form.button(button.text, button.icon);
   }
 
   const result = await showForm(form, player, "打开方块行为记录失败:");
@@ -250,8 +255,8 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
   const form = new ActionFormData()
     .title("行为日志管理")
     .body(bodyLines.join("\n"))
-    .button("查看日志")
-    .button("监控设置")
+    .button("查看日志", "textures/icons/eyes")
+    .button("监控设置", "textures/icons/settings")
     .button(
       {
         text: "玩家获得物品监控\n自动记下当时背包里有什么",
@@ -263,7 +268,8 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
         text: "获取日志查询器\n拿在手上点击方块查看附近记录",
       },
       "textures/icons/quest_log"
-    );
+    )
+    .button("返回", "textures/icons/back");
 
   const result = await showForm(form, player, "打开行为日志首页失败:");
   if (result.canceled) return;
@@ -287,6 +293,12 @@ export async function openBehaviorLogForm(player: Player): Promise<void> {
   if (result.selection === 3) {
     player.runCommand("give @s yuehua:log_inspector");
     player.sendMessage("§a已给予行为日志查询器。手持它点击方块可查看附近记录。");
+    return;
+  }
+  if (result.selection === 4) {
+    runAfterDelay(() => {
+      void import("../system").then(({ openSystemSettingForm }) => openSystemSettingForm(player));
+    });
   }
 }
 
@@ -358,7 +370,7 @@ async function openBehaviorLogResultBox(player: Player, session: BehaviorLogQuer
   if (!isLastPage) {
     form.button("下一页");
   } else {
-    form.button("重新筛选");
+    form.button("重新筛选", "textures/icons/filter_refresh");
   }
 
   const result = await showForm(form, player, "打开行为日志结果页失败:");

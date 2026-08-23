@@ -1,5 +1,5 @@
 import { Player, system, world } from "@minecraft/server";
-import { ActionFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import serverInfo from "../../../features/system/services/server-info";
 import setting from "../../../features/system/services/setting";
 import {

@@ -114,14 +114,14 @@ test("README exposes the release essentials", () => {
 test("README documents the automatic three-variant release workflow", () => {
   const readme = read("README.md");
   for (const required of [
-    "CreeperMenu-v3.2.13-MCBE-1.26.3x-普通兼容版.mcaddon",
-    "CreeperMenu-v3.2.13-MCBE-1.26.3x-Realms兼容版.mcaddon",
-    "CreeperMenu-v3.2.13-MCBE-1.26.3x-BDS增强版.mcaddon",
-    "npm run release:sync -- 3.2.14",
-    "git tag v3.2.14",
-    "git push origin v3.2.14",
-    "1.26.30",
-    "1.26.3x",
+    "CreeperMenu-v3.3.0-MCBE-1.26.4x-普通兼容版.mcaddon",
+    "CreeperMenu-v3.3.0-MCBE-1.26.4x-Realms兼容版.mcaddon",
+    "CreeperMenu-v3.3.0-MCBE-1.26.4x-BDS增强版.mcaddon",
+    "npm run release:sync -- 3.3.0",
+    "git tag v3.3.0",
+    "git push origin v3.3.0",
+    "1.26.44",
+    "1.26.4x",
     "Backrooms",
     "独立版本",
   ]) {

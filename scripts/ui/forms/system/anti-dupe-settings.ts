@@ -3,7 +3,8 @@
  */
 
 import { Player } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import {
   clearAllWhitelistedBlocks,
   getTrustedPlacerNames,
@@ -26,7 +27,7 @@ export function openAntiDupeSettingsForm(player: Player): void {
     "§e§l总开关§r 在「功能开关管理」中；关闭后本条目不生效\n§b· §f收纳袋防刷 §a默认开§f，可在此页关闭\n§b· §f防刷白名单玩家放置的受限容器会登记白名单\n§b· §f收纳袋容器在 §e10 §f格内有玩家时扫描"
   );
   form.button("防刷项开关", "textures/icons/gadgets");
-  form.button("防刷白名单（玩家）", "textures/icons/social");
+  form.button("防刷白名单（玩家）", "textures/icons/anti_dupe_whitelist");
   form.button("清空方块白名单", "textures/icons/deny");
   form.button("返回", "textures/icons/back");
 
@@ -125,7 +126,7 @@ function openRemoveFromAntiDupeWhitelistForm(player: Player): void {
 
   const form = new ActionFormData();
   form.title("从防刷白名单移除");
-  names.forEach((n) => form.button(`${n}`));
+  names.forEach((n) => form.button(`${n}`, "textures/icons/whitelist_remove"));
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {

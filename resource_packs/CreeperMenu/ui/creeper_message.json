@@ -1,0 +1,239 @@
+{
+  "namespace": "creeper_message",
+
+  "form": {
+    "type": "panel",
+    "size": ["100%", "100%"],
+    "controls": [
+      {
+        "dialog": {
+          "type": "image",
+          "size": ["58%", "68%"],
+          "max_size": [520, 350],
+          "min_size": [290, 200],
+          "texture": "textures/ui/creeper_menu/submenu_panel",
+          "layer": 2,
+          "controls": [
+            {
+              "header@creeper_message.header": {}
+            },
+            {
+              "body_frame": {
+                "type": "image",
+                "anchor_from": "top_middle",
+                "anchor_to": "top_middle",
+                "size": ["100% - 14px", "100% - 94px"],
+                "offset": [0, 46],
+                "texture": "textures/ui/creeper_menu/modal_field_default",
+                "layer": 3,
+                "controls": [
+                  {
+                    "body_scroll@common.scrolling_panel": {
+                      "size": ["100% - 12px", "100% - 12px"],
+                      "$show_background": false,
+                      "$scrolling_content": "creeper_message.body_content",
+                      "$scroll_size": [2, "100% - 4px"],
+                      "$scrolling_pane_size": ["100% - 5px", "100%"],
+                      "$scroll_bar_right_padding_size": [0, 0],
+                      "layer": 4
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "footer@creeper_message.footer": {}
+            }
+          ]
+        }
+      }
+    ]
+  },
+
+  "header": {
+    "type": "panel",
+    "anchor_from": "top_middle",
+    "anchor_to": "top_middle",
+    "size": ["100% - 14px", 42],
+    "offset": [0, 4],
+    "controls": [
+      {
+        "title": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "size": ["100% - 54px", 20],
+          "font_size": "large",
+          "font_scale_factor": 0.7,
+          "color": [0.2, 0.18, 0.16],
+          "shadow": false,
+          "layer": 6,
+          "text": "#visible_title",
+          "bindings": [
+            {
+              "binding_name": "#title_text"
+            },
+            {
+              "binding_type": "view",
+              "source_property_name": "(#title_text - '/CMMESSAGE ')",
+              "target_property_name": "#visible_title"
+            }
+          ]
+        }
+      },
+      {
+        "close_button@creeper_menu.close_button": {
+          "anchor_from": "right_middle",
+          "anchor_to": "right_middle",
+          "offset": [-3, 0]
+        }
+      }
+    ]
+  },
+
+  "body_content": {
+    "type": "stack_panel",
+    "orientation": "vertical",
+    "size": ["100%", "100%c"],
+    "controls": [
+      {
+        "body": {
+          "type": "label",
+          "size": ["100%", "default"],
+          "offset": [0, 1],
+          "text": "#form_text",
+          "text_alignment": "left",
+          "color": [0.25, 0.22, 0.19],
+          "font_scale_factor": 0.72,
+          "line_padding": 1,
+          "bindings": [
+            {
+              "binding_name": "#form_text"
+            }
+          ]
+        }
+      }
+    ]
+  },
+
+  "footer": {
+    "type": "stack_panel",
+    "orientation": "horizontal",
+    "anchor_from": "bottom_middle",
+    "anchor_to": "bottom_middle",
+    "size": ["100% - 14px", 33],
+    "offset": [0, -5],
+    "collection_name": "form_buttons",
+    "controls": [
+      {
+        "button_one@creeper_message.message_button": {
+          "size": ["50% - 3px", 28],
+          "$cm_index": 0
+        }
+      },
+      {
+        "button_gap": {
+          "type": "panel",
+          "size": [6, 28]
+        }
+      },
+      {
+        "button_two@creeper_message.message_button": {
+          "size": ["50% - 3px", 28],
+          "$cm_index": 1
+        }
+      }
+    ]
+  },
+
+  "message_button@common.button": {
+    "collection_index": "$cm_index",
+    "visible": false,
+    "$pressed_button_name": "button.form_button_click",
+    "default_control": "default",
+    "hover_control": "hover",
+    "pressed_control": "pressed",
+    "locked_control": "locked",
+    "bindings": [
+      {
+        "binding_type": "collection_details",
+        "binding_collection_name": "form_buttons"
+      },
+      {
+        "binding_name": "#form_button_text",
+        "binding_name_override": "#text",
+        "binding_type": "collection",
+        "binding_collection_name": "form_buttons"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "(not (#text = ''))",
+        "target_property_name": "#visible"
+      }
+    ],
+    "controls": [
+      {
+        "default@creeper_message.button_state": {
+          "$cm_state_texture": "textures/ui/creeper_menu/cards/generic_default",
+          "$cm_state_text_color": [0.2, 0.18, 0.16],
+          "$cm_state_offset": [0, 0]
+        }
+      },
+      {
+        "hover@creeper_message.button_state": {
+          "$cm_state_texture": "textures/ui/creeper_menu/cards/generic_hover",
+          "$cm_state_text_color": [0.16, 0.14, 0.12],
+          "$cm_state_offset": [0, 1]
+        }
+      },
+      {
+        "pressed@creeper_message.button_state": {
+          "$cm_state_texture": "textures/ui/creeper_menu/cards/generic_pressed",
+          "$cm_state_text_color": [0.29, 0.25, 0.21],
+          "$cm_state_offset": [0, 2]
+        }
+      },
+      {
+        "locked@creeper_message.button_state": {
+          "$cm_state_texture": "textures/ui/creeper_menu/cards/generic_default",
+          "$cm_state_text_color": [0.52, 0.49, 0.44],
+          "$cm_state_offset": [0, 0],
+          "alpha": 0.55
+        }
+      }
+    ]
+  },
+
+  "button_state": {
+    "type": "image",
+    "size": ["100%", "100%"],
+    "offset": "$cm_state_offset",
+    "keep_ratio": false,
+    "texture": "$cm_state_texture",
+    "layer": 5,
+    "controls": [
+      {
+        "label": {
+          "type": "label",
+          "anchor_from": "center",
+          "anchor_to": "center",
+          "offset": [0, 0],
+          "size": ["100% - 12px", "default"],
+          "max_size": ["100% - 12px", 10],
+          "text": "#form_button_text",
+          "text_alignment": "center",
+          "color": "$cm_state_text_color",
+          "font_scale_factor": 0.72,
+          "layer": 7,
+          "bindings": [
+            {
+              "binding_name": "#form_button_text",
+              "binding_type": "collection",
+              "binding_collection_name": "form_buttons"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

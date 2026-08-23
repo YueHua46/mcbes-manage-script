@@ -5,7 +5,9 @@
  */
 
 import { Player, ItemStack, RawMessage } from "@minecraft/server";
-import { ActionFormData, ActionFormResponse, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { ActionFormResponse } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { openDialogForm } from "../../components/dialog";
 import economic from "../../../features/economic/services/economic";
 import itemPriceDb from "../../../features/economic/services/item-price-database";

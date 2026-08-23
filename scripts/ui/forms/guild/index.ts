@@ -3,7 +3,9 @@
  */
 
 import { Player, world } from "@minecraft/server";
-import { ActionFormData, MessageFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
+import { CreeperMessageFormData as MessageFormData } from "../../creeper-message-form";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
 import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import guildService from "../../../features/guild/services/guild-service";
@@ -242,7 +244,7 @@ async function openGuildBrowseListForm(player: Player, page: number = 1): Promis
     const tagPlain = stripSectionForUi(row.tag);
     const namePlain = stripSectionForUi(row.name);
     const line2 = `[${tagPlain}] ${namePlain} · 贡献 ${formatNumber(row.totalContribution)} · 人数 ${row.memberCount}/${memberCap}`;
-    form.button(`${namePlain}\n${line2}`, "textures/icons/menu_guild");
+    form.button(`${namePlain}\n${line2}`, "textures/icons/guild_directory");
     rowActions.push(() => openGuildPublicDetailMenu(player, row.id, snap.page));
   }
 
@@ -800,7 +802,7 @@ async function openGuildCoordWaypointDetail(player: Player, dbKey: string, role:
 
   const actions: Array<() => void | Promise<void>> = [];
 
-  form.button("传送至此", "textures/icons/fast_travel");
+  form.button("传送至此", "textures/icons/guild_waypoint");
   actions.push(() => {
     const err = guildService.teleportToGuildWaypointDbKey(player, dbKey);
     if (err) {
@@ -893,7 +895,7 @@ async function openGuildCoordMenu(player: Player): Promise<void> {
     const sp = splitWaypointDbKey(dbKey);
     const nm = wp ? stripSectionForUi(wp.name) : sp ? stripSectionForUi(sp.pointName) : "?";
     const sub = wp ? getDimensionName(wp.dimension) : "数据失效";
-    form.button(`${nm}\n${sub}`, "textures/icons/fast_travel");
+    form.button(`${nm}\n${sub}`, "textures/icons/guild_waypoint");
     actions.push(() => openGuildCoordWaypointDetail(player, dbKey, role));
   }
 
@@ -1040,8 +1042,8 @@ export async function openGuildMenuForm(player: Player): Promise<void> {
     body += "§e你有待处理的公会邀请，请进入「我的公会」处理。\n";
   }
   form.body(body);
-  form.button("公会列表", "textures/icons/menu_guild");
-  form.button("我的公会", "textures/icons/menu_guild");
+  form.button("公会列表", "textures/icons/guild_directory");
+  form.button("我的公会", "textures/icons/guild_mine");
   form.button("返回", "textures/icons/back");
 
   const res = await form.show(player);
@@ -1095,18 +1097,18 @@ async function openGuildMyGuildMenu(player: Player): Promise<void> {
     actions.push(() => {
       openGuildMemberListForm(player);
     });
-    form.button("公会坐标", "textures/icons/fast_travel");
+    form.button("公会坐标", "textures/icons/guild_waypoint");
     actions.push(() => void openGuildCoordMenu(player));
     form.button("公会领地", "textures/icons/menu_land");
     actions.push(() => void openGuildLandsMenu(player));
     form.button("公会历史", "textures/icons/saat");
     actions.push(() => void openGuildHistoryForm(player, guild.id, 0, []));
     if (role === "owner" || role === "officer") {
-      form.button("邀请玩家", "textures/icons/party_invites");
+      form.button("邀请玩家", "textures/icons/guild_invite");
       actions.push(() => openInvitePlayerForm(player));
     }
     if (role === "owner" || role === "officer") {
-      form.button("申请加入列表", "textures/icons/social");
+      form.button("申请加入列表", "textures/icons/guild_applications");
       actions.push(() => openGuildJoinRequestListForm(player, 1));
     }
     form.button("公会金库", "textures/icons/menu_economy");
@@ -1118,7 +1120,7 @@ async function openGuildMyGuildMenu(player: Player): Promise<void> {
       actions.push(() => openAnnounceForm(player));
     }
     if (role === "owner" || role === "officer") {
-      form.button("成员管理", "textures/icons/party_remove");
+      form.button("成员管理", "textures/icons/faces");
       actions.push(() => openMemberManageMenu(player));
     }
     if (role !== "owner") {
@@ -1657,7 +1659,7 @@ async function openMemberManageMenu(player: Player): Promise<void> {
     actions.push(() =>
       openMemberTargetModal(player, "降为成员", buildDemoteTargetNames, (name) => guildService.demote(player, name))
     );
-    form.button("转让会长", "textures/icons/party_invites");
+    form.button("转让会长", "textures/icons/guild_leader_transfer");
     actions.push(() =>
       openMemberTargetModal(
         player,

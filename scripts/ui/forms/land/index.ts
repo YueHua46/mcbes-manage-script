@@ -3,7 +3,8 @@
  * 完整迁移自 Modules/Land/Forms.ts (1079行)
  */
 
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { Player, Vector3, world } from "@minecraft/server";
@@ -1167,7 +1168,7 @@ export const openLandDetailForm = (
     if (!isAdmin && canAccess && canShowLandFlightEntry(player) && isPlayerStandingOnLand(player, landData.name)) {
       buttons.push({
         text: "领地飞行（限时）",
-        icon: "textures/icons/fast_travel",
+        icon: "textures/icons/land_flight",
         action: () => {
           const err = tryStartLandFlightSession(player);
           if (typeof err === "string") {
@@ -1186,7 +1187,7 @@ export const openLandDetailForm = (
     if (canManageGuildLand) {
       buttons.push({
         text: "领地公开权限",
-        icon: "textures/icons/party_remove",
+        icon: "textures/icons/land_public_access",
         action: () => openLandAuthForm(player, landData, reopenDetail),
       });
       if (playerIsAdmin(player)) {
@@ -1322,7 +1323,7 @@ export const openLandDetailForm = (
 
   buttons.push({
     text: "领地公开权限",
-    icon: "textures/icons/party_remove",
+    icon: "textures/icons/land_public_access",
     action: () => openLandAuthForm(player, landData, reopenDetailAfterAuth),
   });
 
@@ -1348,7 +1349,7 @@ export const openLandDetailForm = (
   if (canAccess && canShowLandFlightEntry(player) && isPlayerStandingOnLand(player, landData.name)) {
     buttons.push({
       text: "领地飞行（限时）",
-      icon: "textures/icons/fast_travel",
+      icon: "textures/icons/land_flight",
       action: () => {
         const err = tryStartLandFlightSession(player);
         if (typeof err === "string") {
@@ -1377,7 +1378,7 @@ export const openLandDetailForm = (
         : []),
       {
         text: "领地成员管理",
-        icon: "textures/icons/social",
+        icon: "textures/icons/land_members",
         action: () => openLandMemberForm(player, landData),
       },
       {
@@ -1387,7 +1388,7 @@ export const openLandDetailForm = (
       },
       {
         text: "领地公开权限的配置权限",
-        icon: "textures/icons/party_invites",
+        icon: "textures/icons/land_public_access",
         action: () => openLandAuthConfigForm(player, landData),
       },
       ...(canUseLandTeleport(player)
@@ -1676,7 +1677,7 @@ export function openLandManageForms(player: Player): void {
   if (canShowLandFlightEntry(player)) {
     buttons.push({
       text: buildLandFlightButtonLabel(player),
-      icon: "textures/icons/fast_travel",
+      icon: "textures/icons/land_flight",
       action: () => {
         const err = tryStartLandFlightSession(player);
         if (typeof err === "string") {
