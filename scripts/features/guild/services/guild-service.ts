@@ -24,6 +24,7 @@ import { BRANDING } from "../../../core/constants";
 import type { IGuild, GuildRole, IPendingGuildInvite } from "../models/guild.model";
 import { CURRENT_GUILD_SCHEMA_VERSION } from "../models/guild.model";
 import { getGuildPlayerIndexDb } from "./guild-player-index-db";
+import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
 
 const DB_GUILDS = "guilds";
 const DB_INVITES = "guild_pending_invites";
@@ -199,6 +200,25 @@ class GuildService {
         }
       }
       this.deletePlayerIndex(playerName);
+    }
+    return undefined;
+  }
+
+  /**
+   * Read-only current-state evidence for quests. Unlike UI accessors this does
+   * not depend on the module toggle, but it still validates the membership row.
+   */
+  getPersistedGuildIdForIdentity(identityId: string, knownNames: readonly string[]): string | undefined {
+    if (!this.ensureDbs()) return undefined;
+    const candidates = [identityId, ...knownNames];
+    for (const candidate of candidates) {
+      const guildId = this.indexDb.get(candidate);
+      if (!guildId) continue;
+      const guild = this.migrateGuild(this.guildsDb.get(guildId));
+      if (!guild) continue;
+      if (guild.ownerIdentityId === identityId) return guildId;
+      if (Object.values(guild.memberIdentityIds ?? {}).includes(identityId)) return guildId;
+      if (knownNames.some((name) => !!guild.members[name])) return guildId;
     }
     return undefined;
   }
@@ -487,6 +507,10 @@ class GuildService {
     this.invalidateDisplayCache(player.name);
     nameDisplay.forceUpdatePlayerNameDisplay(player);
     this.logGuild(player.name, "guildCreate", this.guildMeta(g, `name=${nameClean} tag=${tagClean}`));
+    recordCreeperQuestSuccess(player, "guildJoinOrCreate", {
+      payload: { action: "create", guildId: g.id },
+      dedupeKey: `creeper.guild:create:${g.id}:${player.name}`,
+    });
     return "";
   }
 
@@ -655,6 +679,10 @@ class GuildService {
     nameDisplay.forceUpdatePlayerNameDisplay(player);
     this.removePendingJoinRequestsForPlayer(player.name);
     this.logGuild(player.name, "guildJoin", this.guildMeta(g, ""));
+    recordCreeperQuestSuccess(player, "guildJoinOrCreate", {
+      payload: { action: "join", guildId: g.id },
+      dedupeKey: `creeper.guild:join:${g.id}:${player.name}`,
+    });
     return "";
   }
 
@@ -1331,6 +1359,12 @@ class GuildService {
     this.removePendingJoinRequestsForPlayer(aname);
     this.logGuild(actor.name, "guildApplyApprove", this.guildMeta(g, `target=${aname}`));
     this.logGuild(aname, "guildJoin", this.guildMeta(g, ""));
+    if (ap) {
+      recordCreeperQuestSuccess(ap, "guildJoinOrCreate", {
+        payload: { action: "join", guildId: g.id },
+        dedupeKey: `creeper.guild:join:${g.id}:${aname}`,
+      });
+    }
     return "";
   }
 

@@ -1,0 +1,120 @@
+import type { QuestChapterDefinition, QuestDefinitionV2 } from "../../domain";
+import {
+  ALWAYS_AVAILABLE,
+  coreChapter,
+  corePresetQuest,
+  inventoryGoal,
+  milestoneGoal,
+  snapshotGoal,
+} from "../builders";
+
+export const coreApexChapter: QuestChapterDefinition = coreChapter({
+  id: "core.apex",
+  title: "世界很大，光柱要更高",
+  description: "凋零、下界之星和满级信标组成终局支线。它不拦着你去别处，但会认真检验家底。",
+  order: 8,
+  unlockRule: ALWAYS_AVAILABLE,
+  questIds: [
+    "preset.core.apex.wither_skulls",
+    "preset.core.apex.kill_wither",
+    "preset.core.apex.nether_star",
+    "preset.core.apex.beacon",
+    "preset.core.apex.full_beacon",
+  ],
+});
+
+export const coreApexQuests: QuestDefinitionV2[] = [
+  corePresetQuest({
+    id: "preset.core.apex.wither_skulls",
+    title: "三个脑袋，一个大麻烦",
+    description: "让背包里同时拥有 3 个凋零骷髅头。爆率很有自己的节奏，第三颗出现时请允许自己欢呼一下。",
+    completionMessage: "三颗头颅集齐，凋零已经收到加班通知。",
+    chapterId: "core.apex",
+    order: 1,
+    rarity: "epic",
+    reliability: "A",
+    goals: [
+      inventoryGoal(
+        "goal.possess_wither_skulls",
+        "selector.item.wither_skeleton_skulls",
+        3,
+        "背包中同时拥有 3 个凋零骷髅头"
+      ),
+    ],
+    gold: 500,
+    experience: 180,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.apex.kill_wither",
+    title: "三头老板，集体下线",
+    description: "由你参与并被系统可靠归因地击败一只凋零。召唤地点请慎重选择，村庄不是免费的 Boss 竞技场。",
+    completionMessage: "凋零被终结，下界之星终于恢复安静。",
+    chapterId: "core.apex",
+    order: 2,
+    rarity: "legendary",
+    reliability: "A",
+    goals: [
+      milestoneGoal("goal.kill_wither", "entity.kill", "击败一只凋零", {
+        filters: { entity: { op: "eq", value: "minecraft:wither" } },
+        evidenceProviderId: "evidence.boss.wither.kill",
+      }),
+    ],
+    gold: 2000,
+    experience: 1200,
+    requiredCapabilities: ["cap.event.entity.kill.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.apex.nether_star",
+    title: "星星到手，刚才没白炸",
+    description: "让背包里出现至少一颗下界之星。它是那场爆炸大战留下的硬核纪念品，也是信标唯一认可的核心。",
+    completionMessage: "下界之星已收好，下一道光该冲上云层了。",
+    chapterId: "core.apex",
+    order: 3,
+    rarity: "epic",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_nether_star", "selector.item.nether_star", 1, "背包中拥有一颗下界之星")],
+    gold: 600,
+    experience: 220,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.apex.beacon",
+    title: "家里终于有了远光灯",
+    description: "获得下界之星后，让背包里出现一座信标。现在只是灯具到货，想让光柱上天还得继续交矿物税。",
+    completionMessage: "信标到手，基地坐标准备写进天空。",
+    chapterId: "core.apex",
+    order: 4,
+    rarity: "epic",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_beacon", "selector.item.beacon", 1, "背包中拥有一座信标")],
+    gold: 600,
+    experience: 220,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+    unlockRule: { type: "quest", questId: "preset.core.apex.nether_star", status: "completed" },
+  }),
+  corePresetQuest({
+    id: "preset.core.apex.full_beacon",
+    title: "矿物税交满，光柱通天",
+    description: "在玩家附近可靠检测到一座由完整四层金字塔激活的满级信标。只把信标放在地上发呆不算世界巅峰。",
+    completionMessage: "满级信标点亮，这片世界终于有了你的坐标。",
+    chapterId: "core.apex",
+    order: 5,
+    rarity: "legendary",
+    reliability: "B",
+    goals: [
+      snapshotGoal(
+        "goal.activate_full_beacon",
+        "nearby_world",
+        "selector.world.full_beacon",
+        1,
+        "在附近激活一座满级信标",
+        { maxDistance: 32 }
+      ),
+    ],
+    gold: 2500,
+    experience: 1500,
+    requiredCapabilities: ["cap.snapshot.nearby_world.full_beacon.v1"],
+    unlockRule: { type: "quest", questId: "preset.core.apex.beacon", status: "completed" },
+  }),
+];

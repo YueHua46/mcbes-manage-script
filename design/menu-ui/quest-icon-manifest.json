@@ -1,0 +1,1429 @@
+{
+  "version": 1,
+  "columns": 4,
+  "rows": 4,
+  "icons": [
+    {
+      "questId": "preset.core.survival.first_log",
+      "slug": "core_survival_first_log",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 0,
+      "markerIndex": 0,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.survival.crafting_table",
+      "slug": "core_survival_crafting_table",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 1,
+      "markerIndex": 1,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.survival.stone_pickaxe",
+      "slug": "core_survival_stone_pickaxe",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 2,
+      "markerIndex": 2,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.survival.torches",
+      "slug": "core_survival_torches",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 3,
+      "markerIndex": 3,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.survival.furnace",
+      "slug": "core_survival_furnace",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 4,
+      "markerIndex": 4,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.survival.bed",
+      "slug": "core_survival_bed",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 5,
+      "markerIndex": 5,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.survival.shield",
+      "slug": "core_survival_shield",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 6,
+      "markerIndex": 6,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.iron_ingots",
+      "slug": "core_mining_iron_ingots",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 7,
+      "markerIndex": 7,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.iron_pickaxe",
+      "slug": "core_mining_iron_pickaxe",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 8,
+      "markerIndex": 8,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.bucket",
+      "slug": "core_mining_bucket",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 9,
+      "markerIndex": 9,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.full_iron_armor",
+      "slug": "core_mining_full_iron_armor",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 10,
+      "markerIndex": 10,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.redstone",
+      "slug": "core_mining_redstone",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 11,
+      "markerIndex": 11,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.lapis",
+      "slug": "core_mining_lapis",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 12,
+      "markerIndex": 12,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.first_diamond",
+      "slug": "core_mining_first_diamond",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 13,
+      "markerIndex": 13,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.diamond_miner",
+      "slug": "core_mining_diamond_miner",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 14,
+      "markerIndex": 14,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.diamond_pickaxe",
+      "slug": "core_mining_diamond_pickaxe",
+      "atlas": "quest-icons-atlas-01-imagegen.png",
+      "cell": 15,
+      "markerIndex": 15,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.mining.obsidian",
+      "slug": "core_mining_obsidian",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 0,
+      "markerIndex": 16,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.magic.enchanting_table",
+      "slug": "core_magic_enchanting_table",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 1,
+      "markerIndex": 17,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.magic.bookshelves",
+      "slug": "core_magic_bookshelves",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 2,
+      "markerIndex": 18,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.magic.first_enchant",
+      "slug": "core_magic_first_enchant",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 3,
+      "markerIndex": 19,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.magic.anvil",
+      "slug": "core_magic_anvil",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 4,
+      "markerIndex": 20,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.magic.enchanted_book",
+      "slug": "core_magic_enchanted_book",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 5,
+      "markerIndex": 21,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.enter",
+      "slug": "core_nether_enter",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 6,
+      "markerIndex": 22,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.quartz",
+      "slug": "core_nether_quartz",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 7,
+      "markerIndex": 23,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.piglin_barter",
+      "slug": "core_nether_piglin_barter",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 8,
+      "markerIndex": 24,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.blaze_hunter",
+      "slug": "core_nether_blaze_hunter",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 9,
+      "markerIndex": 25,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.blaze_rods",
+      "slug": "core_nether_blaze_rods",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 10,
+      "markerIndex": 26,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.nether_wart",
+      "slug": "core_nether_nether_wart",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 11,
+      "markerIndex": 27,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.brewing_stand",
+      "slug": "core_nether_brewing_stand",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 12,
+      "markerIndex": 28,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.ancient_debris",
+      "slug": "core_nether_ancient_debris",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 13,
+      "markerIndex": 29,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.nether.netherite_ingot",
+      "slug": "core_nether_netherite_ingot",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 14,
+      "markerIndex": 30,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.eye.ender_pearls",
+      "slug": "core_eye_ender_pearls",
+      "atlas": "quest-icons-atlas-02-imagegen.png",
+      "cell": 15,
+      "markerIndex": 31,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.eye.blaze_powder",
+      "slug": "core_eye_blaze_powder",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 0,
+      "markerIndex": 32,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.eye.eyes",
+      "slug": "core_eye_eyes",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 1,
+      "markerIndex": 33,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.eye.stronghold",
+      "slug": "core_eye_stronghold",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 2,
+      "markerIndex": 34,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.eye.enter_end",
+      "slug": "core_eye_enter_end",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 3,
+      "markerIndex": 35,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.end.kill_dragon",
+      "slug": "core_end_kill_dragon",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 4,
+      "markerIndex": 36,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.end.dragon_breath",
+      "slug": "core_end_dragon_breath",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 5,
+      "markerIndex": 37,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.end.gateway",
+      "slug": "core_end_gateway",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 6,
+      "markerIndex": 38,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.endcity.chorus",
+      "slug": "core_endcity_chorus",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 7,
+      "markerIndex": 39,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.endcity.shulkers",
+      "slug": "core_endcity_shulkers",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 8,
+      "markerIndex": 40,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.endcity.shells",
+      "slug": "core_endcity_shells",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 9,
+      "markerIndex": 41,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.endcity.city",
+      "slug": "core_endcity_city",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 10,
+      "markerIndex": 42,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.endcity.elytra",
+      "slug": "core_endcity_elytra",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 11,
+      "markerIndex": 43,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.endcity.shulker_box",
+      "slug": "core_endcity_shulker_box",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 12,
+      "markerIndex": 44,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.endcity.fly",
+      "slug": "core_endcity_fly",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 13,
+      "markerIndex": 45,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.apex.wither_skulls",
+      "slug": "core_apex_wither_skulls",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 14,
+      "markerIndex": 46,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.apex.kill_wither",
+      "slug": "core_apex_kill_wither",
+      "atlas": "quest-icons-atlas-03-imagegen.png",
+      "cell": 15,
+      "markerIndex": 47,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.apex.nether_star",
+      "slug": "core_apex_nether_star",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 0,
+      "markerIndex": 48,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.apex.beacon",
+      "slug": "core_apex_beacon",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 1,
+      "markerIndex": 49,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.core.apex.full_beacon",
+      "slug": "core_apex_full_beacon",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 2,
+      "markerIndex": 50,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.village.first_trade",
+      "slug": "world_village_first_trade",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 3,
+      "markerIndex": 51,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.village.trader",
+      "slug": "world_village_trader",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 4,
+      "markerIndex": 52,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.village.cure",
+      "slug": "world_village_cure",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 5,
+      "markerIndex": 53,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.village.ominous_bottle",
+      "slug": "world_village_ominous_bottle",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 6,
+      "markerIndex": 54,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.village.raid",
+      "slug": "world_village_raid",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 7,
+      "markerIndex": 55,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.village.totem",
+      "slug": "world_village_totem",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 8,
+      "markerIndex": 56,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.ocean.enter",
+      "slug": "world_ocean_enter",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 9,
+      "markerIndex": 57,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.ocean.treasure_map",
+      "slug": "world_ocean_treasure_map",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 10,
+      "markerIndex": 58,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.ocean.heart",
+      "slug": "world_ocean_heart",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 11,
+      "markerIndex": 59,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.ocean.guardians",
+      "slug": "world_ocean_guardians",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 12,
+      "markerIndex": 60,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.ocean.elder_guardian",
+      "slug": "world_ocean_elder_guardian",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 13,
+      "markerIndex": 61,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.ocean.sponge",
+      "slug": "world_ocean_sponge",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 14,
+      "markerIndex": 62,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.ocean.conduit",
+      "slug": "world_ocean_conduit",
+      "atlas": "quest-icons-atlas-04-imagegen.png",
+      "cell": 15,
+      "markerIndex": 63,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.archaeology.brush",
+      "slug": "world_archaeology_brush",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 0,
+      "markerIndex": 64,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.archaeology.brush_suspicious",
+      "slug": "world_archaeology_brush_suspicious",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 1,
+      "markerIndex": 65,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.archaeology.sherd",
+      "slug": "world_archaeology_sherd",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 2,
+      "markerIndex": 66,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.archaeology.pot",
+      "slug": "world_archaeology_pot",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 3,
+      "markerIndex": 67,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.archaeology.sniffer_egg",
+      "slug": "world_archaeology_sniffer_egg",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 4,
+      "markerIndex": 68,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.archaeology.ancient_plants",
+      "slug": "world_archaeology_ancient_plants",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 5,
+      "markerIndex": 69,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.deepdark.sculk",
+      "slug": "world_deepdark_sculk",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 6,
+      "markerIndex": 70,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.deepdark.enter",
+      "slug": "world_deepdark_enter",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 7,
+      "markerIndex": 71,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.deepdark.ancient_city",
+      "slug": "world_deepdark_ancient_city",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 8,
+      "markerIndex": 72,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.deepdark.echo_shard",
+      "slug": "world_deepdark_echo_shard",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 9,
+      "markerIndex": 73,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.deepdark.recovery_compass",
+      "slug": "world_deepdark_recovery_compass",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 10,
+      "markerIndex": 74,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.deepdark.swift_sneak",
+      "slug": "world_deepdark_swift_sneak",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 11,
+      "markerIndex": 75,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.enter",
+      "slug": "world_trials_enter",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 12,
+      "markerIndex": 76,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.breeze",
+      "slug": "world_trials_breeze",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 13,
+      "markerIndex": 77,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.breeze_rod",
+      "slug": "world_trials_breeze_rod",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 14,
+      "markerIndex": 78,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.trial_key",
+      "slug": "world_trials_trial_key",
+      "atlas": "quest-icons-atlas-05-imagegen.png",
+      "cell": 15,
+      "markerIndex": 79,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.vault",
+      "slug": "world_trials_vault",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 0,
+      "markerIndex": 80,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.ominous",
+      "slug": "world_trials_ominous",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 1,
+      "markerIndex": 81,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.ominous_key",
+      "slug": "world_trials_ominous_key",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 2,
+      "markerIndex": 82,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.heavy_core",
+      "slug": "world_trials_heavy_core",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 3,
+      "markerIndex": 83,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.trials.mace",
+      "slug": "world_trials_mace",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 4,
+      "markerIndex": 84,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.farm.plant",
+      "slug": "world_farm_plant",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 5,
+      "markerIndex": 85,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.farm.harvest",
+      "slug": "world_farm_harvest",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 6,
+      "markerIndex": 86,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.farm.breed",
+      "slug": "world_farm_breed",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 7,
+      "markerIndex": 87,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.farm.rancher",
+      "slug": "world_farm_rancher",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 8,
+      "markerIndex": 88,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.farm.tame",
+      "slug": "world_farm_tame",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 9,
+      "markerIndex": 89,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.farm.honey",
+      "slug": "world_farm_honey",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 10,
+      "markerIndex": 90,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.redstone.redstone",
+      "slug": "world_redstone_redstone",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 11,
+      "markerIndex": 91,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.redstone.piston",
+      "slug": "world_redstone_piston",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 12,
+      "markerIndex": 92,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.redstone.observer",
+      "slug": "world_redstone_observer",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 13,
+      "markerIndex": 93,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.redstone.comparator",
+      "slug": "world_redstone_comparator",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 14,
+      "markerIndex": 94,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.redstone.hopper",
+      "slug": "world_redstone_hopper",
+      "atlas": "quest-icons-atlas-06-imagegen.png",
+      "cell": 15,
+      "markerIndex": 95,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.redstone.crafter",
+      "slug": "world_redstone_crafter",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 0,
+      "markerIndex": 96,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.redstone.crafter_use",
+      "slug": "world_redstone_crafter_use",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 1,
+      "markerIndex": 97,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.pale_garden.enter",
+      "slug": "world_pale_garden_enter",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 2,
+      "markerIndex": 98,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.pale_garden.pale_oak",
+      "slug": "world_pale_garden_pale_oak",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 3,
+      "markerIndex": 99,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.pale_garden.creaking",
+      "slug": "world_pale_garden_creaking",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 4,
+      "markerIndex": 100,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.pale_garden.heart",
+      "slug": "world_pale_garden_heart",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 5,
+      "markerIndex": 101,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.world.pale_garden.resin",
+      "slug": "world_pale_garden_resin",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 6,
+      "markerIndex": 102,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.open_menu",
+      "slug": "creeper_guide_open_menu",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 7,
+      "markerIndex": 103,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.waypoint",
+      "slug": "creeper_guide_waypoint",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 8,
+      "markerIndex": 104,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.tpa",
+      "slug": "creeper_guide_tpa",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 9,
+      "markerIndex": 105,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.random_tp",
+      "slug": "creeper_guide_random_tp",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 10,
+      "markerIndex": 106,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.land",
+      "slug": "creeper_guide_land",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 11,
+      "markerIndex": 107,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.public_waypoint",
+      "slug": "creeper_guide_public_waypoint",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 12,
+      "markerIndex": 108,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.market",
+      "slug": "creeper_guide_market",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 13,
+      "markerIndex": 109,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.red_packet",
+      "slug": "creeper_guide_red_packet",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 14,
+      "markerIndex": 110,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.creeper.guide.guild",
+      "slug": "creeper_guide_guild",
+      "atlas": "quest-icons-atlas-07-imagegen.png",
+      "cell": 15,
+      "markerIndex": 111,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.copper.ingots",
+      "slug": "update_copper_ingots",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 0,
+      "markerIndex": 112,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.copper.pickaxe",
+      "slug": "update_copper_pickaxe",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 1,
+      "markerIndex": 113,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.copper.full_armor",
+      "slug": "update_copper_full_armor",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 2,
+      "markerIndex": 114,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.copper.golem",
+      "slug": "update_copper_golem",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 3,
+      "markerIndex": 115,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.copper.chest",
+      "slug": "update_copper_chest",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 4,
+      "markerIndex": 116,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.copper.sorting",
+      "slug": "update_copper_sorting",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 5,
+      "markerIndex": 117,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.copper.shelf",
+      "slug": "update_copper_shelf",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 6,
+      "markerIndex": 118,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.skies.dried_ghast",
+      "slug": "update_skies_dried_ghast",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 7,
+      "markerIndex": 119,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.skies.revive",
+      "slug": "update_skies_revive",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 8,
+      "markerIndex": 120,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.skies.ghastling",
+      "slug": "update_skies_ghastling",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 9,
+      "markerIndex": 121,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.skies.happy_ghast",
+      "slug": "update_skies_happy_ghast",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 10,
+      "markerIndex": 122,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.skies.harness",
+      "slug": "update_skies_harness",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 11,
+      "markerIndex": 123,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.skies.ride",
+      "slug": "update_skies_ride",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 12,
+      "markerIndex": 124,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.mounts.spear",
+      "slug": "update_mounts_spear",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 13,
+      "markerIndex": 125,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.mounts.spear_charge",
+      "slug": "update_mounts_spear_charge",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 14,
+      "markerIndex": 126,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.mounts.zombie_horse",
+      "slug": "update_mounts_zombie_horse",
+      "atlas": "quest-icons-atlas-08-imagegen.png",
+      "cell": 15,
+      "markerIndex": 127,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.mounts.camel_husk",
+      "slug": "update_mounts_camel_husk",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 0,
+      "markerIndex": 128,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.mounts.parched",
+      "slug": "update_mounts_parched",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 1,
+      "markerIndex": 129,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.mounts.nautilus",
+      "slug": "update_mounts_nautilus",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 2,
+      "markerIndex": 130,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.mounts.ride_nautilus",
+      "slug": "update_mounts_ride_nautilus",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 3,
+      "markerIndex": 131,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.tiny.name_tag",
+      "slug": "update_tiny_name_tag",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 4,
+      "markerIndex": 132,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.tiny.name_baby",
+      "slug": "update_tiny_name_baby",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 5,
+      "markerIndex": 133,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.tiny.golden_dandelion",
+      "slug": "update_tiny_golden_dandelion",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 6,
+      "markerIndex": 134,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.tiny.baby_collection",
+      "slug": "update_tiny_baby_collection",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 7,
+      "markerIndex": 135,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.tiny.trumpet",
+      "slug": "update_tiny_trumpet",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 8,
+      "markerIndex": 136,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.sulfur",
+      "slug": "update_chaos_sulfur",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 9,
+      "markerIndex": 137,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.cinnabar",
+      "slug": "update_chaos_cinnabar",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 10,
+      "markerIndex": 138,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.cave",
+      "slug": "update_chaos_cave",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 11,
+      "markerIndex": 139,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.meet_cube",
+      "slug": "update_chaos_meet_cube",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 12,
+      "markerIndex": 140,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.bucket_cube",
+      "slug": "update_chaos_bucket_cube",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 13,
+      "markerIndex": 141,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.feed_cube",
+      "slug": "update_chaos_feed_cube",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 14,
+      "markerIndex": 142,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.tnt",
+      "slug": "update_chaos_tnt",
+      "atlas": "quest-icons-atlas-09-imagegen.png",
+      "cell": 15,
+      "markerIndex": 143,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.geyser",
+      "slug": "update_chaos_geyser",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 0,
+      "markerIndex": 144,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.update.chaos.bounce_disc",
+      "slug": "update_chaos_bounce_disc",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 1,
+      "markerIndex": 145,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.experiment.drop3.dappled_forest",
+      "slug": "experiment_drop3_dappled_forest",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 2,
+      "markerIndex": 146,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.experiment.drop3.poplar",
+      "slug": "experiment_drop3_poplar",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 3,
+      "markerIndex": 147,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.experiment.drop3.shelf_mushroom",
+      "slug": "experiment_drop3_shelf_mushroom",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 4,
+      "markerIndex": 148,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.experiment.drop3.red_shrub",
+      "slug": "experiment_drop3_red_shrub",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 5,
+      "markerIndex": 149,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.experiment.drop3.camp",
+      "slug": "experiment_drop3_camp",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 6,
+      "markerIndex": 150,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.experiment.drop3.straw_bed",
+      "slug": "experiment_drop3_straw_bed",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 7,
+      "markerIndex": 151,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.experiment.drop3.cushion",
+      "slug": "experiment_drop3_cushion",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 8,
+      "markerIndex": 152,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.hidden.warden",
+      "slug": "hidden_warden",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 9,
+      "markerIndex": 153,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.hidden.dragon_again",
+      "slug": "hidden_dragon_again",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 10,
+      "markerIndex": 154,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.hidden.mace_smash",
+      "slug": "hidden_mace_smash",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 11,
+      "markerIndex": 155,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.hidden.happy_ghast_party",
+      "slug": "hidden_happy_ghast_party",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 12,
+      "markerIndex": 156,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    },
+    {
+      "questId": "preset.hidden.elytra_distance",
+      "slug": "hidden_elytra_distance",
+      "atlas": "quest-icons-atlas-10-imagegen.png",
+      "cell": 13,
+      "markerIndex": 157,
+      "componentPolicy": "all",
+      "opticalYOffset": 0
+    }
+  ]
+}

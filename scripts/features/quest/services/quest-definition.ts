@@ -13,6 +13,8 @@ export interface QuestFilter {
 
 export interface QuestGoalDefinition {
   id: string;
+  /** 玩家界面使用的明确目标；未提供时根据事件和过滤器生成。 */
+  displayText?: string;
   event: string;
   filters: Record<string, QuestFilter>;
   progress: {
@@ -32,6 +34,8 @@ export interface QuestDefinition {
   id: string;
   title: string;
   description: string;
+  /** 任务完成时显示在右上角提示中的补充文案。 */
+  completionMessage?: string;
   scope: QuestScope;
   autoAccept: boolean;
   enabled: boolean;
@@ -40,6 +44,11 @@ export interface QuestDefinition {
   rewards: QuestRewardDefinition[];
   createdAt: number;
   updatedAt: number;
+  /** 运行时目录视图元数据；旧版自定义任务不需要填写。 */
+  source?: "preset" | "custom";
+  category?: string;
+  chapterId?: string;
+  rarity?: "common" | "rare" | "epic" | "legendary";
 }
 
 export interface QuestFieldSchema {
@@ -351,10 +360,12 @@ function slugify(input: string): string {
 
 class QuestDefinitionService {
   private db?: Database<QuestDefinition>;
+  private revision = 0;
 
   constructor() {
     system.run(() => {
       this.db = new Database<QuestDefinition>("quest_definitions");
+      this.revision += 1;
     });
   }
 
@@ -370,11 +381,16 @@ class QuestDefinitionService {
     return this.db?.get(id);
   }
 
+  getRevision(): number {
+    return this.revision;
+  }
+
   save(definition: QuestDefinition): boolean {
     if (!this.db) return false;
     try {
       this.db.set(definition.id, { ...definition, updatedAt: Date.now() });
       this.db.save(true);
+      this.revision += 1;
       return true;
     } catch (error) {
       console.error("[QuestDefinitionService] 保存任务定义失败:", error);
@@ -386,6 +402,7 @@ class QuestDefinitionService {
     if (!this.db) return false;
     const deleted = this.db.delete(id);
     if (deleted) {
+      this.revision += 1;
       try {
         this.db.save(true);
       } catch (error) {
@@ -401,6 +418,7 @@ class QuestDefinitionService {
       id: slugify(title),
       title,
       description: "",
+      completionMessage: "",
       scope: "once",
       autoAccept: false,
       enabled: true,

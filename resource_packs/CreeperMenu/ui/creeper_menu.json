@@ -63,29 +63,54 @@
     "variables": [
       {
         "requires": "$touch",
-        "$cm_dialog_size": ["97%", "93%"],
+        "$cm_viewport_size": ["97%", "93%"],
         "$cm_title_scale": 0.82
       },
       {
         "requires": "(not $touch)",
-        "$cm_dialog_size": ["95%", "92%"],
+        "$cm_viewport_size": ["95%", "92%"],
         "$cm_title_scale": 0.92
       }
     ],
     "controls": [
       {
-        "dialog": {
+        "viewport": {
           "type": "panel",
-          "size": "$cm_dialog_size",
-          "max_size": [920, 510],
-          "min_size": [310, 205],
-          "layer": 2,
+          "size": "$cm_viewport_size",
           "controls": [
             {
-              "header@creeper_menu.header": {}
-            },
-            {
-              "content@creeper_menu.content": {}
+              "absolute_cap": {
+                "type": "panel",
+                "size": ["100%", "100%"],
+                "max_size": [920, 510],
+                "controls": [
+                  {
+                    "aspect_width_cap": {
+                      "type": "panel",
+                      "size": ["100%", "100%"],
+                      "max_size": ["180.3922%y", "100%"],
+                      "controls": [
+                        {
+                          "dialog": {
+                            "type": "panel",
+                            "size": ["100%", "100%"],
+                            "max_size": ["100%", "55.4348%x"],
+                            "layer": 2,
+                            "controls": [
+                              {
+                                "header@creeper_menu.header": {}
+                              },
+                              {
+                                "content@creeper_menu.content": {}
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
             }
           ]
         }
@@ -649,7 +674,19 @@
   },
 
   "close_button@common.button": {
-    "size": [24, 24],
+    "variables": [
+      {
+        "requires": "$touch",
+        "$cm_close_button_size": [30, 30],
+        "$cm_close_visual_size": [24, 24]
+      },
+      {
+        "requires": "(not $touch)",
+        "$cm_close_button_size": [24, 24],
+        "$cm_close_visual_size": [24, 24]
+      }
+    ],
+    "size": "$cm_close_button_size",
     "$pressed_button_name": "button.menu_exit",
     "default_control": "default",
     "hover_control": "hover",
@@ -679,7 +716,7 @@
 
   "close_state": {
     "type": "image",
-    "size": ["100%", "100%"],
+    "size": "$cm_close_visual_size",
     "offset": "$cm_close_offset",
     "keep_ratio": false,
     "texture": "$cm_close_texture",
@@ -779,7 +816,7 @@
 
   "card@common.button": {
     "collection_index": "$cm_index",
-    "visible": false,
+    "enabled": false,
     "$pressed_button_name": "button.form_button_click",
     "default_control": "default",
     "hover_control": "hover",
@@ -799,7 +836,7 @@
       {
         "binding_type": "view",
         "source_property_name": "(not (#text = ''))",
-        "target_property_name": "#visible"
+        "target_property_name": "#enabled"
       }
     ],
     "controls": [
@@ -829,7 +866,8 @@
           "$cm_background_texture": "$cm_default_texture",
           "$cm_text_color": [0.62, 0.6, 0.55],
           "$cm_state_offset": [0, 0],
-          "alpha": 0.45
+          "alpha": 0.45,
+          "grayscale": true
         }
       }
     ]

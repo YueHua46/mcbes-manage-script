@@ -12,6 +12,7 @@ import { formatDateTimeBeijing } from "../../../shared/utils/datetime-beijing";
 import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
 import setting, { IValueType } from "../../system/services/setting";
 import { isDimensionIsolated } from "../../../shared/dimension-isolation";
+import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
 
 export interface IWayPoint {
   name: string;
@@ -191,7 +192,15 @@ class WayPoint {
       modified: time,
       type: type,
     };
-    return this.savePoint(key, wayPoint);
+    const saveError = this.savePoint(key, wayPoint);
+    if (typeof saveError === "string") return saveError;
+    if (type === "private") {
+      recordCreeperQuestSuccess(player, "waypointCreate", {
+        payload: { pointName, pointType: type, dimension: player.dimension.id },
+        dedupeKey: `creeper.waypoint.create:${key}:${time}`,
+      });
+    }
+    return undefined;
   }
 
   /**
@@ -217,6 +226,13 @@ class WayPoint {
 
   getPlayerPoints(player: Player): IWayPoint[] {
     return this.db.values().filter((p) => p.playerName === player.name && p.type === "private");
+  }
+
+  /** Quest/current-state evidence only: identity aliases are supplied by IdentityService. */
+  hasPrivatePointForKnownNames(knownNames: readonly string[]): boolean {
+    const names = new Set(knownNames.map((name) => name.trim().toLowerCase()).filter(Boolean));
+    if (names.size === 0) return false;
+    return this.db.values().some((point) => point.type === "private" && names.has(point.playerName.toLowerCase()));
   }
 
   getPublicPoints(): IWayPoint[] {
@@ -506,6 +522,15 @@ class WayPoint {
             player.teleport(targetLocation, {
               dimension: targetDimension,
             });
+            if (wayPoint.type === "public") {
+              recordCreeperQuestSuccess(player, "publicWaypointUse", {
+                payload: {
+                  pointName: wayPoint.name,
+                  ownerName: wayPoint.playerName,
+                  dimension: wayPoint.dimension,
+                },
+              });
+            }
 
             // 延迟一小段时间确保传送完成后再播放音效和效果
             system.runTimeout(() => {

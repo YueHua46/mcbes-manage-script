@@ -4,6 +4,7 @@
  */
 
 import { Player } from "@minecraft/server";
+import hudBroker from "../../hud/runtime-hud-broker";
 import { namePrefixMap } from "../../../assets/glyph-map";
 
 export const PLAYER_HUD_MARKER = "[CMHUD]";
@@ -101,7 +102,15 @@ class PlayerSetting {
   /** 设置右上角玩家状态栏显示状态。 */
   setPlayerHudEnabled(player: Player, enabled: boolean): void {
     player.setDynamicProperty("PlayerHudEnabled", enabled);
-    if (!enabled) player.onScreenDisplay.setActionBar(PLAYER_HUD_HIDE_MARKER);
+    if (!enabled) {
+      hudBroker.clearPersistentStatus(player);
+      hudBroker.showActionHint(player, PLAYER_HUD_HIDE_MARKER, {
+        source: "player_hud_setting",
+        priority: 100,
+        ttl: 6,
+        replaceKey: "player_hud_hide",
+      });
+    }
   }
 
   /**

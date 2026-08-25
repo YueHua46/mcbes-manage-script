@@ -7,8 +7,10 @@
 ## 视觉与交互约束
 
 - 左侧为 3/2/3 紧密功能拼图，右侧为任务主视觉、菜单道具横幅和三个快捷入口组成的 1/1/3 纵向拼图。
-- 13 个卡片索引与 `scripts/ui/forms/server/index.ts` 保持固定契约；关闭的模块和无权限入口保留空槽，不会导致后续按钮错位。
+- 13 个卡片索引与 `scripts/ui/forms/server/index.ts` 保持固定契约；关闭的模块和无权限入口保留固定槽位，不会导致后续按钮错位。
 - 根菜单的每个按钮都是按最终槽位比例绘制的独立像素海报，固定标题直接烘焙进状态纹理，保证不同 GUI 缩放下的描边、留白和构图一致。
+- 根菜单以 920×510 为设计画布，通过两层 `max_size` 按 920:510 等比收进当前安全画布：窄屏按宽度缩放，超宽屏按高度缩放。不得再用两个互不关联的屏幕百分比分别拉伸画布，也不得给根画布设置会撑出安全区的 `min_size`。
+- 关闭模块或无权限入口仍保留固定 collection 索引，但以灰度 locked 卡片占位并禁用点击，不再留下会透出 HUD 的透明空槽。
 - 根菜单默认、悬停、按下均有独立全图纹理和烘焙边框；悬停整体下移 1px，按下下移 2px。卡片状态必须关闭 `keep_ratio`，否则任务卡、横幅卡和正方形快捷卡会按各自原图比例向内缩，无法共享同一左右边线。不得为这些纹理附加九宫格元数据，否则场景会被拆开拉伸。鼠标、触屏和手柄共用同一点击映射。
 - 苦力怕主菜单使用 `/CMROOT` 拼图布局；项目内 ActionForm 通过 `/CMFORM` 使用统一的暖色纸张卡片布局。
 - 项目内 MessageForm 通过 `/CMMESSAGE` 使用同一套暖色纸张双按钮消息布局；正文拥有独立滚动区，两个原生选择索引固定映射到左右按钮。
@@ -30,11 +32,19 @@
 - `source/creeper-mosaic-right-113-imagegen.png`：按 1/1/3 最终拼图比例生成的右侧原创像素海报母版。
 - `source/creeper-submenu-icons-core-imagegen.png`：坐标点、假人、公会、死亡返回、维度与传送等核心子菜单的 4×4 原创图标母版。
 - `source/creeper-submenu-icons-admin-imagegen.png`：黑白名单、成员权限、背包、市场、公告与状态等管理子菜单的 4×4 原创图标母版。
+- `assets/quest-icons-atlas-b01-v2.png` 与 `assets/quest-icons-atlas-b02-v1.png` 至 `b10-v1.png`：158 个预设任务图标的原始 ImageGen 色键母版。生成器画面允许跨越名义网格，但每个主体必须靠近自己的 4×4 预期中心。
+- `quest-icon-manifest.json`：任务 ID、稳定 slug、母版格位、不可见 HUD marker 索引、连通域策略与光学偏移的唯一事实源。
 - `build.py`：透明图标仍按连通主体切分；两张子菜单图标母版按固定 4×4 单元切分并清除微小游离像素，输出原生 32×32 RGBA；根菜单海报则按固定槽位裁切、烘焙标题和交互边框，同时生成通用按钮九宫格与两张预览图。
-- `preview.png` / `submenu-preview.png` / `modal-preview.png` / `message-preview.png`：主菜单拼图、通用子菜单、完整 ModalForm 控件和双按钮 MessageForm 的设计预览。
+- `preview.png` / `submenu-preview.png` / `modal-preview.png` / `message-preview.png` / `quest-icons-preview.png`：主菜单拼图、通用子菜单、完整 ModalForm 控件、双按钮 MessageForm 与任务图标的设计预览。
 
 子菜单图标以“一个业务概念对应一个清晰轮廓”为准。返回、确认、删除、翻页等通用动作可以复用；公会列表/我的公会、自杀/死亡地点返回、私人/公共坐标点等会改变用户判断的业务入口必须使用不同图标。
 
 ```powershell
 python design/menu-ui/build.py
+
+# 原始 ImageGen 母版先按完整连通主体归组，重排为带安全区的标准 4×4 母版。
+python design/menu-ui/build.py --normalize-quest-atlases
+
+# 从标准母版输出 158 个 32px PNG，并同步生成 TS 映射与 HUD badge controls。
+python design/menu-ui/build.py --quest-icons
 ```

@@ -10,6 +10,7 @@ import ItemDatabase, { Item as DbItem } from "./item-database";
 import { colorCodes } from "../../../shared/utils/color";
 import { isAdmin } from "../../../shared/utils/common";
 import { usePlayerByName } from "../../../shared/hooks/use-player";
+import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
 
 // 玩家交易市场商品数据结构
 export interface MarketItemData {
@@ -276,6 +277,31 @@ class PlayerMarket {
         entry.itemDB.editData({ amount: nextAmount, item: remainingItem });
         entry.data.amount = nextAmount;
         entry.item = remainingItem;
+      }
+
+      const tradeDedupeKey = `${entry.data.createdAt}:${player.name}:${Date.now()}`;
+      recordCreeperQuestSuccess(player, "marketTrade", {
+        payload: {
+          action: "buy",
+          sellerName: entry.data.playerName,
+          item: entry.item.typeId,
+          amount,
+          totalPrice,
+        },
+        dedupeKey: `creeper.market.trade:buyer:${tradeDedupeKey}`,
+      });
+      const onlineSeller = usePlayerByName(entry.data.playerName);
+      if (onlineSeller && onlineSeller.name !== player.name) {
+        recordCreeperQuestSuccess(onlineSeller, "marketTrade", {
+          payload: {
+            action: "sell",
+            buyerName: player.name,
+            item: entry.item.typeId,
+            amount,
+            totalPrice,
+          },
+          dedupeKey: `creeper.market.trade:seller:${tradeDedupeKey}`,
+        });
       }
 
       openDialogForm(

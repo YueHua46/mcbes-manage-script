@@ -1,0 +1,107 @@
+import type { QuestChapterDefinition, QuestDefinitionV2 } from "../../domain";
+import { coreChapter, corePresetQuest, counterGoal, inventoryGoal, milestoneGoal } from "../builders";
+
+export const coreEyeChapter: QuestChapterDefinition = coreChapter({
+  id: "core.eye",
+  title: "眼睛会碎，方向不会",
+  description: "珍珠和烈焰粉准备就绪后，跟着末影之眼一路追到主世界最深处的那扇门。",
+  order: 5,
+  unlockRule: { type: "quest", questId: "preset.core.nether.blaze_rods", status: "completed" },
+  questIds: [
+    "preset.core.eye.ender_pearls",
+    "preset.core.eye.blaze_powder",
+    "preset.core.eye.eyes",
+    "preset.core.eye.stronghold",
+    "preset.core.eye.enter_end",
+  ],
+});
+
+export const coreEyeQuests: QuestDefinitionV2[] = [
+  corePresetQuest({
+    id: "preset.core.eye.ender_pearls",
+    title: "珍珠不会自己排队",
+    description: "章节开放后累计获得 12 颗末影珍珠。末影人眼神不太友善，但通往末地的路线确实得靠它们。",
+    completionMessage: "末影珍珠数量达标，寻路材料完成一半。",
+    chapterId: "core.eye",
+    order: 1,
+    rarity: "rare",
+    reliability: "A",
+    goals: [
+      counterGoal("goal.obtain_ender_pearls", "item.obtain", 12, "累计获得 12 颗末影珍珠", {
+        filters: { item: { op: "eq", value: "minecraft:ender_pearl" } },
+        aggregation: "sum",
+        field: "amount",
+      }),
+    ],
+    gold: 160,
+    experience: 60,
+    requiredCapabilities: ["cap.event.item.obtain.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.eye.blaze_powder",
+    title: "烈焰棒，先磨它十二份",
+    description: "让背包里同时拥有至少 12 份烈焰粉。别急着全拿去烧酿造台，末影之眼也等着这份火力。",
+    completionMessage: "烈焰粉备齐，末影珍珠马上可以睁眼。",
+    chapterId: "core.eye",
+    order: 2,
+    rarity: "common",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_blaze_powder", "selector.item.blaze_powder", 12, "背包中同时拥有 12 份烈焰粉")],
+    gold: 120,
+    experience: 50,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.eye.eyes",
+    title: "十二只眼，都盯着远方",
+    description: "让背包里同时拥有至少 12 颗末影之眼。多准备几颗，路上摔碎一颗时才不至于原地沉默。",
+    completionMessage: "末影之眼集结完毕，远古要塞开始心虚。",
+    chapterId: "core.eye",
+    order: 3,
+    rarity: "rare",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_ender_eyes", "selector.item.ender_eyes", 12, "背包中同时拥有 12 颗末影之眼")],
+    gold: 220,
+    experience: 80,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.eye.stronghold",
+    title: "石砖深处，门在等你",
+    description: "亲自进入一座远古要塞。只有经过验证的结构识别才会完成；拿到要塞战利品不能代替到场。",
+    completionMessage: "远古要塞已确认，末地传送门就在附近。",
+    chapterId: "core.eye",
+    order: 4,
+    rarity: "epic",
+    reliability: "C",
+    goals: [
+      milestoneGoal("goal.enter_stronghold", "structure.enter", "亲自进入一座远古要塞", {
+        filters: { structure: { op: "eq", value: "minecraft:stronghold" } },
+      }),
+    ],
+    gold: 300,
+    experience: 120,
+    requiredCapabilities: ["cap.event.structure.enter.v1"],
+    unlockRule: { type: "quest", questId: "preset.core.eye.eyes", status: "completed" },
+  }),
+  corePresetQuest({
+    id: "preset.core.eye.enter_end",
+    title: "门后不是旅游景点",
+    description: "亲自穿过传送门进入末地一次。确认装备、食物和退路之后再跳，因为黑曜石平台不提供返程说明书。",
+    completionMessage: "末地抵达，虚空与巨龙同时向你开放。",
+    chapterId: "core.eye",
+    order: 5,
+    rarity: "epic",
+    reliability: "A",
+    goals: [
+      milestoneGoal("goal.enter_the_end", "player.dimension_enter", "进入末地一次", {
+        filters: { dimension: { op: "eq", value: "the_end" } },
+        backfillPolicy: "current_state",
+      }),
+    ],
+    gold: 600,
+    experience: 250,
+    requiredCapabilities: ["cap.event.player.dimension_enter.v1"],
+    unlockEventPolicy: "include_once",
+  }),
+];

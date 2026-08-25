@@ -13,7 +13,7 @@ test("economy-disabled player surfaces hide money and optional costs become free
   const floatingText = read("scripts/features/floating-text/services/floating-text.ts");
   const stats = read("scripts/ui/forms/stats/index.ts");
   const pvp = read("scripts/ui/forms/pvp/index.ts");
-  const quest = read("scripts/features/quest/services/quest-player.ts");
+  const questRewards = read("scripts/features/quest/rewards/runtime-reward-handlers.ts");
 
   assert.match(hud, /const economyEnabled = setting\.getState\("economy"\) === true/);
   assert.match(hud, /if \(economyEnabled\)[\s\S]*segments\.unshift/);
@@ -22,7 +22,7 @@ test("economy-disabled player surfaces hide money and optional costs become free
   assert.match(floatingText, /if \(setting\.getState\("economy"\) !== true\) return 0/);
   assert.match(stats, /经济系统已关闭，财富排行榜暂不显示/);
   assert.match(pvp, /if \(economyEnabled\) form\.button\("夺取金币排行榜"/);
-  assert.match(quest, /经济系统已关闭，本次任务金币奖励不发放/);
+  assert.match(questRewards, /经济系统已关闭，金币奖励保留待领取/);
 });
 
 test("land selection always tells players how to cancel", () => {

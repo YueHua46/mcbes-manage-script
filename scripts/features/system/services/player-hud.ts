@@ -5,6 +5,7 @@ import { getTPS } from "../../../shared/utils/tps";
 import { glyphMap } from "../../../assets/glyph-map";
 import PlayerSetting, { PLAYER_HUD_MARKER } from "../../player/services/player-settings";
 import setting from "./setting";
+import hudBroker from "../../hud/runtime-hud-broker";
 
 const HUD_REFRESH_TICKS = 40;
 
@@ -31,7 +32,10 @@ system.runInterval(() => {
 
   for (const player of players) {
     try {
-      if (!PlayerSetting.getPlayerHudEnabled(player)) continue;
+      if (!PlayerSetting.getPlayerHudEnabled(player)) {
+        hudBroker.clearPersistentStatus(player);
+        continue;
+      }
       const segments = [
         `§r${glyphMap.clock} §7TPS ${getTpsColor(tps)}${tpsText}`,
         `§r${glyphMap.friends} §7在线 §a${players.length}`,
@@ -40,7 +44,7 @@ system.runInterval(() => {
         const gold = economic.getWallet(player.name).gold;
         segments.unshift(`§r${glyphMap.coins} §7金币 §6${formatGold(gold)}`);
       }
-      player.onScreenDisplay.setActionBar(`${PLAYER_HUD_MARKER}${segments.join("   §8•   ")}`);
+      hudBroker.setPersistentStatus(player, `${PLAYER_HUD_MARKER}${segments.join("   §8•   ")}`);
     } catch (error) {
       console.warn(`[PlayerHud] 刷新 ${player.name} 的 HUD 失败: ${(error as Error).message}`);
     }

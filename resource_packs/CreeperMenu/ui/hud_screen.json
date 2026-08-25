@@ -54,9 +54,2102 @@
       }
     }
   },
+  "cm_quest_toast": {
+    "type": "image",
+    "anchor_from": "top_right",
+    "anchor_to": "top_right",
+    "offset": [-8, 8],
+    "size": [208, 42],
+    "texture": "textures/ui/creeper_menu/submenu_panel",
+    "nineslice_size": 8,
+    "alpha": 0.98,
+    "layer": 30,
+    "$cm_quest_text": "$actionbar_text",
+    "$cm_quest_marker": "[CMQUEST_COMMON]",
+    "$cm_quest_accent": [0.31, 0.52, 0.3],
+    "$cm_quest_rarity_label": "普通委托",
+    "$cm_quest_icon": "◆",
+    "$cm_quest_show_corner_gems": false,
+    "$cm_quest_show_double_line": false,
+    "visible": "(not (($cm_quest_text - $cm_quest_marker) = $cm_quest_text))",
+    "controls": [
+      {
+        "top_accent": {
+          "type": "image",
+          "anchor_from": "top_middle",
+          "anchor_to": "top_middle",
+          "offset": [0, 6],
+          "size": [184, 2],
+          "texture": "textures/ui/white",
+          "color": "$cm_quest_accent",
+          "alpha": 0.9,
+          "layer": 31
+        }
+      },
+      {
+        "badge_chip": {
+          "type": "image",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [6, 0],
+          "size": [32, 32],
+          "texture": "textures/ui/creeper_menu/icon_chip",
+          "nineslice_size": 7,
+          "layer": 31,
+          "controls": [
+            {
+              "badge_icon": {
+                "type": "label",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "text": "$cm_quest_icon",
+                "font_scale_factor": 0.9,
+                "text_alignment": "center",
+                "color": "$cm_quest_accent",
+                "shadow": false,
+                "localize": false,
+                "visible": "((($cm_quest_text - '§r§0§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§d§r') = $cm_quest_text))",
+                "layer": 32
+              }
+            },
+            {
+              "core_survival_first_log": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_survival_first_log",
+                "visible": "(not (($cm_quest_text - '§r§0§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_survival_crafting_table": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_survival_crafting_table",
+                "visible": "(not (($cm_quest_text - '§r§0§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_survival_stone_pickaxe": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_survival_stone_pickaxe",
+                "visible": "(not (($cm_quest_text - '§r§0§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_survival_torches": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_survival_torches",
+                "visible": "(not (($cm_quest_text - '§r§0§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_survival_furnace": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_survival_furnace",
+                "visible": "(not (($cm_quest_text - '§r§0§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_survival_bed": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_survival_bed",
+                "visible": "(not (($cm_quest_text - '§r§0§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_survival_shield": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_survival_shield",
+                "visible": "(not (($cm_quest_text - '§r§0§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_iron_ingots": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_iron_ingots",
+                "visible": "(not (($cm_quest_text - '§r§0§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_iron_pickaxe": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_iron_pickaxe",
+                "visible": "(not (($cm_quest_text - '§r§0§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_bucket": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_bucket",
+                "visible": "(not (($cm_quest_text - '§r§0§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_full_iron_armor": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_full_iron_armor",
+                "visible": "(not (($cm_quest_text - '§r§0§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_redstone": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_redstone",
+                "visible": "(not (($cm_quest_text - '§r§0§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_lapis": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_lapis",
+                "visible": "(not (($cm_quest_text - '§r§0§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_first_diamond": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_first_diamond",
+                "visible": "(not (($cm_quest_text - '§r§0§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_diamond_miner": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_diamond_miner",
+                "visible": "(not (($cm_quest_text - '§r§0§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_diamond_pickaxe": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_diamond_pickaxe",
+                "visible": "(not (($cm_quest_text - '§r§0§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_mining_obsidian": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_mining_obsidian",
+                "visible": "(not (($cm_quest_text - '§r§1§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_magic_enchanting_table": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_magic_enchanting_table",
+                "visible": "(not (($cm_quest_text - '§r§1§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_magic_bookshelves": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_magic_bookshelves",
+                "visible": "(not (($cm_quest_text - '§r§1§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_magic_first_enchant": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_magic_first_enchant",
+                "visible": "(not (($cm_quest_text - '§r§1§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_magic_anvil": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_magic_anvil",
+                "visible": "(not (($cm_quest_text - '§r§1§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_magic_enchanted_book": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_magic_enchanted_book",
+                "visible": "(not (($cm_quest_text - '§r§1§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_enter": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_enter",
+                "visible": "(not (($cm_quest_text - '§r§1§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_quartz": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_quartz",
+                "visible": "(not (($cm_quest_text - '§r§1§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_piglin_barter": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_piglin_barter",
+                "visible": "(not (($cm_quest_text - '§r§1§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_blaze_hunter": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_blaze_hunter",
+                "visible": "(not (($cm_quest_text - '§r§1§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_blaze_rods": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_blaze_rods",
+                "visible": "(not (($cm_quest_text - '§r§1§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_nether_wart": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_nether_wart",
+                "visible": "(not (($cm_quest_text - '§r§1§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_brewing_stand": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_brewing_stand",
+                "visible": "(not (($cm_quest_text - '§r§1§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_ancient_debris": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_ancient_debris",
+                "visible": "(not (($cm_quest_text - '§r§1§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_nether_netherite_ingot": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_nether_netherite_ingot",
+                "visible": "(not (($cm_quest_text - '§r§1§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_eye_ender_pearls": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_eye_ender_pearls",
+                "visible": "(not (($cm_quest_text - '§r§1§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_eye_blaze_powder": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_eye_blaze_powder",
+                "visible": "(not (($cm_quest_text - '§r§2§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_eye_eyes": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_eye_eyes",
+                "visible": "(not (($cm_quest_text - '§r§2§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_eye_stronghold": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_eye_stronghold",
+                "visible": "(not (($cm_quest_text - '§r§2§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_eye_enter_end": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_eye_enter_end",
+                "visible": "(not (($cm_quest_text - '§r§2§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_end_kill_dragon": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_end_kill_dragon",
+                "visible": "(not (($cm_quest_text - '§r§2§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_end_dragon_breath": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_end_dragon_breath",
+                "visible": "(not (($cm_quest_text - '§r§2§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_end_gateway": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_end_gateway",
+                "visible": "(not (($cm_quest_text - '§r§2§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_endcity_chorus": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_chorus",
+                "visible": "(not (($cm_quest_text - '§r§2§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_endcity_shulkers": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_shulkers",
+                "visible": "(not (($cm_quest_text - '§r§2§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_endcity_shells": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_shells",
+                "visible": "(not (($cm_quest_text - '§r§2§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_endcity_city": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_city",
+                "visible": "(not (($cm_quest_text - '§r§2§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_endcity_elytra": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_elytra",
+                "visible": "(not (($cm_quest_text - '§r§2§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_endcity_shulker_box": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_shulker_box",
+                "visible": "(not (($cm_quest_text - '§r§2§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_endcity_fly": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_fly",
+                "visible": "(not (($cm_quest_text - '§r§2§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_apex_wither_skulls": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_apex_wither_skulls",
+                "visible": "(not (($cm_quest_text - '§r§2§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_apex_kill_wither": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_apex_kill_wither",
+                "visible": "(not (($cm_quest_text - '§r§2§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_apex_nether_star": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_apex_nether_star",
+                "visible": "(not (($cm_quest_text - '§r§3§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_apex_beacon": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_apex_beacon",
+                "visible": "(not (($cm_quest_text - '§r§3§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "core_apex_full_beacon": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/core_apex_full_beacon",
+                "visible": "(not (($cm_quest_text - '§r§3§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_village_first_trade": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_village_first_trade",
+                "visible": "(not (($cm_quest_text - '§r§3§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_village_trader": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_village_trader",
+                "visible": "(not (($cm_quest_text - '§r§3§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_village_cure": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_village_cure",
+                "visible": "(not (($cm_quest_text - '§r§3§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_village_ominous_bottle": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_village_ominous_bottle",
+                "visible": "(not (($cm_quest_text - '§r§3§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_village_raid": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_village_raid",
+                "visible": "(not (($cm_quest_text - '§r§3§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_village_totem": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_village_totem",
+                "visible": "(not (($cm_quest_text - '§r§3§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_ocean_enter": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_enter",
+                "visible": "(not (($cm_quest_text - '§r§3§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_ocean_treasure_map": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_treasure_map",
+                "visible": "(not (($cm_quest_text - '§r§3§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_ocean_heart": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_heart",
+                "visible": "(not (($cm_quest_text - '§r§3§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_ocean_guardians": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_guardians",
+                "visible": "(not (($cm_quest_text - '§r§3§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_ocean_elder_guardian": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_elder_guardian",
+                "visible": "(not (($cm_quest_text - '§r§3§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_ocean_sponge": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_sponge",
+                "visible": "(not (($cm_quest_text - '§r§3§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_ocean_conduit": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_conduit",
+                "visible": "(not (($cm_quest_text - '§r§3§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_archaeology_brush": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_brush",
+                "visible": "(not (($cm_quest_text - '§r§4§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_archaeology_brush_suspicious": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_brush_suspicious",
+                "visible": "(not (($cm_quest_text - '§r§4§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_archaeology_sherd": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_sherd",
+                "visible": "(not (($cm_quest_text - '§r§4§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_archaeology_pot": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_pot",
+                "visible": "(not (($cm_quest_text - '§r§4§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_archaeology_sniffer_egg": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_sniffer_egg",
+                "visible": "(not (($cm_quest_text - '§r§4§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_archaeology_ancient_plants": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_ancient_plants",
+                "visible": "(not (($cm_quest_text - '§r§4§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_deepdark_sculk": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_sculk",
+                "visible": "(not (($cm_quest_text - '§r§4§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_deepdark_enter": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_enter",
+                "visible": "(not (($cm_quest_text - '§r§4§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_deepdark_ancient_city": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_ancient_city",
+                "visible": "(not (($cm_quest_text - '§r§4§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_deepdark_echo_shard": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_echo_shard",
+                "visible": "(not (($cm_quest_text - '§r§4§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_deepdark_recovery_compass": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_recovery_compass",
+                "visible": "(not (($cm_quest_text - '§r§4§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_deepdark_swift_sneak": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_swift_sneak",
+                "visible": "(not (($cm_quest_text - '§r§4§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_enter": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_enter",
+                "visible": "(not (($cm_quest_text - '§r§4§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_breeze": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_breeze",
+                "visible": "(not (($cm_quest_text - '§r§4§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_breeze_rod": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_breeze_rod",
+                "visible": "(not (($cm_quest_text - '§r§4§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_trial_key": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_trial_key",
+                "visible": "(not (($cm_quest_text - '§r§4§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_vault": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_vault",
+                "visible": "(not (($cm_quest_text - '§r§5§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_ominous": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_ominous",
+                "visible": "(not (($cm_quest_text - '§r§5§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_ominous_key": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_ominous_key",
+                "visible": "(not (($cm_quest_text - '§r§5§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_heavy_core": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_heavy_core",
+                "visible": "(not (($cm_quest_text - '§r§5§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_trials_mace": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_trials_mace",
+                "visible": "(not (($cm_quest_text - '§r§5§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_farm_plant": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_farm_plant",
+                "visible": "(not (($cm_quest_text - '§r§5§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_farm_harvest": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_farm_harvest",
+                "visible": "(not (($cm_quest_text - '§r§5§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_farm_breed": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_farm_breed",
+                "visible": "(not (($cm_quest_text - '§r§5§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_farm_rancher": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_farm_rancher",
+                "visible": "(not (($cm_quest_text - '§r§5§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_farm_tame": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_farm_tame",
+                "visible": "(not (($cm_quest_text - '§r§5§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_farm_honey": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_farm_honey",
+                "visible": "(not (($cm_quest_text - '§r§5§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_redstone_redstone": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_redstone",
+                "visible": "(not (($cm_quest_text - '§r§5§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_redstone_piston": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_piston",
+                "visible": "(not (($cm_quest_text - '§r§5§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_redstone_observer": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_observer",
+                "visible": "(not (($cm_quest_text - '§r§5§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_redstone_comparator": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_comparator",
+                "visible": "(not (($cm_quest_text - '§r§5§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_redstone_hopper": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_hopper",
+                "visible": "(not (($cm_quest_text - '§r§5§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_redstone_crafter": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_crafter",
+                "visible": "(not (($cm_quest_text - '§r§6§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_redstone_crafter_use": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_crafter_use",
+                "visible": "(not (($cm_quest_text - '§r§6§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_pale_garden_enter": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_enter",
+                "visible": "(not (($cm_quest_text - '§r§6§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_pale_garden_pale_oak": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_pale_oak",
+                "visible": "(not (($cm_quest_text - '§r§6§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_pale_garden_creaking": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_creaking",
+                "visible": "(not (($cm_quest_text - '§r§6§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_pale_garden_heart": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_heart",
+                "visible": "(not (($cm_quest_text - '§r§6§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "world_pale_garden_resin": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_resin",
+                "visible": "(not (($cm_quest_text - '§r§6§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_open_menu": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_open_menu",
+                "visible": "(not (($cm_quest_text - '§r§6§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_waypoint": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_waypoint",
+                "visible": "(not (($cm_quest_text - '§r§6§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_tpa": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_tpa",
+                "visible": "(not (($cm_quest_text - '§r§6§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_random_tp": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_random_tp",
+                "visible": "(not (($cm_quest_text - '§r§6§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_land": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_land",
+                "visible": "(not (($cm_quest_text - '§r§6§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_public_waypoint": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_public_waypoint",
+                "visible": "(not (($cm_quest_text - '§r§6§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_market": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_market",
+                "visible": "(not (($cm_quest_text - '§r§6§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_red_packet": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_red_packet",
+                "visible": "(not (($cm_quest_text - '§r§6§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "creeper_guide_guild": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_guild",
+                "visible": "(not (($cm_quest_text - '§r§6§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_copper_ingots": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_copper_ingots",
+                "visible": "(not (($cm_quest_text - '§r§7§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_copper_pickaxe": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_copper_pickaxe",
+                "visible": "(not (($cm_quest_text - '§r§7§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_copper_full_armor": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_copper_full_armor",
+                "visible": "(not (($cm_quest_text - '§r§7§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_copper_golem": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_copper_golem",
+                "visible": "(not (($cm_quest_text - '§r§7§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_copper_chest": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_copper_chest",
+                "visible": "(not (($cm_quest_text - '§r§7§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_copper_sorting": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_copper_sorting",
+                "visible": "(not (($cm_quest_text - '§r§7§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_copper_shelf": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_copper_shelf",
+                "visible": "(not (($cm_quest_text - '§r§7§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_skies_dried_ghast": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_skies_dried_ghast",
+                "visible": "(not (($cm_quest_text - '§r§7§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_skies_revive": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_skies_revive",
+                "visible": "(not (($cm_quest_text - '§r§7§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_skies_ghastling": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_skies_ghastling",
+                "visible": "(not (($cm_quest_text - '§r§7§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_skies_happy_ghast": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_skies_happy_ghast",
+                "visible": "(not (($cm_quest_text - '§r§7§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_skies_harness": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_skies_harness",
+                "visible": "(not (($cm_quest_text - '§r§7§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_skies_ride": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_skies_ride",
+                "visible": "(not (($cm_quest_text - '§r§7§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_mounts_spear": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_spear",
+                "visible": "(not (($cm_quest_text - '§r§7§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_mounts_spear_charge": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_spear_charge",
+                "visible": "(not (($cm_quest_text - '§r§7§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_mounts_zombie_horse": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_zombie_horse",
+                "visible": "(not (($cm_quest_text - '§r§7§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_mounts_camel_husk": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_camel_husk",
+                "visible": "(not (($cm_quest_text - '§r§8§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_mounts_parched": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_parched",
+                "visible": "(not (($cm_quest_text - '§r§8§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_mounts_nautilus": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_nautilus",
+                "visible": "(not (($cm_quest_text - '§r§8§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_mounts_ride_nautilus": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_ride_nautilus",
+                "visible": "(not (($cm_quest_text - '§r§8§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_tiny_name_tag": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_name_tag",
+                "visible": "(not (($cm_quest_text - '§r§8§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_tiny_name_baby": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_name_baby",
+                "visible": "(not (($cm_quest_text - '§r§8§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_tiny_golden_dandelion": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_golden_dandelion",
+                "visible": "(not (($cm_quest_text - '§r§8§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_tiny_baby_collection": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_baby_collection",
+                "visible": "(not (($cm_quest_text - '§r§8§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_tiny_trumpet": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_trumpet",
+                "visible": "(not (($cm_quest_text - '§r§8§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_sulfur": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_sulfur",
+                "visible": "(not (($cm_quest_text - '§r§8§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_cinnabar": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_cinnabar",
+                "visible": "(not (($cm_quest_text - '§r§8§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_cave": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_cave",
+                "visible": "(not (($cm_quest_text - '§r§8§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_meet_cube": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_meet_cube",
+                "visible": "(not (($cm_quest_text - '§r§8§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_bucket_cube": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_bucket_cube",
+                "visible": "(not (($cm_quest_text - '§r§8§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_feed_cube": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_feed_cube",
+                "visible": "(not (($cm_quest_text - '§r§8§e§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_tnt": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_tnt",
+                "visible": "(not (($cm_quest_text - '§r§8§f§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_geyser": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_geyser",
+                "visible": "(not (($cm_quest_text - '§r§9§0§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "update_chaos_bounce_disc": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_bounce_disc",
+                "visible": "(not (($cm_quest_text - '§r§9§1§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "experiment_drop3_dappled_forest": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_dappled_forest",
+                "visible": "(not (($cm_quest_text - '§r§9§2§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "experiment_drop3_poplar": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_poplar",
+                "visible": "(not (($cm_quest_text - '§r§9§3§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "experiment_drop3_shelf_mushroom": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_shelf_mushroom",
+                "visible": "(not (($cm_quest_text - '§r§9§4§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "experiment_drop3_red_shrub": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_red_shrub",
+                "visible": "(not (($cm_quest_text - '§r§9§5§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "experiment_drop3_camp": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_camp",
+                "visible": "(not (($cm_quest_text - '§r§9§6§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "experiment_drop3_straw_bed": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_straw_bed",
+                "visible": "(not (($cm_quest_text - '§r§9§7§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "experiment_drop3_cushion": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_cushion",
+                "visible": "(not (($cm_quest_text - '§r§9§8§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "hidden_warden": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/hidden_warden",
+                "visible": "(not (($cm_quest_text - '§r§9§9§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "hidden_dragon_again": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/hidden_dragon_again",
+                "visible": "(not (($cm_quest_text - '§r§9§a§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "hidden_mace_smash": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/hidden_mace_smash",
+                "visible": "(not (($cm_quest_text - '§r§9§b§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "hidden_happy_ghast_party": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/hidden_happy_ghast_party",
+                "visible": "(not (($cm_quest_text - '§r§9§c§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            },
+            {
+              "hidden_elytra_distance": {
+                "type": "image",
+                "anchor_from": "center",
+                "anchor_to": "center",
+                "offset": [0, 2],
+                "size": [28, 28],
+                "texture": "textures/ui/creeper_menu/quest_icons/hidden_elytra_distance",
+                "visible": "(not (($cm_quest_text - '§r§9§d§r') = $cm_quest_text))",
+                "layer": 33
+              }
+            }
+          ]
+        }
+      },
+      {
+        "rarity_label": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [42, -9],
+          "size": [148, 11],
+          "text": "$cm_quest_rarity_label",
+          "font_scale_factor": 0.62,
+          "text_alignment": "left",
+          "color": "$cm_quest_accent",
+          "shadow": false,
+          "localize": false,
+          "layer": 32
+        }
+      },
+      {
+        "quest_text": {
+          "type": "label",
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [42, 6],
+          "size": [156, 22],
+          "text": "($cm_quest_text - $cm_quest_marker)",
+          "font_scale_factor": 0.68,
+          "text_alignment": "left",
+          "color": [0.2, 0.18, 0.16],
+          "shadow": false,
+          "localize": false,
+          "layer": 32
+        }
+      },
+      {
+        "corner_gem_left": {
+          "type": "label",
+          "anchor_from": "top_left",
+          "anchor_to": "top_left",
+          "offset": [7, 4],
+          "text": "◆",
+          "font_scale_factor": 0.48,
+          "color": "$cm_quest_accent",
+          "shadow": false,
+          "localize": false,
+          "visible": "$cm_quest_show_corner_gems",
+          "layer": 32
+        }
+      },
+      {
+        "corner_gem_right": {
+          "type": "label",
+          "anchor_from": "top_right",
+          "anchor_to": "top_right",
+          "offset": [-7, 4],
+          "text": "◆",
+          "font_scale_factor": 0.48,
+          "color": "$cm_quest_accent",
+          "shadow": false,
+          "localize": false,
+          "visible": "$cm_quest_show_corner_gems",
+          "layer": 32
+        }
+      },
+      {
+        "ceremony_line": {
+          "type": "image",
+          "anchor_from": "bottom_middle",
+          "anchor_to": "bottom_middle",
+          "offset": [0, -6],
+          "size": [184, 1],
+          "texture": "textures/ui/white",
+          "color": "$cm_quest_accent",
+          "alpha": 0.72,
+          "visible": "$cm_quest_show_double_line",
+          "layer": 31
+        }
+      }
+    ]
+  },
+  "cm_quest_toast_common@hud.cm_quest_toast": {},
+  "cm_quest_toast_rare@hud.cm_quest_toast": {
+    "$cm_quest_marker": "[CMQUEST_RARE]",
+    "$cm_quest_accent": [0.25, 0.48, 0.66],
+    "$cm_quest_rarity_label": "稀有委托",
+    "$cm_quest_icon": "✦"
+  },
+  "cm_quest_toast_epic@hud.cm_quest_toast": {
+    "$cm_quest_marker": "[CMQUEST_EPIC]",
+    "$cm_quest_accent": [0.49, 0.35, 0.58],
+    "$cm_quest_rarity_label": "史诗委托",
+    "$cm_quest_icon": "❖",
+    "$cm_quest_show_corner_gems": true
+  },
+  "cm_quest_toast_legendary@hud.cm_quest_toast": {
+    "$cm_quest_marker": "[CMQUEST_LEGENDARY]",
+    "$cm_quest_accent": [0.72, 0.42, 0.18],
+    "$cm_quest_rarity_label": "传说委托",
+    "$cm_quest_icon": "✹",
+    "$cm_quest_show_corner_gems": true,
+    "$cm_quest_show_double_line": true
+  },
+  "cm_quest_toast_common_factory": {
+    "type": "panel",
+    "factory": {
+      "name": "hud_actionbar_text_factory",
+      "control_ids": {
+        "hud_actionbar_text": "@hud.cm_quest_toast_common"
+      }
+    }
+  },
+  "cm_quest_toast_rare_factory": {
+    "type": "panel",
+    "factory": {
+      "name": "hud_actionbar_text_factory",
+      "control_ids": {
+        "hud_actionbar_text": "@hud.cm_quest_toast_rare"
+      }
+    }
+  },
+  "cm_quest_toast_epic_factory": {
+    "type": "panel",
+    "factory": {
+      "name": "hud_actionbar_text_factory",
+      "control_ids": {
+        "hud_actionbar_text": "@hud.cm_quest_toast_epic"
+      }
+    }
+  },
+  "cm_quest_toast_legendary_factory": {
+    "type": "panel",
+    "factory": {
+      "name": "hud_actionbar_text_factory",
+      "control_ids": {
+        "hud_actionbar_text": "@hud.cm_quest_toast_legendary"
+      }
+    }
+  },
   "hud_actionbar_text": {
     "$cm_actionbar_text": "$actionbar_text",
-    "visible": "((($cm_actionbar_text - '[CMHUD]') = $cm_actionbar_text) and (($cm_actionbar_text - '[CMHUD_HIDE]') = $cm_actionbar_text))"
+    "visible": "((($cm_actionbar_text - '[CMHUD]') = $cm_actionbar_text) and (($cm_actionbar_text - '[CMHUD_HIDE]') = $cm_actionbar_text) and (($cm_actionbar_text - '[CMQUEST_COMMON]') = $cm_actionbar_text) and (($cm_actionbar_text - '[CMQUEST_RARE]') = $cm_actionbar_text) and (($cm_actionbar_text - '[CMQUEST_EPIC]') = $cm_actionbar_text) and (($cm_actionbar_text - '[CMQUEST_LEGENDARY]') = $cm_actionbar_text))"
   },
   "hud_title_text/title_frame/title_background": {
     "ignored": true
@@ -81,6 +2174,34 @@
         "operation": "insert_front",
         "value": {
           "cm_player_status_factory_pocket@hud.cm_player_status_factory_pocket": {}
+        }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": {
+          "cm_quest_toast_common_factory@hud.cm_quest_toast_common_factory": {}
+        }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": {
+          "cm_quest_toast_rare_factory@hud.cm_quest_toast_rare_factory": {}
+        }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": {
+          "cm_quest_toast_epic_factory@hud.cm_quest_toast_epic_factory": {}
+        }
+      },
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": {
+          "cm_quest_toast_legendary_factory@hud.cm_quest_toast_legendary_factory": {}
         }
       }
     ]

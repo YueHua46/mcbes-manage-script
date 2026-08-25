@@ -1,0 +1,47 @@
+import type { QuestDefinitionV2 } from "../../domain";
+import { corePresetQuest, inventoryGoal } from "../builders";
+
+export const coreSurvivalAdditionalQuests: QuestDefinitionV2[] = [
+  corePresetQuest({
+    id: "preset.core.survival.torches",
+    title: "矿洞可以黑，人不能瞎",
+    description: "让背包里同时有至少 8 根火把。下矿不带照明，属于主动给苦力怕创造就业机会。",
+    completionMessage: "灯一亮，矿洞里的心跳终于慢了点。",
+    chapterId: "core.survival",
+    order: 3.5,
+    rarity: "common",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_torches", "selector.item.torches", 8, "背包中同时拥有至少 8 根火把")],
+    gold: 40,
+    experience: 10,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.survival.bed",
+    title: "今晚拒绝露天席",
+    description: "让背包里出现任意颜色的床。颜色可以随缘，能跳过怪物团建的夜晚才是重点。",
+    completionMessage: "床位已落实，今晚不用和僵尸抢月光。",
+    chapterId: "core.survival",
+    order: 6,
+    rarity: "common",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_bed", "selector.item.beds", 1, "背包中拥有任意颜色的床")],
+    gold: 50,
+    experience: 15,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.survival.shield",
+    title: "正面硬刚，也得带门板",
+    description: "准备一面盾牌并放在背包中。勇敢不是拿脸接箭，及时举盾才叫专业。",
+    completionMessage: "盾牌到位，骷髅的箭从此只配听个响。",
+    chapterId: "core.survival",
+    order: 7,
+    rarity: "common",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_shield", "selector.item.shield", 1, "背包中拥有一面盾牌")],
+    gold: 60,
+    experience: 20,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+  }),
+];
