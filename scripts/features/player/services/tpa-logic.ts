@@ -7,6 +7,7 @@ import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
 import { isDimensionIsolated } from "../../../shared/dimension-isolation";
 import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
+import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
 
 export type TpaType = "to" | "come";
 
@@ -46,6 +47,9 @@ export function teleportPlayer(requestPlayer: Player, targetPlayer: Player, type
         `${color.green("你已")}${color.green("传送到")} ${color.yellow(requestPlayer.name)} ${color.green("的旁边")}`
       );
     }
+    recordCreeperQuestSuccess(requestPlayer, "tpaComplete", {
+      payload: { mode: type, targetPlayer: targetPlayer.name },
+    });
   } catch {
     refundTeleportCost(requestPlayer, "tpaTeleportCost", "TPA传送失败退款");
     requestPlayer.sendMessage(color.red("传送失败，已退回金币。"));

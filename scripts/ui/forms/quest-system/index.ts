@@ -1,9 +1,22 @@
-import { Player, system } from "@minecraft/server";
+import { Player, world } from "@minecraft/server";
 import { CreeperActionFormData as ActionFormData } from "../../creeper-action-form";
+import { CreeperMessageFormData as MessageFormData } from "../../creeper-message-form";
+import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { ChestFormData, ChestFormResponse } from "../../components/chest-ui";
 import { color } from "../../../shared/utils/color";
 import { PersistedItemStack, serializeItemStack } from "../../../shared/utils/item-stack-persist";
 import questPlayerService from "../../../features/quest/services/quest-player";
+import questCatalogService from "../../../features/quest/services/quest-catalog";
+import type {
+  PresetPackServerState,
+  QuestChapterDefinition,
+  QuestDefinitionV2,
+  QuestPackDefinition,
+  QuestRewardDefinitionV2,
+} from "../../../features/quest/domain";
+import questNotificationService from "../../../features/quest/notifications/quest-notification-service";
+import { getQuestExperienceTheme } from "../../../features/quest/notifications/quest-experience-theme";
+import questSnapshotRuntime from "../../../features/quest/snapshots/runtime-snapshot-queue";
 import questDefinitionService, {
   QuestDefinition,
   QuestFilter,
@@ -26,44 +39,8 @@ import questDefinitionService, {
   questScopeOptions,
 } from "../../../features/quest/services/quest-definition";
 
-type DduiObservableBoolean = { getData: () => boolean; setData?: (value: boolean) => void };
-type DduiObservableNumber = {
-  getData: () => number;
-  setData?: (value: number) => void;
-  subscribe?: (callback: (value: number) => void) => unknown;
-};
-type DduiObservableString = { getData: () => string; setData?: (value: string) => void };
-
-type RewardFieldControl =
-  | {
-      kind: "boolean";
-      field: { key: string; label: string; hint: string; type: string };
-      booleanValue: DduiObservableBoolean;
-    }
-  | {
-      kind: "text";
-      field: { key: string; label: string; hint: string; type: string };
-      textValue: DduiObservableString;
-    };
-
-interface QuestDduiCapabilities {
-  CustomForm: any;
-  ObservableBoolean: new (value: boolean, options?: { clientWritable: boolean }) => DduiObservableBoolean;
-  ObservableNumber: new (value: number, options?: { clientWritable: boolean }) => DduiObservableNumber;
-  ObservableString: new (value: string, options?: { clientWritable: boolean }) => DduiObservableString;
-}
-
-interface QuestEditorControls {
-  title: DduiObservableString;
-  description: DduiObservableString;
-  scopeIndex: DduiObservableNumber;
-  completeWhenIndex: DduiObservableNumber;
-  enabled: DduiObservableBoolean;
-  autoAccept: DduiObservableBoolean;
-}
-
 const playerDrafts = new Map<string, QuestDefinition>();
-const CLIENT_WRITABLE = { clientWritable: true };
+const addableQuestRewardSchemas = questRewardSchemas.filter((schema) => schema.key !== "send_message");
 const FORM_LAYOUT_MARKER_REGEX = /(?:§c§h§e§s§t|§f§u§r§n§a§c§e)(?:§[0-9a-z])*(?:§r)?/gi;
 
 const questDimensionOptions = [
@@ -72,65 +49,6 @@ const questDimensionOptions = [
   { label: "下界", value: "nether" },
   { label: "末地", value: "the_end" },
 ];
-
-async function getQuestDduiCapabilities(): Promise<QuestDduiCapabilities | null> {
-  try {
-    const ui = (await import("@minecraft/server-ui")) as Record<string, any>;
-    const { CustomForm, ObservableBoolean, ObservableNumber, ObservableString } = ui;
-    if (!CustomForm || !ObservableBoolean || !ObservableNumber || !ObservableString) return null;
-    return { CustomForm, ObservableBoolean, ObservableNumber, ObservableString };
-  } catch {
-    return null;
-  }
-}
-
-function createCustomForm(ddui: QuestDduiCapabilities, player: Player, title: string): any {
-  const form =
-    typeof ddui.CustomForm.create === "function"
-      ? ddui.CustomForm.create(player, title)
-      : new ddui.CustomForm(player, title);
-  const originalShow = form.show.bind(form);
-  form.show = async () => {
-    for (let attempt = 0; attempt < 8; attempt++) {
-      if (!player.isValid) return "ClientClosed";
-      try {
-        const reason = await originalShow();
-        if (reason !== "UserBusy") return reason;
-      } catch (error) {
-        console.warn(`[QuestDDUI] 打开表单失败（${title}）: ${String(error)}`);
-      }
-      await system.waitTicks(4 + attempt * 2);
-    }
-    if (player.isValid) player.sendMessage(color.red("任务界面暂时被其他界面占用，请稍后重试。"));
-    return "UserBusy";
-  };
-  return form;
-}
-
-function writableBoolean(ddui: QuestDduiCapabilities, value: boolean): DduiObservableBoolean {
-  return new ddui.ObservableBoolean(value, CLIENT_WRITABLE);
-}
-
-function writableNumber(ddui: QuestDduiCapabilities, value: number): DduiObservableNumber {
-  return new ddui.ObservableNumber(value, CLIENT_WRITABLE);
-}
-
-function writableString(ddui: QuestDduiCapabilities, value: string): DduiObservableString {
-  return new ddui.ObservableString(value, CLIENT_WRITABLE);
-}
-
-function safeCloseForm(form: { close?: () => void }): void {
-  try {
-    form.close?.();
-  } catch {
-    // 表单可能已经关闭。
-  }
-}
-
-function deferOpen(callback: () => void): void {
-  // DDUI 关闭有客户端动画；只等 1 tick 容易让下一张表单以 UserBusy 立即关闭。
-  system.runTimeout(callback, 4);
-}
 
 function cloneDefinition(definition: QuestDefinition): QuestDefinition {
   return JSON.parse(JSON.stringify(definition)) as QuestDefinition;
@@ -154,6 +72,17 @@ function stripFormLayoutMarkersFromText(text: string): string {
 
 function getQuestDisplayTitle(quest: Pick<QuestDefinition, "title">): string {
   return stripFormLayoutMarkers(quest.title).trim() || "未命名任务";
+}
+
+function getQuestPlayerDisplayTitle(quest: QuestDefinition): string {
+  const theme = getQuestExperienceTheme(quest.rarity);
+  return `${theme.color}${theme.icon} §f${getQuestDisplayTitle(quest)} §8· ${theme.color}${theme.label}`;
+}
+
+function formatProgressBar(current: number, target: number, quest: QuestDefinition): string {
+  const theme = getQuestExperienceTheme(quest.rarity);
+  const filled = Math.min(8, Math.max(0, Math.round((current / Math.max(1, target)) * 8)));
+  return `§8[${theme.color}${"=".repeat(filled)}§8${"-".repeat(8 - filled)}§8]`;
 }
 
 function getDraft(player: Player, fallback?: QuestDefinition): QuestDefinition {
@@ -180,10 +109,6 @@ function dimensionIndex(value: string | undefined): number {
     0,
     questDimensionOptions.findIndex((option) => option.value === (value ?? ""))
   );
-}
-
-function dropdownItems(options: { label: string }[]): { label: string; value: number }[] {
-  return options.map((option, index) => ({ label: option.label, value: index }));
 }
 
 function toNumber(raw: string, fallback: number): number {
@@ -363,6 +288,7 @@ function formatQuestPreview(draft: QuestDefinition): string {
   const lines = [
     `任务: ${getQuestDisplayTitle(draft)}`,
     draft.description ? `说明: ${draft.description}` : "说明: 无",
+    `完成提示: ${draft.completionMessage?.trim() || "使用默认文案"} · 奖励可在冒险日志领取`,
     `周期: ${getScopeLabel(draft.scope)}`,
     `完成条件: ${getCompleteWhenLabel(draft.completeWhen)}`,
     `状态: ${draft.enabled ? "启用" : "停用"}  自动领取: ${draft.autoAccept ? "是" : "否"}`,
@@ -413,21 +339,9 @@ function validateDraft(draft: QuestDefinition): string | undefined {
 }
 
 async function showMessage(player: Player, title: string, body: string, afterClose?: () => void): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) {
-    player.sendMessage(`${title}: ${body}`);
-    afterClose?.();
-    return;
-  }
-
-  const form = createCustomForm(ddui, player, title);
-  form.label(body);
-  form.button("确认", () => {
-    safeCloseForm(form);
-    if (afterClose) deferOpen(afterClose);
-  });
-  form.closeButton?.();
-  await form.show();
+  const form = new ActionFormData().title(title).body(body).button("确认", "textures/icons/accept");
+  await form.show(player);
+  afterClose?.();
 }
 
 function showActionMessage(player: Player, title: string, body: string, afterClose?: () => void): void {
@@ -446,99 +360,137 @@ function formatPlayerGoalLine(
 ): string {
   const current = questPlayerService.getProgress(player, quest, goal);
   const target = goal.progress.target;
-  if (goal.event === "entity.kill") {
-    return stripFormLayoutMarkersFromText(
-      `${index + 1}. 击杀${formatEntityFilterLabel(goal.filters.entity)} ${current}/${target}`
-    );
-  }
   const schema = getQuestEventSchema(goal.event);
-  return stripFormLayoutMarkersFromText(`${index + 1}. ${schema?.label ?? goal.event} ${current}/${target}`);
+  const objective =
+    goal.displayText ??
+    (goal.event === "entity.kill"
+      ? `击杀${formatEntityFilterLabel(goal.filters.entity)}`
+      : goal.event === "item.obtain" && goal.filters.item
+        ? `获得 ${formatFilterValue(goal.filters.item.value)}`
+        : (schema?.label ?? goal.event));
+  return stripFormLayoutMarkersFromText(
+    `${index + 1}. §f${objective}  §7${current}/${target}\n   ${formatProgressBar(current, target, quest)}`
+  );
+}
+
+function formatPlayerRewardLine(reward: QuestRewardDefinition, index: number): string {
+  const amount = Number(reward.params.amount ?? 0);
+  if (reward.action === "add_money") return `${index + 1}. §6金币 +${amount}`;
+  if (reward.action === "add_exp") return `${index + 1}. §a经验 +${amount}`;
+  if (reward.action === "give_item") {
+    const item = String(reward.params.item ?? "物品奖励").replace(/^minecraft:/, "");
+    return `${index + 1}. §b${item} ×${Math.max(1, amount)}`;
+  }
+  if (reward.action === "send_message") return `${index + 1}. §f额外冒险提示`;
+  if (reward.action === "run_command") return `${index + 1}. §d服务器专属奖励`;
+  return `${index + 1}. §f${getQuestRewardSchema(reward.action)?.label ?? reward.action}`;
 }
 
 function formatPlayerQuestDetail(player: Player, quest: QuestDefinition): string {
   const state = questPlayerService.getQuestState(player, quest);
   const status = !state
-    ? "未接受"
+    ? "等你接手"
     : state.claimedAt
-      ? "已领取"
+      ? "奖励已落袋"
       : questPlayerService.canClaim(player, quest)
-        ? "可领取"
+        ? "奖励在招手"
         : questPlayerService.isCompleted(player, quest)
-          ? "已完成"
-          : "进行中";
+          ? "已经收工"
+          : "正在推进";
   const lines = [
-    `§e${getQuestDisplayTitle(quest)}`,
-    quest.description ? `§7${stripFormLayoutMarkersFromText(quest.description)}` : "",
-    `§f状态: §a${status}`,
-    `§f周期: §e${getScopeLabel(quest.scope)}`,
-    `§f完成条件: §e${getCompleteWhenLabel(quest.completeWhen)}`,
-    "",
-    "§f目标:",
+    getQuestPlayerDisplayTitle(quest),
+    "§8任务说明",
+    quest.description ? `§f${stripFormLayoutMarkersFromText(quest.description)}` : "§7这趟冒险没有留下额外说明。",
+    "§8────────────────────",
+    `§7状态  §f${status}    §7周期  §f${getScopeLabel(quest.scope)}`,
+    `§7规则  §f${getCompleteWhenLabel(quest.completeWhen)}`,
+    "§8目标进度",
     ...quest.goals.map((goal, index) => `§7${formatPlayerGoalLine(player, quest, goal, index)}`),
-    "",
-    "§f奖励:",
+    "§8完成奖励",
     ...(quest.rewards.length > 0
-      ? quest.rewards.map((reward, index) => `§7${formatRewardSummary(reward, index)}`)
-      : ["§7无"]),
+      ? quest.rewards.map((reward, index) => `§7${formatPlayerRewardLine(reward, index)}`)
+      : ["§7这趟主要收获是经历。"]),
   ];
   return stripFormLayoutMarkersFromText(lines.filter((line) => line !== "").join("\n"));
 }
 
 export function openQuestPlayerForm(player: Player, returnForm?: () => void): void {
   if (!questDefinitionService.isReady() || !questPlayerService.isReady()) {
-    showActionMessage(player, "我的任务", "任务系统正在初始化，请稍后再试。", returnForm);
+    showActionMessage(player, "冒险日志", "纸和墨还在准备，再给它一点点时间。", returnForm);
     return;
   }
 
   const summary = questPlayerService.getSummary(player);
   const form = new ActionFormData()
-    .title("我的任务")
+    .title("冒险日志")
     .body(
       [
-        `§f已发布任务: §e${summary.total}`,
-        `§f已接受: §a${summary.accepted}`,
-        `§f可领取: §6${summary.claimable}`,
-        `§f可接受: §b${summary.available}`,
+        "§6✦ 冒险日志 §8· §7每一步都算数",
+        "§8────────────────────",
+        `§7已发布 §f${summary.total}   §7进行中 §a${summary.accepted}`,
+        `§7待领奖 §6${summary.claimable}   §7可接取 §b${summary.available}`,
       ].join("\n")
     );
 
-  form.button(`已接受任务 (${summary.accepted})`, "textures/icons/quest_log");
-  form.button(`可接任务 (${summary.available})`, "textures/icons/marker_quest");
+  const actions: Array<() => void> = [];
+  if (summary.claimable > 0) {
+    form.button(`待领取奖励 (${summary.claimable})\n点这里把辛苦费收好`, "textures/icons/gift");
+    actions.push(() => openQuestClaimableListForm(player, () => openQuestPlayerForm(player, returnForm)));
+  }
+  form.button(`正在忙的 (${summary.accepted})\n看看做到哪一步了`, "textures/icons/quest_log");
+  actions.push(() => openQuestAcceptedListForm(player, () => openQuestPlayerForm(player, returnForm)));
+  form.button(`等你接手的 (${summary.available})\n看看又有什么新活儿`, "textures/icons/marker_quest");
+  actions.push(() => openQuestAvailableListForm(player, () => openQuestPlayerForm(player, returnForm)));
   form.button("返回", "textures/icons/back");
+  actions.push(() => returnForm?.());
 
   form.show(player).then((response) => {
-    if (response.canceled) return;
-    if (response.selection === 0) {
-      openQuestAcceptedListForm(player, () => openQuestPlayerForm(player, returnForm));
-      return;
-    }
-    if (response.selection === 1) {
-      openQuestAvailableListForm(player, () => openQuestPlayerForm(player, returnForm));
-      return;
-    }
-    if (returnForm) returnForm();
+    if (response.canceled || response.selection === undefined) return;
+    actions[response.selection]?.();
   });
 }
 
 function getAcceptedQuestRows(player: Player): QuestDefinition[] {
-  return questPlayerService.getEnabledQuests().filter((quest) => questPlayerService.getQuestState(player, quest));
+  return questPlayerService.getJournalQuests(player).filter((quest) => questPlayerService.getQuestState(player, quest));
+}
+
+function openQuestClaimableListForm(player: Player, back: () => void): void {
+  const quests = questPlayerService
+    .getJournalQuests(player)
+    .filter((quest) => questPlayerService.canClaim(player, quest));
+  if (quests.length === 0) {
+    showActionMessage(player, "待领取奖励", "这里已经收拾干净啦，暂时没有落下的奖励。", back);
+    return;
+  }
+  const form = new ActionFormData()
+    .title("待领取奖励")
+    .body("完成提示里说的奖励都在这里。挑一项打开，就能把辛苦费收入囊中。");
+  quests.forEach((quest) =>
+    form.button(`${getQuestPlayerDisplayTitle(quest)}\n奖励已经备好，点开即可领取`, "textures/icons/gift")
+  );
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection >= quests.length) return back();
+    openQuestPlayerDetailForm(player, quests[response.selection], () => openQuestClaimableListForm(player, back));
+  });
 }
 
 function openQuestAcceptedListForm(player: Player, back: () => void): void {
   const quests = getAcceptedQuestRows(player);
   if (quests.length === 0) {
-    showActionMessage(player, "已接受任务", "你还没有接受任何任务。", back);
+    showActionMessage(player, "正在忙的", "日志这页还是空的。出去转一圈，活儿自然会找上门。", back);
     return;
   }
 
-  const form = new ActionFormData().title("已接受任务").body("选择任务查看进度和领取奖励。");
+  const form = new ActionFormData().title("正在忙的").body("挑一项看看进度，做完的奖励也别忘了带走。");
   quests.forEach((quest) => {
     const canClaim = questPlayerService.canClaim(player, quest);
     const completed = questPlayerService.isCompleted(player, quest);
     const state = questPlayerService.getQuestState(player, quest);
-    const status = state?.claimedAt ? "已领取" : canClaim ? "可领取" : completed ? "已完成" : "进行中";
+    const status = state?.claimedAt ? "奖励已落袋" : canClaim ? "奖励在招手" : completed ? "已经收工" : "正在推进";
     form.button(
-      `${getQuestDisplayTitle(quest)}\n${status}`,
+      `${getQuestPlayerDisplayTitle(quest)}\n${status}`,
       canClaim ? "textures/icons/gift" : "textures/icons/quest_log"
     );
   });
@@ -558,14 +510,14 @@ function openQuestAcceptedListForm(player: Player, back: () => void): void {
 function openQuestAvailableListForm(player: Player, back: () => void): void {
   const quests = questPlayerService.getEnabledQuests().filter((quest) => questPlayerService.canAccept(player, quest));
   if (quests.length === 0) {
-    showActionMessage(player, "可接任务", "当前没有可接受的新任务。", back);
+    showActionMessage(player, "等你接手的", "眼下没有新活儿。先把手头的忙完，好事通常在下一铲后面。", back);
     return;
   }
 
-  const form = new ActionFormData().title("可接任务").body("选择任务查看详情。");
+  const form = new ActionFormData().title("等你接手的").body("挑个顺眼的看看，奖励和目标都明明白白写着。");
   quests.forEach((quest) => {
     form.button(
-      `${getQuestDisplayTitle(quest)}\n${quest.goals.length}目标/${quest.rewards.length}奖励`,
+      `${getQuestPlayerDisplayTitle(quest)}\n${quest.goals.length}目标 · ${quest.rewards.length}奖励`,
       "textures/icons/marker_quest"
     );
   });
@@ -588,30 +540,43 @@ function openQuestPlayerDetailForm(player: Player, quest: QuestDefinition, back:
   const questTitle = getQuestDisplayTitle(quest);
   quest.title = questTitle;
   quest.description = stripFormLayoutMarkersFromText(quest.description);
-  const form = new ActionFormData().title("任务详情").body(formatPlayerQuestDetail(player, quest));
+  const form = new ActionFormData().title("这趟冒险").body(formatPlayerQuestDetail(player, quest));
   const actions: Array<() => void> = [];
 
   if (canClaim) {
-    form.button("领取奖励", "textures/icons/gift");
+    form.button("把奖励收入囊中", "textures/icons/gift");
     actions.push(() => {
-      const error = questPlayerService.claimQuest(player, quest.id);
-      showActionMessage(
-        player,
-        error ? "领取失败" : "领取成功",
-        error ? color.red(error) : color.green(`任务「${questTitle}」奖励已领取。`),
-        () => openQuestPlayerDetailForm(player, quest, back)
-      );
+      void questPlayerService
+        .claimQuest(player, quest.id)
+        .then((error) => {
+          if (!error) questNotificationService.notifyClaimed(player, questTitle, quest.rarity, quest.id);
+          showActionMessage(
+            player,
+            error ? "奖励卡住了" : "奖励落袋",
+            error ? color.red(error) : color.green(`「${questTitle}」的辛苦费已经稳稳收好。`),
+            () => openQuestPlayerDetailForm(player, quest, back)
+          );
+        })
+        .catch((error) => {
+          showActionMessage(player, "奖励卡住了", color.red(`冒险日志没能保存这次领取：${String(error)}`), () =>
+            openQuestPlayerDetailForm(player, quest, back)
+          );
+        });
     });
   }
 
   if (canAccept) {
-    form.button("接受任务", "textures/icons/marker_quest");
+    form.button("这活儿我接了", "textures/icons/marker_quest");
     actions.push(() => {
       const error = questPlayerService.acceptQuest(player, quest.id);
+      if (!error) {
+        questNotificationService.notifyAccepted(player, questTitle, quest.rarity, quest.id);
+        questSnapshotRuntime.markAll(player, "quest_accept");
+      }
       showActionMessage(
         player,
-        error ? "接受失败" : "接受成功",
-        error ? color.red(error) : color.green(`已接受任务「${questTitle}」。`),
+        error ? "暂时接不了" : "说干就干",
+        error ? color.red(error) : color.green(`「${questTitle}」已经写进你的冒险日志。`),
         () => openQuestPlayerDetailForm(player, quest, back)
       );
     });
@@ -626,283 +591,712 @@ function openQuestPlayerDetailForm(player: Player, quest: QuestDefinition, back:
   });
 }
 
-function applyEditorControls(draft: QuestDefinition, controls: QuestEditorControls): string | undefined {
-  const nextTitle = stripFormLayoutMarkers(controls.title.getData()).trim();
-  if (!nextTitle) return "任务名称不能为空";
-
-  draft.title = nextTitle;
-  draft.description = controls.description.getData();
-  draft.scope = questScopeOptions[controls.scopeIndex.getData()]?.value ?? "once";
-  draft.completeWhen = questCompleteWhenOptions[controls.completeWhenIndex.getData()]?.value ?? "all";
-  draft.enabled = controls.enabled.getData();
-  draft.autoAccept = controls.autoAccept.getData();
-  draft.updatedAt = Date.now();
-  return undefined;
-}
-
-function addEditorFields(ddui: QuestDduiCapabilities, form: any, draft: QuestDefinition): QuestEditorControls {
-  const controls: QuestEditorControls = {
-    title: writableString(ddui, getQuestDisplayTitle(draft)),
-    description: writableString(ddui, draft.description),
-    scopeIndex: writableNumber(ddui, optionIndex(questScopeOptions, draft.scope)),
-    completeWhenIndex: writableNumber(ddui, optionIndex(questCompleteWhenOptions, draft.completeWhen)),
-    enabled: writableBoolean(ddui, draft.enabled),
-    autoAccept: writableBoolean(ddui, draft.autoAccept),
-  };
-
-  form.header?.("基础信息");
-  form.textField("任务名称", controls.title, { description: "玩家看到的任务名称" });
-  form.textField("任务描述", controls.description, { description: "可留空" });
-  form.dropdown("任务周期", controls.scopeIndex, dropdownItems(questScopeOptions));
-  form.dropdown("完成条件", controls.completeWhenIndex, dropdownItems(questCompleteWhenOptions));
-  form.toggle("启用任务", controls.enabled);
-  form.toggle("玩家自动接受任务", controls.autoAccept);
-  return controls;
-}
-
 export function openQuestSystemManageForm(player: Player, returnForm?: () => void): void {
-  void openQuestSystemManageDdui(player, returnForm);
+  if (!questDefinitionService.isReady()) {
+    void showMessage(player, "任务系统初始化中", "任务数据库还没准备好，请稍后再打开任务系统。", returnForm);
+    return;
+  }
+  const tasks = questDefinitionService.getAll();
+  const form = new ActionFormData()
+    .title("任务管理")
+    .body(`§6任务工坊 §8· §7统一 JSON UI\n§8────────────────────\n§7已保存 §f${tasks.length} §7个自定义任务`)
+    .button("预设任务管理\n任务包、类型、单任务与奖励", "textures/icons/quest_log")
+    .button("新建任务\n从空白草稿开始", "textures/icons/add")
+    .button("载入示例\n击杀僵尸日常任务", "textures/icons/sword");
+  tasks.forEach((task) => {
+    form.button(
+      `${getQuestDisplayTitle(task)}  ${task.enabled ? "§2启用" : "§8停用"}\n${task.goals.length}目标 · ${task.rewards.length}奖励`,
+      "textures/icons/edit2"
+    );
+  });
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection === 0)
+      return openPresetPackList(player, () => openQuestSystemManageForm(player, returnForm));
+    if (response.selection === 1) {
+      setDraft(player, questDefinitionService.createDraft());
+      return openQuestEditor(player);
+    }
+    if (response.selection === 2) {
+      setDraft(player, createZombieSample());
+      return openQuestEditor(player);
+    }
+    const taskIndex = response.selection - 3;
+    if (taskIndex >= 0 && taskIndex < tasks.length) {
+      setDraft(player, cloneDefinition(tasks[taskIndex]));
+      return openQuestEditor(player);
+    }
+    playerDrafts.delete(player.id);
+    returnForm?.();
+  });
 }
 
-async function openQuestSystemManageDdui(player: Player, returnForm?: () => void): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) {
-    player.sendMessage(color.red("当前运行时不支持 DDUI，任务系统无法打开。"));
-    returnForm?.();
+function defaultPresetState(pack: QuestPackDefinition): PresetPackServerState {
+  return {
+    packId: pack.id,
+    enabled: pack.defaultEnabled,
+    rewardScale: 1,
+    overrideChapterEnabled: {},
+    overrideQuestEnabled: {},
+    overrideQuestRewards: {},
+    gameplayExperimentConfirmation: {},
+    updatedAt: 0,
+  };
+}
+
+function getPresetState(pack: QuestPackDefinition): PresetPackServerState {
+  return questCatalogService.getServerState(pack.id) ?? defaultPresetState(pack);
+}
+
+function refreshPresetRuntime(): void {
+  for (const onlinePlayer of world.getAllPlayers()) {
+    questPlayerService.ensureAutoAccepted(onlinePlayer);
+    questSnapshotRuntime.markAll(onlinePlayer, "preset_override_changed");
+  }
+}
+
+function savePresetState(
+  player: Player,
+  state: PresetPackServerState,
+  successMessage: string,
+  afterSave: () => void
+): void {
+  if (!questCatalogService.saveServerState(state)) {
+    showActionMessage(
+      player,
+      "预设设置没有保存",
+      color.red("覆盖内容无效或任务目录尚未准备好。官方预设没有被修改，请检查目录诊断。"),
+      afterSave
+    );
     return;
   }
+  refreshPresetRuntime();
+  showActionMessage(player, "预设设置已保存", color.green(successMessage), afterSave);
+}
 
-  if (!questDefinitionService.isReady()) {
-    await showMessage(player, "任务系统初始化中", "任务数据库还没准备好，请稍后再打开任务系统。", returnForm);
+function openPresetPackList(player: Player, back: () => void): void {
+  if (!questCatalogService.isReady()) {
+    showActionMessage(player, "预设目录初始化中", color.red("请稍后再打开预设任务管理。"), back);
     return;
   }
-
-  const tasks = questDefinitionService.getAll();
-  const form = createCustomForm(ddui, player, "任务系统");
-  form.label(`当前已保存 ${tasks.length} 个任务。`);
-  form.button("新建任务", () => {
-    safeCloseForm(form);
-    const draft = questDefinitionService.createDraft();
-    setDraft(player, draft);
-    deferOpen(() => openQuestEditor(player));
+  const packs = questCatalogService.getPresetPacks();
+  const form = new ActionFormData()
+    .title("预设任务管理")
+    .body("官方任务定义保持只读。这里保存的是本服务器覆盖设置，只影响运行时目录与未来完成奖励。");
+  packs.forEach((pack) => {
+    const state = getPresetState(pack);
+    const questCount = questCatalogService.getPresetQuests(pack.id).length;
+    const taskOverrides = Object.keys(state.overrideQuestEnabled ?? {}).length;
+    const rewardOverrides = Object.keys(state.overrideQuestRewards ?? {}).length;
+    form.button(
+      `${pack.title}  ${state.enabled ? "§2已启用" : "§8已停用"}\n${questCount} 个任务 · ${taskOverrides} 个开关覆盖 · ${rewardOverrides} 个奖励覆盖`,
+      "textures/icons/quest_log"
+    );
   });
-  form.button("示例: 击杀僵尸", () => {
-    safeCloseForm(form);
-    const draft = createZombieSample();
-    setDraft(player, draft);
-    deferOpen(() => openQuestEditor(player));
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection >= packs.length) return back();
+    openPresetPackEditor(player, packs[response.selection], () => openPresetPackList(player, back));
   });
-  form.divider?.();
+}
 
-  tasks.forEach((task) => {
-    const state = task.enabled ? "启用" : "停用";
-    form.button(`${getQuestDisplayTitle(task)}  ${state}  ${task.goals.length}目标/${task.rewards.length}奖励`, () => {
-      safeCloseForm(form);
-      setDraft(player, cloneDefinition(task));
-      deferOpen(() => openQuestEditor(player));
+function openPresetPackEditor(player: Player, pack: QuestPackDefinition, back: () => void): void {
+  const state = getPresetState(pack);
+  const chapters = questCatalogService.getPresetChapters(pack.id);
+  const quests = questCatalogService.getPresetQuests(pack.id);
+  const diagnostics = questCatalogService
+    .getDiagnostics()
+    .filter(
+      (diagnostic) =>
+        diagnostic.definitionId === pack.id ||
+        chapters.some((chapter) => chapter.id === diagnostic.definitionId) ||
+        quests.some((quest) => quest.id === diagnostic.definitionId)
+    );
+  const form = new ActionFormData()
+    .title(pack.title)
+    .body(
+      [
+        pack.description,
+        "§8────────────────────",
+        `任务包：${state.enabled ? "§2启用" : "§8停用"}`,
+        `奖励倍率：§6${state.rewardScale ?? 1}x`,
+        `任务类型：${chapters.length} · 任务：${quests.length}`,
+        `目录诊断：${diagnostics.length === 0 ? "§2正常" : `§c${diagnostics.length} 项`}`,
+      ].join("\n")
+    )
+    .button("任务包设置\n总开关与默认奖励倍率", "textures/icons/settings");
+  chapters.forEach((chapter) => {
+    const enabled = state.overrideChapterEnabled?.[chapter.id] ?? true;
+    form.button(
+      `${chapter.title}  ${enabled ? "§2开启" : "§8关闭"}\n任务类型开关 · ${chapter.questIds.length} 个任务`,
+      chapter.icon ?? "textures/icons/catalogue"
+    );
+  });
+  form.button("按任务管理\n单任务开关和奖励覆盖", "textures/icons/edit2");
+  form.button("查看目录诊断\n冲突、越界覆盖与无效奖励", "textures/icons/status_bar_settings");
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection === 0)
+      return openPresetPackSettings(player, pack, () => openPresetPackEditor(player, pack, back));
+    const chapterIndex = response.selection - 1;
+    if (chapterIndex >= 0 && chapterIndex < chapters.length) {
+      return openPresetChapterEditor(player, pack, chapters[chapterIndex], () =>
+        openPresetPackEditor(player, pack, back)
+      );
+    }
+    if (response.selection === chapters.length + 1) {
+      return openPresetQuestList(player, pack, undefined, () => openPresetPackEditor(player, pack, back));
+    }
+    if (response.selection === chapters.length + 2) {
+      return openPresetDiagnostics(player, pack, () => openPresetPackEditor(player, pack, back));
+    }
+    back();
+  });
+}
+
+function openPresetPackSettings(player: Player, pack: QuestPackDefinition, back: () => void): void {
+  const state = getPresetState(pack);
+  new ModalFormData()
+    .title(`${pack.title} · 设置`)
+    .toggle("启用整个任务包", { defaultValue: state.enabled })
+    .textField("默认奖励倍率", "例如 0.5、1、1.5、2；只影响未来完成的任务", {
+      defaultValue: String(state.rewardScale ?? 1),
+    })
+    .submitButton("保存任务包设置")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || !response.formValues) return;
+      const [enabled, rawScale] = response.formValues;
+      const rewardScale = Number(rawScale);
+      if (!Number.isFinite(rewardScale) || rewardScale < 0 || rewardScale > 100) {
+        showActionMessage(player, "奖励倍率不正确", color.red("请输入 0 到 100 之间的数字。"), () =>
+          openPresetPackSettings(player, pack, back)
+        );
+        return;
+      }
+      savePresetState(
+        player,
+        { ...state, enabled: Boolean(enabled), rewardScale },
+        `${pack.title}已${enabled ? "启用" : "停用"}，未来完成奖励按 ${rewardScale}x 冻结。`,
+        back
+      );
     });
-  });
+}
 
-  form.divider?.();
-  form.button("返回", () => {
-    safeCloseForm(form);
-    playerDrafts.delete(player.id);
-    if (returnForm) deferOpen(returnForm);
+function openPresetChapterEditor(
+  player: Player,
+  pack: QuestPackDefinition,
+  chapter: QuestChapterDefinition,
+  back: () => void
+): void {
+  const state = getPresetState(pack);
+  const enabled = state.overrideChapterEnabled?.[chapter.id] ?? true;
+  new ActionFormData()
+    .title(chapter.title)
+    .body(
+      `${chapter.description}\n§8────────────────────\n任务类型状态：${enabled ? "§2开启" : "§8关闭"}\n关闭后未完成任务冻结，历史领奖权仍保留。`
+    )
+    .button(
+      enabled ? "关闭这个任务类型" : "开启这个任务类型",
+      enabled ? "textures/icons/whitelist_remove" : "textures/icons/accept"
+    )
+    .button("管理该类型的任务\n单任务开关与奖励", "textures/icons/edit2")
+    .button("返回", "textures/icons/back")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || response.selection === undefined) return;
+      if (response.selection === 0) {
+        const next = { ...state, overrideChapterEnabled: { ...state.overrideChapterEnabled, [chapter.id]: !enabled } };
+        return savePresetState(player, next, `${chapter.title}已${!enabled ? "开启" : "关闭"}。`, () =>
+          openPresetChapterEditor(player, pack, chapter, back)
+        );
+      }
+      if (response.selection === 1)
+        return openPresetQuestList(player, pack, chapter.id, () =>
+          openPresetChapterEditor(player, pack, chapter, back)
+        );
+      back();
+    });
+}
+
+function openPresetQuestList(
+  player: Player,
+  pack: QuestPackDefinition,
+  chapterId: string | undefined,
+  back: () => void
+): void {
+  const quests = questCatalogService.getPresetQuests(pack.id, chapterId);
+  const form = new ActionFormData()
+    .title(chapterId ? "任务类型中的任务" : "预设任务列表")
+    .body("单任务开关优先于官方默认值；奖励覆盖仅用于未来完成实例。");
+  quests.forEach((quest) => {
+    const entry = questCatalogService.getEffectiveQuest(quest.id);
+    const rewardOverridden = !!getPresetState(pack).overrideQuestRewards?.[quest.id];
+    form.button(
+      `${quest.title}  ${entry?.questEnabled ? "§2开启" : "§8关闭"}\n${quest.rewards.length} 项官方奖励${rewardOverridden ? " · §6服务器已覆盖" : ""}`,
+      "textures/icons/marker_quest"
+    );
   });
-  form.closeButton?.();
-  await form.show();
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection >= quests.length) return back();
+    openPresetQuestEditor(player, pack, quests[response.selection], () =>
+      openPresetQuestList(player, pack, chapterId, back)
+    );
+  });
+}
+
+function openPresetQuestEditor(
+  player: Player,
+  pack: QuestPackDefinition,
+  officialQuest: QuestDefinitionV2,
+  back: () => void
+): void {
+  const state = getPresetState(pack);
+  const entry = questCatalogService.getEffectiveQuest(officialQuest.id);
+  if (!entry) return back();
+  const explicitQuestEnabled = state.overrideQuestEnabled?.[officialQuest.id] ?? officialQuest.enabled;
+  const hasRewardOverride = Object.prototype.hasOwnProperty.call(state.overrideQuestRewards ?? {}, officialQuest.id);
+  const rewardLines = entry.definition.rewards.map((reward, index) => formatRewardSummary(reward, index));
+  const form = new ActionFormData()
+    .title(officialQuest.title)
+    .body(
+      [
+        officialQuest.description,
+        "§8────────────────────",
+        `单任务开关：${explicitQuestEnabled ? "§2开启" : "§8关闭"}`,
+        `实际可运行：${entry.packEnabled && entry.chapterEnabled && entry.questEnabled ? "§2是" : "§8否"}`,
+        `任务类型：${entry.chapterEnabled ? "§2开启" : "§8关闭"}`,
+        `任务包：${entry.packEnabled ? "§2开启" : "§8关闭"}`,
+        `奖励来源：${hasRewardOverride ? "§6服务器覆盖" : "§7官方默认"}`,
+        ...rewardLines,
+      ].join("\n")
+    )
+    .button(
+      explicitQuestEnabled ? "关闭这个任务" : "开启这个任务",
+      explicitQuestEnabled ? "textures/icons/whitelist_remove" : "textures/icons/accept"
+    )
+    .button("编辑任务奖励\n只影响未来完成的任务", "textures/icons/gift");
+  if (hasRewardOverride) form.button("恢复官方奖励\n删除服务器奖励覆盖", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection === 0) {
+      const next = {
+        ...state,
+        overrideQuestEnabled: { ...state.overrideQuestEnabled, [officialQuest.id]: !explicitQuestEnabled },
+      };
+      return savePresetState(player, next, `${officialQuest.title}已${!explicitQuestEnabled ? "开启" : "关闭"}。`, () =>
+        openPresetQuestEditor(player, pack, officialQuest, back)
+      );
+    }
+    if (response.selection === 1) {
+      return openPresetRewardList(player, pack, officialQuest, () =>
+        openPresetQuestEditor(player, pack, officialQuest, back)
+      );
+    }
+    if (hasRewardOverride && response.selection === 2) {
+      return resetPresetRewards(player, pack, officialQuest, () =>
+        openPresetQuestEditor(player, pack, officialQuest, back)
+      );
+    }
+    back();
+  });
+}
+
+function getPresetRewards(pack: QuestPackDefinition, quest: QuestDefinitionV2): QuestRewardDefinitionV2[] {
+  return (
+    questCatalogService.getEffectiveQuest(quest.id)?.definition.rewards ??
+    questCatalogService.getOfficialPresetQuest(quest.id)?.rewards ??
+    []
+  ).map((reward) => ({ ...reward, params: { ...reward.params } }));
+}
+
+function savePresetRewards(
+  player: Player,
+  pack: QuestPackDefinition,
+  quest: QuestDefinitionV2,
+  rewards: QuestRewardDefinitionV2[],
+  message: string,
+  back: () => void
+): void {
+  const state = getPresetState(pack);
+  savePresetState(
+    player,
+    {
+      ...state,
+      overrideQuestRewards: { ...state.overrideQuestRewards, [quest.id]: rewards },
+    },
+    message,
+    back
+  );
+}
+
+function resetPresetRewards(
+  player: Player,
+  pack: QuestPackDefinition,
+  quest: QuestDefinitionV2,
+  back: () => void
+): void {
+  const state = getPresetState(pack);
+  const overrides = { ...state.overrideQuestRewards };
+  delete overrides[quest.id];
+  savePresetState(player, { ...state, overrideQuestRewards: overrides }, `${quest.title}已恢复官方默认奖励。`, back);
+}
+
+function openPresetRewardList(
+  player: Player,
+  pack: QuestPackDefinition,
+  quest: QuestDefinitionV2,
+  back: () => void
+): void {
+  const rewards = getPresetRewards(pack, quest);
+  const hasOverride = Object.prototype.hasOwnProperty.call(getPresetState(pack).overrideQuestRewards ?? {}, quest.id);
+  const form = new ActionFormData()
+    .title(`${quest.title} · 奖励`)
+    .body(
+      `当前使用${hasOverride ? "服务器覆盖奖励" : "官方默认奖励"}。修改后只影响尚未完成的任务，已经冻结的完成奖励不会改变。`
+    );
+  rewards.forEach((reward, index) =>
+    form.button(formatRewardSummary(reward, index), getQuestRewardSchema(reward.action)?.icon ?? "textures/icons/gift")
+  );
+  form.button("添加奖励", "textures/icons/add");
+  if (hasOverride) form.button("恢复官方奖励", "textures/icons/requeue");
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection < rewards.length) {
+      return openPresetRewardActions(player, pack, quest, response.selection, () =>
+        openPresetRewardList(player, pack, quest, back)
+      );
+    }
+    if (response.selection === rewards.length) {
+      return openPresetAddReward(player, pack, quest, () => openPresetRewardList(player, pack, quest, back));
+    }
+    if (hasOverride && response.selection === rewards.length + 1) {
+      return resetPresetRewards(player, pack, quest, () => openPresetRewardList(player, pack, quest, back));
+    }
+    back();
+  });
+}
+
+function openPresetAddReward(
+  player: Player,
+  pack: QuestPackDefinition,
+  quest: QuestDefinitionV2,
+  back: () => void
+): void {
+  const form = new ActionFormData()
+    .title("添加预设任务奖励")
+    .body("完成提示由任务通知单独负责，因此这里不提供“发送消息”奖励。");
+  addableQuestRewardSchemas.forEach((schema) => form.button(schema.label, schema.icon));
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection >= addableQuestRewardSchemas.length) return back();
+    const schema = addableQuestRewardSchemas[response.selection];
+    const rewards = getPresetRewards(pack, quest);
+    let suffix = 1;
+    while (rewards.some((reward) => reward.id === `override.reward.${schema.key}.${suffix}`)) suffix += 1;
+    openPresetRewardForm(
+      player,
+      pack,
+      quest,
+      { id: `override.reward.${schema.key}.${suffix}`, action: schema.key, params: {} },
+      undefined,
+      back
+    );
+  });
+}
+
+function openPresetRewardActions(
+  player: Player,
+  pack: QuestPackDefinition,
+  quest: QuestDefinitionV2,
+  rewardIndex: number,
+  back: () => void
+): void {
+  const rewards = getPresetRewards(pack, quest);
+  const reward = rewards[rewardIndex];
+  if (!reward) return back();
+  new ActionFormData()
+    .title(`管理奖励 ${rewardIndex + 1}`)
+    .body(formatRewardDetail(reward))
+    .button("编辑奖励", "textures/icons/edit2")
+    .button("删除奖励", "textures/icons/whitelist_remove")
+    .button("返回", "textures/icons/back")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || response.selection === undefined) return;
+      if (response.selection === 0) return openPresetRewardForm(player, pack, quest, reward, rewardIndex, back);
+      if (response.selection === 1) {
+        return new MessageFormData()
+          .title("删除预设任务奖励")
+          .body(`确认从「${quest.title}」的服务器覆盖中删除这项${getRewardLabel(reward.action)}吗？`)
+          .button1("取消")
+          .button2("确认删除")
+          .show(player)
+          .then((confirm) => {
+            if (confirm.canceled || confirm.selection !== 1) return back();
+            rewards.splice(rewardIndex, 1);
+            savePresetRewards(player, pack, quest, rewards, `${quest.title}的奖励覆盖已更新。`, back);
+          });
+      }
+      back();
+    });
+}
+
+function openPresetRewardForm(
+  player: Player,
+  pack: QuestPackDefinition,
+  quest: QuestDefinitionV2,
+  reward: QuestRewardDefinitionV2,
+  rewardIndex: number | undefined,
+  back: () => void
+): void {
+  const schema = getQuestRewardSchema(reward.action);
+  if (!schema) return showActionMessage(player, "奖励类型不存在", color.red(reward.action), back);
+  const form = new ModalFormData().title(`${quest.title} · ${schema.label}`);
+  schema.fields.forEach((field) =>
+    form.textField(field.label, field.hint, { defaultValue: String(reward.params[field.key] ?? "") })
+  );
+  form
+    .submitButton("保存奖励覆盖")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || !response.formValues) return;
+      const nextReward: QuestRewardDefinitionV2 = {
+        ...reward,
+        params: { ...reward.params },
+      };
+      schema.fields.forEach((field, index) => {
+        const raw = response.formValues?.[index];
+        nextReward.params[field.key] = field.type === "number" ? Math.floor(Number(raw)) : String(raw ?? "").trim();
+      });
+      const error = validateReward(nextReward);
+      if (error)
+        return showActionMessage(player, "奖励内容不正确", color.red(error), () =>
+          openPresetRewardForm(player, pack, quest, reward, rewardIndex, back)
+        );
+      const rewards = getPresetRewards(pack, quest);
+      if (rewardIndex === undefined) rewards.push(nextReward);
+      else rewards[rewardIndex] = nextReward;
+      savePresetRewards(player, pack, quest, rewards, `${quest.title}的奖励覆盖已保存。`, back);
+    });
+}
+
+function openPresetDiagnostics(player: Player, pack: QuestPackDefinition, back: () => void): void {
+  const relatedIds = new Set([
+    pack.id,
+    ...questCatalogService.getPresetChapters(pack.id).map((chapter) => chapter.id),
+    ...questCatalogService.getPresetQuests(pack.id).map((quest) => quest.id),
+  ]);
+  const diagnostics = questCatalogService
+    .getDiagnostics()
+    .filter((diagnostic) => !diagnostic.definitionId || relatedIds.has(diagnostic.definitionId));
+  const body =
+    diagnostics.length === 0
+      ? "§2目录、服务器覆盖和自定义任务 ID 均未发现冲突。"
+      : diagnostics
+          .map(
+            (diagnostic, index) =>
+              `${index + 1}. ${diagnostic.severity === "error" ? "§c" : "§6"}${diagnostic.code}\n§7${diagnostic.message}`
+          )
+          .join("\n\n");
+  new ActionFormData().title("预设目录诊断").body(body).button("返回", "textures/icons/back").show(player).then(back);
 }
 
 function openQuestEditor(player: Player): void {
-  void openQuestEditorDdui(player);
-}
-
-async function openQuestEditorDdui(player: Player): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) {
-    player.sendMessage(color.red("当前运行时不支持 DDUI，任务系统无法打开。"));
-    return;
-  }
-
   const draft = getDraft(player);
-  const form = createCustomForm(ddui, player, `编辑任务: ${getQuestDisplayTitle(draft)}`);
-  const controls = addEditorFields(ddui, form, draft);
-
-  form.divider?.();
-  form.header?.("目标");
-  if (draft.goals.length === 0) form.label("还没有添加目标。");
+  const form = new ActionFormData().title("任务编辑器").body(formatQuestPreview(draft));
+  const actions: Array<() => void> = [];
+  form.button("编辑基础信息\n名称、说明、周期与开关", "textures/icons/settings");
+  actions.push(() => openQuestBasicEditor(player));
   draft.goals.forEach((goal, index) => {
-    form.label(formatGoalSummary(goal, index));
-    form.button(`编辑目标 ${index + 1}`, () => {
-      const error = applyEditorControls(draft, controls);
-      if (error) {
-        player.sendMessage(color.red(error));
-        return;
-      }
-      safeCloseForm(form);
-      deferOpen(() => openEditGoal(player, index));
-    });
-    form.button(`删除目标 ${index + 1}`, () => {
-      draft.goals.splice(index, 1);
-      draft.updatedAt = Date.now();
-      setDraft(player, draft);
-      safeCloseForm(form);
-      deferOpen(() => openQuestEditor(player));
-    });
+    form.button(
+      `目标 ${index + 1} · ${getEventLabel(goal.event)}\n点击查看、编辑或删除`,
+      "textures/icons/status_bar_settings"
+    );
+    actions.push(() => openGoalActions(player, index));
   });
-  form.button("添加目标", () => {
-    const error = applyEditorControls(draft, controls);
-    if (error) {
-      player.sendMessage(color.red(error));
-      return;
-    }
-    safeCloseForm(form);
-    deferOpen(() => openAddGoal(player));
-  });
-
-  form.divider?.();
-  form.header?.("奖励");
-  if (draft.rewards.length === 0) form.label("还没有添加奖励。");
+  form.button("添加目标\n定义玩家需要完成的事情", "textures/icons/add");
+  actions.push(() => openAddGoal(player));
   draft.rewards.forEach((reward, index) => {
-    form.label(formatRewardSummary(reward, index));
-    form.button(`编辑奖励 ${index + 1}`, () => {
-      const error = applyEditorControls(draft, controls);
-      if (error) {
-        player.sendMessage(color.red(error));
-        return;
-      }
-      safeCloseForm(form);
-      deferOpen(() => openEditReward(player, index));
-    });
-    form.button(`删除奖励 ${index + 1}`, () => {
-      draft.rewards.splice(index, 1);
-      draft.updatedAt = Date.now();
-      setDraft(player, draft);
-      safeCloseForm(form);
-      deferOpen(() => openQuestEditor(player));
-    });
+    form.button(`奖励 ${index + 1} · ${getRewardLabel(reward.action)}\n点击查看、编辑或删除`, "textures/icons/rewards");
+    actions.push(() => openRewardActions(player, index));
   });
-  form.button("添加奖励", () => {
-    const error = applyEditorControls(draft, controls);
-    if (error) {
-      player.sendMessage(color.red(error));
-      return;
-    }
-    safeCloseForm(form);
-    deferOpen(() => openAddReward(player));
-  });
-
-  form.divider?.();
-  form.header?.("预览");
-  form.label(formatQuestPreview(draft));
-  form.button("保存任务到数据库", () => {
-    const fieldError = applyEditorControls(draft, controls);
-    if (fieldError) {
-      player.sendMessage(color.red(fieldError));
-      return;
-    }
-
+  form.button("添加奖励\n金币、经验、物品或高级动作", "textures/icons/gift");
+  actions.push(() => openAddReward(player));
+  form.button("保存任务\n校验后写入任务数据库", "textures/icons/accept");
+  actions.push(() => {
     const error = validateDraft(draft);
     if (error) {
-      player.sendMessage(color.red(error));
+      showActionMessage(player, "暂时不能保存", color.red(error), () => openQuestEditor(player));
       return;
     }
-
     const saved = questDefinitionService.save(draft);
     if (!saved) {
-      player.sendMessage(color.red("任务数据库暂时不可用，请稍后再试。"));
-      return;
-    }
-
-    playerDrafts.delete(player.id);
-    safeCloseForm(form);
-    deferOpen(() => {
-      void showMessage(player, "保存成功", `任务「${getQuestDisplayTitle(draft)}」已保存。`, () =>
-        openQuestSystemManageForm(player)
+      showActionMessage(player, "保存失败", color.red("任务数据库暂时不可用，请稍后再试。"), () =>
+        openQuestEditor(player)
       );
-    });
-  });
-
-  form.button("删除任务", () => {
-    const error = applyEditorControls(draft, controls);
-    if (error) {
-      player.sendMessage(color.red(error));
       return;
     }
-    safeCloseForm(form);
-    deferOpen(() => openDeleteQuestConfirm(player));
-  });
-
-  form.button("返回任务列表", () => {
-    safeCloseForm(form);
     playerDrafts.delete(player.id);
-    deferOpen(() => openQuestSystemManageForm(player));
+    void showMessage(player, "保存成功", `任务「${getQuestDisplayTitle(draft)}」已保存。`, () =>
+      openQuestSystemManageForm(player)
+    );
   });
+  const persisted = questDefinitionService.get(draft.id) !== undefined;
+  form.button(persisted ? "删除任务\n需要再次确认" : "放弃草稿\n不保存本次编辑", "textures/icons/whitelist_remove");
+  actions.push(() => openDeleteQuestConfirm(player));
+  form.button("返回任务列表\n放弃尚未保存的修改", "textures/icons/back");
+  actions.push(() => {
+    playerDrafts.delete(player.id);
+    openQuestSystemManageForm(player);
+  });
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    actions[response.selection]?.();
+  });
+}
 
-  form.closeButton?.();
-  await form.show();
+function openQuestBasicEditor(player: Player): void {
+  const draft = getDraft(player);
+  new ModalFormData()
+    .title("任务基础信息")
+    .textField("任务名称", "玩家看到的任务名称", { defaultValue: getQuestDisplayTitle(draft) })
+    .textField("任务描述", "说明目标、背景或注意事项", { defaultValue: draft.description })
+    .textField("完成提示语", "右上角完成提示中的个性文案，最多 40 字；领奖位置会自动附加", {
+      defaultValue: draft.completionMessage ?? "",
+    })
+    .dropdown(
+      "任务周期",
+      questScopeOptions.map((option) => option.label),
+      { defaultValueIndex: optionIndex(questScopeOptions, draft.scope) }
+    )
+    .dropdown(
+      "完成条件",
+      questCompleteWhenOptions.map((option) => option.label),
+      { defaultValueIndex: optionIndex(questCompleteWhenOptions, draft.completeWhen) }
+    )
+    .toggle("启用任务", { defaultValue: draft.enabled })
+    .toggle("玩家自动接受任务", { defaultValue: draft.autoAccept })
+    .submitButton("保存基础信息")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || !response.formValues) return;
+      const [title, description, completionMessage, scopeIndex, completeWhenIndex, enabled, autoAccept] =
+        response.formValues;
+      const nextTitle = stripFormLayoutMarkers(String(title ?? "")).trim();
+      if (!nextTitle) {
+        showActionMessage(player, "名称不能为空", color.red("请填写玩家能够识别的任务名称。"), () =>
+          openQuestBasicEditor(player)
+        );
+        return;
+      }
+      draft.title = nextTitle;
+      draft.description = String(description ?? "");
+      draft.completionMessage = stripFormLayoutMarkersFromText(String(completionMessage ?? ""))
+        .replace(/[\r\n\t]+/g, " ")
+        .trim()
+        .slice(0, 40);
+      draft.scope = questScopeOptions[Number(scopeIndex)]?.value ?? "once";
+      draft.completeWhen = questCompleteWhenOptions[Number(completeWhenIndex)]?.value ?? "all";
+      draft.enabled = Boolean(enabled);
+      draft.autoAccept = Boolean(autoAccept);
+      draft.updatedAt = Date.now();
+      setDraft(player, draft);
+      openQuestEditor(player);
+    });
 }
 
 function openDeleteQuestConfirm(player: Player): void {
-  void openDeleteQuestConfirmDdui(player);
-}
-
-async function openDeleteQuestConfirmDdui(player: Player): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
-
   const draft = getDraft(player);
-  const form = createCustomForm(ddui, player, "删除任务");
-  form.label(`确认删除任务「${getQuestDisplayTitle(draft)}」吗？`);
-  form.button("确认删除", () => {
-    questDefinitionService.delete(draft.id);
-    playerDrafts.delete(player.id);
-    safeCloseForm(form);
-    deferOpen(() => openQuestSystemManageForm(player));
-  });
-  form.button("取消", () => {
-    safeCloseForm(form);
-    deferOpen(() => openQuestEditor(player));
-  });
-  form.closeButton?.();
-  await form.show();
+  const persisted = questDefinitionService.get(draft.id) !== undefined;
+  new MessageFormData()
+    .title(persisted ? "删除任务" : "放弃草稿")
+    .body(
+      persisted
+        ? `确认永久删除任务「${getQuestDisplayTitle(draft)}」吗？`
+        : `确认放弃草稿「${getQuestDisplayTitle(draft)}」吗？`
+    )
+    .button1("取消")
+    .button2(persisted ? "确认删除" : "确认放弃")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || response.selection !== 1) return openQuestEditor(player);
+      if (persisted) questDefinitionService.delete(draft.id);
+      playerDrafts.delete(player.id);
+      openQuestSystemManageForm(player);
+    });
 }
 
 function openAddGoal(player: Player): void {
-  void openAddGoalDdui(player);
-}
-
-async function openAddGoalDdui(player: Player): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
-
-  const form = createCustomForm(ddui, player, "添加目标");
+  const form = new ActionFormData().title("添加任务目标").body("选择玩家需要完成的行为类型。");
   questEventSchemas.forEach((schema) => {
-    form.button(schema.key === "entity.kill" ? "击杀生物" : schema.label, () => {
-      safeCloseForm(form);
-      if (schema.key === "entity.kill") {
-        deferOpen(() => openAddKillGoalMode(player));
-        return;
-      }
-
-      const goal = questDefinitionService.createGoal(schema.key);
-      deferOpen(() =>
-        openGenericGoalEditor(player, goal, (savedGoal) => {
-          const draft = getDraft(player);
-          draft.goals.push(savedGoal);
-          draft.updatedAt = Date.now();
-          setDraft(player, draft);
-          openQuestEditor(player);
-        })
-      );
+    form.button(
+      schema.key === "entity.kill" ? "击杀生物\n按生物种类累计" : `${schema.label}\n配置数值与筛选条件`,
+      schema.icon
+    );
+  });
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection >= questEventSchemas.length) return openQuestEditor(player);
+    const schema = questEventSchemas[response.selection];
+    if (schema.key === "entity.kill") return openAddKillGoalMode(player);
+    openGenericGoalEditor(player, questDefinitionService.createGoal(schema.key), (savedGoal) => {
+      const draft = getDraft(player);
+      draft.goals.push(savedGoal);
+      draft.updatedAt = Date.now();
+      setDraft(player, draft);
+      openQuestEditor(player);
     });
   });
-  form.button("返回", () => {
-    safeCloseForm(form);
-    deferOpen(() => openQuestEditor(player));
-  });
-  form.closeButton?.();
-  await form.show();
+}
+
+function openGoalActions(player: Player, goalIndex: number): void {
+  const draft = getDraft(player);
+  const goal = draft.goals[goalIndex];
+  if (!goal) return openQuestEditor(player);
+  new ActionFormData()
+    .title(`管理目标 ${goalIndex + 1}`)
+    .body(formatGoalDetail(goal))
+    .button("编辑目标", "textures/icons/edit2")
+    .button("删除目标", "textures/icons/whitelist_remove")
+    .button("返回", "textures/icons/back")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || response.selection === undefined) return;
+      if (response.selection === 0) return openEditGoal(player, goalIndex);
+      if (response.selection === 1) return openDeleteGoalConfirm(player, goalIndex);
+      openQuestEditor(player);
+    });
+}
+
+function openDeleteGoalConfirm(player: Player, goalIndex: number): void {
+  const draft = getDraft(player);
+  const goal = draft.goals[goalIndex];
+  if (!goal) return openQuestEditor(player);
+  new MessageFormData()
+    .title("删除任务目标")
+    .body(`确认删除目标 ${goalIndex + 1}「${getEventLabel(goal.event)}」吗？`)
+    .button1("取消")
+    .button2("确认删除")
+    .show(player)
+    .then((response) => {
+      if (!response.canceled && response.selection === 1) {
+        draft.goals.splice(goalIndex, 1);
+        draft.updatedAt = Date.now();
+        setDraft(player, draft);
+        return openQuestEditor(player);
+      }
+      openGoalActions(player, goalIndex);
+    });
 }
 
 function openEditGoal(player: Player, goalIndex: number): void {
@@ -929,38 +1323,29 @@ function openEditGoal(player: Player, goalIndex: number): void {
 }
 
 function openAddKillGoalMode(player: Player): void {
-  void openAddKillGoalModeDdui(player);
-}
-
-async function openAddKillGoalModeDdui(player: Player): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
-
-  const form = createCustomForm(ddui, player, "击杀生物目标");
-  form.label(["累计击杀: 僵尸或骷髅合计击杀 10 个。", "分别计数: 僵尸 10 个、骷髅 5 个，各自独立计数。"].join("\n"));
-  form.button("累计击杀", () => {
-    safeCloseForm(form);
-    const goal = questDefinitionService.createGoal("entity.kill");
-    deferOpen(() =>
-      openKillCumulativeGoalEditor(player, goal, (savedGoal) => {
-        const draft = getDraft(player);
-        draft.goals.push(savedGoal);
-        draft.updatedAt = Date.now();
-        setDraft(player, draft);
-        openQuestEditor(player);
-      })
-    );
-  });
-  form.button("分别计数", () => {
-    safeCloseForm(form);
-    deferOpen(() => openSeparateKillGoalEditor(player));
-  });
-  form.button("返回", () => {
-    safeCloseForm(form);
-    deferOpen(() => openAddGoal(player));
-  });
-  form.closeButton?.();
-  await form.show();
+  new ActionFormData()
+    .title("击杀生物目标")
+    .body("累计击杀：多种生物共用一个数量。\n分别计数：每种生物生成独立目标。")
+    .button("累计击杀\n多个生物共用进度", "textures/icons/sword")
+    .button("分别计数\n每种生物独立进度", "textures/icons/status_bar_settings")
+    .button("返回", "textures/icons/back")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || response.selection === undefined) return;
+      if (response.selection === 0) {
+        const goal = questDefinitionService.createGoal("entity.kill");
+        openKillCumulativeGoalEditor(player, goal, (savedGoal) => {
+          const draft = getDraft(player);
+          draft.goals.push(savedGoal);
+          draft.updatedAt = Date.now();
+          setDraft(player, draft);
+          openQuestEditor(player);
+        });
+        return;
+      }
+      if (response.selection === 1) return openSeparateKillGoalEditor(player);
+      openAddGoal(player);
+    });
 }
 
 function openKillCumulativeGoalEditor(
@@ -968,139 +1353,78 @@ function openKillCumulativeGoalEditor(
   goal: QuestGoalDefinition,
   onSave: (goal: QuestGoalDefinition) => void
 ): void {
-  void openKillCumulativeGoalEditorDdui(player, goal, onSave);
-}
-
-async function openKillCumulativeGoalEditorDdui(
-  player: Player,
-  goal: QuestGoalDefinition,
-  onSave: (goal: QuestGoalDefinition) => void
-): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
-
-  const selectedIds = new Set(getEntityFilterIds(goal));
   const dimension = String(goal.filters.dimension?.value ?? "");
-  const target = writableString(ddui, String(goal.progress.target));
-  const dimensionObs = writableNumber(ddui, dimensionIndex(dimension));
-  const manualEntities = writableString(ddui, "");
-  const mode = writableNumber(ddui, 0);
-  const mobRows = questMobCatalog.map((mob) => ({
-    mob,
-    selected: writableBoolean(ddui, selectedIds.has(mob.id)),
-  }));
-
-  const form = createCustomForm(ddui, player, "累计击杀目标");
-  form.label("选择生物。\n勾选多个时，共用同一个击杀数量。");
-  form.textField("击杀数量", target, { description: "正整数" });
-  form.dropdown("维度", dimensionObs, dropdownItems(questDimensionOptions));
-  form.dropdown("显示范围", mode, [
-    { label: "全部生物", value: 0 },
-    ...questMobCategoryOptions.map((option, index) => ({ label: option.label, value: index + 1 })),
-  ]);
-  form.textField("手动实体", manualEntities, { description: "可留空；多个实体用英文逗号分隔" });
-  form.divider?.();
-
-  mobRows.forEach((row) => {
-    const categoryIndex = questMobCategoryOptions.findIndex((option) => option.value === row.mob.category) + 1;
-    const visible = new ddui.ObservableBoolean(true);
-    mode.subscribe?.((value: number) => visible.setData?.(value === 0 || value === categoryIndex));
-    visible.setData?.(mode.getData() === 0 || mode.getData() === categoryIndex);
-    form.toggle(row.mob.label, row.selected, { description: row.mob.id, visible });
-  });
-
-  form.divider?.();
-  form.button("保存目标", () => {
-    const idsFromToggles = mobRows.filter((row) => row.selected.getData()).map((row) => row.mob.id);
-    const manual = manualEntities
-      .getData()
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-    const ids = manual.length > 0 ? manual : idsFromToggles;
-    if (ids.length === 0) {
-      player.sendMessage(color.red("至少选择一种生物，或手动输入实体。"));
-      return;
-    }
-
-    goal.progress.mode = "count";
-    goal.progress.target = Math.max(1, toNumber(target.getData(), goal.progress.target));
-    setEntityFilter(goal, ids);
-    setDimensionFilter(goal, questDimensionOptions[dimensionObs.getData()]?.value ?? "");
-    safeCloseForm(form);
-    deferOpen(() => onSave(goal));
-  });
-  form.button("返回", () => {
-    safeCloseForm(form);
-    deferOpen(() => openQuestEditor(player));
-  });
-  form.closeButton?.();
-  await form.show();
+  new ModalFormData()
+    .title("累计击杀目标")
+    .textField("击杀数量", "正整数", { defaultValue: String(goal.progress.target) })
+    .dropdown(
+      "维度",
+      questDimensionOptions.map((option) => option.label),
+      {
+        defaultValueIndex: dimensionIndex(dimension),
+      }
+    )
+    .textField("生物实体 ID（多个用英文逗号分隔）", "例如 minecraft:zombie,minecraft:skeleton", {
+      defaultValue: getEntityFilterIds(goal).join(","),
+    })
+    .submitButton("保存目标")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || !response.formValues) return;
+      const ids = String(response.formValues[2] ?? "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (ids.length === 0) {
+        showActionMessage(player, "还缺击杀对象", color.red("至少填写一种生物实体 ID。"), () =>
+          openKillCumulativeGoalEditor(player, goal, onSave)
+        );
+        return;
+      }
+      goal.progress.mode = "count";
+      goal.progress.target = Math.max(1, toNumber(String(response.formValues[0] ?? ""), goal.progress.target));
+      setEntityFilter(goal, ids);
+      setDimensionFilter(goal, questDimensionOptions[Number(response.formValues[1])]?.value ?? "");
+      onSave(goal);
+    });
 }
 
 function openSeparateKillGoalEditor(player: Player): void {
-  void openSeparateKillGoalEditorDdui(player);
-}
-
-async function openSeparateKillGoalEditorDdui(player: Player): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
-
-  const dimensionObs = writableNumber(ddui, 0);
-  const mode = writableNumber(ddui, 1);
-  const rows = questMobCatalog.map((mob) => ({
-    mob,
-    selected: writableBoolean(ddui, false),
-    count: writableString(ddui, "1"),
-  }));
-
-  const form = createCustomForm(ddui, player, "分别计数");
-  form.label("选择生物。\n每种生物会生成一个独立目标。");
-  form.dropdown("维度", dimensionObs, dropdownItems(questDimensionOptions));
-  form.dropdown("显示范围", mode, [
-    { label: "全部生物", value: 0 },
-    ...questMobCategoryOptions.map((option, index) => ({ label: option.label, value: index + 1 })),
-  ]);
-  form.divider?.();
-
-  rows.forEach((row) => {
-    const categoryIndex = questMobCategoryOptions.findIndex((option) => option.value === row.mob.category) + 1;
-    const visible = new ddui.ObservableBoolean(mode.getData() === 0 || mode.getData() === categoryIndex);
-    mode.subscribe?.((value: number) => visible.setData?.(value === 0 || value === categoryIndex));
-    form.toggle(row.mob.label, row.selected, { description: row.mob.id, visible });
-    form.textField(`${row.mob.label} 击杀数量`, row.count, {
-      description: "正整数",
-      visible: row.selected,
-    });
-  });
-
-  form.divider?.();
-  form.button("生成目标", () => {
-    const selectedRows = rows.filter((row) => row.selected.getData());
-    if (selectedRows.length === 0) {
-      player.sendMessage(color.red("至少选择一种生物。"));
-      return;
-    }
-
-    const dimension = questDimensionOptions[dimensionObs.getData()]?.value ?? "";
-    const goals = selectedRows.map((row) =>
-      createKillEntityGoal(row.mob.id, toNumber(row.count.getData(), 1), dimension)
-    );
-    const draft = getDraft(player);
-    draft.goals.push(...goals);
-    draft.updatedAt = Date.now();
-    setDraft(player, draft);
-    safeCloseForm(form);
-    deferOpen(() => {
+  new ModalFormData()
+    .title("分别计数")
+    .dropdown(
+      "维度",
+      questDimensionOptions.map((option) => option.label),
+      { defaultValueIndex: 0 }
+    )
+    .textField("生物与数量（英文逗号分隔）", "例如 minecraft:zombie=10,minecraft:skeleton=5")
+    .submitButton("生成独立目标")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || !response.formValues) return;
+      const entries = String(response.formValues[1] ?? "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((entry) => {
+          const [rawId, rawCount] = entry.split("=");
+          return { id: rawId?.trim(), count: Math.max(1, toNumber(rawCount?.trim() ?? "1", 1)) };
+        })
+        .filter((entry) => entry.id);
+      if (entries.length === 0) {
+        showActionMessage(player, "还没有填写生物", color.red("请按 生物ID=数量 的格式至少填写一项。"), () =>
+          openSeparateKillGoalEditor(player)
+        );
+        return;
+      }
+      const dimension = questDimensionOptions[Number(response.formValues[0])]?.value ?? "";
+      const goals = entries.map((entry) => createKillEntityGoal(entry.id, entry.count, dimension));
+      const draft = getDraft(player);
+      draft.goals.push(...goals);
+      draft.updatedAt = Date.now();
+      setDraft(player, draft);
       void showMessage(player, "已生成目标", `已添加 ${goals.length} 个击杀目标。`, () => openQuestEditor(player));
     });
-  });
-  form.button("返回", () => {
-    safeCloseForm(form);
-    deferOpen(() => openAddKillGoalMode(player));
-  });
-  form.closeButton?.();
-  await form.show();
 }
 
 function openGenericGoalEditor(
@@ -1108,145 +1432,134 @@ function openGenericGoalEditor(
   goal: QuestGoalDefinition,
   onSave: (goal: QuestGoalDefinition) => void
 ): void {
-  void openGenericGoalEditorDdui(player, goal, onSave);
-}
-
-async function openGenericGoalEditorDdui(
-  player: Player,
-  goal: QuestGoalDefinition,
-  onSave: (goal: QuestGoalDefinition) => void
-): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
-
   const schema = getQuestEventSchema(goal.event);
   if (!schema) {
-    player.sendMessage(color.red("目标事件不存在。"));
+    showActionMessage(player, "目标事件不存在", color.red(goal.event), () => openQuestEditor(player));
     return;
   }
-
-  const target = writableString(ddui, String(goal.progress.target));
-  const modeIndex = writableNumber(
-    ddui,
-    Math.max(
-      0,
-      schema.progressModes.findIndex((mode) => mode === goal.progress.mode)
-    )
-  );
-  const sumFieldIndex = writableNumber(
-    ddui,
-    Math.max(
-      0,
-      (schema.sumFields ?? []).findIndex((field) => field.key === goal.progress.field)
-    )
-  );
-  const fields = schema.fields.map((field) => {
-    const existing = goal.filters[field.key];
-    return {
-      field,
-      enabled: writableBoolean(ddui, existing !== undefined),
-      operatorIndex: writableNumber(
-        ddui,
-        Math.max(
-          0,
-          field.operators.findIndex((op) => op === (existing?.op ?? field.defaultOperator))
-        )
-      ),
-      value: writableString(ddui, existing ? formatFilterValue(existing.value) : ""),
-    };
-  });
-
-  const form = createCustomForm(ddui, player, `编辑目标: ${schema.label}`);
+  const form = new ModalFormData().title(`编辑目标 · ${schema.label}`);
   form.dropdown(
     "累计方式",
-    modeIndex,
-    schema.progressModes.map((mode, index) => ({
-      label: questProgressModeOptions.find((option) => option.value === mode)?.label ?? mode,
-      value: index,
-    }))
+    schema.progressModes.map((mode) => questProgressModeOptions.find((option) => option.value === mode)?.label ?? mode),
+    { defaultValueIndex: Math.max(0, schema.progressModes.indexOf(goal.progress.mode)) }
   );
   if ((schema.sumFields ?? []).length > 0) {
     form.dropdown(
       "累加字段",
-      sumFieldIndex,
-      (schema.sumFields ?? []).map((field, index) => ({ label: field.label, value: index }))
+      (schema.sumFields ?? []).map((field) => field.label),
+      {
+        defaultValueIndex: Math.max(
+          0,
+          (schema.sumFields ?? []).findIndex((field) => field.key === goal.progress.field)
+        ),
+      }
     );
   }
-  form.textField("目标数值", target, { description: "正整数" });
-  form.divider?.();
-
-  fields.forEach((item) => {
-    form.toggle(`启用条件: ${item.field.label}`, item.enabled);
-    form.dropdown(
-      `${item.field.label} 判断方式`,
-      item.operatorIndex,
-      item.field.operators.map((op, index) => ({ label: getOperatorLabel(op), value: index })),
-      { visible: item.enabled }
-    );
-    form.textField(`${item.field.label} 值`, item.value, { description: item.field.hint, visible: item.enabled });
+  form.textField("目标数值", "正整数", { defaultValue: String(goal.progress.target) });
+  schema.fields.forEach((field) => {
+    const existing = goal.filters[field.key];
+    form.toggle(`启用条件 · ${field.label}`, { defaultValue: existing !== undefined });
+    form.dropdown(`${field.label} · 判断方式`, field.operators.map(getOperatorLabel), {
+      defaultValueIndex: Math.max(0, field.operators.indexOf(existing?.op ?? field.defaultOperator)),
+    });
+    form.textField(`${field.label} · 值`, field.hint, {
+      defaultValue: existing ? formatFilterValue(existing.value) : "",
+    });
   });
-
-  form.divider?.();
-  form.button("保存目标", () => {
-    const selectedMode = schema.progressModes[modeIndex.getData()] ?? schema.progressModes[0] ?? "count";
+  form.submitButton("保存目标");
+  form.show(player).then((response) => {
+    if (response.canceled || !response.formValues) return;
+    const values = response.formValues;
+    let cursor = 0;
+    const modeIndex = Number(values[cursor++]);
+    const sumFieldIndex = (schema.sumFields ?? []).length > 0 ? Number(values[cursor++]) : -1;
+    const target = String(values[cursor++] ?? "");
+    const selectedMode = schema.progressModes[modeIndex] ?? schema.progressModes[0] ?? "count";
     goal.progress.mode = selectedMode;
-    goal.progress.target = Math.max(1, toNumber(target.getData(), goal.progress.target));
+    goal.progress.target = Math.max(1, toNumber(target, goal.progress.target));
     if ((schema.sumFields ?? []).length > 0) {
-      goal.progress.field = schema.sumFields?.[sumFieldIndex.getData()]?.key;
+      goal.progress.field = schema.sumFields?.[sumFieldIndex]?.key;
     } else {
       delete goal.progress.field;
     }
-
     const nextFilters: Record<string, QuestFilter> = {};
-    fields.forEach((item) => {
-      if (!item.enabled.getData()) return;
-      const rawValue = item.value.getData().trim();
+    schema.fields.forEach((field) => {
+      const enabled = Boolean(values[cursor++]);
+      const operatorIndex = Number(values[cursor++]);
+      const rawValue = String(values[cursor++] ?? "").trim();
+      if (!enabled) return;
       if (!rawValue) return;
-      const op = item.field.operators[item.operatorIndex.getData()] ?? item.field.defaultOperator;
-      nextFilters[item.field.key] = { op, value: parseFilterValue(op, rawValue) };
+      const op = field.operators[operatorIndex] ?? field.defaultOperator;
+      nextFilters[field.key] = { op, value: parseFilterValue(op, rawValue) };
     });
     goal.filters = nextFilters;
-    safeCloseForm(form);
-    deferOpen(() => onSave(goal));
+    onSave(goal);
   });
-  form.button("返回", () => {
-    safeCloseForm(form);
-    deferOpen(() => openQuestEditor(player));
-  });
-  form.closeButton?.();
-  await form.show();
 }
 
 function openAddReward(player: Player): void {
-  void openAddRewardDdui(player);
-}
-
-async function openAddRewardDdui(player: Player): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
-
-  const form = createCustomForm(ddui, player, "添加奖励");
-  questRewardSchemas.forEach((schema) => {
-    form.button(schema.permissionLevel === "advanced" ? `${schema.label}（高级）` : schema.label, () => {
-      safeCloseForm(form);
-      const reward = questDefinitionService.createReward(schema.key);
-      deferOpen(() =>
-        openRewardEditor(player, reward, (savedReward) => {
-          const draft = getDraft(player);
-          draft.rewards.push(savedReward);
-          draft.updatedAt = Date.now();
-          setDraft(player, draft);
-          openQuestEditor(player);
-        })
-      );
+  const form = new ActionFormData().title("添加任务奖励").body("选择完成任务后需要发放的奖励类型。");
+  addableQuestRewardSchemas.forEach((schema) => {
+    form.button(
+      schema.permissionLevel === "advanced"
+        ? `${schema.label}（高级）\n请确认服务器权限`
+        : `${schema.label}\n配置奖励内容`,
+      schema.icon
+    );
+  });
+  form.button("返回", "textures/icons/back");
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    if (response.selection >= addableQuestRewardSchemas.length) return openQuestEditor(player);
+    const reward = questDefinitionService.createReward(addableQuestRewardSchemas[response.selection].key);
+    openRewardEditor(player, reward, (savedReward) => {
+      const draft = getDraft(player);
+      draft.rewards.push(savedReward);
+      draft.updatedAt = Date.now();
+      setDraft(player, draft);
+      openQuestEditor(player);
     });
   });
-  form.button("返回", () => {
-    safeCloseForm(form);
-    deferOpen(() => openQuestEditor(player));
-  });
-  form.closeButton?.();
-  await form.show();
+}
+
+function openRewardActions(player: Player, rewardIndex: number): void {
+  const draft = getDraft(player);
+  const reward = draft.rewards[rewardIndex];
+  if (!reward) return openQuestEditor(player);
+  new ActionFormData()
+    .title(`管理奖励 ${rewardIndex + 1}`)
+    .body(formatRewardDetail(reward))
+    .button("编辑奖励", "textures/icons/edit2")
+    .button("删除奖励", "textures/icons/whitelist_remove")
+    .button("返回", "textures/icons/back")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || response.selection === undefined) return;
+      if (response.selection === 0) return openEditReward(player, rewardIndex);
+      if (response.selection === 1) return openDeleteRewardConfirm(player, rewardIndex);
+      openQuestEditor(player);
+    });
+}
+
+function openDeleteRewardConfirm(player: Player, rewardIndex: number): void {
+  const draft = getDraft(player);
+  const reward = draft.rewards[rewardIndex];
+  if (!reward) return openQuestEditor(player);
+  new MessageFormData()
+    .title("删除任务奖励")
+    .body(`确认删除奖励 ${rewardIndex + 1}「${getRewardLabel(reward.action)}」吗？`)
+    .button1("取消")
+    .button2("确认删除")
+    .show(player)
+    .then((response) => {
+      if (!response.canceled && response.selection === 1) {
+        draft.rewards.splice(rewardIndex, 1);
+        draft.updatedAt = Date.now();
+        setDraft(player, draft);
+        return openQuestEditor(player);
+      }
+      openRewardActions(player, rewardIndex);
+    });
 }
 
 function openEditReward(player: Player, rewardIndex: number): void {
@@ -1272,52 +1585,62 @@ function openRewardEditor(
   onSave: (reward: QuestRewardDefinition) => void
 ): void {
   if (reward.action === "give_item") {
-    void openGiveItemRewardEditorDdui(player, reward, onSave);
+    openGiveItemRewardEditor(player, reward, onSave);
     return;
   }
-  void openGenericRewardEditorDdui(player, reward, onSave);
+  openGenericRewardEditor(player, reward, onSave);
 }
 
-async function openGiveItemRewardEditorDdui(
+function openGiveItemRewardEditor(
   player: Player,
   reward: QuestRewardDefinition,
   onSave: (reward: QuestRewardDefinition) => void
-): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
+): void {
+  new ActionFormData()
+    .title("给予物品")
+    .body(formatRewardDetail(reward))
+    .button("手动填写物品\n输入物品 ID 与数量", "textures/icons/edit2")
+    .button("从背包选择\n保留附魔、名称与容器数据", "textures/icons/gift")
+    .button("保存奖励", "textures/icons/accept")
+    .button("返回任务编辑器", "textures/icons/back")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || response.selection === undefined) return;
+      if (response.selection === 0) return openGiveItemRewardFields(player, reward, onSave);
+      if (response.selection === 1) return openInventoryItemRewardSelector(player, reward, onSave);
+      if (response.selection === 2) {
+        clearStaleRewardItemSnapshot(reward);
+        const error = validateReward(reward);
+        if (error) {
+          showActionMessage(player, "奖励信息不完整", color.red(error), () =>
+            openGiveItemRewardEditor(player, reward, onSave)
+          );
+          return;
+        }
+        return onSave(reward);
+      }
+      openQuestEditor(player);
+    });
+}
 
-  const item = writableString(ddui, String(reward.params.item ?? ""));
-  const amount = writableString(ddui, String(reward.params.amount ?? 1));
-  const form = createCustomForm(ddui, player, "给予物品");
-  form.textField("物品", item, { description: "例如 minecraft:diamond" });
-  form.textField("数量", amount, { description: "正整数" });
-  form.divider?.();
-  form.button("从背包选择物品", () => {
-    reward.params.item = item.getData().trim();
-    reward.params.amount = Math.max(1, toNumber(amount.getData(), 1));
-    safeCloseForm(form);
-    deferOpen(() => openInventoryItemRewardSelector(player, reward, onSave));
-  });
-
-  form.divider?.();
-  form.button("保存奖励", () => {
-    reward.params.item = item.getData().trim();
-    reward.params.amount = Math.max(1, toNumber(amount.getData(), 1));
-    clearStaleRewardItemSnapshot(reward);
-    const error = validateReward(reward);
-    if (error) {
-      player.sendMessage(color.red(error));
-      return;
-    }
-    safeCloseForm(form);
-    deferOpen(() => onSave(reward));
-  });
-  form.button("返回", () => {
-    safeCloseForm(form);
-    deferOpen(() => openQuestEditor(player));
-  });
-  form.closeButton?.();
-  await form.show();
+function openGiveItemRewardFields(
+  player: Player,
+  reward: QuestRewardDefinition,
+  onSave: (reward: QuestRewardDefinition) => void
+): void {
+  new ModalFormData()
+    .title("手动填写物品奖励")
+    .textField("物品", "例如 minecraft:diamond", { defaultValue: String(reward.params.item ?? "") })
+    .textField("数量", "正整数", { defaultValue: String(reward.params.amount ?? 1) })
+    .submitButton("应用")
+    .show(player)
+    .then((response) => {
+      if (response.canceled || !response.formValues) return;
+      reward.params.item = String(response.formValues[0] ?? "").trim();
+      reward.params.amount = Math.max(1, toNumber(String(response.formValues[1] ?? ""), 1));
+      clearStaleRewardItemSnapshot(reward);
+      openGiveItemRewardEditor(player, reward, onSave);
+    });
 }
 
 function openInventoryItemRewardSelector(
@@ -1380,63 +1703,46 @@ function openInventoryItemRewardSelector(
   });
 }
 
-async function openGenericRewardEditorDdui(
+function openGenericRewardEditor(
   player: Player,
   reward: QuestRewardDefinition,
   onSave: (reward: QuestRewardDefinition) => void
-): Promise<void> {
-  const ddui = await getQuestDduiCapabilities();
-  if (!ddui) return;
-
+): void {
   const schema = getQuestRewardSchema(reward.action);
   if (!schema) {
-    player.sendMessage(color.red("奖励动作不存在。"));
+    showActionMessage(player, "奖励动作不存在", color.red(reward.action), () => openQuestEditor(player));
     return;
   }
-
-  const fieldControls: RewardFieldControl[] = schema.fields.map((field) => {
+  const form = new ModalFormData().title(`编辑奖励 · ${schema.label}`);
+  schema.fields.forEach((field) => {
     if (field.type === "boolean") {
-      return { kind: "boolean", field, booleanValue: writableBoolean(ddui, reward.params[field.key] === true) };
-    }
-    return { kind: "text", field, textValue: writableString(ddui, String(reward.params[field.key] ?? "")) };
-  });
-
-  const form = createCustomForm(ddui, player, `编辑奖励: ${schema.label}`);
-  fieldControls.forEach((item) => {
-    if (item.kind === "boolean") {
-      form.toggle(item.field.label, item.booleanValue);
+      form.toggle(field.label, { defaultValue: reward.params[field.key] === true });
     } else {
-      form.textField(item.field.label, item.textValue, { description: item.field.hint });
+      form.textField(field.label, field.hint, { defaultValue: String(reward.params[field.key] ?? "") });
     }
   });
-
-  form.divider?.();
-  form.button("保存奖励", () => {
-    fieldControls.forEach((item) => {
-      if (item.kind === "boolean") {
-        reward.params[item.field.key] = item.booleanValue.getData();
-      } else if (item.field.type === "number") {
-        reward.params[item.field.key] = Math.max(1, toNumber(item.textValue.getData(), 1));
+  form.submitButton("保存奖励");
+  form.show(player).then((response) => {
+    if (response.canceled || !response.formValues) return;
+    schema.fields.forEach((field, index) => {
+      const value = response.formValues?.[index];
+      if (field.type === "boolean") {
+        reward.params[field.key] = Boolean(value);
+      } else if (field.type === "number") {
+        reward.params[field.key] = Math.max(1, toNumber(String(value ?? ""), 1));
       } else {
-        reward.params[item.field.key] = item.textValue.getData().trim();
+        reward.params[field.key] = String(value ?? "").trim();
       }
     });
-
     const error = validateReward(reward);
     if (error) {
-      player.sendMessage(color.red(error));
+      showActionMessage(player, "奖励信息不完整", color.red(error), () =>
+        openGenericRewardEditor(player, reward, onSave)
+      );
       return;
     }
-
-    safeCloseForm(form);
-    deferOpen(() => onSave(reward));
+    onSave(reward);
   });
-  form.button("返回", () => {
-    safeCloseForm(form);
-    deferOpen(() => openQuestEditor(player));
-  });
-  form.closeButton?.();
-  await form.show();
 }
 
 function createZombieSample(): QuestDefinition {

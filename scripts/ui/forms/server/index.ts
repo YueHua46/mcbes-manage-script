@@ -18,6 +18,7 @@ import { openGuildMenuForm } from "../guild";
 import { openFloatingTextMenu } from "../floating-text";
 import { openQuestPlayerForm } from "../quest-system";
 import { BRANDING } from "../../../core/constants";
+import { recordCreeperQuestSuccess } from "../../../features/quest/integrations/creeper-quest-events";
 
 interface MenuItem {
   text: string;
@@ -188,6 +189,9 @@ async function openServerMenuFormInternal(player: Player): Promise<void> {
     if (data.cancelationReason === FormCancelationReason.UserBusy) {
       player.sendMessage(`§e请关闭你当前的聊天窗口，以便显示${BRANDING.MENU_ITEM_LABEL}。`);
       const forceForm = await useForceOpen(player, form);
+      if (forceForm) {
+        recordCreeperQuestSuccess(player, "menuOpen");
+      }
       if (forceForm?.canceled) return;
       if (forceForm?.selection !== undefined) {
         const selectedItem = menuItems[forceForm.selection];
@@ -202,6 +206,7 @@ async function openServerMenuFormInternal(player: Player): Promise<void> {
       return;
     }
 
+    recordCreeperQuestSuccess(player, "menuOpen");
     if (data.canceled) return;
     if (data.selection !== undefined) {
       const selectedItem = menuItems[data.selection];

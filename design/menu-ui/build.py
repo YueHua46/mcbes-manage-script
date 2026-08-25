@@ -1,9 +1,13 @@
-"""Build CreeperMenu card artwork, JSON UI textures, and a desktop preview."""
+"""Build CreeperMenu card artwork, JSON UI textures, and desktop previews."""
 
+import argparse
+import json
 from collections import deque
 from pathlib import Path
 from time import sleep
+from typing import Any
 
+import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont
 
 
@@ -14,14 +18,47 @@ RIGHT_MOSAIC_SOURCE = Path(__file__).parent / "source" / "creeper-mosaic-right-1
 SUBMENU_CORE_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-icons-core-imagegen.png"
 SUBMENU_ADMIN_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-icons-admin-imagegen.png"
 ACTION_ICON_SOURCE = Path(__file__).parent / "source" / "creeper-action-icons-imagegen.png"
+QUEST_ICON_MANIFEST = Path(__file__).parent / "quest-icon-manifest.json"
+QUEST_ICON_SOURCE = Path(__file__).parent / "source"
+QUEST_ICON_GENERATED_SOURCE = Path(__file__).parent / "assets"
 BRAND_BACKGROUND = ROOT / "design" / "brand" / "source" / "background-imagegen.png"
 OUTPUT = ROOT / "resource_packs" / "CreeperMenu" / "textures" / "ui" / "creeper_menu"
 CARD_OUTPUT = OUTPUT / "cards"
 ICON_OUTPUT = ROOT / "resource_packs" / "CreeperMenu" / "textures" / "icons"
+QUEST_ICON_OUTPUT = OUTPUT / "quest_icons"
 PREVIEW = Path(__file__).parent / "preview.png"
 SUBMENU_PREVIEW = Path(__file__).parent / "submenu-preview.png"
 MODAL_PREVIEW = Path(__file__).parent / "modal-preview.png"
 MESSAGE_PREVIEW = Path(__file__).parent / "message-preview.png"
+QUEST_ICON_PREVIEW = Path(__file__).parent / "quest-icons-preview.png"
+
+QUEST_ICON_GRID_COLUMNS = 4
+QUEST_ICON_GRID_ROWS = 4
+QUEST_ICON_EXPECTED_COUNT = 158
+QUEST_ICON_SAFE_INSET_RATIO = 0.125
+QUEST_ICON_CANVAS_SIZE = 32
+QUEST_ICON_MAX_ARTWORK_SIZE = 26
+QUEST_ICON_TRANSPARENT_EDGE = 2
+QUEST_ICON_CONTACT_COLUMNS = 16
+QUEST_ICON_CONTACT_CELL_SIZE = 40
+QUEST_ICON_NORMALIZED_ATLAS_SIZE = 1280
+QUEST_ICON_NORMALIZED_ARTWORK_SIZE = 224
+QUEST_ICON_GENERATED_ATLASES = {
+    "quest-icons-atlas-01-imagegen.png": "quest-icons-atlas-b01-v2.png",
+    **{
+        f"quest-icons-atlas-{index:02d}-imagegen.png": f"quest-icons-atlas-b{index:02d}-v1.png"
+        for index in range(2, 11)
+    },
+}
+QUEST_ICON_MAP_OUTPUT = (
+    ROOT
+    / "scripts"
+    / "features"
+    / "quest"
+    / "notifications"
+    / "generated-quest-icon-map.ts"
+)
+QUEST_ICON_HUD = ROOT / "resource_packs" / "CreeperMenu" / "ui" / "hud_screen.json"
 
 CARD_NAMES = (
     "player waypoint land economy guild floating_text pvp stats "
@@ -121,7 +158,7 @@ def is_strong_key(pixel: tuple[int, int, int, int]) -> bool:
     return min(r, b) - g >= 140 and abs(r - b) <= 64 and r + b >= 300
 
 
-def remove_edge_key(image: Image.Image) -> Image.Image:
+def remove_edge_key(image: Image.Image, remove_enclosed_strong_key: bool = True) -> Image.Image:
     image = image.convert("RGBA")
     pixels = image.load()
     width, height = image.size
@@ -146,11 +183,46 @@ def remove_edge_key(image: Image.Image) -> Image.Image:
         ):
             if 0 <= nx < width and 0 <= ny < height:
                 queue.append((nx, ny))
-    for y in range(height):
-        for x in range(width):
-            if is_strong_key(pixels[x, y]):
-                pixels[x, y] = (0, 0, 0, 0)
+    if remove_enclosed_strong_key:
+        for y in range(height):
+            for x in range(width):
+                if is_strong_key(pixels[x, y]):
+                    pixels[x, y] = (0, 0, 0, 0)
     return image
+
+
+def remove_generated_atlas_key(image: Image.Image) -> Image.Image:
+    """Remove hot-pink ImageGen backing without erasing enclosed purple artwork."""
+    pixels = np.array(image.convert("RGBA"), dtype=np.uint8, copy=True)
+    red = pixels[:, :, 0].astype(np.int16)
+    green = pixels[:, :, 1].astype(np.int16)
+    blue = pixels[:, :, 2].astype(np.int16)
+    enclosed_background = (
+        (red >= 225)
+        & (blue >= 225)
+        & (green <= 30)
+        & (np.abs(red - blue) <= 32)
+    )
+    pixels[enclosed_background, 3] = 0
+    likely_key = (
+        (np.minimum(red, blue) - green >= 60)
+        & (np.abs(red - blue) <= 64)
+        & (red + blue >= 150)
+    )
+    for _iteration in range(2):
+        transparent = pixels[:, :, 3] == 0
+        padded = np.pad(transparent, 1, constant_values=True)
+        touches_transparency = np.zeros_like(transparent)
+        for y_offset in range(3):
+            for x_offset in range(3):
+                if x_offset == 1 and y_offset == 1:
+                    continue
+                touches_transparency |= padded[
+                    y_offset : y_offset + transparent.shape[0],
+                    x_offset : x_offset + transparent.shape[1],
+                ]
+        pixels[likely_key & touches_transparency, 3] = 0
+    return Image.fromarray(pixels)
 
 
 def connected_components(image: Image.Image) -> list[list[tuple[int, int]]]:
@@ -190,6 +262,471 @@ def connected_components(image: Image.Image) -> list[list[tuple[int, int]]]:
             if len(component) >= 8:
                 components.append(component)
     return components
+
+
+def connected_component_runs(image: Image.Image) -> list[list[tuple[int, int, int]]]:
+    """Return full-resolution 8-connected components as compact horizontal runs."""
+    opaque = np.asarray(image.getchannel("A"), dtype=np.uint8) > 0
+    runs: list[tuple[int, int, int]] = []
+    parent: list[int] = []
+    previous_row: list[int] = []
+
+    def find(node: int) -> int:
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = parent[node]
+        return node
+
+    def union(left: int, right: int) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    for y, row in enumerate(opaque):
+        padded = np.pad(row.astype(np.int8), (1, 1))
+        transitions = np.diff(padded)
+        starts = np.flatnonzero(transitions == 1)
+        ends = np.flatnonzero(transitions == -1) - 1
+        current_row: list[int] = []
+        for start, end in zip(starts.tolist(), ends.tolist(), strict=True):
+            node = len(runs)
+            runs.append((y, int(start), int(end)))
+            parent.append(node)
+            current_row.append(node)
+
+        previous_index = 0
+        current_index = 0
+        while previous_index < len(previous_row) and current_index < len(current_row):
+            previous_node = previous_row[previous_index]
+            current_node = current_row[current_index]
+            _, previous_start, previous_end = runs[previous_node]
+            _, current_start, current_end = runs[current_node]
+            if previous_end + 1 < current_start:
+                previous_index += 1
+                continue
+            if current_end + 1 < previous_start:
+                current_index += 1
+                continue
+            union(previous_node, current_node)
+            if previous_end <= current_end:
+                previous_index += 1
+            if current_end <= previous_end:
+                current_index += 1
+        previous_row = current_row
+
+    grouped: dict[int, list[tuple[int, int, int]]] = {}
+    for node, run in enumerate(runs):
+        grouped.setdefault(find(node), []).append(run)
+    return [
+        component
+        for component in grouped.values()
+        if sum(end - start + 1 for _y, start, end in component) >= 8
+    ]
+
+
+def quest_component_center(component: list[tuple[int, int, int]]) -> tuple[float, float]:
+    pixel_count = 0
+    sum_x = 0.0
+    sum_y = 0.0
+    for y, start, end in component:
+        length = end - start + 1
+        pixel_count += length
+        sum_x += (start + end) * length / 2
+        sum_y += y * length
+    return sum_x / pixel_count, sum_y / pixel_count
+
+
+def compose_quest_components(
+    atlas: Image.Image,
+    components: list[list[tuple[int, int, int]]],
+) -> Image.Image:
+    """Copy complete grouped components without including neighboring artwork."""
+    left = min(start for component in components for _y, start, _end in component)
+    top = min(y for component in components for y, _start, _end in component)
+    right = max(end for component in components for _y, _start, end in component) + 1
+    bottom = max(y for component in components for y, _start, _end in component) + 1
+    crop = atlas.crop((left, top, right, bottom))
+    mask = Image.new("L", crop.size)
+    draw = ImageDraw.Draw(mask)
+    for component in components:
+        for y, start, end in component:
+            draw.line((start - left, y - top, end - left, y - top), fill=255)
+    subject = Image.new("RGBA", crop.size)
+    subject.paste(crop, (0, 0), mask)
+    return subject
+
+
+def normalize_generated_quest_atlas(
+    source: Image.Image,
+    expected_cells: set[int],
+    source_name: str,
+) -> Image.Image:
+    """Reflow off-grid ImageGen components into a strict, safe 4x4 atlas."""
+    keyed = remove_generated_atlas_key(source.convert("RGBA"))
+    components = connected_component_runs(keyed)
+    if not components:
+        raise ValueError(f"No generated quest icon components found in {source_name}")
+
+    grouped: dict[int, list[list[tuple[int, int, int]]]] = {
+        cell: [] for cell in expected_cells
+    }
+    source_centers_x = [
+        (column + 0.5) * keyed.width / QUEST_ICON_GRID_COLUMNS
+        for column in range(QUEST_ICON_GRID_COLUMNS)
+    ]
+    source_centers_y = [
+        (row + 0.5) * keyed.height / QUEST_ICON_GRID_ROWS
+        for row in range(QUEST_ICON_GRID_ROWS)
+    ]
+    for component in components:
+        center_x, center_y = quest_component_center(component)
+        column = min(
+            range(QUEST_ICON_GRID_COLUMNS),
+            key=lambda candidate: abs(center_x - source_centers_x[candidate]),
+        )
+        row = min(
+            range(QUEST_ICON_GRID_ROWS),
+            key=lambda candidate: abs(center_y - source_centers_y[candidate]),
+        )
+        cell = row * QUEST_ICON_GRID_COLUMNS + column
+        if cell not in grouped:
+            raise ValueError(
+                f"Generated quest atlas {source_name} contains unexpected artwork in unused cell {cell}"
+            )
+        grouped[cell].append(component)
+
+    missing = sorted(cell for cell, cell_components in grouped.items() if not cell_components)
+    if missing:
+        raise ValueError(f"Generated quest atlas {source_name} has no artwork for cells {missing}")
+
+    normalized = Image.new(
+        "RGBA",
+        (QUEST_ICON_NORMALIZED_ATLAS_SIZE, QUEST_ICON_NORMALIZED_ATLAS_SIZE),
+    )
+    normalized_cell_size = QUEST_ICON_NORMALIZED_ATLAS_SIZE // QUEST_ICON_GRID_COLUMNS
+    for cell, cell_components in grouped.items():
+        subject = compose_quest_components(keyed, cell_components)
+        bounds = subject.getchannel("A").getbbox()
+        if bounds is None:
+            raise ValueError(f"Generated quest atlas {source_name} cell {cell} is empty")
+        subject = subject.crop(bounds)
+        scale = min(
+            QUEST_ICON_NORMALIZED_ARTWORK_SIZE / subject.width,
+            QUEST_ICON_NORMALIZED_ARTWORK_SIZE / subject.height,
+        )
+        size = (
+            max(1, round(subject.width * scale)),
+            max(1, round(subject.height * scale)),
+        )
+        subject = subject.resize(size, Image.Resampling.LANCZOS)
+        row, column = divmod(cell, QUEST_ICON_GRID_COLUMNS)
+        cell_left = column * normalized_cell_size
+        cell_top = row * normalized_cell_size
+        normalized.alpha_composite(
+            subject,
+            (
+                cell_left + (normalized_cell_size - size[0]) // 2,
+                cell_top + (normalized_cell_size - size[1]) // 2,
+            ),
+        )
+    return normalized
+
+
+def load_quest_icon_manifest() -> dict[str, Any]:
+    """Load and validate the stable 4x4 quest-icon source manifest."""
+    manifest = json.loads(QUEST_ICON_MANIFEST.read_text(encoding="utf-8"))
+    if manifest.get("version") != 1:
+        raise ValueError("Unsupported quest icon manifest version")
+    if manifest.get("columns") != QUEST_ICON_GRID_COLUMNS or manifest.get("rows") != QUEST_ICON_GRID_ROWS:
+        raise ValueError("Quest icon manifest must use a 4x4 atlas grid")
+
+    icons = manifest.get("icons")
+    if not isinstance(icons, list) or len(icons) != QUEST_ICON_EXPECTED_COUNT:
+        raise ValueError(f"Quest icon manifest must contain exactly {QUEST_ICON_EXPECTED_COUNT} icons")
+
+    quest_ids: set[str] = set()
+    slugs: set[str] = set()
+    markers: set[int] = set()
+    atlas_cells: set[tuple[str, int]] = set()
+    for index, icon in enumerate(icons):
+        if not isinstance(icon, dict):
+            raise ValueError(f"Quest icon entry {index} must be an object")
+        quest_id = icon.get("questId")
+        slug = icon.get("slug")
+        atlas = icon.get("atlas")
+        cell = icon.get("cell")
+        marker_index = icon.get("markerIndex")
+        component_policy = icon.get("componentPolicy")
+        optical_y_offset = icon.get("opticalYOffset")
+        if not isinstance(quest_id, str) or not quest_id.startswith("preset."):
+            raise ValueError(f"Quest icon entry {index} has an invalid questId")
+        if not isinstance(slug, str) or not slug or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789_" for character in slug):
+            raise ValueError(f"Quest icon entry {quest_id} has an invalid slug")
+        if not isinstance(atlas, str) or Path(atlas).name != atlas or not atlas.endswith("-imagegen.png"):
+            raise ValueError(f"Quest icon entry {quest_id} has an invalid atlas filename")
+        if not isinstance(cell, int) or not 0 <= cell < QUEST_ICON_GRID_COLUMNS * QUEST_ICON_GRID_ROWS:
+            raise ValueError(f"Quest icon entry {quest_id} has an invalid cell")
+        if not isinstance(marker_index, int) or marker_index < 0:
+            raise ValueError(f"Quest icon entry {quest_id} has an invalid markerIndex")
+        if component_policy not in {"all", "largest"}:
+            raise ValueError(f"Quest icon entry {quest_id} has an invalid componentPolicy")
+        if not isinstance(optical_y_offset, int) or not -2 <= optical_y_offset <= 2:
+            raise ValueError(f"Quest icon entry {quest_id} has an invalid opticalYOffset")
+
+        if quest_id in quest_ids:
+            raise ValueError(f"Duplicate quest icon questId: {quest_id}")
+        if slug in slugs:
+            raise ValueError(f"Duplicate quest icon slug: {slug}")
+        if marker_index in markers:
+            raise ValueError(f"Duplicate quest icon markerIndex: {marker_index}")
+        if (atlas, cell) in atlas_cells:
+            raise ValueError(f"Duplicate quest icon atlas cell: {atlas}#{cell}")
+        quest_ids.add(quest_id)
+        slugs.add(slug)
+        markers.add(marker_index)
+        atlas_cells.add((atlas, cell))
+
+    if markers != set(range(QUEST_ICON_EXPECTED_COUNT)):
+        raise ValueError("Quest icon markerIndex values must be the stable range 0..157")
+    if len({icon["atlas"] for icon in icons}) != 10:
+        raise ValueError("Quest icon manifest must occupy exactly ten 4x4 atlases")
+    return manifest
+
+
+def retain_largest_component(image: Image.Image, quest_id: str) -> Image.Image:
+    """Keep one authored subject only when the manifest explicitly requests it."""
+    components = connected_components(image)
+    if not components:
+        raise ValueError(f"No connected quest icon artwork found for {quest_id}")
+    mask = Image.new("L", image.size)
+    mask_pixels = mask.load()
+    for x, y in max(components, key=len):
+        mask_pixels[x, y] = 255
+    result = image.copy()
+    result.putalpha(mask)
+    return result
+
+
+def assert_transparent_quest_icon_edge(image: Image.Image, quest_id: str) -> None:
+    """Reject output that can be clipped or leak into an adjacent HUD chip."""
+    alpha = image.getchannel("A")
+    edge = QUEST_ICON_TRANSPARENT_EDGE
+    regions = (
+        alpha.crop((0, 0, image.width, edge)),
+        alpha.crop((0, image.height - edge, image.width, image.height)),
+        alpha.crop((0, 0, edge, image.height)),
+        alpha.crop((image.width - edge, 0, image.width, image.height)),
+    )
+    if any(region.getbbox() is not None for region in regions):
+        raise ValueError(f"Quest icon {quest_id} does not keep a {edge}px transparent safety edge")
+
+
+def extract_quest_icon_cell(atlas: Image.Image, icon: dict[str, Any]) -> Image.Image:
+    """Extract one exact cell, reject gutter artwork, and normalize it to 32px RGBA."""
+    if atlas.width % QUEST_ICON_GRID_COLUMNS or atlas.height % QUEST_ICON_GRID_ROWS:
+        raise ValueError(f"Quest icon atlas {icon['atlas']} is not evenly divisible by the 4x4 grid")
+    cell_width = atlas.width // QUEST_ICON_GRID_COLUMNS
+    cell_height = atlas.height // QUEST_ICON_GRID_ROWS
+    if cell_width != cell_height:
+        raise ValueError(f"Quest icon atlas {icon['atlas']} must use square grid cells")
+
+    cell_index = icon["cell"]
+    row, column = divmod(cell_index, QUEST_ICON_GRID_COLUMNS)
+    left = column * cell_width
+    top = row * cell_height
+    cell = remove_edge_key(atlas.crop((left, top, left + cell_width, top + cell_height)))
+    safe_inset = max(1, round(cell_width * QUEST_ICON_SAFE_INSET_RATIO))
+    safe_box = (safe_inset, safe_inset, cell_width - safe_inset, cell_height - safe_inset)
+
+    gutter_mask = Image.new("L", cell.size, 255)
+    ImageDraw.Draw(gutter_mask).rectangle(
+        (safe_box[0], safe_box[1], safe_box[2] - 1, safe_box[3] - 1),
+        fill=0,
+    )
+    gutter_alpha = ImageChops.multiply(cell.getchannel("A"), gutter_mask)
+    if gutter_alpha.getbbox() is not None:
+        raise ValueError(
+            f"Quest icon atlas {icon['atlas']} cell {cell_index} contains artwork in its safety gutter"
+        )
+
+    subject = cell.crop(safe_box)
+    if icon["componentPolicy"] == "largest":
+        subject = retain_largest_component(subject, icon["questId"])
+    bounds = subject.getchannel("A").getbbox()
+    if bounds is None:
+        raise ValueError(f"No quest icon artwork found for {icon['questId']}")
+    subject = subject.crop(bounds)
+    scale = min(QUEST_ICON_MAX_ARTWORK_SIZE / subject.width, QUEST_ICON_MAX_ARTWORK_SIZE / subject.height)
+    output_size = (
+        max(1, round(subject.width * scale)),
+        max(1, round(subject.height * scale)),
+    )
+    subject = subject.resize(output_size, Image.Resampling.LANCZOS)
+    canvas = Image.new("RGBA", (QUEST_ICON_CANVAS_SIZE, QUEST_ICON_CANVAS_SIZE))
+    output_left = (QUEST_ICON_CANVAS_SIZE - output_size[0]) // 2
+    output_top = (QUEST_ICON_CANVAS_SIZE - output_size[1]) // 2 + icon["opticalYOffset"]
+    canvas.alpha_composite(subject, (output_left, output_top))
+    assert_transparent_quest_icon_edge(canvas, icon["questId"])
+    return canvas
+
+
+def make_quest_icon_contact_sheet(icons: list[tuple[dict[str, Any], Image.Image]]) -> Image.Image:
+    """Create a compact review sheet; labels stay in the manifest, never in runtime art."""
+    rows = (len(icons) + QUEST_ICON_CONTACT_COLUMNS - 1) // QUEST_ICON_CONTACT_COLUMNS
+    cell_size = QUEST_ICON_CONTACT_CELL_SIZE
+    sheet = Image.new("RGBA", (QUEST_ICON_CONTACT_COLUMNS * cell_size, rows * cell_size), (231, 226, 215, 255))
+    draw = ImageDraw.Draw(sheet)
+    for index, (_icon, artwork) in enumerate(icons):
+        row, column = divmod(index, QUEST_ICON_CONTACT_COLUMNS)
+        x = column * cell_size
+        y = row * cell_size
+        checker = (244, 240, 230, 255) if (row + column) % 2 == 0 else (216, 224, 211, 255)
+        draw.rectangle((x, y, x + cell_size - 1, y + cell_size - 1), fill=checker, outline=(154, 140, 118, 255))
+        sheet.alpha_composite(artwork, (x + (cell_size - artwork.width) // 2, y + (cell_size - artwork.height) // 2))
+    return sheet
+
+
+def quest_icon_marker(marker_index: int) -> str:
+    """Encode 0..255 as two invisible, fixed-length Minecraft color codes."""
+    digits = "0123456789abcdef"
+    return f"§r§{digits[marker_index // 16]}§{digits[marker_index % 16]}§r"
+
+
+def generate_quest_icon_typescript(entries: list[dict[str, Any]]) -> str:
+    """Generate the runtime lookup from the same manifest used for artwork."""
+    lines = [
+        "/* This file is generated by design/menu-ui/build.py --quest-icons. */",
+        "",
+        "export interface GeneratedQuestIconTheme {",
+        "  marker: string;",
+        "  texture: string;",
+        "}",
+        "",
+        "export const GENERATED_PRESET_QUEST_ICONS: Readonly<Record<string, GeneratedQuestIconTheme>> = {",
+    ]
+    for entry in entries:
+        marker = quest_icon_marker(entry["markerIndex"])
+        texture = f"textures/ui/creeper_menu/quest_icons/{entry['slug']}"
+        lines.extend(
+            (
+                f'  "{entry["questId"]}": {{',
+                f'    marker: "{marker}",',
+                f'    texture: "{texture}",',
+                "  },",
+            )
+        )
+    lines.extend(("};", ""))
+    return "\n".join(lines)
+
+
+def update_quest_icon_hud(entries: list[dict[str, Any]]) -> None:
+    """Replace only the toast badge lookup controls; preserve every other HUD visual."""
+    hud = json.loads(QUEST_ICON_HUD.read_text(encoding="utf-8"))
+    toast_controls = hud["cm_quest_toast"]["controls"]
+    badge_chip = next(control["badge_chip"] for control in toast_controls if "badge_chip" in control)
+    existing_controls = badge_chip["controls"]
+    fallback = next(control for control in existing_controls if "badge_icon" in control)
+    markers = [quest_icon_marker(entry["markerIndex"]) for entry in entries]
+    fallback["badge_icon"]["visible"] = "(" + " and ".join(
+        f"(($cm_quest_text - '{marker}') = $cm_quest_text)" for marker in markers
+    ) + ")"
+
+    generated_controls = []
+    for entry, marker in zip(entries, markers, strict=True):
+        slug = entry["slug"]
+        generated_controls.append(
+            {
+                slug: {
+                    "type": "image",
+                    "anchor_from": "center",
+                    "anchor_to": "center",
+                    "offset": [0, 2],
+                    "size": [28, 28],
+                    "texture": f"textures/ui/creeper_menu/quest_icons/{slug}",
+                    "visible": f"(not (($cm_quest_text - '{marker}') = $cm_quest_text))",
+                    "layer": 33,
+                }
+            }
+        )
+    badge_chip["controls"] = [fallback, *generated_controls]
+    QUEST_ICON_HUD.write_text(
+        json.dumps(hud, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def normalize_generated_quest_atlases() -> None:
+    """Normalize the ten off-grid raw ImageGen sheets into strict source atlases."""
+    manifest = load_quest_icon_manifest()
+    entries: list[dict[str, Any]] = manifest["icons"]
+    expected_cells_by_atlas: dict[str, set[int]] = {}
+    for entry in entries:
+        expected_cells_by_atlas.setdefault(entry["atlas"], set()).add(entry["cell"])
+
+    missing = [
+        source_name
+        for expected_name, source_name in QUEST_ICON_GENERATED_ATLASES.items()
+        if expected_name in expected_cells_by_atlas
+        and not (QUEST_ICON_GENERATED_SOURCE / source_name).is_file()
+    ]
+    if missing:
+        formatted = "\n  - ".join(missing)
+        raise FileNotFoundError(
+            "Generated quest icon atlas inputs are missing from "
+            f"{QUEST_ICON_GENERATED_SOURCE}:\n  - {formatted}"
+        )
+
+    normalized: dict[str, Image.Image] = {}
+    for expected_name, cells in expected_cells_by_atlas.items():
+        source_name = QUEST_ICON_GENERATED_ATLASES[expected_name]
+        source = Image.open(QUEST_ICON_GENERATED_SOURCE / source_name)
+        normalized[expected_name] = normalize_generated_quest_atlas(
+            source,
+            cells,
+            source_name,
+        )
+
+    # Validate the whole set before replacing any normalized source atlas.
+    for expected_name, atlas in normalized.items():
+        for entry in (item for item in entries if item["atlas"] == expected_name):
+            extract_quest_icon_cell(atlas, entry)
+    QUEST_ICON_SOURCE.mkdir(parents=True, exist_ok=True)
+    for expected_name, atlas in normalized.items():
+        atlas.save(QUEST_ICON_SOURCE / expected_name, optimize=True)
+    print(f"Normalized {len(normalized)} generated quest icon atlases in {QUEST_ICON_SOURCE}")
+
+
+def build_quest_icons() -> None:
+    """Build all 158 quest icons only when explicitly requested by the CLI flag."""
+    manifest = load_quest_icon_manifest()
+    entries: list[dict[str, Any]] = manifest["icons"]
+    atlas_names = sorted({entry["atlas"] for entry in entries})
+    missing = [name for name in atlas_names if not (QUEST_ICON_SOURCE / name).is_file()]
+    if missing:
+        formatted = "\n  - ".join(missing)
+        raise FileNotFoundError(
+            "Quest icon atlas sources are missing. Generate the ten authored 4x4 atlases in "
+            f"{QUEST_ICON_SOURCE} before running --quest-icons:\n  - {formatted}"
+        )
+
+    atlases = {
+        name: Image.open(QUEST_ICON_SOURCE / name).convert("RGBA")
+        for name in atlas_names
+    }
+    rendered = [(entry, extract_quest_icon_cell(atlases[entry["atlas"]], entry)) for entry in entries]
+
+    # Do not write partial output: all atlas and edge validation completes first.
+    QUEST_ICON_OUTPUT.mkdir(parents=True, exist_ok=True)
+    for entry, artwork in rendered:
+        artwork.save(QUEST_ICON_OUTPUT / f"{entry['slug']}.png", optimize=True)
+    save_preview(make_quest_icon_contact_sheet(rendered), QUEST_ICON_PREVIEW)
+    QUEST_ICON_MAP_OUTPUT.write_text(
+        generate_quest_icon_typescript(entries),
+        encoding="utf-8",
+    )
+    update_quest_icon_hud(entries)
+    print(f"Built {len(rendered)} quest icons and {QUEST_ICON_PREVIEW}")
 
 
 def extract_cards() -> dict[str, Image.Image]:
@@ -843,4 +1380,28 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    asset_mode = parser.add_mutually_exclusive_group()
+    asset_mode.add_argument(
+        "--normalize-quest-atlases",
+        action="store_true",
+        help="normalize the ten raw ImageGen sheets into strict 4x4 quest atlases",
+    )
+    asset_mode.add_argument(
+        "--quest-icons",
+        action="store_true",
+        help="build only the manifest-driven 158 quest HUD icons and their contact sheet",
+    )
+    arguments = parser.parse_args()
+    if arguments.normalize_quest_atlases:
+        try:
+            normalize_generated_quest_atlases()
+        except FileNotFoundError as error:
+            parser.error(str(error))
+    elif arguments.quest_icons:
+        try:
+            build_quest_icons()
+        except FileNotFoundError as error:
+            parser.error(str(error))
+    else:
+        main()

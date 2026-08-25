@@ -81,6 +81,20 @@ test("main menu routes only its marked ActionForm into the custom JSON UI", () =
     ui.generic_long_form.controls.some((control) => control.screen_dim || control.ambient_background),
     false
   );
+
+  const viewport = ui.root.controls[0].viewport;
+  const absoluteCap = viewport.controls[0].absolute_cap;
+  const aspectWidthCap = absoluteCap.controls[0].aspect_width_cap;
+  const responsiveDialog = aspectWidthCap.controls[0].dialog;
+  assert.equal(viewport.size, "$cm_viewport_size");
+  assert.deepEqual(absoluteCap.max_size, [920, 510]);
+  assert.deepEqual(aspectWidthCap.max_size, ["180.3922%y", "100%"]);
+  assert.deepEqual(responsiveDialog.max_size, ["100%", "55.4348%x"]);
+  assert.equal(responsiveDialog.min_size, undefined);
+  assert.deepEqual(
+    responsiveDialog.controls.map((control) => Object.keys(control)[0]),
+    ["header@creeper_menu.header", "content@creeper_menu.content"]
+  );
 });
 
 test("AI and maintainer documentation preserves the mutually exclusive routing contract", () => {
@@ -543,6 +557,10 @@ test("mosaic binds all thirteen fixed form collection indices exactly once", () 
   assert.deepEqual(card.controls[2]["pressed@creeper_menu.card_state"].$cm_state_offset, [0, 2]);
   assert.equal(ui.card_state.offset, "$cm_state_offset");
   assert.equal(ui.card_state.keep_ratio, false);
+  assert.equal(card.enabled, false);
+  assert.equal(card.visible, undefined);
+  assert.equal(card.bindings.at(-1).target_property_name, "#enabled");
+  assert.equal(card.controls[3]["locked@creeper_menu.card_state"].grayscale, true);
 });
 
 test("custom menu is registered and every card has generated runtime artwork", () => {
@@ -568,11 +586,20 @@ test("custom menu is registered and every card has generated runtime artwork", (
   ];
 
   assert.ok(definitions.ui_defs.includes("ui/creeper_menu.json"));
-  assert.equal(ui.root.controls[0].dialog.type, "panel");
-  assert.equal(ui.root.controls[0].dialog.texture, undefined);
+  const rootDialog =
+    ui.root.controls[0].viewport.controls[0].absolute_cap.controls[0].aspect_width_cap.controls[0].dialog;
+  assert.equal(rootDialog.type, "panel");
+  assert.equal(rootDialog.texture, undefined);
   assert.equal(ui.generic_long_form.controls[0].dialog.texture, "textures/ui/creeper_menu/submenu_panel");
   assert.equal(ui.card_state.controls.length, 0);
   assert.equal(ui.close_state.keep_ratio, false);
+  assert.equal(ui["close_button@common.button"].size, "$cm_close_button_size");
+  assert.equal(ui.close_state.size, "$cm_close_visual_size");
+  assert.deepEqual(ui["close_button@common.button"].variables[0], {
+    requires: "$touch",
+    $cm_close_button_size: [30, 30],
+    $cm_close_visual_size: [24, 24],
+  });
   assert.equal(ui["close_button@common.button"].$pressed_button_name, "button.menu_exit");
   assert.doesNotMatch(JSON.stringify(ui.header), /common\.close_button|close_frame/);
   assert.doesNotMatch(JSON.stringify(ui.generic_header), /common\.close_button|close_frame/);

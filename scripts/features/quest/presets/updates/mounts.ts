@@ -1,0 +1,158 @@
+import type { QuestChapterDefinition, QuestDefinitionV2, QuestPackDefinition } from "../../domain";
+import { counterGoal, inventoryGoal, milestoneGoal, updateChapter, updatePresetQuest } from "../builders";
+
+const PACK_ID = "preset.update.mounts" as const;
+const CONTENT_CAP = "cap.content.minecraft.mounts_of_mayhem.v1";
+
+export const updateMountsChapter: QuestChapterDefinition = updateChapter(PACK_ID, {
+  id: "update.mounts",
+  title: "坐骑多了，路也乱了",
+  description: "长矛、亡灵马、骆驼尸壳和海底鹦鹉螺一起报到，陆海冲锋都得重新学交通规则。",
+  order: 1,
+  unlockRule: { type: "always" },
+  questIds: [
+    "preset.update.mounts.spear",
+    "preset.update.mounts.spear_charge",
+    "preset.update.mounts.zombie_horse",
+    "preset.update.mounts.camel_husk",
+    "preset.update.mounts.parched",
+    "preset.update.mounts.nautilus",
+    "preset.update.mounts.ride_nautilus",
+  ],
+});
+
+export const updateMountsQuests: QuestDefinitionV2[] = [
+  updatePresetQuest(PACK_ID, {
+    id: "preset.update.mounts.spear",
+    title: "棍子够长，就叫长矛",
+    description: "让背包里出现任意一种正式长矛。材质不限，只要属于稳定长矛集合，就算拿到了这代坐骑战斗的入场券。",
+    completionMessage: "长矛到手，骑乘战斗有了专用武器。",
+    chapterId: "update.mounts",
+    order: 1,
+    rarity: "rare",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_spear", "selector.item.spears", 1, "背包中拥有任意一种长矛")],
+    gold: 180,
+    experience: 60,
+    requiredCapabilities: [CONTENT_CAP, "cap.snapshot.inventory.v1"],
+  }),
+  updatePresetQuest(PACK_ID, {
+    id: "preset.update.mounts.spear_charge",
+    title: "速度拉满，矛尖先到",
+    description: "骑乘时使用长矛完成一次有效冲锋命中。必须同时验证速度、武器和伤害归因，普通近战戳一下不能冒充冲锋。",
+    completionMessage: "长矛冲锋命中，速度成功换算成了伤害。",
+    chapterId: "update.mounts",
+    order: 2,
+    rarity: "epic",
+    reliability: "C",
+    goals: [milestoneGoal("goal.land_spear_charge", "spear.charge_hit", "使用长矛完成一次有效冲锋命中")],
+    gold: 350,
+    experience: 120,
+    requiredCapabilities: [CONTENT_CAP, "cap.challenge.spear.charge_hit.v1"],
+    unlockRule: { type: "quest", questId: "preset.update.mounts.spear", status: "completed" },
+  }),
+  updatePresetQuest(PACK_ID, {
+    id: "preset.update.mounts.zombie_horse",
+    title: "马是好马，就是脸色差",
+    description: "成功驯服一匹僵尸马。必须确认玩家与坐骑的归属关系建立，临时骑上野生个体不能算正式收编。",
+    completionMessage: "僵尸马驯服成功，亡灵坐骑加入马厩。",
+    chapterId: "update.mounts",
+    order: 3,
+    rarity: "epic",
+    reliability: "B",
+    goals: [
+      milestoneGoal("goal.tame_zombie_horse", "entity.tame", "成功驯服一匹僵尸马", {
+        filters: { entity: { op: "eq", value: "minecraft:zombie_horse" } },
+        backfillPolicy: "historical",
+        evidenceProviderId: "evidence.entity.tame.owner",
+      }),
+    ],
+    gold: 350,
+    experience: 120,
+    requiredCapabilities: [CONTENT_CAP, "cap.event.entity.tame.v1"],
+  }),
+  updatePresetQuest(PACK_ID, {
+    id: "preset.update.mounts.camel_husk",
+    title: "先清骑手，再谈上车",
+    description: "解除敌对骑手后，成功骑乘或驯服一只骆驼尸壳。必须完成专用状态链，远处围观沙漠骑兵不算。",
+    completionMessage: "骆驼尸壳已接管，沙漠换了新的骑手。",
+    chapterId: "update.mounts",
+    order: 4,
+    rarity: "epic",
+    reliability: "B",
+    goals: [milestoneGoal("goal.claim_camel_husk", "camel_husk.claim", "解除敌对骑手并接管骆驼尸壳")],
+    gold: 350,
+    experience: 120,
+    requiredCapabilities: [CONTENT_CAP, "cap.event.camel_husk.claim.v1"],
+  }),
+  updatePresetQuest(PACK_ID, {
+    id: "preset.update.mounts.parched",
+    title: "沙漠很干，它更干",
+    description: "击杀 3 只干尸。它们已经被沙漠晒得足够暴躁，你只需要让三位依次停止游荡。",
+    completionMessage: "三只干尸倒下，沙漠亡灵暂时减员。",
+    chapterId: "update.mounts",
+    order: 5,
+    rarity: "rare",
+    reliability: "A",
+    goals: [
+      counterGoal("goal.kill_parched", "entity.kill", 3, "击杀 3 只干尸", {
+        filters: { entity: { op: "eq", value: "minecraft:parched" } },
+      }),
+    ],
+    gold: 220,
+    experience: 80,
+    requiredCapabilities: [CONTENT_CAP, "cap.event.entity.kill.v1"],
+  }),
+  updatePresetQuest(PACK_ID, {
+    id: "preset.update.mounts.nautilus",
+    title: "海底坐骑，自带螺旋外壳",
+    description: "成功驯服一只鹦鹉螺。必须建立可靠归属关系，跟着野生个体游一段路不能算拥有海底座驾。",
+    completionMessage: "鹦鹉螺驯服成功，海底交通工具已解锁。",
+    chapterId: "update.mounts",
+    order: 6,
+    rarity: "epic",
+    reliability: "B",
+    goals: [
+      milestoneGoal("goal.tame_nautilus", "entity.tame", "成功驯服一只鹦鹉螺", {
+        filters: { entity: { op: "eq", value: "minecraft:nautilus" } },
+        backfillPolicy: "historical",
+        evidenceProviderId: "evidence.entity.tame.owner",
+      }),
+    ],
+    gold: 450,
+    experience: 160,
+    requiredCapabilities: [CONTENT_CAP, "cap.event.entity.tame.v1"],
+  }),
+  updatePresetQuest(PACK_ID, {
+    id: "preset.update.mounts.ride_nautilus",
+    title: "骑着螺旋壳，巡航海底",
+    description: "在驯服鹦鹉螺后成功骑乘它。靠近或牵引都不算，玩家必须进入有效的鹦鹉螺骑乘关系。",
+    completionMessage: "鹦鹉螺骑乘成功，海底公路正式通车。",
+    chapterId: "update.mounts",
+    order: 7,
+    rarity: "epic",
+    reliability: "B",
+    goals: [
+      milestoneGoal("goal.ride_nautilus", "player.ride", "成功骑乘一只鹦鹉螺", {
+        filters: { entity: { op: "eq", value: "minecraft:nautilus" } },
+      }),
+    ],
+    gold: 500,
+    experience: 180,
+    requiredCapabilities: [CONTENT_CAP, "cap.event.player.ride.v1"],
+    unlockRule: { type: "quest", questId: "preset.update.mounts.nautilus", status: "completed" },
+  }),
+];
+
+export const updateMountsPack: QuestPackDefinition = {
+  id: PACK_ID,
+  version: 1,
+  title: "坐骑大乱斗，陆海都堵",
+  description: "长矛与五花八门的坐骑组成独立更新包；默认关闭，内容 identifier 和骑乘事件验证后启用。",
+  category: "update",
+  defaultEnabled: false,
+  releaseState: "active",
+  requiredCapabilities: [CONTENT_CAP],
+  requiredGameplayExperiments: [],
+  chapterIds: [updateMountsChapter.id],
+};

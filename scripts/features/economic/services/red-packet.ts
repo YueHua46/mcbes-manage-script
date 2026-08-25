@@ -14,6 +14,7 @@ import { taskScheduler } from "../../platform/scheduler";
 import { BRANDING } from "../../../core/constants";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import type { IRedPacket, RedPacketMode } from "../models/red-packet.model";
+import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
 
 /** 未配置时的默认有效时长：24 小时（毫秒） */
 export const DEFAULT_RED_PACKET_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -288,6 +289,10 @@ class RedPacketService {
       return "保存失败，金币已退回";
     }
 
+    recordCreeperQuestSuccess(sender, "redPacket", {
+      payload: { action: "send", packetId: id, amount: totalDeducted, shareCount: built.shares.length },
+      dedupeKey: `creeper.red_packet:send:${id}`,
+    });
     this.broadcastNewPacket(packet);
     return undefined;
   }
@@ -556,6 +561,11 @@ class RedPacketService {
         return "领取失败，请稍后重试";
       }
 
+      recordCreeperQuestSuccess(player, "redPacket", {
+        payload: { action: "claim", packetId, amount: amt, senderName: packet.senderName },
+        dedupeKey: `creeper.red_packet:claim:${packetId}:${player.name}`,
+      });
+
       player.sendMessage(
         `${color.gold("§l【红包到账】§r")} ${color.gray("来自")} ${color.aqua(packet.senderName)} ${color.gray("·")} ${color.green("+")}${color.gold(String(amt))} ${color.gray("金币")}`
       );
@@ -605,6 +615,11 @@ class RedPacketService {
       }
       return "领取失败，请稍后重试";
     }
+
+    recordCreeperQuestSuccess(player, "redPacket", {
+      payload: { action: "claim", packetId, amount: amt, senderName: packet.senderName },
+      dedupeKey: `creeper.red_packet:claim:${packetId}:${player.name}`,
+    });
 
     player.sendMessage(
       `${color.gold("§l【红包到账】§r")} ${color.gray("来自")} ${color.aqua(packet.senderName)} ${color.gray("·")} ${color.green("+")}${color.gold(String(amt))} ${color.gray("金币")}`

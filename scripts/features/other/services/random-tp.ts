@@ -10,6 +10,7 @@ import setting from "../../system/services/setting";
 import landManager from "../../land/services/land-manager";
 import { color } from "../../../shared/utils/color";
 import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
+import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
 
 /**
  * 生成指定范围的随机数
@@ -370,6 +371,14 @@ function startRandomTeleportCountdown(player: Player, result: RandomLocationResu
             dimension: result.dimension,
           });
           applyRandomTeleportBuffs(player);
+          recordCreeperQuestSuccess(player, "randomTeleportComplete", {
+            payload: {
+              dimension: result.dimension.id,
+              x: Math.floor(result.target.x),
+              y: Math.floor(result.target.y),
+              z: Math.floor(result.target.z),
+            },
+          });
 
           system.runTimeout(() => {
             try {

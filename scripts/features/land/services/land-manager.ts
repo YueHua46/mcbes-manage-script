@@ -16,6 +16,7 @@ import { getGuildPlayerIndexDb } from "../../guild/services/guild-player-index-d
 import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players";
 import identityService from "../../player/services/identity-service";
 import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
+import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
 
 class LandManager {
   db!: Database<ILand>;
@@ -235,6 +236,19 @@ class LandManager {
   }
 
   /**
+   * Quest/current-state evidence only. New records prefer stable CMID ownership;
+   * legacy records fall back to IdentityService-provided historical names.
+   */
+  hasLandForIdentity(identityId: string, knownNames: readonly string[], guildId?: string): boolean {
+    const names = new Set(knownNames.map((name) => name.trim().toLowerCase()).filter(Boolean));
+    return this.db.values().some((land) => {
+      if (land.ownerIdentityId === identityId) return true;
+      if (names.has(land.owner.toLowerCase())) return true;
+      return !!guildId && land.guildId === guildId;
+    });
+  }
+
+  /**
    * 领地转让
    */
   transferLand(name: string, playerName: string): void | string {
@@ -394,6 +408,10 @@ class LandManager {
         SystemLog.error("[Land] createLand guild land persist failed", e);
         return "领地写入失败，已退回金库扣款";
       }
+      recordCreeperQuestSuccess(player, "landCreate", {
+        payload: { landName: landData.name, landType: "guild", dimension: landData.dimension },
+        dedupeKey: `creeper.land.create:${landData.id}`,
+      });
       return true;
     }
 
@@ -424,6 +442,10 @@ class LandManager {
       SystemLog.error("[Land] createLand personal land persist failed", e);
       return "领地写入失败，已退回创建费用";
     }
+    recordCreeperQuestSuccess(player, "landCreate", {
+      payload: { landName: landData.name, landType: "personal", dimension: landData.dimension },
+      dedupeKey: `creeper.land.create:${landData.id}`,
+    });
     return true;
   }
 

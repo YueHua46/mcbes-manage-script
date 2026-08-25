@@ -1,0 +1,81 @@
+import type { QuestDefinitionV2 } from "../../domain";
+import { corePresetQuest, counterGoal, inventoryGoal } from "../builders";
+
+export const coreMiningAdditionalQuests: QuestDefinitionV2[] = [
+  corePresetQuest({
+    id: "preset.core.mining.bucket",
+    title: "一只桶，装下半个世界",
+    description: "让背包里出现一只空桶。水、岩浆、牛奶和各种临场救命操作，都等它上岗。",
+    completionMessage: "桶已到手，水与岩浆都得排队进来。",
+    chapterId: "core.mining",
+    order: 2.5,
+    rarity: "common",
+    reliability: "A",
+    goals: [inventoryGoal("goal.possess_bucket", "selector.item.bucket", 1, "背包中拥有一只空桶")],
+    gold: 60,
+    experience: 20,
+    requiredCapabilities: ["cap.snapshot.inventory.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.mining.redstone",
+    title: "地底红光，理工开场",
+    description: "任务开放后累计获得 16 个红石粉。先把材料攒起来，至于机器为什么不动，可以以后再查线。",
+    completionMessage: "红石库存到账，自动化的大坑正式开挖。",
+    chapterId: "core.mining",
+    order: 3.25,
+    rarity: "common",
+    reliability: "A",
+    goals: [
+      counterGoal("goal.obtain_redstone", "item.obtain", 16, "累计获得 16 个红石粉", {
+        filters: { item: { op: "eq", value: "minecraft:redstone" } },
+        aggregation: "sum",
+        field: "amount",
+      }),
+    ],
+    gold: 70,
+    experience: 20,
+    requiredCapabilities: ["cap.event.item.obtain.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.mining.lapis",
+    title: "蓝色石头，魔法饭票",
+    description: "任务开放后累计获得 16 个青金石。看着像颜料，实际上还是附魔台的指定消费券。",
+    completionMessage: "青金石攒够了，附魔台终于肯谈合作。",
+    chapterId: "core.mining",
+    order: 3.5,
+    rarity: "common",
+    reliability: "A",
+    goals: [
+      counterGoal("goal.obtain_lapis", "item.obtain", 16, "累计获得 16 个青金石", {
+        filters: { item: { op: "eq", value: "minecraft:lapis_lazuli" } },
+        aggregation: "sum",
+        field: "amount",
+      }),
+    ],
+    gold: 70,
+    experience: 20,
+    requiredCapabilities: ["cap.event.item.obtain.v1"],
+  }),
+  corePresetQuest({
+    id: "preset.core.mining.diamond_miner",
+    title: "一颗是惊喜，十颗是实力",
+    description: "从第一颗钻石任务完成后开始，累计再获得钻石直到进度达到 10。真正的矿工，蓝光不能只闪一次。",
+    completionMessage: "十颗钻石入账，这趟矿洞含金量拉满。",
+    chapterId: "core.mining",
+    order: 4.5,
+    rarity: "rare",
+    reliability: "A",
+    goals: [
+      counterGoal("goal.obtain_ten_diamonds", "item.obtain", 10, "累计获得 10 颗钻石", {
+        filters: { item: { op: "eq", value: "minecraft:diamond" } },
+        aggregation: "sum",
+        field: "amount",
+      }),
+    ],
+    gold: 250,
+    experience: 100,
+    requiredCapabilities: ["cap.event.item.obtain.v1"],
+    unlockRule: { type: "quest", questId: "preset.core.mining.first_diamond", status: "completed" },
+    unlockEventPolicy: "include_once",
+  }),
+];

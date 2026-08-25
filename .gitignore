@@ -11,3 +11,9 @@ dist
 node_modules/
 /lib/
 lib/
+__pycache__/
+*.py[cod]
+
+# Rejected intermediate quest-icon generations; keep only approved atlas masters.
+design/menu-ui/assets/quest-icons-atlas-b01-v1.png
+design/menu-ui/assets/quest-icons-atlas-v1.png

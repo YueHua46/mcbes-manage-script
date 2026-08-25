@@ -100,6 +100,70 @@
           "stream": true
         }
       ]
+    },
+    "creeper.quest.common.accept": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/common_accept", "is3D": false }]
+    },
+    "creeper.quest.common.progress": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/common_progress", "is3D": false }]
+    },
+    "creeper.quest.common.complete": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/common_complete", "is3D": false }]
+    },
+    "creeper.quest.common.claim": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/common_claim", "is3D": false }]
+    },
+    "creeper.quest.rare.accept": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/rare_accept", "is3D": false }]
+    },
+    "creeper.quest.rare.progress": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/rare_progress", "is3D": false }]
+    },
+    "creeper.quest.rare.complete": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/rare_complete", "is3D": false }]
+    },
+    "creeper.quest.rare.claim": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/rare_claim", "is3D": false }]
+    },
+    "creeper.quest.epic.accept": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/epic_accept", "is3D": false }]
+    },
+    "creeper.quest.epic.progress": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/epic_progress", "is3D": false }]
+    },
+    "creeper.quest.epic.complete": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/epic_complete", "is3D": false }]
+    },
+    "creeper.quest.epic.claim": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/epic_claim", "is3D": false }]
+    },
+    "creeper.quest.legendary.accept": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/legendary_accept", "is3D": false }]
+    },
+    "creeper.quest.legendary.progress": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/legendary_progress", "is3D": false }]
+    },
+    "creeper.quest.legendary.complete": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/legendary_complete", "is3D": false }]
+    },
+    "creeper.quest.legendary.claim": {
+      "category": "ui",
+      "sounds": [{ "name": "sounds/quest/legendary_claim", "is3D": false }]
     }
   }
 }
