@@ -11,6 +11,7 @@ import type { CreeperStateSnapshotSummary } from "./snapshot-summary";
 import { buildPlayerCreeperStateSummary } from "../integrations/creeper-state-provider";
 
 const MAX_PLAYERS_PER_FLUSH = 8;
+const FLUSH_DELAY_TICKS = 2; // 延迟2 ticks后再刷新快照，避免频繁的快照更新
 
 export interface RuntimeQuestSnapshotBatch {
   playerCmid: string;
@@ -51,7 +52,8 @@ class RuntimeQuestSnapshotQueue {
   private schedule(): void {
     if (this.scheduled) return;
     this.scheduled = true;
-    system.run(() => this.flush());
+    // 延迟刷新，让多个快照标记能够批量处理
+    system.runTimeout(() => this.flush(), FLUSH_DELAY_TICKS);
   }
 
   private flush(): void {

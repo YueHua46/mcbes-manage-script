@@ -354,6 +354,11 @@ class QuestPlayerService {
     if (!isRealPlayerEntity(player) || !this.isReady()) return [];
     const aggregate = questStateRepository.loadForPlayer(player);
     this.ensureEventIndex();
+
+    // 早期退出：如果这个事件类型没有任何任务需要，直接返回
+    const hasCandidates = this.eventIndex.hasEventType(eventKey);
+    if (!hasCandidates && !options.dedupeKey) return [];
+
     const event: QuestEvent = {
       id: `quest.runtime:${aggregate.playerCmid}:${++this.eventSequence}`,
       type: eventKey,
