@@ -139,6 +139,16 @@ async function openServerMenuFormInternal(player: Player): Promise<void> {
       },
     },
     {
+      id: "performance",
+      text: "性能诊断",
+      icon: "textures/icons/server_live_dashboard",
+      action: async (player: Player) => {
+        const { openPerformanceDiagnosticsMenu } = await import("../performance");
+        openPerformanceDiagnosticsMenu(player, () => void openServerMenuForm(player));
+      },
+      alwaysVisible: true,
+    },
+    {
       id: "quest",
       text: "任务系统",
       icon: "textures/icons/menu_quest",
