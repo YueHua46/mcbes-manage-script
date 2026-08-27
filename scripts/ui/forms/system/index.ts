@@ -199,7 +199,7 @@ export function openSystemSettingForm(player: Player): void {
       action: () => void openLiveServerPanel(player, () => openSystemSettingForm(player)),
     },
     {
-      text: "性能诊断工具",
+      text: "性能诊断",
       icon: "textures/icons/eyes",
       action: async () => {
         const { openPerformanceDiagnosticsMenu } = await import("../performance");
