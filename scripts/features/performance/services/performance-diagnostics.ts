@@ -424,21 +424,7 @@ class PerformanceDiagnosticsService {
   private checkGlobalIssues(): PerformanceIssue[] {
     const issues: PerformanceIssue[] = [];
 
-    // 检测 Dynamic Properties 占用
-    const dynamicPropertyBytes = world.getDynamicPropertyTotalByteCount();
-    if (dynamicPropertyBytes > 100000) {
-      // 100KB
-      let severity = PerformanceSeverity.NOTICE;
-      if (dynamicPropertyBytes > 1000000) severity = PerformanceSeverity.WARNING; // 1MB
-
-      issues.push({
-        type: PerformanceIssueType.SCRIPT_PERFORMANCE,
-        severity,
-        description: "动态属性占用较高",
-        value: dynamicPropertyBytes,
-        threshold: 100000,
-      });
-    }
+    // Dynamic Properties 不影响运行时性能，已移除检测
 
     return issues;
   }
