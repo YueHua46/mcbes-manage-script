@@ -25,6 +25,21 @@ let itemFlushScheduled = false;
 const QUEST_MOVEMENT_SAMPLE_INTERVAL_TICKS = 10;
 const QUEST_BIOME_SAMPLE_INTERVAL_TICKS = 40;
 
+// 批量处理破坏方块事件，减少挖矿时的性能开销
+const pendingBlockBreaks = new Map<
+  string,
+  {
+    player: Player;
+    blocks: Array<{
+      blockTypeId: string;
+      dimension: string;
+      harvest?: { crop: string; block: string; amount: number };
+    }>;
+  }
+>();
+let blockBreakFlushScheduled = false;
+const BLOCK_BREAK_BATCH_DELAY_TICKS = 2; // 累积2 ticks的破坏方块事件后再处理
+
 type QuestCropStateKey = "growth" | "age";
 
 export interface QuestCropRule {
@@ -262,6 +277,92 @@ function flushPendingItemDeltas(): void {
   });
 }
 
+function addPendingBlockBreak(
+  player: Player,
+  blockTypeId: string,
+  dimension: string,
+  harvest?: { crop: string; block: string; amount: number }
+): void {
+  const key = player.id;
+  const entry = pendingBlockBreaks.get(key) ?? { player, blocks: [] };
+  entry.blocks.push({ blockTypeId, dimension, harvest });
+  pendingBlockBreaks.set(key, entry);
+
+  if (blockBreakFlushScheduled) return;
+  blockBreakFlushScheduled = true;
+  system.runTimeout(() => {
+    blockBreakFlushScheduled = false;
+    flushPendingBlockBreaks();
+  }, BLOCK_BREAK_BATCH_DELAY_TICKS);
+}
+
+function flushPendingBlockBreaks(): void {
+  const entries = Array.from(pendingBlockBreaks.values());
+  pendingBlockBreaks.clear();
+
+  entries.forEach(({ player, blocks }) => {
+    if (!player.isValid) return;
+
+    // 按维度分组处理方块破坏事件
+    const dimensionGroups = new Map<string, typeof blocks>();
+    blocks.forEach((block) => {
+      const group = dimensionGroups.get(block.dimension) ?? [];
+      group.push(block);
+      dimensionGroups.set(block.dimension, group);
+    });
+
+    // 为每个维度单独处理
+    dimensionGroups.forEach((dimensionBlocks, dimension) => {
+      const blockCounts = new Map<string, number>();
+      const harvestCounts = new Map<string, { crop: string; block: string; amount: number }>();
+
+      dimensionBlocks.forEach(({ blockTypeId, harvest }) => {
+        blockCounts.set(blockTypeId, (blockCounts.get(blockTypeId) ?? 0) + 1);
+        if (harvest) {
+          const key = `${harvest.crop}:${harvest.block}`;
+          const existing = harvestCounts.get(key) ?? { ...harvest, amount: 0 };
+          existing.amount += harvest.amount;
+          harvestCounts.set(key, existing);
+        }
+      });
+
+      // 为每种方块类型记录一次事件
+      blockCounts.forEach((count, blockTypeId) => {
+        notifyQuestChanges(
+          player,
+          questPlayerService.recordEvent(
+            player,
+            "block.break",
+            {
+              block: blockTypeId,
+              dimension,
+            },
+            { source: "world.afterEvents.playerBreakBlock.batched" }
+          )
+        );
+      });
+
+      // 批量处理作物收获
+      harvestCounts.forEach((harvest) => {
+        notifyQuestChanges(
+          player,
+          questPlayerService.recordEvent(
+            player,
+            "crop.harvest",
+            {
+              crop: harvest.crop,
+              block: harvest.block,
+              amount: harvest.amount,
+              dimension,
+            },
+            { source: "world.afterEvents.playerBreakBlock.batched" }
+          )
+        );
+      });
+    });
+  });
+}
+
 export function registerQuestEvents(): void {
   questSnapshotRuntime.subscribe((player, batch) => {
     notifyQuestChanges(player, questPlayerService.reconcileSnapshots(player, batch));
@@ -324,39 +425,20 @@ export function registerQuestEvents(): void {
   world.afterEvents.playerBreakBlock.subscribe((event) => {
     if (!isRealPlayerEntity(event.player)) return;
     const blockTypeId = event.brokenBlockPermutation.type.id;
-    notifyQuestChanges(
-      event.player,
-      questPlayerService.recordEvent(
-        event.player,
-        "block.break",
-        {
-          block: blockTypeId,
-          dimension: normalizedDimensionId(event.dimension.id),
-        },
-        { source: "world.afterEvents.playerBreakBlock" }
-      )
-    );
+    const dimension = normalizedDimensionId(event.dimension.id);
 
+    let harvest: { crop: string; block: string; amount: number } | undefined;
     try {
-      const harvest = resolveMatureCropHarvest(blockTypeId, event.brokenBlockPermutation.getAllStates());
-      if (!harvest) return;
-      notifyQuestChanges(
-        event.player,
-        questPlayerService.recordEvent(
-          event.player,
-          "crop.harvest",
-          {
-            crop: harvest.crop,
-            block: blockTypeId,
-            amount: harvest.amount,
-            dimension: normalizedDimensionId(event.dimension.id),
-          },
-          { source: "world.afterEvents.playerBreakBlock" }
-        )
-      );
+      const harvestResult = resolveMatureCropHarvest(blockTypeId, event.brokenBlockPermutation.getAllStates());
+      if (harvestResult) {
+        harvest = { ...harvestResult, block: blockTypeId };
+      }
     } catch {
       // Unknown or version-specific block states are conservatively ignored.
     }
+
+    // 将破坏方块事件加入批处理队列，而不是立即处理
+    addPendingBlockBreak(event.player, blockTypeId, dimension, harvest);
   });
 
   world.afterEvents.playerInventoryItemChange.subscribe((event) => {

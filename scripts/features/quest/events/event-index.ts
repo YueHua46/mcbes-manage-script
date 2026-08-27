@@ -60,6 +60,18 @@ export class QuestEventIndex {
     return [...this.autoAcceptQuestIds];
   }
 
+  hasEventType(eventType: string): boolean {
+    // 检查是否有任何任务关注这个事件类型
+    if (this.refs.has(eventType)) return true;
+    // 检查是否有索引字段关联的任务
+    for (const field of INDEXED_FIELDS) {
+      for (const key of this.refs.keys()) {
+        if (key.startsWith(`${eventType}:${field}:`)) return true;
+      }
+    }
+    return false;
+  }
+
   getCandidates(eventType: string, payload: Readonly<Record<string, unknown>>): QuestGoalReference[] {
     const result = new Map<string, QuestGoalReference>();
     const collect = (key: string) => {

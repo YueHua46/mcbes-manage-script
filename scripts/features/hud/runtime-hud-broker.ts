@@ -7,8 +7,8 @@ import {
   type QuestToastInput,
 } from "./hud-message-broker";
 
-const RENDER_INTERVAL_TICKS = 5;
-const FORCE_REFRESH_TICKS = 40;
+const RENDER_INTERVAL_TICKS = 10; // 从5增加到10，减少渲染频率
+const FORCE_REFRESH_TICKS = 60; // 从40增加到60，减少强制刷新频率
 
 class RuntimeHudBroker {
   private readonly broker = new HudMessageBroker();
