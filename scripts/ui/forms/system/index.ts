@@ -199,6 +199,14 @@ export function openSystemSettingForm(player: Player): void {
       action: () => void openLiveServerPanel(player, () => openSystemSettingForm(player)),
     },
     {
+      text: "性能诊断",
+      icon: "textures/icons/eyes",
+      action: async () => {
+        const { openPerformanceDiagnosticsMenu } = await import("../performance");
+        openPerformanceDiagnosticsMenu(player, () => openSystemSettingForm(player));
+      },
+    },
+    {
       text: "通用系统设置",
       icon: "textures/icons/gear",
       action: () => openGeneralSettingsForm(player),

@@ -15,7 +15,7 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 - 菜单入口：使用 `yuehua:sm` 道具打开主菜单。
 - 玩家功能：TPA、坐标与随机传送、个人/公共路点、在线时长与设置。
 - 服务器系统：领地、经济、官方商店、玩家交易市场、红包、公会、PVP、任务和统计。
-- 管理工具：玩家与背包管理、行为日志、防刷物品、公告、浮空字和调度面板。
+- 管理工具：性能诊断、玩家与背包管理、行为日志、防刷物品、公告、悬浮文字和调度面板。
 - 自定义维度：苦力怕菜单提供 5 个通用虚空维度。
 - 独立 Backrooms：按玩家隔离、按需延伸的 Level 0，以及独立实体、声景和资源包。
 
@@ -35,11 +35,11 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 同时生成三个 CreeperMenu 发行产物：`npm run mcaddon:release`。当前版本的
 Release 附件名称为：
 
-- `CreeperMenu-v3.3.0-MCBE-1.26.4x-Standard.mcaddon`
-- `CreeperMenu-v3.3.0-MCBE-1.26.4x-Realms.mcaddon`
-- `CreeperMenu-v3.3.0-MCBE-1.26.4x-BDS.mcaddon`
+- `CreeperMenu-v3.3.1-MCBE-1.26.4x-Standard.mcaddon`
+- `CreeperMenu-v3.3.1-MCBE-1.26.4x-Realms.mcaddon`
+- `CreeperMenu-v3.3.1-MCBE-1.26.4x-BDS.mcaddon`
 
-三个 CreeperMenu 变体统一使用 **3.3.0** 发行版本。构建依赖精确锁定
+三个 CreeperMenu 变体统一使用 **3.3.1** 发行版本。构建依赖精确锁定
 Minecraft Bedrock **1.26.44**，面向用户标记为 **1.26.4x**，表示适配
 正常的 `1.26.40` 至 `1.26.49` 小版本族。manifest 最低引擎版本仍为
 **1.26.0**。
