@@ -8,11 +8,10 @@ const yauzl = require("yauzl");
 const ROOT = path.resolve(__dirname, "..");
 const CONFIG_PATH = path.join(ROOT, "release.config.json");
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
-// GitHub Release strips non-ASCII characters from uploaded asset filenames.
 const VARIANT_LABELS = Object.freeze({
-  standard: "Standard",
-  realms: "Realms",
-  bds: "BDS",
+  standard: "普通兼容版",
+  realms: "Realms兼容版",
+  bds: "BDS增强版",
 });
 const VARIANT_MODULES = Object.freeze({
   standard: Object.freeze([
@@ -113,7 +112,8 @@ function artifactFilename(variant, config = loadReleaseConfig()) {
     throw new Error(`未知发行变体：${variant}`);
   }
   assertThreePartVersion(config.version, "发行版本");
-  return `CreeperMenu-v${config.version}-MCBE-${minecraftFamily(config.minecraftVersion)}-${label}.mcaddon`;
+  assertThreePartVersion(config.minecraftVersion, "Minecraft 构建基线");
+  return `【${config.minecraftVersion}】${label}-苦力怕菜单v${config.version}.mcaddon`;
 }
 
 function releaseTitle(config = loadReleaseConfig()) {
