@@ -17,7 +17,7 @@ const {
   verifyReleaseFiles,
 } = require("../tools/release-metadata.cjs");
 
-test("release metadata derives the public Minecraft family and upload-safe names", () => {
+test("release metadata derives the public Minecraft family and mobile-friendly Chinese names", () => {
   const config = loadReleaseConfig();
   const family = minecraftFamily(config.minecraftVersion);
 
@@ -25,15 +25,18 @@ test("release metadata derives the public Minecraft family and upload-safe names
 
   assert.equal(
     artifactFilename("standard", config),
-    `CreeperMenu-v${config.version}-MCBE-${family}-Standard.mcaddon`
+    `【${config.minecraftVersion}】普通兼容版-苦力怕菜单v${config.version}.mcaddon`
   );
 
   assert.equal(
     artifactFilename("realms", config),
-    `CreeperMenu-v${config.version}-MCBE-${family}-Realms.mcaddon`
+    `【${config.minecraftVersion}】Realms兼容版-苦力怕菜单v${config.version}.mcaddon`
   );
 
-  assert.equal(artifactFilename("bds", config), `CreeperMenu-v${config.version}-MCBE-${family}-BDS.mcaddon`);
+  assert.equal(
+    artifactFilename("bds", config),
+    `【${config.minecraftVersion}】BDS增强版-苦力怕菜单v${config.version}.mcaddon`
+  );
 });
 
 test("release metadata rejects malformed versions and unknown variants", () => {
