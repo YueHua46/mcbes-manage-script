@@ -18,6 +18,7 @@ RIGHT_MOSAIC_SOURCE = Path(__file__).parent / "source" / "creeper-mosaic-right-1
 SUBMENU_CORE_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-icons-core-imagegen.png"
 SUBMENU_ADMIN_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-icons-admin-imagegen.png"
 ACTION_ICON_SOURCE = Path(__file__).parent / "source" / "creeper-action-icons-imagegen.png"
+SUBMENU_EMBLEM_SOURCE = Path(__file__).parent / "source" / "creeper-submenu-emblems-imagegen.png"
 QUEST_ICON_MANIFEST = Path(__file__).parent / "quest-icon-manifest.json"
 QUEST_ICON_SOURCE = Path(__file__).parent / "source"
 QUEST_ICON_GENERATED_SOURCE = Path(__file__).parent / "assets"
@@ -30,6 +31,7 @@ PREVIEW = Path(__file__).parent / "preview.png"
 SUBMENU_PREVIEW = Path(__file__).parent / "submenu-preview.png"
 MODAL_PREVIEW = Path(__file__).parent / "modal-preview.png"
 MESSAGE_PREVIEW = Path(__file__).parent / "message-preview.png"
+QUEST_TOAST_PREVIEW = Path(__file__).parent / "quest-toast-preview.png"
 QUEST_ICON_PREVIEW = Path(__file__).parent / "quest-icons-preview.png"
 
 QUEST_ICON_GRID_COLUMNS = 4
@@ -803,6 +805,29 @@ def extract_submenu_icons() -> None:
             canvas.save(ICON_OUTPUT / f"{name}.png", optimize=True)
 
 
+def extract_submenu_emblems() -> None:
+    """Split the generated 2x2 atlas into four compact shared UI emblems."""
+    atlas = Image.open(SUBMENU_EMBLEM_SOURCE).convert("RGBA")
+    names = ("submenu_emblem", "message_emblem", "modal_emblem", "quest_emblem")
+    for index, name in enumerate(names):
+        row, column = divmod(index, 2)
+        left = round(column * atlas.width / 2)
+        top = round(row * atlas.height / 2)
+        right = round((column + 1) * atlas.width / 2)
+        bottom = round((row + 1) * atlas.height / 2)
+        subject = atlas.crop((left, top, right, bottom))
+        bounds = subject.getchannel("A").getbbox()
+        if bounds is None:
+            raise ValueError(f"No submenu emblem artwork found for {name}")
+        subject = subject.crop(bounds)
+        scale = min(56 / subject.width, 56 / subject.height)
+        size = (max(1, round(subject.width * scale)), max(1, round(subject.height * scale)))
+        subject = subject.resize(size, Image.Resampling.NEAREST)
+        canvas = Image.new("RGBA", (64, 64))
+        canvas.alpha_composite(subject, ((64 - size[0]) // 2, (64 - size[1]) // 2))
+        save_full_texture(name, canvas)
+
+
 def extract_scene_cards() -> dict[str, Image.Image]:
     """Crop every root card from its final-ratio authored mosaic atlas."""
     atlases = {
@@ -833,23 +858,55 @@ def make_panels() -> None:
     draw = ImageDraw.Draw(submenu)
     draw.rounded_rectangle(
         (0, 0, 31, 31),
-        radius=7,
-        fill=(236, 231, 219, 252),
-        outline=(105, 93, 78, 255),
-        width=1,
+        radius=6,
+        fill=(244, 234, 207, 255),
+        outline=(69, 57, 42, 255),
+        width=2,
     )
+    draw.rounded_rectangle((3, 3, 28, 28), radius=4, outline=(201, 176, 124, 255), width=1)
     save_nineslice("submenu_panel", submenu, 8)
 
+    header_band = Image.new("RGBA", (24, 24))
+    header_draw = ImageDraw.Draw(header_band)
+    header_draw.rounded_rectangle(
+        (0, 0, 23, 23), radius=5, fill=(58, 82, 59, 255), outline=(43, 54, 42, 255), width=1
+    )
+    header_draw.line((4, 3, 19, 3), fill=(112, 139, 104, 210), width=1)
+    save_nineslice("header_band", header_band, 6)
+
+    content_sheet = Image.new("RGBA", (24, 24))
+    sheet_draw = ImageDraw.Draw(content_sheet)
+    sheet_draw.rounded_rectangle(
+        (0, 0, 23, 23), radius=4, fill=(255, 249, 231, 255), outline=(186, 158, 106, 255), width=1
+    )
+    save_nineslice("content_sheet", content_sheet, 6)
+
+    toast_panel = Image.new("RGBA", (24, 24))
+    toast_draw = ImageDraw.Draw(toast_panel)
+    toast_draw.rounded_rectangle(
+        (0, 0, 23, 23), radius=5, fill=(248, 237, 207, 252), outline=(68, 57, 42, 255), width=2
+    )
+    toast_draw.line((4, 3, 19, 3), fill=(226, 203, 148, 255), width=1)
+    save_nineslice("quest_toast_panel", toast_panel, 6)
+
+    badge_chip = Image.new("RGBA", (20, 20))
+    badge_draw = ImageDraw.Draw(badge_chip)
+    badge_draw.rounded_rectangle(
+        (0, 0, 19, 19), radius=5, fill=(70, 91, 65, 255), outline=(44, 55, 40, 255), width=1
+    )
+    badge_draw.rounded_rectangle((2, 2, 17, 17), radius=3, outline=(211, 188, 132, 210), width=1)
+    save_nineslice("quest_badge_chip", badge_chip, 5)
+
     for state, fill, border in (
-        ("default", (72, 68, 63, 245), (242, 237, 224, 255)),
-        ("hover", (101, 89, 72, 250), (255, 248, 226, 255)),
-        ("pressed", (57, 52, 47, 250), (213, 203, 184, 255)),
+        ("default", (50, 68, 50, 255), (221, 199, 145, 255)),
+        ("hover", (72, 94, 67, 255), (255, 235, 177, 255)),
+        ("pressed", (38, 52, 39, 255), (181, 158, 108, 255)),
     ):
         close = Image.new("RGBA", (24, 24))
         close_draw = ImageDraw.Draw(close)
         close_draw.rounded_rectangle((1, 1, 22, 22), radius=5, fill=fill, outline=border, width=1)
-        close_draw.line((8, 8, 15, 15), fill=(239, 235, 226, 255), width=2)
-        close_draw.line((15, 8, 8, 15), fill=(239, 235, 226, 255), width=2)
+        close_draw.line((8, 8, 15, 15), fill=(255, 244, 211, 255), width=2)
+        close_draw.line((15, 8, 8, 15), fill=(255, 244, 211, 255), width=2)
         save_full_texture(f"close_{state}", close)
     (OUTPUT / "close_frame.png").unlink(missing_ok=True)
     (OUTPUT / "close_frame.json").unlink(missing_ok=True)
@@ -858,20 +915,25 @@ def make_panels() -> None:
     draw = ImageDraw.Draw(icon_chip)
     draw.rounded_rectangle(
         (0, 0, 15, 15),
-        radius=5,
-        fill=(210, 219, 204, 248),
-        outline=(151, 141, 119, 235),
+        radius=4,
+        fill=(214, 225, 191, 255),
+        outline=(93, 117, 79, 255),
         width=1,
     )
     save_nineslice("icon_chip", icon_chip, 4)
 
-    line = Image.new("RGBA", (8, 1), (126, 113, 96, 120))
+    list_rail = Image.new("RGBA", (3, 28))
+    rail_draw = ImageDraw.Draw(list_rail)
+    rail_draw.rounded_rectangle((0, 0, 2, 27), radius=1, fill=(75, 110, 68, 255))
+    save_full_texture("list_rail", list_rail)
+
+    line = Image.new("RGBA", (8, 1), (166, 145, 103, 150))
     line.save(OUTPUT / "line.png", optimize=True)
 
     field_states = {
-        "default": ((244, 240, 230, 255), (154, 140, 118, 245)),
-        "hover": ((250, 246, 235, 255), (176, 150, 111, 255)),
-        "pressed": ((224, 218, 204, 255), (132, 117, 97, 255)),
+        "default": ((255, 249, 232, 255), (163, 137, 89, 255)),
+        "hover": ((244, 249, 222, 255), (92, 119, 78, 255)),
+        "pressed": ((226, 230, 203, 255), (72, 97, 63, 255)),
     }
     for state, (fill, border) in field_states.items():
         field = Image.new("RGBA", (24, 24))
@@ -882,7 +944,7 @@ def make_panels() -> None:
     dropdown_panel = Image.new("RGBA", (24, 24))
     dropdown_draw = ImageDraw.Draw(dropdown_panel)
     dropdown_draw.rounded_rectangle(
-        (0, 0, 23, 23), radius=5, fill=(238, 233, 221, 255), outline=(132, 117, 97, 255), width=1
+        (0, 0, 23, 23), radius=5, fill=(249, 240, 214, 255), outline=(111, 91, 60, 255), width=1
     )
     save_nineslice("modal_dropdown_panel", dropdown_panel, 6)
 
@@ -893,26 +955,26 @@ def make_panels() -> None:
                 name += "_hover"
             toggle = Image.new("RGBA", (30, 16))
             toggle_draw = ImageDraw.Draw(toggle)
-            fill = (164, 190, 161, 255) if selected else (201, 196, 184, 255)
-            border = (112, 126, 99, 255) if selected else (139, 127, 110, 255)
+            fill = (105, 143, 91, 255) if selected else (208, 197, 169, 255)
+            border = (58, 88, 53, 255) if selected else (132, 111, 77, 255)
             if hovered:
                 fill = tuple(min(255, channel + 14) for channel in fill[:3]) + (255,)
-                border = (163, 132, 91, 255)
+                border = (193, 151, 68, 255)
             toggle_draw.rounded_rectangle((0, 0, 29, 15), radius=7, fill=fill, outline=border, width=1)
             knob_x = 21 if selected else 8
             toggle_draw.ellipse(
                 (knob_x - 5, 3, knob_x + 5, 13),
-                fill=(247, 242, 230, 255),
-                outline=(102, 91, 76, 255),
+                fill=(255, 245, 214, 255),
+                outline=(80, 66, 46, 255),
                 width=1,
             )
             save_full_texture(name, toggle)
 
     for name, fill, border in (
-        ("modal_slider_track", (207, 201, 187, 255), (139, 127, 110, 255)),
-        ("modal_slider_track_hover", (219, 211, 194, 255), (163, 132, 91, 255)),
-        ("modal_slider_progress", (171, 194, 165, 255), (111, 127, 99, 255)),
-        ("modal_slider_progress_hover", (188, 207, 180, 255), (143, 117, 82, 255)),
+        ("modal_slider_track", (215, 201, 166, 255), (137, 113, 73, 255)),
+        ("modal_slider_track_hover", (229, 215, 177, 255), (185, 140, 61, 255)),
+        ("modal_slider_progress", (101, 139, 87, 255), (56, 83, 50, 255)),
+        ("modal_slider_progress_hover", (126, 158, 102, 255), (176, 128, 51, 255)),
     ):
         track = Image.new("RGBA", (24, 8))
         track_draw = ImageDraw.Draw(track)
@@ -920,9 +982,9 @@ def make_panels() -> None:
         save_nineslice(name, track, 3)
 
     for state, fill, border in (
-        ("", (238, 233, 220, 255), (116, 104, 88, 255)),
-        ("_hover", (249, 243, 227, 255), (168, 135, 91, 255)),
-        ("_pressed", (208, 202, 190, 255), (111, 98, 81, 255)),
+        ("", (251, 234, 190, 255), (103, 79, 47, 255)),
+        ("_hover", (255, 244, 211, 255), (190, 143, 61, 255)),
+        ("_pressed", (210, 191, 149, 255), (71, 58, 42, 255)),
     ):
         thumb = Image.new("RGBA", (12, 18))
         thumb_draw = ImageDraw.Draw(thumb)
@@ -932,10 +994,10 @@ def make_panels() -> None:
         save_full_texture(f"modal_slider_thumb{state}", thumb)
 
     step_colors = {
-        "modal_slider_step": (139, 127, 110, 210),
-        "modal_slider_step_hover": (163, 132, 91, 235),
-        "modal_slider_step_progress": (101, 126, 96, 230),
-        "modal_slider_step_progress_hover": (126, 151, 119, 255),
+        "modal_slider_step": (139, 116, 76, 210),
+        "modal_slider_step_hover": (188, 142, 65, 235),
+        "modal_slider_step_progress": (66, 103, 59, 230),
+        "modal_slider_step_progress_hover": (105, 140, 86, 255),
     }
     for name, color in step_colors.items():
         Image.new("RGBA", (2, 6), color).save(OUTPUT / f"{name}.png", optimize=True)
@@ -947,18 +1009,29 @@ def make_panels() -> None:
                 name += "_hover"
             radio = Image.new("RGBA", (12, 12))
             radio_draw = ImageDraw.Draw(radio)
-            border = (164, 132, 91, 255) if hovered else (128, 116, 99, 255)
-            radio_draw.ellipse((0, 0, 11, 11), fill=(244, 240, 230, 255), outline=border, width=1)
+            border = (190, 143, 61, 255) if hovered else (126, 101, 66, 255)
+            radio_draw.ellipse((0, 0, 11, 11), fill=(255, 248, 226, 255), outline=border, width=1)
             if selected:
-                radio_draw.ellipse((3, 3, 8, 8), fill=(126, 153, 119, 255))
+                radio_draw.ellipse((3, 3, 8, 8), fill=(78, 116, 68, 255))
             save_full_texture(name, radio)
 
     info = Image.new("RGBA", (7, 11))
     info_draw = ImageDraw.Draw(info)
-    info_draw.ellipse((0, 2, 6, 8), fill=(205, 216, 199, 255), outline=(112, 101, 85, 255), width=1)
-    info_draw.point((3, 4), fill=(73, 65, 56, 255))
-    info_draw.line((3, 6, 3, 7), fill=(73, 65, 56, 255), width=1)
+    info_draw.ellipse((0, 2, 6, 8), fill=(216, 227, 192, 255), outline=(80, 109, 70, 255), width=1)
+    info_draw.point((3, 4), fill=(46, 66, 43, 255))
+    info_draw.line((3, 6, 3, 7), fill=(46, 66, 43, 255), width=1)
     save_full_texture("modal_info", info)
+
+    for state, fill, border in (
+        ("default", (64, 94, 61, 255), (42, 61, 40, 255)),
+        ("hover", (88, 123, 77, 255), (216, 177, 94, 255)),
+        ("pressed", (46, 69, 45, 255), (166, 132, 72, 255)),
+    ):
+        primary = Image.new("RGBA", (24, 24))
+        primary_draw = ImageDraw.Draw(primary)
+        primary_draw.rounded_rectangle((0, 0, 23, 23), radius=5, fill=fill, outline=border, width=1)
+        primary_draw.line((5, 3, 18, 3), fill=(164, 190, 132, 160), width=1)
+        save_nineslice(f"primary_{state}", primary, 6)
 
 
 def make_card_background(name: str, base: tuple[int, int, int], state: str) -> Image.Image:
@@ -986,17 +1059,17 @@ def make_card_background(name: str, base: tuple[int, int, int], state: str) -> I
 
 def make_generic_button_background(state: str) -> Image.Image:
     if state == "hover":
-        fill = (242, 236, 222, 252)
-        border = (176, 150, 111, 255)
+        fill = (231, 239, 207, 255)
+        border = (103, 130, 87, 255)
     elif state == "pressed":
-        fill = (211, 205, 193, 252)
-        border = (132, 117, 97, 255)
+        fill = (205, 215, 183, 255)
+        border = (70, 95, 62, 255)
     else:
-        fill = (230, 226, 216, 252)
-        border = (154, 140, 118, 235)
+        fill = (250, 244, 224, 255)
+        border = (184, 158, 108, 255)
     image = Image.new("RGBA", (24, 24))
     draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((0, 0, 23, 23), radius=6, fill=fill, outline=border, width=1)
+    draw.rounded_rectangle((0, 0, 23, 23), radius=5, fill=fill, outline=border, width=1)
     return image
 
 
@@ -1162,6 +1235,7 @@ def make_runtime_textures(scenes: dict[str, Image.Image]) -> None:
         (512, 512), Image.Resampling.LANCZOS
     ).save(OUTPUT / "background.png", optimize=True)
     make_panels()
+    extract_submenu_emblems()
     for card, scene in scenes.items():
         for state in ("default", "hover", "pressed"):
             save_full_texture(
@@ -1243,18 +1317,20 @@ def make_preview(cards: dict[str, Image.Image], scenes: dict[str, Image.Image]) 
 
 def make_submenu_preview(cards: dict[str, Image.Image]) -> None:
     background = Image.open(BRAND_BACKGROUND).convert("RGBA").resize((1600, 900), Image.Resampling.LANCZOS)
-    background = ImageEnhance.Brightness(background).enhance(0.88)
-    canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (56, 48, 41, 36)))
+    background = ImageEnhance.Brightness(background).enhance(0.82)
+    canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (30, 37, 28, 36)))
     draw = ImageDraw.Draw(canvas)
-    dialog = (420, 120, 1180, 760)
-    draw.rounded_rectangle((426, 126, 1186, 766), radius=18, fill=(31, 28, 25, 105))
-    draw.rounded_rectangle(dialog, radius=18, fill=(236, 231, 219, 252), outline=(105, 93, 78), width=2)
-    draw.text((454, 144), "经济系统", font=get_font(35), fill=(51, 46, 41))
-    draw.text((456, 187), "选择一项继续", font=get_font(17), fill=(112, 99, 84))
-    close = Image.open(OUTPUT / "close_default.png").resize((38, 38), Image.Resampling.NEAREST)
-    canvas.alpha_composite(close, (1118, 142))
-    draw.text((456, 216), "请选择你要进行的操作。", font=get_font(16), fill=(69, 62, 55))
-    draw.text((456, 239), "当前余额：0 金币", font=get_font(16), fill=(69, 62, 55))
+    dialog = (500, 90, 1100, 810)
+    draw.rounded_rectangle((507, 98, 1107, 818), radius=18, fill=(24, 26, 22, 125))
+    draw.rounded_rectangle(dialog, radius=18, fill=(244, 234, 207), outline=(69, 57, 42), width=3)
+    draw.rounded_rectangle((513, 102, 1087, 198), radius=13, fill=(58, 82, 59), outline=(43, 54, 42), width=2)
+    emblem = Image.open(OUTPUT / "submenu_emblem.png").resize((78, 78), Image.Resampling.NEAREST)
+    canvas.alpha_composite(emblem, (522, 107))
+    draw.text((604, 127), "经济系统", font=get_font(32), fill=(255, 243, 204), stroke_width=1, stroke_fill=(32, 46, 33))
+    draw.text((606, 155), "冒险手册 · 选择行动", font=get_font(16), fill=(210, 200, 156))
+    close = Image.open(OUTPUT / "close_default.png").resize((42, 42), Image.Resampling.NEAREST)
+    canvas.alpha_composite(close, (1032, 129))
+    draw.rounded_rectangle((512, 210, 1088, 796), radius=12, fill=(255, 249, 231), outline=(186, 158, 106), width=2)
 
     rows = [
         ("shop", "官方商店", "购买服务器商品与限时物资"),
@@ -1263,14 +1339,18 @@ def make_submenu_preview(cards: dict[str, Image.Image]) -> None:
         ("economy", "红包", "发送或领取服务器红包"),
         ("other", "出售背包物品", "按服务器回收价快速出售"),
     ]
-    y = 270
+    draw.rounded_rectangle((1082, 214, 1086, 792), radius=2, fill=(224, 216, 194), outline=(141, 127, 103), width=1)
+    draw.rounded_rectangle((1082, 220, 1086, 344), radius=2, fill=(86, 87, 79), outline=(49, 48, 44), width=1)
+    y = 228
     for name, title, description in rows:
-        draw.rounded_rectangle((450, y, 1150, y + 76), radius=12, fill=(226, 222, 211, 252), outline=(112, 99, 83), width=1)
-        draw.rounded_rectangle((463, y + 8, 523, y + 68), radius=9, fill=(205, 216, 199), outline=(112, 101, 85), width=1)
-        art = cards[name].resize((56, 56), Image.Resampling.NEAREST)
-        canvas.alpha_composite(art, (465, y + 10))
-        draw.text((544, y + 21), title, font=get_font(24), fill=(51, 46, 41))
-        draw.text((1110, y + 16), "›", font=get_font(32), fill=(105, 91, 75))
+        draw.rounded_rectangle((520, y, 1074, y + 76), radius=10, fill=(250, 244, 224), outline=(184, 158, 108), width=2)
+        draw.rounded_rectangle((522, y + 10, 528, y + 66), radius=3, fill=(75, 110, 68))
+        draw.rounded_rectangle((542, y + 10, 598, y + 66), radius=9, fill=(214, 225, 191), outline=(93, 117, 79), width=1)
+        art = cards[name].resize((48, 48), Image.Resampling.NEAREST)
+        canvas.alpha_composite(art, (546, y + 14))
+        draw.text((622, y + 10), title, font=get_font(23), fill=(58, 52, 42))
+        draw.text((623, y + 39), description, font=get_font(15), fill=(105, 92, 71))
+        draw.text((1039, y + 15), "›", font=get_font(31), fill=(79, 114, 69))
         y += 86
     save_preview(canvas, SUBMENU_PREVIEW)
 
@@ -1280,39 +1360,44 @@ def make_modal_preview() -> None:
     background = ImageEnhance.Brightness(background).enhance(0.82)
     canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (54, 47, 40, 45)))
     draw = ImageDraw.Draw(canvas)
-    dialog = (440, 120, 1160, 780)
-    draw.rounded_rectangle((447, 127, 1167, 787), radius=18, fill=(31, 28, 25, 105))
-    draw.rounded_rectangle(dialog, radius=18, fill=(236, 231, 219, 252), outline=(105, 93, 78), width=2)
-    draw.text((472, 145), "玩家传送", font=get_font(34), fill=(51, 46, 41))
+    dialog = (460, 72, 1140, 828)
+    draw.rounded_rectangle((468, 80, 1148, 836), radius=18, fill=(31, 28, 25, 115))
+    draw.rounded_rectangle(dialog, radius=18, fill=(244, 234, 207), outline=(69, 57, 42), width=3)
+    draw.rounded_rectangle((472, 84, 1128, 180), radius=13, fill=(58, 82, 59), outline=(43, 54, 42), width=2)
+    emblem = Image.open(OUTPUT / "modal_emblem.png").resize((78, 78), Image.Resampling.NEAREST)
+    canvas.alpha_composite(emblem, (482, 95))
+    draw.text((565, 109), "玩家传送", font=get_font(32), fill=(255, 243, 204), stroke_width=1, stroke_fill=(32, 46, 33))
+    draw.text((567, 137), "冒险手册 · 填写与设置", font=get_font(16), fill=(210, 200, 156))
     close = Image.open(OUTPUT / "close_default.png").resize((38, 38), Image.Resampling.NEAREST)
-    canvas.alpha_composite(close, (1094, 142))
+    canvas.alpha_composite(close, (1068, 112))
+    draw.rounded_rectangle((472, 192, 1128, 812), radius=12, fill=(255, 249, 231), outline=(186, 158, 106), width=2)
 
     rows = (("选择玩家", "YingLin3467"), ("选择传送方式", "传送到玩家"))
     y = 225
     for label, value in rows:
-        draw.text((474, y), label, font=get_font(20), fill=(69, 61, 54))
+        draw.text((496, y), label, font=get_font(20), fill=(61, 79, 54))
         draw.rounded_rectangle(
-            (472, y + 35, 1128, y + 103),
+            (494, y + 35, 1106, y + 103),
             radius=12,
-            fill=(244, 240, 230, 255),
-            outline=(154, 140, 118, 245),
+            fill=(255, 249, 232, 255),
+            outline=(163, 137, 89, 255),
             width=2,
         )
-        draw.text((500, y + 53), value, font=get_font(24), fill=(62, 55, 48))
-        draw.polygon(((1083, y + 62), (1101, y + 62), (1092, y + 72)), fill=(101, 89, 74))
+        draw.text((520, y + 53), value, font=get_font(24), fill=(62, 55, 48))
+        draw.polygon(((1061, y + 62), (1079, y + 62), (1070, y + 72)), fill=(78, 106, 68))
         y += 145
 
     draw.rounded_rectangle(
-        (472, 535, 1128, 605),
+        (494, 550, 1106, 620),
         radius=12,
-        fill=(230, 226, 216, 252),
-        outline=(154, 140, 118, 235),
+        fill=(64, 94, 61, 255),
+        outline=(42, 61, 40, 255),
         width=2,
     )
     confirm = "确认"
     confirm_box = draw.textbbox((0, 0), confirm, font=get_font(25))
     confirm_width = confirm_box[2] - confirm_box[0]
-    draw.text((800 - confirm_width // 2, 553), confirm, font=get_font(25), fill=(56, 50, 44))
+    draw.text((800 - confirm_width // 2, 568), confirm, font=get_font(25), fill=(255, 243, 204))
     save_preview(canvas, MODAL_PREVIEW)
 
 
@@ -1321,15 +1406,19 @@ def make_message_preview() -> None:
     background = ImageEnhance.Brightness(background).enhance(0.82)
     canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (54, 47, 40, 45)))
     draw = ImageDraw.Draw(canvas)
-    dialog = (430, 135, 1170, 765)
-    draw.rounded_rectangle((437, 142, 1177, 772), radius=18, fill=(31, 28, 25, 105))
-    draw.rounded_rectangle(dialog, radius=18, fill=(236, 231, 219, 252), outline=(105, 93, 78), width=2)
-    draw.text((462, 158), "公开信息", font=get_font(34), fill=(51, 46, 41))
+    dialog = (470, 95, 1130, 805)
+    draw.rounded_rectangle((478, 103, 1138, 813), radius=18, fill=(31, 28, 25, 115))
+    draw.rounded_rectangle(dialog, radius=18, fill=(244, 234, 207), outline=(69, 57, 42), width=3)
+    draw.rounded_rectangle((482, 107, 1118, 203), radius=13, fill=(58, 82, 59), outline=(43, 54, 42), width=2)
+    emblem = Image.open(OUTPUT / "message_emblem.png").resize((78, 78), Image.Resampling.NEAREST)
+    canvas.alpha_composite(emblem, (492, 114))
+    draw.text((575, 132), "公开信息", font=get_font(32), fill=(255, 243, 204), stroke_width=1, stroke_fill=(32, 46, 33))
+    draw.text((577, 160), "冒险手册 · 消息与确认", font=get_font(16), fill=(210, 200, 156))
     close = Image.open(OUTPUT / "close_default.png").resize((38, 38), Image.Resampling.NEAREST)
-    canvas.alpha_composite(close, (1104, 155))
+    canvas.alpha_composite(close, (1058, 136))
 
-    body = (462, 215, 1138, 650)
-    draw.rounded_rectangle(body, radius=12, fill=(244, 240, 230, 255), outline=(154, 140, 118, 245), width=2)
+    body = (482, 215, 1118, 664)
+    draw.rounded_rectangle(body, radius=12, fill=(255, 249, 231), outline=(186, 158, 106), width=2)
     lines = (
         "会长：YingLin3467",
         "副会长：（无）",
@@ -1344,24 +1433,50 @@ def make_message_preview() -> None:
     )
     y = 244
     for line in lines:
-        draw.text((490, y), line, font=get_font(22), fill=(64, 56, 49))
+        draw.text((510, y), line, font=get_font(22), fill=(64, 56, 49))
         y += 34
-    draw.rounded_rectangle((1119, 239, 1126, 626), radius=3, fill=(209, 202, 188, 220))
-    draw.rounded_rectangle((1119, 239, 1126, 385), radius=3, fill=(132, 119, 101, 245))
+    draw.rounded_rectangle((1097, 239, 1104, 640), radius=3, fill=(221, 207, 173, 220))
+    draw.rounded_rectangle((1097, 239, 1104, 385), radius=3, fill=(88, 116, 76, 245))
 
-    buttons = ((462, 671, 794, 724, "刷新"), (806, 671, 1138, 724, "返回"))
+    buttons = ((482, 685, 794, 749, "刷新"), (806, 685, 1118, 749, "返回"))
     for left, top, right, bottom, label in buttons:
         draw.rounded_rectangle(
             (left, top, right, bottom),
             radius=11,
-            fill=(230, 226, 216, 252),
-            outline=(154, 140, 118, 235),
+            fill=(250, 244, 224, 255),
+            outline=(184, 158, 108, 255),
             width=2,
         )
         text_box = draw.textbbox((0, 0), label, font=get_font(23))
         text_width = text_box[2] - text_box[0]
         draw.text(((left + right - text_width) // 2, top + 13), label, font=get_font(23), fill=(56, 50, 44))
     save_preview(canvas, MESSAGE_PREVIEW)
+
+
+def make_quest_toast_preview() -> None:
+    background = Image.open(BRAND_BACKGROUND).convert("RGBA").resize((1600, 900), Image.Resampling.LANCZOS)
+    background = ImageEnhance.Brightness(background).enhance(0.78)
+    canvas = Image.alpha_composite(background, Image.new("RGBA", background.size, (25, 31, 23, 45)))
+    draw = ImageDraw.Draw(canvas)
+    draw.text((120, 72), "任务提示 · 冒险手册票据", font=get_font(36), fill=(255, 244, 213), stroke_width=2, stroke_fill=(42, 51, 39))
+    variants = (
+        ((79, 133, 72), "普通委托", "新活儿到账  要致富，先撸树 · 目标已写进日志"),
+        ((64, 122, 168), "稀有委托", "进度有动静  深海之心 · 3/8"),
+        ((125, 89, 148), "史诗委托", "漂亮，收工  城市之翼 · 奖励已解锁"),
+        ((184, 107, 46), "传说委托", "奖励落袋  信标之巅 · 奖励已经收好"),
+    )
+    emblem = Image.open(OUTPUT / "quest_emblem.png").resize((92, 92), Image.Resampling.NEAREST)
+    y = 160
+    for accent, rarity, text in variants:
+        draw.rounded_rectangle((720, y + 9, 1440, y + 145), radius=16, fill=(24, 24, 21, 110))
+        draw.rounded_rectangle((700, y, 1420, y + 136), radius=16, fill=(248, 237, 207), outline=(68, 57, 42), width=3)
+        draw.rounded_rectangle((720, y + 20, 824, y + 116), radius=15, fill=(70, 91, 65), outline=(44, 55, 40), width=2)
+        canvas.alpha_composite(emblem, (726, y + 20))
+        draw.rounded_rectangle((710, y + 18, 718, y + 118), radius=4, fill=accent)
+        draw.text((850, y + 24), rarity, font=get_font(20), fill=accent)
+        draw.text((850, y + 59), text, font=get_font(20), fill=(55, 49, 40))
+        y += 158
+    save_preview(canvas, QUEST_TOAST_PREVIEW)
 
 
 def main() -> None:
@@ -1376,6 +1491,7 @@ def main() -> None:
     make_submenu_preview(cards)
     make_modal_preview()
     make_message_preview()
+    make_quest_toast_preview()
     print(f"Built {len(cards)} card illustrations and previews in {PREVIEW.parent}")
 
 

@@ -23,26 +23,45 @@ function walkTypeScript(directory) {
   });
 }
 
-test("submenu cards stay compact with a visible three-pixel gap", () => {
+test("submenu cards use the field-guide rhythm with a visible three-pixel gap", () => {
   const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
   const item = ui.generic_dynamic_button;
   const button = ui["generic_button@common.button"];
 
-  assert.deepEqual(item.size, ["100%", 36]);
-  assert.deepEqual(button.size, ["100%", 33]);
+  assert.deepEqual(item.size, ["100%", 39]);
+  assert.deepEqual(button.size, ["100%", 36]);
   assert.equal(item.size[1] - button.size[1], 3);
   assert.equal(item.bindings[0].binding_collection_name, "form_buttons");
+  const label = ui.generic_button_state.controls.find((control) => control.label).label;
+  assert.deepEqual(label.size, ["100% - 64px", "default"]);
+  assert.deepEqual(label.max_size, ["100% - 64px", 30]);
+  assert.deepEqual(label.offset, [44, -1]);
   assert.deepEqual(button.controls[1]["hover@creeper_menu.generic_button_state"].$cm_state_offset, [0, 1]);
   assert.deepEqual(button.controls[2]["pressed@creeper_menu.generic_button_state"].$cm_state_offset, [0, 2]);
   assert.doesNotMatch(JSON.stringify(item), /common_buttons\.light_text_button/);
 });
 
-test("submenu header uses one vertically centered title without a duplicate subtitle", () => {
+test("submenu header uses a branded field-guide title hierarchy", () => {
   const ui = JSON.parse(read("resource_packs", "CreeperMenu", "ui", "creeper_menu.json"));
-  const title = ui.generic_header.controls[0].title;
+  const title = ui.generic_header.controls.find((control) => control.title).title;
+  const subtitle = ui.generic_header.controls.find((control) => control.subtitle).subtitle;
+  const emblem = ui.generic_header.controls.find((control) => control.emblem).emblem;
+  const dialog = ui.generic_long_form.controls[0].dialog;
+  const contentFrame = dialog.controls.find((control) => control.content_frame).content_frame;
+  const scroll = contentFrame.controls[0]["scroll@common.scrolling_panel"];
 
-  assert.deepEqual(title.offset, [0, 0]);
-  assert.equal(ui.generic_header.controls.some((control) => "subtitle" in control), false);
+  assert.deepEqual(ui.generic_header.size, ["100% - 16px", 56]);
+  assert.equal(ui.generic_header.size[0], contentFrame.size[0]);
+  assert.deepEqual(title.offset, [50, -4]);
+  assert.deepEqual(subtitle.offset, [51, 7]);
+  assert.equal(subtitle.text, "冒险手册 · 选择行动");
+  assert.equal(emblem.texture, "textures/ui/creeper_menu/submenu_emblem");
+  assert.deepEqual(emblem.offset, [5, -2]);
+  assert.equal(ui.generic_header.texture, "textures/ui/creeper_menu/header_band");
+  assert.deepEqual(scroll.$scroll_size, [2, "100%"]);
+  assert.deepEqual(scroll.size, ["100%", "100% - 10px"]);
+  assert.deepEqual(scroll.$scrolling_pane_size, ["100%", "100%"]);
+  assert.deepEqual(scroll.$scroll_bar_right_padding_size, [0, 0]);
 });
 
 test("project ActionForms supply icons for implicit navigation buttons", () => {

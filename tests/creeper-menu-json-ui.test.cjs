@@ -157,7 +157,7 @@ test("project MessageForms use a dedicated two-button themed route", () => {
   const wrapper = read("scripts", "ui", "creeper-message-form.ts");
   const route = menu.long_form_router.controls[2]["project_message_form@creeper_menu.form_type"];
   const nativeDialog = serverForm.long_form.controls[0]["long_form@common_dialogs.main_panel_no_buttons"];
-  const titleBindings = message.header.controls[0].title.bindings;
+  const titleBindings = message.header.controls.find((control) => control.title).title.bindings;
   const footerControls = message.footer.controls;
   const button = message["message_button@common.button"];
 
@@ -179,19 +179,37 @@ test("project MessageForms use a dedicated two-button themed route", () => {
   assert.equal(titleBindings[1].source_property_name, "(#title_text - '/CMMESSAGE ')");
   assert.equal(message.body_content.controls[0].body.text, "#form_text");
   assert.equal(message.body_content.controls[0].body.bindings[0].binding_name, "#form_text");
-  assert.deepEqual(message.form.controls[0].dialog.controls[1].body_frame.size, ["100% - 14px", "100% - 94px"]);
+  assert.deepEqual(message.form.variables, [
+    { requires: "$touch", $cm_message_size: ["78%", "82%"] },
+    { requires: "(not $touch)", $cm_message_size: ["46%", "70%"] },
+  ]);
+  assert.equal(message.header.texture, "textures/ui/creeper_menu/header_band");
+  assert.deepEqual(message.header.size, ["100% - 16px", 56]);
+  assert.equal(message.header.controls[0].emblem.texture, "textures/ui/creeper_menu/message_emblem");
+  assert.deepEqual(message.header.controls[0].emblem.offset, [5, -1]);
+  const messageScroll =
+    message.form.controls[0].dialog.controls[1].body_frame.controls[0]["body_scroll@common.scrolling_panel"];
+  assert.deepEqual(messageScroll.$scroll_size, [2, "100%"]);
+  assert.deepEqual(messageScroll.size, ["100%", "100% - 14px"]);
+  assert.deepEqual(messageScroll.$scrolling_pane_size, ["100%", "100%"]);
+  assert.deepEqual(messageScroll.$scroll_bar_right_padding_size, [0, 0]);
+  assert.deepEqual(message.form.controls[0].dialog.controls[1].body_frame.size, ["100% - 16px", "100% - 116px"]);
+  assert.equal(
+    message.form.controls[0].dialog.controls[1].body_frame.texture,
+    "textures/ui/creeper_menu/content_sheet"
+  );
   assert.equal(footerControls[0]["button_one@creeper_message.message_button"].$cm_index, 0);
-  assert.deepEqual(footerControls[0]["button_one@creeper_message.message_button"].size, ["50% - 3px", 28]);
+  assert.deepEqual(footerControls[0]["button_one@creeper_message.message_button"].size, ["50% - 3px", 38]);
   assert.equal(footerControls[2]["button_two@creeper_message.message_button"].$cm_index, 1);
-  assert.deepEqual(footerControls[2]["button_two@creeper_message.message_button"].size, ["50% - 3px", 28]);
-  assert.deepEqual(message.footer.size, ["100% - 14px", 33]);
+  assert.deepEqual(footerControls[2]["button_two@creeper_message.message_button"].size, ["50% - 3px", 38]);
+  assert.deepEqual(message.footer.size, ["100% - 16px", 43]);
   assert.equal(button.$pressed_button_name, "button.form_button_click");
   assert.equal(button.bindings[0].binding_type, "collection_details");
   assert.equal(button.bindings[0].binding_collection_name, "form_buttons");
   const messageButtonLabel = message.button_state.controls[0].label;
   assert.deepEqual(messageButtonLabel.offset, [0, 0]);
   assert.deepEqual(messageButtonLabel.size, ["100% - 12px", "default"]);
-  assert.deepEqual(messageButtonLabel.max_size, ["100% - 12px", 10]);
+  assert.deepEqual(messageButtonLabel.max_size, ["100% - 12px", 16]);
   assert.match(wrapper, /CREEPER_MESSAGE_FORM_PREFIX = "\/CMMESSAGE "/);
   assert.match(wrapper, /ActionFormData as MinecraftActionFormData/);
   assert.doesNotMatch(wrapper, /MessageFormData as MinecraftMessageFormData/);
@@ -241,7 +259,7 @@ test("project ModalForms use one complete themed custom-form route", () => {
   const insertedFactory = serverForm.main_screen_content.modifications[0].value[0].server_form_factory;
   const routeVisibility = modal.form_type.bindings[1].source_property_name;
   const projectRoute = modal.custom_form_router.controls[0]["project_custom_form@creeper_modal.form_type"];
-  const titleBindings = modal.header.controls[0].title.bindings;
+  const titleBindings = modal.header.controls.find((control) => control.title).title.bindings;
   const factoryIds = modal.generated_contents.factory.control_ids;
 
   assert.ok(definitions.ui_defs.includes("ui/creeper_modal.json"));
@@ -256,6 +274,20 @@ test("project ModalForms use one complete themed custom-form route", () => {
   assert.equal(modal.form_type.bindings[0].source_control_name, undefined);
   assert.equal(modal.form.visible, undefined);
   assert.equal(modal.form.bindings, undefined);
+  assert.deepEqual(modal.form.variables, [
+    { requires: "$touch", $cm_modal_size: ["82%", "88%"] },
+    { requires: "(not $touch)", $cm_modal_size: ["50%", "82%"] },
+  ]);
+  assert.equal(modal.header.texture, "textures/ui/creeper_menu/header_band");
+  assert.deepEqual(modal.header.size, ["100% - 16px", 56]);
+  assert.equal(modal.header.controls[0].emblem.texture, "textures/ui/creeper_menu/modal_emblem");
+  assert.deepEqual(modal.header.controls[0].emblem.offset, [5, 1]);
+  const modalScroll =
+    modal.form.controls[0].dialog.controls[1].content_frame.controls[0]["scroll@common.scrolling_panel"];
+  assert.deepEqual(modalScroll.$scroll_size, [2, "100%"]);
+  assert.deepEqual(modalScroll.size, ["100%", "100% - 12px"]);
+  assert.deepEqual(modalScroll.$scrolling_pane_size, ["100%", "100%"]);
+  assert.deepEqual(modalScroll.$scroll_bar_right_padding_size, [0, 0]);
   assert.equal(routeVisibility, "(#title_text = $min) or (#title_text > $min and #title_text < $max)");
   assert.equal(titleBindings[0].binding_name, "#title_text");
   assert.equal(titleBindings[0].source_control_name, undefined);
@@ -275,7 +307,7 @@ test("project ModalForms use one complete themed custom-form route", () => {
   assert.equal(modal["custom_slider@settings_common.option_slider"].$control_name, "creeper_modal.slider_control");
   assert.equal(modal["custom_input@settings_common.option_text_edit"].$control_name, "creeper_modal.input_control");
   assert.match(JSON.stringify(modal.custom_dropdown), /creeper_modal\.dropdown_control/);
-  assert.deepEqual(modal.dropdown_control.size, ["100%", 25]);
+  assert.deepEqual(modal.dropdown_control.size, ["100%", 30]);
   assert.equal(modal.dropdown_toggle_content.type, "panel");
   assert.equal(modal.dropdown_toggle_content.anchor_from, "center");
   assert.equal(modal.dropdown_toggle_content.anchor_to, "center");
@@ -283,7 +315,7 @@ test("project ModalForms use one complete themed custom-form route", () => {
   const dropdownToggleChevron = modal.dropdown_toggle_content.controls[1].chevron;
   assert.equal(dropdownToggleLabel.anchor_from, "left_middle");
   assert.equal(dropdownToggleLabel.anchor_to, "left_middle");
-  assert.deepEqual(dropdownToggleLabel.offset, [2, -1]);
+  assert.deepEqual(dropdownToggleLabel.offset, [3, -1]);
   assert.equal(dropdownToggleChevron.anchor_from, "right_middle");
   assert.equal(dropdownToggleChevron.anchor_to, "right_middle");
   assert.equal(
@@ -308,7 +340,7 @@ test("project ModalForms use one complete themed custom-form route", () => {
   assert.equal(dropdownRadio.$radio_label_bindings[0].binding_collection_name, "custom_dropdown");
   assert.equal(dropdownRadio.$radio_label_bindings[1].binding_type, "collection_details");
   assert.equal(modal.radio_visuals.type, "panel");
-  assert.deepEqual(modal.radio_visuals.size, ["100%", 17]);
+  assert.deepEqual(modal.radio_visuals.size, ["100%", 21]);
   const radioImage = modal.radio_visuals.controls[1].radio_image;
   const radioLabel = modal.radio_visuals.controls[2].radio_label;
   assert.equal(radioImage.anchor_from, "left_middle");
@@ -327,7 +359,7 @@ test("project ModalForms use one complete themed custom-form route", () => {
   }
   const submitButton = modal["submit_button@common.button"];
   const submitLabel = modal.submit_state.controls[0]["label@common_buttons.new_ui_binding_button_label"];
-  assert.deepEqual(submitButton.size, ["100%", 26]);
+  assert.deepEqual(submitButton.size, ["100%", 36]);
   assert.equal(submitButton.enabled, true);
   assert.equal(submitLabel.$button_text, "#submit_text");
   assert.equal(submitLabel.$button_text_binding_type, "global");
@@ -335,7 +367,8 @@ test("project ModalForms use one complete themed custom-form route", () => {
   assert.deepEqual(modal.submit_state.$button_offset, [0, -1]);
   assert.equal(submitLabel.$new_ui_label_offset, undefined);
   const lockedSubmitState = submitButton.controls[3]["locked@creeper_modal.submit_state"];
-  assert.deepEqual(lockedSubmitState.$cm_submit_color, [0.3, 0.27, 0.23]);
+  assert.equal(lockedSubmitState.$cm_submit_texture, "textures/ui/creeper_menu/primary_default");
+  assert.deepEqual(lockedSubmitState.$cm_submit_color, [0.55, 0.57, 0.49]);
   assert.equal(lockedSubmitState.alpha, undefined);
   assert.match(wrapper, /CREEPER_MODAL_FORM_PREFIX = "\/CMMODAL "/);
   assert.match(wrapper, /new MinecraftModalFormData\(\)\.title/);
@@ -428,7 +461,7 @@ test("generic forms render their title and keep dynamic button states isolated",
   const customButton = button.controls[0]["button@creeper_menu.generic_button"];
   const buttonTemplate = ui["generic_button@common.button"];
   const buttonState = ui.generic_button_state;
-  const iconChip = buttonState.controls[1].icon_chip;
+  const iconChip = buttonState.controls.find((control) => control.icon_chip).icon_chip;
   const behaviorLogForm = read("scripts", "ui", "forms", "behavior-log", "index.ts");
 
   assert.equal(title.text, "#form_text");
@@ -445,7 +478,8 @@ test("generic forms render their title and keep dynamic button states isolated",
   assert.equal(buttonTemplate.bindings[0].binding_type, "collection_details");
   assert.equal(buttonState.type, "image");
   assert.equal(buttonState.keep_ratio, false);
-  assert.equal(buttonState.controls[0].label.bindings[0].binding_collection_name, "form_buttons");
+  const buttonLabel = buttonState.controls.find((control) => control.label).label;
+  assert.equal(buttonLabel.bindings[0].binding_collection_name, "form_buttons");
   assert.equal(iconChip.bindings[0].binding_name, "#form_button_texture");
   assert.equal(iconChip.bindings[0].binding_name_override, undefined);
   assert.match(
@@ -591,6 +625,16 @@ test("custom menu is registered and every card has generated runtime artwork", (
   assert.equal(rootDialog.type, "panel");
   assert.equal(rootDialog.texture, undefined);
   assert.equal(ui.generic_long_form.controls[0].dialog.texture, "textures/ui/creeper_menu/submenu_panel");
+  assert.deepEqual(ui.generic_long_form.variables, [
+    { requires: "$touch", $cm_submenu_size: ["76%", "86%"] },
+    { requires: "(not $touch)", $cm_submenu_size: ["48%", "76%"] },
+  ]);
+  assert.equal(ui.generic_header.texture, "textures/ui/creeper_menu/header_band");
+  assert.equal(ui.generic_header.controls[0].emblem.texture, "textures/ui/creeper_menu/submenu_emblem");
+  const genericChevron = ui.generic_button_state.controls.find((control) => control.chevron).chevron;
+  assert.match(genericChevron.bindings[1].source_property_name, /textures\/icons\/back/);
+  assert.match(genericChevron.bindings[1].source_property_name, /textures\/icons\/left_arrow/);
+  assert.equal(genericChevron.bindings[1].target_property_name, "#visible");
   assert.equal(ui.card_state.controls.length, 0);
   assert.equal(ui.close_state.keep_ratio, false);
   assert.equal(ui["close_button@common.button"].size, "$cm_close_button_size");
@@ -606,9 +650,27 @@ test("custom menu is registered and every card has generated runtime artwork", (
   assert.match(builder, /creeper-feature-atlas-cozy-imagegen\.png/);
   assert.match(builder, /creeper-mosaic-left-323-imagegen\.png/);
   assert.match(builder, /creeper-mosaic-right-113-imagegen\.png/);
+  assert.match(builder, /creeper-submenu-emblems-imagegen\.png/);
   for (const texture of [
     "submenu_panel.png",
     "submenu_panel.json",
+    "header_band.png",
+    "header_band.json",
+    "content_sheet.png",
+    "content_sheet.json",
+    "list_rail.png",
+    "submenu_emblem.png",
+    "message_emblem.png",
+    "modal_emblem.png",
+    "quest_emblem.png",
+    "quest_toast_panel.png",
+    "quest_toast_panel.json",
+    "quest_badge_chip.png",
+    "quest_badge_chip.json",
+    "primary_default.png",
+    "primary_default.json",
+    "primary_hover.png",
+    "primary_pressed.png",
     "close_default.png",
     "close_hover.png",
     "close_pressed.png",
