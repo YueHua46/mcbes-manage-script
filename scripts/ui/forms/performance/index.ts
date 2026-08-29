@@ -124,16 +124,8 @@ export function openPerformanceDiagnosticsMenu(player: Player, returnForm?: () =
 function openStartDiagnosticsForm(player: Player, returnForm?: () => void): void {
   const form = new ModalFormData();
   form.title("配置性能诊断");
-  form.textField(
-    "诊断持续时间（秒）",
-    "建议 60-300 秒",
-    { defaultValue: "60" }
-  );
-  form.textField(
-    "采样间隔（秒）",
-    "建议 5-20 秒",
-    { defaultValue: "5" }
-  );
+  form.textField("诊断持续时间（秒）", "建议 60-300 秒", { defaultValue: "60" });
+  form.textField("采样间隔（秒）", "建议 5-20 秒", { defaultValue: "5" });
   form.submitButton("开始诊断");
 
   form.show(player).then((data) => {
@@ -160,9 +152,7 @@ function openStartDiagnosticsForm(player: Player, returnForm?: () => void): void
         player,
         {
           title: "参数错误",
-          desc: color.red(
-            "持续时间须为 10-600 秒\n采样间隔须为 1-60 秒"
-          ),
+          desc: color.red("持续时间须为 10-600 秒\n采样间隔须为 1-60 秒"),
         },
         () => openStartDiagnosticsForm(player, returnForm)
       );
@@ -209,11 +199,12 @@ function openRealtimeStatusForm(player: Player): void {
     `${color.yellow("诊断进行中...")}\n\n` +
       `${color.gray("进度:")} ${color.green(`${(progress * 100).toFixed(1)}%`)}\n` +
       `${color.gray("已采样:")} ${color.white(sampleData.length.toString())} 次\n\n` +
-      `${sampleData.length > 0
-        ? `${color.gray("最近一次:")}\n` +
-          `${color.gray("TPS:")} ${color.white(sampleData[sampleData.length - 1].currentTPS.toFixed(1))}\n` +
-          `${color.gray("问题:")} ${color.yellow(sampleData[sampleData.length - 1].issues.length.toString())} 个`
-        : color.gray("等待首次采样...")
+      `${
+        sampleData.length > 0
+          ? `${color.gray("最近一次:")}\n` +
+            `${color.gray("TPS:")} ${color.white(sampleData[sampleData.length - 1].currentTPS.toFixed(1))}\n` +
+            `${color.gray("问题:")} ${color.yellow(sampleData[sampleData.length - 1].issues.length.toString())} 个`
+          : color.gray("等待首次采样...")
       }`
   );
   form.button("刷新", "textures/icons/requeue");
@@ -242,8 +233,7 @@ function openDetailedReportForm(player: Player): void {
   }
 
   const latestReport = sampleData[sampleData.length - 1];
-  const avgTPS =
-    sampleData.reduce((sum, r) => sum + r.currentTPS, 0) / sampleData.length;
+  const avgTPS = sampleData.reduce((sum, r) => sum + r.currentTPS, 0) / sampleData.length;
 
   const form = new ActionFormData();
   form.title("性能诊断详细报告");
@@ -316,11 +306,7 @@ function openDetailedReportForm(player: Player): void {
 /**
  * 打开问题列表表单（分页）
  */
-function openIssueListForm(
-  player: Player,
-  report: PerformanceDiagnosticReport,
-  page: number = 1
-): void {
+function openIssueListForm(player: Player, report: PerformanceDiagnosticReport, page: number = 1): void {
   const pageSize = 10;
   const totalPages = Math.ceil(report.issues.length / pageSize) || 1;
   const safePage = Math.min(Math.max(1, page), totalPages);
@@ -387,9 +373,7 @@ function openIssueDetailForm(
   const form = new ActionFormData();
   form.title("问题详情");
 
-  let bodyText = `${getSeverityColor(issue.severity)(
-    `[${translateSeverity(issue.severity)}]`
-  )}\n\n`;
+  let bodyText = `${getSeverityColor(issue.severity)(`[${translateSeverity(issue.severity)}]`)}\n\n`;
   bodyText += `${color.white("类型:")} ${color.yellow(translateIssueType(issue.type))}\n`;
   bodyText += `${color.white("描述:")} ${color.gray(issue.description)}\n`;
   bodyText += `${color.white("当前值:")} ${color.red(issue.value.toString())}\n`;
@@ -471,9 +455,7 @@ function getSuggestionForIssue(issue: any): string {
       );
     case PerformanceIssueType.TNT_EXPLOSION:
       return (
-        color.white("• TNT 爆炸消耗大量性能\n") +
-        color.white("• 建议分批引爆\n") +
-        color.white("• 避免大规模连锁爆炸")
+        color.white("• TNT 爆炸消耗大量性能\n") + color.white("• 建议分批引爆\n") + color.white("• 避免大规模连锁爆炸")
       );
     default:
       return color.gray("暂无具体建议");

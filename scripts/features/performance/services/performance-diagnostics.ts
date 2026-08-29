@@ -350,10 +350,7 @@ class PerformanceDiagnosticsService {
    * 检测实体聚集问题（刷怪塔）
    * 这是最严重的性能问题之一
    */
-  private detectEntityClusters(
-    entities: any[],
-    dimensionName: string
-  ): PerformanceIssue[] {
+  private detectEntityClusters(entities: any[], dimensionName: string): PerformanceIssue[] {
     const issues: PerformanceIssue[] = [];
     const chunkEntityMap = new Map<string, any[]>();
 
@@ -432,9 +429,7 @@ class PerformanceDiagnosticsService {
   /**
    * 计算综合性能评级
    */
-  private calculateOverallRating(
-    issues: PerformanceIssue[]
-  ): "excellent" | "good" | "fair" | "poor" | "critical" {
+  private calculateOverallRating(issues: PerformanceIssue[]): "excellent" | "good" | "fair" | "poor" | "critical" {
     if (issues.length === 0) return "excellent";
 
     const hasSevere = issues.some((i) => i.severity === PerformanceSeverity.SEVERE);
@@ -492,8 +487,7 @@ class PerformanceDiagnosticsService {
     }
 
     const latestReport = this.sampleData[this.sampleData.length - 1];
-    const avgTPS =
-      this.sampleData.reduce((sum, r) => sum + r.currentTPS, 0) / this.sampleData.length;
+    const avgTPS = this.sampleData.reduce((sum, r) => sum + r.currentTPS, 0) / this.sampleData.length;
 
     // 统计问题出现频率
     const issueFrequency = new Map<string, number>();
