@@ -2,14 +2,18 @@ import {
   BlockPermutation,
   BlockSignComponent,
   SignSide,
+  StructureSaveMode,
+  world,
   type Block,
   type Dimension,
   type DyeColor,
   type RawMessage,
   type Vector3,
 } from "@minecraft/server";
+import { isPistonDestroyedContainerType } from "./piston-destroyed-container";
 
 const MAX_FRAGILE_BLOCK_CACHE_ENTRIES = 50_000;
+const MAX_DESTROYED_CONTAINER_CACHE_ENTRIES = 4_096;
 const ADJACENT_OFFSETS: readonly Vector3[] = [
   { x: 0, y: 0, z: 0 },
   { x: 1, y: 0, z: 0 },
@@ -39,6 +43,15 @@ interface FragileBlockSnapshot {
   waterlogged: boolean;
   sign?: SignSnapshot;
 }
+
+export interface PistonDestroyedContainerSnapshot {
+  structureId: string;
+  dimensionId: string;
+  location: Vector3;
+  typeId: string;
+}
+
+let destroyedContainerSnapshotSequence = 0;
 
 function locationKey(dimensionId: string, location: Vector3): string {
   return `${dimensionId}:${Math.floor(location.x)},${Math.floor(location.y)},${Math.floor(location.z)}`;
@@ -147,10 +160,70 @@ export function isFragilePistonAffectedBlock(typeId: string): boolean {
 
 class FragileBlockCache {
   private readonly entries = new Map<string, FragileBlockSnapshot>();
+  private readonly destroyedContainers = new Map<string, PistonDestroyedContainerSnapshot>();
+
+  private deleteDestroyedContainerSnapshot(snapshot: PistonDestroyedContainerSnapshot | undefined): void {
+    if (!snapshot) return;
+    try {
+      world.structureManager.delete(snapshot.structureId);
+    } catch {
+      /* structure may already have been removed during reload */
+    }
+  }
+
+  private removeDestroyedContainer(dimensionId: string, location: Vector3): void {
+    const key = locationKey(dimensionId, location);
+    const previous = this.destroyedContainers.get(key);
+    this.destroyedContainers.delete(key);
+    this.deleteDestroyedContainerSnapshot(previous);
+  }
+
+  private captureDestroyedContainer(block: Block): void {
+    const key = locationKey(block.dimension.id, block.location);
+    const location = {
+      x: Math.floor(block.location.x),
+      y: Math.floor(block.location.y),
+      z: Math.floor(block.location.z),
+    };
+    const structureId = `creeper_menu:piston_boundary_container_${++destroyedContainerSnapshotSequence}`;
+    try {
+      world.structureManager.createFromWorld(structureId, block.dimension, location, location, {
+        includeBlocks: true,
+        includeEntities: false,
+        saveMode: StructureSaveMode.Memory,
+      });
+    } catch {
+      return;
+    }
+
+    const previous = this.destroyedContainers.get(key);
+    this.destroyedContainers.delete(key);
+    this.destroyedContainers.set(key, {
+      structureId,
+      dimensionId: block.dimension.id,
+      location,
+      typeId: block.typeId,
+    });
+    this.deleteDestroyedContainerSnapshot(previous);
+
+    while (this.destroyedContainers.size > MAX_DESTROYED_CONTAINER_CACHE_ENTRIES) {
+      const oldestKey = this.destroyedContainers.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      const oldest = this.destroyedContainers.get(oldestKey);
+      this.destroyedContainers.delete(oldestKey);
+      this.deleteDestroyedContainerSnapshot(oldest);
+    }
+  }
 
   captureBlock(block: Block): void {
     const key = locationKey(block.dimension.id, block.location);
     try {
+      if (isPistonDestroyedContainerType(block.typeId)) {
+        this.entries.delete(key);
+        this.captureDestroyedContainer(block);
+        return;
+      }
+      this.removeDestroyedContainer(block.dimension.id, block.location);
       if (!isFragilePistonAffectedBlock(block.typeId)) {
         this.entries.delete(key);
         return;
@@ -180,6 +253,23 @@ class FragileBlockCache {
 
   remove(dimensionId: string, location: Vector3): void {
     this.entries.delete(locationKey(dimensionId, location));
+    this.removeDestroyedContainer(dimensionId, location);
+  }
+
+  getDestroyedContainerSnapshots(
+    dimension: Dimension,
+    locations: readonly Vector3[]
+  ): PistonDestroyedContainerSnapshot[] {
+    const snapshots: PistonDestroyedContainerSnapshot[] = [];
+    const visited = new Set<string>();
+    for (const location of locations) {
+      const key = locationKey(dimension.id, location);
+      if (visited.has(key)) continue;
+      visited.add(key);
+      const snapshot = this.destroyedContainers.get(key);
+      if (snapshot?.dimensionId === dimension.id) snapshots.push(snapshot);
+    }
+    return snapshots;
   }
 
   refreshLocations(
@@ -194,7 +284,7 @@ class FragileBlockCache {
       visited.add(key);
       try {
         if (shouldCache && !shouldCache(location)) {
-          this.entries.delete(key);
+          this.remove(dimension.id, location);
           continue;
         }
         const block = dimension.getBlock(location);
@@ -258,7 +348,7 @@ class FragileBlockCache {
   }
 
   get size(): number {
-    return this.entries.size;
+    return this.entries.size + this.destroyedContainers.size;
   }
 }
 

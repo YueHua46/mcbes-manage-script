@@ -1,9 +1,7 @@
 import type { Vector3 } from "../../../core/types";
+import type { PistonBlockMove } from "./piston-movement-plan";
 
-export interface PistonBlockMove {
-  source: Vector3;
-  destination: Vector3;
-}
+export type { PistonBlockMove } from "./piston-movement-plan";
 
 /**
  * 找出第一项非法的活塞移动。
