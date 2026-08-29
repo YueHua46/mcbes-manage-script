@@ -59,27 +59,25 @@
     "anchor_from": "top_right",
     "anchor_to": "top_right",
     "offset": [-8, 8],
-    "size": [208, 42],
-    "texture": "textures/ui/creeper_menu/submenu_panel",
-    "nineslice_size": 8,
-    "alpha": 0.98,
+    "size": [218, 58],
+    "texture": "textures/ui/creeper_menu/quest_toast_panel",
+    "nineslice_size": 6,
+    "alpha": 1.0,
     "layer": 30,
     "$cm_quest_text": "$actionbar_text",
     "$cm_quest_marker": "[CMQUEST_COMMON]",
     "$cm_quest_accent": [0.31, 0.52, 0.3],
     "$cm_quest_rarity_label": "普通委托",
     "$cm_quest_icon": "◆",
-    "$cm_quest_show_corner_gems": false,
-    "$cm_quest_show_double_line": false,
     "visible": "(not (($cm_quest_text - $cm_quest_marker) = $cm_quest_text))",
     "controls": [
       {
         "top_accent": {
           "type": "image",
-          "anchor_from": "top_middle",
-          "anchor_to": "top_middle",
-          "offset": [0, 6],
-          "size": [184, 2],
+          "anchor_from": "left_middle",
+          "anchor_to": "left_middle",
+          "offset": [5, 0],
+          "size": [3, 42],
           "texture": "textures/ui/white",
           "color": "$cm_quest_accent",
           "alpha": 0.9,
@@ -91,23 +89,20 @@
           "type": "image",
           "anchor_from": "left_middle",
           "anchor_to": "left_middle",
-          "offset": [6, 0],
-          "size": [32, 32],
-          "texture": "textures/ui/creeper_menu/icon_chip",
-          "nineslice_size": 7,
+          "offset": [11, 0],
+          "size": [40, 40],
+          "texture": "textures/ui/creeper_menu/quest_badge_chip",
+          "nineslice_size": 5,
           "layer": 31,
           "controls": [
             {
               "badge_icon": {
-                "type": "label",
+                "type": "image",
                 "anchor_from": "center",
                 "anchor_to": "center",
-                "text": "$cm_quest_icon",
-                "font_scale_factor": 0.9,
-                "text_alignment": "center",
-                "color": "$cm_quest_accent",
-                "shadow": false,
-                "localize": false,
+                "offset": [0, -1],
+                "size": [32, 32],
+                "texture": "textures/ui/creeper_menu/quest_emblem",
                 "visible": "((($cm_quest_text - '§r§0§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§d§r') = $cm_quest_text))",
                 "layer": 32
               }
@@ -2016,10 +2011,10 @@
           "type": "label",
           "anchor_from": "left_middle",
           "anchor_to": "left_middle",
-          "offset": [42, -9],
-          "size": [148, 11],
+          "offset": [57, -14],
+          "size": [148, 12],
           "text": "$cm_quest_rarity_label",
-          "font_scale_factor": 0.62,
+          "font_scale_factor": 0.58,
           "text_alignment": "left",
           "color": "$cm_quest_accent",
           "shadow": false,
@@ -2032,59 +2027,16 @@
           "type": "label",
           "anchor_from": "left_middle",
           "anchor_to": "left_middle",
-          "offset": [42, 6],
-          "size": [156, 22],
+          "offset": [57, 8],
+          "size": [151, 32],
           "text": "($cm_quest_text - $cm_quest_marker)",
-          "font_scale_factor": 0.68,
+          "font_scale_factor": 0.64,
+          "line_padding": 0,
           "text_alignment": "left",
           "color": [0.2, 0.18, 0.16],
           "shadow": false,
           "localize": false,
           "layer": 32
-        }
-      },
-      {
-        "corner_gem_left": {
-          "type": "label",
-          "anchor_from": "top_left",
-          "anchor_to": "top_left",
-          "offset": [7, 4],
-          "text": "◆",
-          "font_scale_factor": 0.48,
-          "color": "$cm_quest_accent",
-          "shadow": false,
-          "localize": false,
-          "visible": "$cm_quest_show_corner_gems",
-          "layer": 32
-        }
-      },
-      {
-        "corner_gem_right": {
-          "type": "label",
-          "anchor_from": "top_right",
-          "anchor_to": "top_right",
-          "offset": [-7, 4],
-          "text": "◆",
-          "font_scale_factor": 0.48,
-          "color": "$cm_quest_accent",
-          "shadow": false,
-          "localize": false,
-          "visible": "$cm_quest_show_corner_gems",
-          "layer": 32
-        }
-      },
-      {
-        "ceremony_line": {
-          "type": "image",
-          "anchor_from": "bottom_middle",
-          "anchor_to": "bottom_middle",
-          "offset": [0, -6],
-          "size": [184, 1],
-          "texture": "textures/ui/white",
-          "color": "$cm_quest_accent",
-          "alpha": 0.72,
-          "visible": "$cm_quest_show_double_line",
-          "layer": 31
         }
       }
     ]
@@ -2100,16 +2052,13 @@
     "$cm_quest_marker": "[CMQUEST_EPIC]",
     "$cm_quest_accent": [0.49, 0.35, 0.58],
     "$cm_quest_rarity_label": "史诗委托",
-    "$cm_quest_icon": "❖",
-    "$cm_quest_show_corner_gems": true
+    "$cm_quest_icon": "❖"
   },
   "cm_quest_toast_legendary@hud.cm_quest_toast": {
     "$cm_quest_marker": "[CMQUEST_LEGENDARY]",
     "$cm_quest_accent": [0.72, 0.42, 0.18],
     "$cm_quest_rarity_label": "传说委托",
-    "$cm_quest_icon": "✹",
-    "$cm_quest_show_corner_gems": true,
-    "$cm_quest_show_double_line": true
+    "$cm_quest_icon": "✹"
   },
   "cm_quest_toast_common_factory": {
     "type": "panel",
