@@ -114,19 +114,19 @@ test("archaeology evidence requires brush plus final suspicious-to-base block tr
 });
 
 test("runtime captures before-state but emits all progress only from successful after-event evidence", () => {
-  assert.match(handlerSource, /world\.beforeEvents\.playerInteractWithEntity\.subscribe/);
+  assert.match(handlerSource, /subscribeQuestEvent\(world\.beforeEvents\.playerInteractWithEntity/);
   assert.match(handlerSource, /pendingEntityInteractions\.set/);
-  assert.match(handlerSource, /world\.afterEvents\.playerInteractWithEntity\.subscribe/);
+  assert.match(handlerSource, /subscribeQuestEvent\(world\.afterEvents\.playerInteractWithEntity/);
   assert.match(handlerSource, /resolveTameEvidence\(/);
   assert.match(handlerSource, /"entity\.tame"/);
 
-  assert.match(handlerSource, /world\.afterEvents\.playerInteractWithBlock\.subscribe/);
+  assert.match(handlerSource, /subscribeQuestEvent\(world\.afterEvents\.playerInteractWithBlock/);
   assert.match(handlerSource, /event\.block\.permutation\.getState\("ominous"\)/);
   assert.match(handlerSource, /resolveVaultUnlockEvidence\(/);
   assert.match(handlerSource, /"vault\.unlock"/);
 
-  assert.match(handlerSource, /world\.beforeEvents\.playerInteractWithBlock\.subscribe/);
-  assert.match(handlerSource, /system\.run\(\(\) =>/);
+  assert.match(handlerSource, /subscribeQuestEvent\(world\.beforeEvents\.playerInteractWithBlock/);
+  assert.match(handlerSource, /scheduleQuestRun\(\(\) =>/);
   assert.match(handlerSource, /dimension\.getBlock\(location\)\?\.typeId/);
   assert.match(handlerSource, /resolveArchaeologyEvidence\(/);
   assert.match(handlerSource, /"archaeology\.brush_success"/);

@@ -17,11 +17,21 @@ import {
   type QuestTameOwnershipSnapshot,
 } from "../../features/quest/integrations/interaction-evidence";
 import { resolveQuestGlideDistance } from "../../features/quest/integrations/glide-distance";
+import {
+  isQuestSystemEnabled,
+  subscribeQuestSystemEnabled,
+  whenQuestSettingsReady,
+} from "../../features/quest/services/quest-runtime-policy";
 
 export { resolveQuestGlideDistance };
 
 const pendingItemDeltas = new Map<string, { player: Player; items: Map<string, number> }>();
 let itemFlushScheduled = false;
+let questRuntimeActive = false;
+let questSettingUnsubscribe: (() => void) | undefined;
+let questSettingsReadyUnsubscribe: (() => void) | undefined;
+const questRuntimeStops: Array<() => void> = [];
+const questScheduledRunIds = new Set<number>();
 const QUEST_MOVEMENT_SAMPLE_INTERVAL_TICKS = 10;
 const QUEST_BIOME_SAMPLE_INTERVAL_TICKS = 40;
 
@@ -39,6 +49,26 @@ const pendingBlockBreaks = new Map<
 >();
 let blockBreakFlushScheduled = false;
 const BLOCK_BREAK_BATCH_DELAY_TICKS = 2; // 累积2 ticks的破坏方块事件后再处理
+
+interface QuestEventSignal<T> {
+  subscribe(callback: (event: T) => void): (event: T) => void;
+  unsubscribe(callback: (event: T) => void): void;
+}
+
+function subscribeQuestEvent<T>(signal: QuestEventSignal<T>, callback: (event: T) => void): void {
+  const subscribed = signal.subscribe(callback);
+  questRuntimeStops.push(() => signal.unsubscribe(subscribed));
+}
+
+function scheduleQuestRun(callback: () => void, delayTicks?: number): void {
+  let runId = 0;
+  const wrapped = () => {
+    questScheduledRunIds.delete(runId);
+    if (questRuntimeActive) callback();
+  };
+  runId = delayTicks === undefined ? system.run(wrapped) : system.runTimeout(wrapped, delayTicks);
+  questScheduledRunIds.add(runId);
+}
 
 type QuestCropStateKey = "growth" | "age";
 
@@ -240,6 +270,7 @@ function notifyQuestChanges(player: Player, changes: ReturnType<typeof questPlay
 }
 
 function addPendingItemDelta(player: Player, itemId: string, amount: number): void {
+  if (!isQuestSystemEnabled()) return;
   if (amount === 0) return;
   const key = player.id;
   const entry = pendingItemDeltas.get(key) ?? { player, items: new Map<string, number>() };
@@ -248,7 +279,7 @@ function addPendingItemDelta(player: Player, itemId: string, amount: number): vo
 
   if (itemFlushScheduled) return;
   itemFlushScheduled = true;
-  system.run(() => {
+  scheduleQuestRun(() => {
     itemFlushScheduled = false;
     flushPendingItemDeltas();
   });
@@ -283,6 +314,7 @@ function addPendingBlockBreak(
   dimension: string,
   harvest?: { crop: string; block: string; amount: number }
 ): void {
+  if (!isQuestSystemEnabled()) return;
   const key = player.id;
   const entry = pendingBlockBreaks.get(key) ?? { player, blocks: [] };
   entry.blocks.push({ blockTypeId, dimension, harvest });
@@ -290,7 +322,7 @@ function addPendingBlockBreak(
 
   if (blockBreakFlushScheduled) return;
   blockBreakFlushScheduled = true;
-  system.runTimeout(() => {
+  scheduleQuestRun(() => {
     blockBreakFlushScheduled = false;
     flushPendingBlockBreaks();
   }, BLOCK_BREAK_BATCH_DELAY_TICKS);
@@ -363,14 +395,19 @@ function flushPendingBlockBreaks(): void {
   });
 }
 
-export function registerQuestEvents(): void {
-  questSnapshotRuntime.subscribe((player, batch) => {
-    notifyQuestChanges(player, questPlayerService.reconcileSnapshots(player, batch));
-  });
+function startQuestEventRuntime(): void {
+  if (questRuntimeActive) return;
+  questRuntimeActive = true;
+
+  questRuntimeStops.push(
+    questSnapshotRuntime.subscribe((player, batch) => {
+      notifyQuestChanges(player, questPlayerService.reconcileSnapshots(player, batch));
+    })
+  );
 
   // Before-events only capture evidence. Quest progress is emitted exclusively
   // after the corresponding successful interaction has completed.
-  world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
+  subscribeQuestEvent(world.beforeEvents.playerInteractWithEntity, (event) => {
     if (!isRealPlayerEntity(event.player)) return;
     const ownership = readTameOwnership(event.target);
     if (!ownership) return;
@@ -382,7 +419,7 @@ export function registerQuestEvents(): void {
     });
   });
 
-  world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
+  subscribeQuestEvent(world.beforeEvents.playerInteractWithBlock, (event) => {
     if (!isRealPlayerEntity(event.player)) return;
     if (
       event.itemStack?.typeId !== "minecraft:brush" ||
@@ -398,7 +435,7 @@ export function registerQuestEvents(): void {
     });
   });
 
-  world.afterEvents.entityDie.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.entityDie, (event) => {
     const killer = event.damageSource.damagingEntity;
     if (!killer || !isRealPlayerEntity(killer)) return;
     const player = killer as Player;
@@ -422,7 +459,7 @@ export function registerQuestEvents(): void {
     );
   });
 
-  world.afterEvents.playerBreakBlock.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.playerBreakBlock, (event) => {
     if (!isRealPlayerEntity(event.player)) return;
     const blockTypeId = event.brokenBlockPermutation.type.id;
     const dimension = normalizedDimensionId(event.dimension.id);
@@ -441,7 +478,7 @@ export function registerQuestEvents(): void {
     addPendingBlockBreak(event.player, blockTypeId, dimension, harvest);
   });
 
-  world.afterEvents.playerInventoryItemChange.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.playerInventoryItemChange, (event) => {
     if (!isRealPlayerEntity(event.player)) return;
     if (event.inventoryType !== PlayerInventoryType.Hotbar && event.inventoryType !== PlayerInventoryType.Inventory)
       return;
@@ -454,7 +491,7 @@ export function registerQuestEvents(): void {
     }
   });
 
-  world.afterEvents.playerPlaceBlock.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.playerPlaceBlock, (event) => {
     if (!isRealPlayerEntity(event.player)) return;
     questSnapshotRuntime.mark(event.player, "inventory", "block_place");
     const blockTypeId = event.block.typeId;
@@ -489,7 +526,7 @@ export function registerQuestEvents(): void {
     }
   });
 
-  world.afterEvents.itemUse.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.itemUse, (event) => {
     if (!isRealPlayerEntity(event.source)) return;
     // Item use can consume inventory or equip armor/elytra directly, so reconcile both summaries once.
     questSnapshotRuntime.markAll(event.source, "item_use");
@@ -508,7 +545,7 @@ export function registerQuestEvents(): void {
     );
   });
 
-  world.afterEvents.playerInteractWithBlock.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.playerInteractWithBlock, (event) => {
     if (!isRealPlayerEntity(event.player)) return;
     const interactionKey = blockInteractionKey(event.player.id, event.block.dimension.id, event.block.location);
     const pendingArchaeology = pendingBlockInteractions.get(interactionKey);
@@ -522,7 +559,7 @@ export function registerQuestEvents(): void {
       const dimension = event.block.dimension;
       const location = { ...event.block.location };
       const completionKey = `${dimension.id}:${location.x},${location.y},${location.z}`;
-      system.run(() => {
+      scheduleQuestRun(() => {
         try {
           const currentBlockTypeId = dimension.getBlock(location)?.typeId;
           if (!currentBlockTypeId) return;
@@ -601,7 +638,7 @@ export function registerQuestEvents(): void {
     }
   });
 
-  world.afterEvents.playerInteractWithEntity.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.playerInteractWithEntity, (event) => {
     if (!isRealPlayerEntity(event.player)) return;
     const interactionKey = entityInteractionKey(event.player.id, event.target.id);
     const pendingTame = pendingEntityInteractions.get(interactionKey);
@@ -654,7 +691,7 @@ export function registerQuestEvents(): void {
     );
   });
 
-  world.afterEvents.effectAdd.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.effectAdd, (event) => {
     if (!isRealPlayerEntity(event.entity)) return;
     const player = event.entity as Player;
     notifyQuestChanges(
@@ -673,12 +710,12 @@ export function registerQuestEvents(): void {
     );
   });
 
-  world.afterEvents.playerSpawn.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.playerSpawn, (event) => {
     if (!event.initialSpawn || !isRealPlayerEntity(event.player)) return;
     questSnapshotRuntime.markAll(event.player, "player_join");
   });
 
-  world.afterEvents.playerDimensionChange.subscribe((event) => {
+  subscribeQuestEvent(world.afterEvents.playerDimensionChange, (event) => {
     if (!isRealPlayerEntity(event.player)) return;
     const dimension = normalizedDimensionId(event.toDimension.id);
     notifyQuestChanges(
@@ -692,161 +729,212 @@ export function registerQuestEvents(): void {
     );
   });
 
-  taskScheduler.register({
-    id: "quest.onlineTime",
-    label: "任务系统在线时长进度",
-    category: "player",
-    intervalTicks: ONLINE_TIME_TICK_INTERVAL,
-    run: () => {
-      for (const player of getOnlineRealPlayers()) {
-        notifyQuestChanges(
-          player,
-          questPlayerService.recordEvent(
-            player,
-            "player.online_time",
-            {
-              seconds: ONLINE_TIME_TICK_INTERVAL / 20,
-              dimension: normalizedDimensionId(player.dimension.id),
-            },
-            { source: "taskScheduler.quest.onlineTime" }
-          )
-        );
-      }
-    },
-  });
-
-  taskScheduler.register({
-    id: "quest.equipmentSnapshotFallback",
-    label: "任务系统装备快照低频校验",
-    category: "player",
-    intervalTicks: 200,
-    run: () => {
-      for (const player of getOnlineRealPlayers()) {
-        questSnapshotRuntime.mark(player, "equipment", "low_frequency_fallback");
-      }
-    },
-  });
-
-  taskScheduler.register({
-    id: "quest.biomeTransitions",
-    label: "任务系统生物群系进入检测",
-    category: "player",
-    intervalTicks: QUEST_BIOME_SAMPLE_INTERVAL_TICKS,
-    run: () => {
-      const onlineIds = new Set<string>();
-      for (const player of getOnlineRealPlayers()) {
-        onlineIds.add(player.id);
-        try {
-          const biomeId = player.dimension.getBiome(player.location).id;
-          if (!resolveBiomeTransition(biomeSamples.get(player.id), biomeId)) continue;
-          biomeSamples.set(player.id, biomeId);
-          const biomeCategory = resolveBiomeCategory(biomeId);
+  questRuntimeStops.push(
+    taskScheduler.register({
+      id: "quest.onlineTime",
+      label: "任务系统在线时长进度",
+      category: "player",
+      intervalTicks: ONLINE_TIME_TICK_INTERVAL,
+      run: () => {
+        if (!isQuestSystemEnabled()) return;
+        for (const player of getOnlineRealPlayers()) {
           notifyQuestChanges(
             player,
             questPlayerService.recordEvent(
               player,
-              "player.biome_enter",
+              "player.online_time",
               {
-                biome: biomeId,
-                ...(biomeCategory ? { biomeCategory } : {}),
+                seconds: ONLINE_TIME_TICK_INTERVAL / 20,
                 dimension: normalizedDimensionId(player.dimension.id),
               },
-              { source: "taskScheduler.quest.biomeTransitions" }
+              { source: "taskScheduler.quest.onlineTime" }
             )
           );
-        } catch {
-          // getBiome can fail around unloaded chunks or invalidated players; do not infer a biome.
         }
-      }
-      for (const playerId of biomeSamples.keys()) {
-        if (!onlineIds.has(playerId)) biomeSamples.delete(playerId);
-      }
-    },
-  });
+      },
+    })
+  );
 
-  taskScheduler.register({
-    id: "quest.movementTransitions",
-    label: "任务系统滑翔与骑乘状态转换",
-    category: "player",
-    intervalTicks: QUEST_MOVEMENT_SAMPLE_INTERVAL_TICKS,
-    run: () => {
-      const onlineIds = new Set<string>();
-      for (const player of getOnlineRealPlayers()) {
-        onlineIds.add(player.id);
-        let ridingEntityId: string | undefined;
-        let ridingEntityTypeId: string | undefined;
-        try {
-          const riding = player.getComponent("minecraft:riding");
-          if (riding?.entityRidingOn?.isValid) {
-            ridingEntityId = riding.entityRidingOn.id;
-            ridingEntityTypeId = riding.entityRidingOn.typeId;
+  questRuntimeStops.push(
+    taskScheduler.register({
+      id: "quest.equipmentSnapshotFallback",
+      label: "任务系统装备快照低频校验",
+      category: "player",
+      intervalTicks: 200,
+      run: () => {
+        if (!isQuestSystemEnabled()) return;
+        for (const player of getOnlineRealPlayers()) {
+          questSnapshotRuntime.mark(player, "equipment", "low_frequency_fallback");
+        }
+      },
+    })
+  );
+
+  questRuntimeStops.push(
+    taskScheduler.register({
+      id: "quest.biomeTransitions",
+      label: "任务系统生物群系进入检测",
+      category: "player",
+      intervalTicks: QUEST_BIOME_SAMPLE_INTERVAL_TICKS,
+      run: () => {
+        if (!isQuestSystemEnabled()) {
+          biomeSamples.clear();
+          return;
+        }
+        const onlineIds = new Set<string>();
+        for (const player of getOnlineRealPlayers()) {
+          onlineIds.add(player.id);
+          try {
+            const biomeId = player.dimension.getBiome(player.location).id;
+            if (!resolveBiomeTransition(biomeSamples.get(player.id), biomeId)) continue;
+            biomeSamples.set(player.id, biomeId);
+            const biomeCategory = resolveBiomeCategory(biomeId);
+            notifyQuestChanges(
+              player,
+              questPlayerService.recordEvent(
+                player,
+                "player.biome_enter",
+                {
+                  biome: biomeId,
+                  ...(biomeCategory ? { biomeCategory } : {}),
+                  dimension: normalizedDimensionId(player.dimension.id),
+                },
+                { source: "taskScheduler.quest.biomeTransitions" }
+              )
+            );
+          } catch {
+            // getBiome can fail around unloaded chunks or invalidated players; do not infer a biome.
           }
-        } catch {
-          // Entity handles may invalidate between the online-player snapshot and this sample.
         }
-        let gliding = false;
-        try {
-          gliding = player.isGliding;
-        } catch {
-          movementSamples.delete(player.id);
-          continue;
+        for (const playerId of biomeSamples.keys()) {
+          if (!onlineIds.has(playerId)) biomeSamples.delete(playerId);
         }
-        const dimensionId = normalizedDimensionId(player.dimension.id);
-        const current: QuestMovementSample = {
-          gliding,
-          ridingEntityId,
-          ridingEntityTypeId,
-          // A non-gliding sample deliberately carries no anchor, so stopping
-          // flight breaks the next distance segment even when sampling resumes nearby.
-          ...(gliding ? { dimensionId, location: { ...player.location } } : {}),
-        };
-        const previous = movementSamples.get(player.id);
-        const transitions = resolveQuestMovementTransitions(previous, current);
-        const glideDistance = resolveQuestGlideDistance(previous, current);
-        movementSamples.set(player.id, current);
+      },
+    })
+  );
 
-        if (transitions.startedGliding) {
-          notifyQuestChanges(
-            player,
-            questPlayerService.recordEvent(
-              player,
-              "player.glide",
-              { dimension: dimensionId },
-              { source: "taskScheduler.quest.movementTransitions" }
-            )
-          );
+  questRuntimeStops.push(
+    taskScheduler.register({
+      id: "quest.movementTransitions",
+      label: "任务系统滑翔与骑乘状态转换",
+      category: "player",
+      intervalTicks: QUEST_MOVEMENT_SAMPLE_INTERVAL_TICKS,
+      run: () => {
+        if (!isQuestSystemEnabled()) {
+          movementSamples.clear();
+          return;
         }
-        if (glideDistance > 0) {
-          notifyQuestChanges(
-            player,
-            questPlayerService.recordEvent(
+        const onlineIds = new Set<string>();
+        for (const player of getOnlineRealPlayers()) {
+          onlineIds.add(player.id);
+          let ridingEntityId: string | undefined;
+          let ridingEntityTypeId: string | undefined;
+          try {
+            const riding = player.getComponent("minecraft:riding");
+            if (riding?.entityRidingOn?.isValid) {
+              ridingEntityId = riding.entityRidingOn.id;
+              ridingEntityTypeId = riding.entityRidingOn.typeId;
+            }
+          } catch {
+            // Entity handles may invalidate between the online-player snapshot and this sample.
+          }
+          let gliding = false;
+          try {
+            gliding = player.isGliding;
+          } catch {
+            movementSamples.delete(player.id);
+            continue;
+          }
+          const dimensionId = normalizedDimensionId(player.dimension.id);
+          const current: QuestMovementSample = {
+            gliding,
+            ridingEntityId,
+            ridingEntityTypeId,
+            // A non-gliding sample deliberately carries no anchor, so stopping
+            // flight breaks the next distance segment even when sampling resumes nearby.
+            ...(gliding ? { dimensionId, location: { ...player.location } } : {}),
+          };
+          const previous = movementSamples.get(player.id);
+          const transitions = resolveQuestMovementTransitions(previous, current);
+          const glideDistance = resolveQuestGlideDistance(previous, current);
+          movementSamples.set(player.id, current);
+
+          if (transitions.startedGliding) {
+            notifyQuestChanges(
               player,
-              "elytra.distance",
-              { distance: glideDistance, dimension: dimensionId },
-              { source: "taskScheduler.quest.movementTransitions" }
-            )
-          );
-        }
-        if (transitions.rideChanged && ridingEntityTypeId) {
-          notifyQuestChanges(
-            player,
-            questPlayerService.recordEvent(
+              questPlayerService.recordEvent(
+                player,
+                "player.glide",
+                { dimension: dimensionId },
+                { source: "taskScheduler.quest.movementTransitions" }
+              )
+            );
+          }
+          if (glideDistance > 0) {
+            notifyQuestChanges(
               player,
-              "player.ride",
-              {
-                entity: ridingEntityTypeId,
-                dimension: dimensionId,
-              },
-              { source: "taskScheduler.quest.movementTransitions" }
-            )
-          );
+              questPlayerService.recordEvent(
+                player,
+                "elytra.distance",
+                { distance: glideDistance, dimension: dimensionId },
+                { source: "taskScheduler.quest.movementTransitions" }
+              )
+            );
+          }
+          if (transitions.rideChanged && ridingEntityTypeId) {
+            notifyQuestChanges(
+              player,
+              questPlayerService.recordEvent(
+                player,
+                "player.ride",
+                {
+                  entity: ridingEntityTypeId,
+                  dimension: dimensionId,
+                },
+                { source: "taskScheduler.quest.movementTransitions" }
+              )
+            );
+          }
         }
-      }
-      for (const playerId of movementSamples.keys()) {
-        if (!onlineIds.has(playerId)) movementSamples.delete(playerId);
-      }
-    },
-  });
+        for (const playerId of movementSamples.keys()) {
+          if (!onlineIds.has(playerId)) movementSamples.delete(playerId);
+        }
+      },
+    })
+  );
+}
+
+function stopQuestEventRuntime(): void {
+  if (!questRuntimeActive) return;
+  questRuntimeActive = false;
+  for (const stop of questRuntimeStops.splice(0).reverse()) {
+    try {
+      stop();
+    } catch (error) {
+      console.warn(`[QuestEvents] failed to stop subscription: ${String(error)}`);
+    }
+  }
+  for (const runId of questScheduledRunIds) system.clearRun(runId);
+  questScheduledRunIds.clear();
+  itemFlushScheduled = false;
+  blockBreakFlushScheduled = false;
+  pendingItemDeltas.clear();
+  pendingBlockBreaks.clear();
+  pendingEntityInteractions.clear();
+  pendingBlockInteractions.clear();
+  archaeologyCompletionTicks.clear();
+  movementSamples.clear();
+  biomeSamples.clear();
+}
+
+export function refreshQuestEventRuntime(): void {
+  if (isQuestSystemEnabled()) startQuestEventRuntime();
+  else stopQuestEventRuntime();
+}
+
+export function registerQuestEvents(): void {
+  questSettingUnsubscribe ??= subscribeQuestSystemEnabled(() => refreshQuestEventRuntime());
+  questSettingsReadyUnsubscribe ??= whenQuestSettingsReady(() => refreshQuestEventRuntime());
 }
 
 eventRegistry.register("quest", registerQuestEvents);

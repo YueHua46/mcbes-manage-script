@@ -3,6 +3,7 @@ import questNotificationService, {
   QUEST_AUTO_ACCEPT_FOLLOW_UP_DELAY_TICKS,
 } from "../notifications/quest-notification-service";
 import questPlayerService, { type QuestEventPayload } from "../services/quest-player";
+import { isQuestSystemEnabled } from "../services/quest-runtime-policy";
 
 export const CREEPER_QUEST_SUCCESS_EVENTS = {
   menuOpen: "creeper.menu.open",
@@ -33,6 +34,7 @@ export function recordCreeperQuestSuccess(
   event: CreeperQuestSuccessEvent,
   options: CreeperQuestSuccessOptions = {}
 ): void {
+  if (!isQuestSystemEnabled()) return;
   try {
     const changes = questPlayerService.recordEvent(player, CREEPER_QUEST_SUCCESS_EVENTS[event], options.payload ?? {}, {
       source: "creeper_menu.business_success",

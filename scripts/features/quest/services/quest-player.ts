@@ -29,6 +29,7 @@ import { reconcileSnapshotGoals } from "../snapshots";
 import type { RuntimeQuestSnapshotBatch } from "../snapshots/runtime-snapshot-queue";
 import questCatalogService from "./quest-catalog";
 import questDefinitionService, { QuestDefinition, QuestGoalDefinition, formatFilterValue } from "./quest-definition";
+import { isQuestSystemEnabled } from "./quest-runtime-policy";
 
 export interface QuestPlayerQuestState {
   questId: string;
@@ -245,7 +246,7 @@ class QuestPlayerService {
   }
 
   getEnabledQuests(): QuestDefinition[] {
-    if (!questCatalogService.isReady()) return [];
+    if (!isQuestSystemEnabled() || !questCatalogService.isReady()) return [];
     return questCatalogService
       .getAllDefinitions()
       .filter((definition) => {
@@ -260,6 +261,7 @@ class QuestPlayerService {
    * accepted/completed instances so turning a preset pack off never hides claimable rewards.
    */
   getJournalQuests(player: Player): QuestDefinition[] {
+    if (!isQuestSystemEnabled()) return [];
     const aggregate = questStateRepository.loadForPlayer(player);
     const definitions = new Map<string, QuestDefinition>();
     for (const quest of this.getEnabledQuests()) definitions.set(quest.id, quest);
@@ -294,6 +296,7 @@ class QuestPlayerService {
   }
 
   canAccept(playerOrName: Player | string, quest: QuestDefinition): boolean {
+    if (!isQuestSystemEnabled()) return false;
     const aggregate =
       typeof playerOrName === "string"
         ? questStateRepository.loadForName(playerOrName)
@@ -308,6 +311,7 @@ class QuestPlayerService {
   }
 
   acceptQuest(player: Player, questId: string): string | undefined {
+    if (!isQuestSystemEnabled()) return "任务系统当前已关闭。";
     const quest = questCatalogService.getDefinition(questId);
     if (!quest || !quest.enabled || quest.acceptMode !== "manual") return "任务不存在、未启用或无需手动接受。";
     const aggregate = questStateRepository.loadForPlayer(player);
@@ -325,6 +329,7 @@ class QuestPlayerService {
   }
 
   ensureAutoAccepted(player: Player): void {
+    if (!isQuestSystemEnabled()) return;
     const aggregate = questStateRepository.loadForPlayer(player);
     this.ensureEventIndex();
     const accepted = this.ensureAutoAcceptedInAggregate(aggregate);
@@ -336,12 +341,20 @@ class QuestPlayerService {
   }
 
   consumeAutoAccepted(player: Player): QuestDefinition[] {
+    if (!isQuestSystemEnabled()) {
+      this.pendingAutoAccepted.delete(player.id);
+      return [];
+    }
     const ids = this.pendingAutoAccepted.get(player.id);
     this.pendingAutoAccepted.delete(player.id);
     if (!ids) return [];
     return [...ids]
       .map((questId) => questCatalogService.getDefinition(questId))
       .filter((definition): definition is QuestDefinitionV2 => !!definition)
+      .filter((definition) => {
+        const entry = questCatalogService.getEffectiveQuest(definition.id);
+        return entry?.packEnabled === true && entry.questEnabled;
+      })
       .map(toLegacyDefinitionView);
   }
 
@@ -351,7 +364,7 @@ class QuestPlayerService {
     payload: QuestEventPayload,
     options: { source?: string; dedupeKey?: string } = {}
   ): QuestProgressChange[] {
-    if (!isRealPlayerEntity(player) || !this.isReady()) return [];
+    if (!isQuestSystemEnabled() || !isRealPlayerEntity(player) || !this.isReady()) return [];
     const aggregate = questStateRepository.loadForPlayer(player);
     this.ensureEventIndex();
 
@@ -478,6 +491,7 @@ class QuestPlayerService {
   }
 
   canClaim(playerOrName: Player | string, quest: QuestDefinition): boolean {
+    if (!isQuestSystemEnabled()) return false;
     const aggregate =
       typeof playerOrName === "string"
         ? questStateRepository.loadForName(playerOrName)
@@ -491,6 +505,7 @@ class QuestPlayerService {
   }
 
   async claimQuest(player: Player, questId: string): Promise<string | undefined> {
+    if (!isQuestSystemEnabled()) return "任务系统当前已关闭。";
     const aggregate = questStateRepository.loadForPlayer(player);
     const instanceId = aggregate.activeByQuestId[questId];
     const instance = instanceId ? aggregate.instances[instanceId] : undefined;
@@ -550,7 +565,7 @@ class QuestPlayerService {
   }
 
   reconcileSnapshots(player: Player, batch: RuntimeQuestSnapshotBatch): QuestProgressChange[] {
-    if (!this.isReady()) return [];
+    if (!isQuestSystemEnabled() || !this.isReady()) return [];
     const aggregate = questStateRepository.loadForPlayer(player);
     this.ensureEventIndex();
     const autoAccepted = this.ensureAutoAcceptedInAggregate(aggregate);

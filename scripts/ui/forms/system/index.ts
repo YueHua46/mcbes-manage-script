@@ -42,6 +42,9 @@ import {
   getMonsterRewardOverrides,
   monsterByGold,
 } from "../../../features/economic/data/monster-by-gold";
+import questPlayerService from "../../../features/quest/services/quest-player";
+import questSnapshotRuntime from "../../../features/quest/snapshots/runtime-snapshot-queue";
+import hudBroker from "../../../features/hud/runtime-hud-broker";
 
 // ==================== 领地飞行（管理） ====================
 
@@ -708,6 +711,8 @@ export function openModuleToggleForm(player: Player): void {
     { key: "economy", name: "经济系统" },
     { key: "pvp", name: "PVP系统（关闭后插件不接管PVP，按原版世界设置处理）" },
     { key: "stats", name: "数据统计（仅此项控制入口，子榜无单独开关）" },
+    { key: "quest", name: "任务系统（关闭后隐藏玩家入口并暂停任务进度、自动接取与通知）" },
+    { key: "questPresets", name: "预设任务（关闭后仅停用官方预设，自定义任务仍可运行）" },
     { key: "guild", name: "公会系统" },
     { key: "floatingText", name: "悬浮文字系统" },
     { key: "fakePlayer", name: "假人模拟玩家系统" },
@@ -748,8 +753,15 @@ export function openModuleToggleForm(player: Player): void {
 
     const applySettings = () => {
       const prevPvpEnabled = setting.getState("pvp") === true;
+      const prevQuestEnabled = setting.getState("quest") === true;
+      const prevPresetQuestsEnabled = setting.getState("questPresets") === true;
       const pvpModuleIndex = modules.findIndex((m) => m.key === "pvp");
+      const questModuleIndex = modules.findIndex((m) => m.key === "quest");
+      const presetQuestModuleIndex = modules.findIndex((m) => m.key === "questPresets");
       const nextPvpEnabled = pvpModuleIndex >= 0 ? (formValues[pvpModuleIndex] as boolean) : prevPvpEnabled;
+      const nextQuestEnabled = questModuleIndex >= 0 ? (formValues[questModuleIndex] as boolean) : prevQuestEnabled;
+      const nextPresetQuestsEnabled =
+        presetQuestModuleIndex >= 0 ? (formValues[presetQuestModuleIndex] as boolean) : prevPresetQuestsEnabled;
 
       modules.forEach((module, index) => {
         const nextValue = formValues[index] as boolean;
@@ -764,6 +776,14 @@ export function openModuleToggleForm(player: Player): void {
 
       if (!prevPvpEnabled && nextPvpEnabled) {
         pvpManager.restoreModeAfterModuleOn();
+      }
+      if (prevQuestEnabled !== nextQuestEnabled || prevPresetQuestsEnabled !== nextPresetQuestsEnabled) {
+        for (const onlinePlayer of world.getAllPlayers()) {
+          hudBroker.clearSource(onlinePlayer, "quest");
+          if (!nextQuestEnabled) continue;
+          questPlayerService.ensureAutoAccepted(onlinePlayer);
+          questSnapshotRuntime.markAll(onlinePlayer, "quest_settings_changed");
+        }
       }
       openDialogForm(
         player,
