@@ -66,11 +66,21 @@ test("quest rarity themes drive mutually exclusive HUD markers and hide the nati
     assert.match(hud.hud_actionbar_text.visible, new RegExp(marker.replace(/[\[\]]/g, "\\$&")));
   }
   assert.equal(hud.cm_quest_toast.type, "image");
-  assert.equal(hud.cm_quest_toast.texture, "textures/ui/creeper_menu/submenu_panel");
+  assert.equal(hud.cm_quest_toast.texture, "textures/ui/creeper_menu/quest_toast_panel");
+  assert.equal(hud.cm_quest_toast.controls[0].top_accent.anchor_from, "left_middle");
+  assert.deepEqual(hud.cm_quest_toast.controls[0].top_accent.size, [3, 42]);
+  assert.equal(
+    hud.cm_quest_toast.controls[1].badge_chip.texture,
+    "textures/ui/creeper_menu/quest_badge_chip"
+  );
+  assert.equal(
+    hud.cm_quest_toast.controls[1].badge_chip.controls[0].badge_icon.texture,
+    "textures/ui/creeper_menu/quest_emblem"
+  );
+  assert.deepEqual(hud.cm_quest_toast.controls[1].badge_chip.controls[0].badge_icon.offset, [0, -1]);
   assert.deepEqual(hud.cm_quest_toast.controls[3].quest_text.color, [0.2, 0.18, 0.16]);
   assert.equal(hud.cm_quest_toast.controls[3].quest_text.shadow, false);
-  assert.equal(hud["cm_quest_toast_epic@hud.cm_quest_toast"].$cm_quest_show_corner_gems, true);
-  assert.equal(hud["cm_quest_toast_legendary@hud.cm_quest_toast"].$cm_quest_show_double_line, true);
+  assert.doesNotMatch(source, /corner_gem|ceremony_line|cm_quest_show_double_line/);
   assert.deepEqual(
     [
       hud.cm_quest_toast.$cm_quest_rarity_label,
@@ -82,9 +92,10 @@ test("quest rarity themes drive mutually exclusive HUD markers and hide the nati
   );
   assert.equal(hud.cm_quest_toast.anchor_from, "top_right");
   assert.equal(hud.cm_quest_toast.anchor_to, "top_right");
-  assert.ok(hud.cm_quest_toast.size[0] <= 210, "toast must stay compact in the right HUD column");
+  assert.ok(hud.cm_quest_toast.size[0] <= 220, "toast must stay compact in the right HUD column");
   assert.ok(hud.cm_quest_toast.offset[0] >= -10, "toast must hug the right safe edge");
   assert.ok(hud.cm_quest_toast.offset[1] <= 12, "toast must stay in the top-right corner");
+  assert.ok(fs.existsSync(path.join(root, "design", "menu-ui", "quest-toast-preview.png")));
 });
 
 test("all 158 preset quests have unique transparent 32px HUD artwork and fixed markers", () => {
