@@ -22,6 +22,7 @@ import { createQuestPresetRegistry } from "../presets";
 import { getQuestFactValue } from "../state/quest-fact-store";
 import questDefinitionService from "./quest-definition";
 import { getQuestRewardSchema } from "./quest-definition";
+import { arePresetQuestsEnabled } from "./quest-runtime-policy";
 
 const SERVER_STATE_DB = "quest_preset_pack_states";
 
@@ -79,7 +80,8 @@ class QuestCatalogService {
 
   getRevision(): number {
     this.ensureCatalog();
-    return this.builtDefinitionRevision * 1_000_000 + this.builtServerStateRevision;
+    const catalogRevision = this.builtDefinitionRevision * 1_000_000 + this.builtServerStateRevision;
+    return catalogRevision * 2 + (arePresetQuestsEnabled() ? 1 : 0);
   }
 
   getAllDefinitions(): QuestDefinitionV2[] {
@@ -92,7 +94,9 @@ class QuestCatalogService {
   }
 
   getEffectiveQuest(questId: string): EffectiveQuestEntry | undefined {
-    return this.ensureCatalog().getEffectiveQuest(questId);
+    const entry = this.ensureCatalog().getEffectiveQuest(questId);
+    if (!entry?.definition.packId || arePresetQuestsEnabled()) return entry;
+    return { ...entry, packEnabled: false };
   }
 
   getDiagnostics() {
@@ -123,7 +127,7 @@ class QuestCatalogService {
 
   getAvailability(questId: string, aggregate: QuestPlayerAggregate): QuestAvailability {
     const catalog = this.ensureCatalog();
-    const entry = catalog.getEffectiveQuest(questId);
+    const entry = this.getEffectiveQuest(questId);
     if (!entry) return "unavailable";
     const definition = entry.definition;
     const chapter = definition.chapterId ? catalog.getChapter(definition.chapterId) : undefined;

@@ -139,6 +139,10 @@ export type IModules =
   | "onlineTime"
   /** 服务器主菜单「数据统计」入口；子榜单不再单独设开关 */
   | "stats"
+  /** 任务系统玩家入口、进度、自动接取与通知总开关 */
+  | "quest"
+  /** 官方预设任务总开关；关闭后自定义任务仍可运行 */
+  | "questPresets"
   /** 全服红包有效时长（小时），过期未领退回发送者 */
   | "redPacketExpiryHours"
   /** 领地内飞行：总开关（默认开） */
@@ -163,6 +167,7 @@ export type IModules =
   | "antiDupeTrustedPlacers";
 
 export type IValueType = boolean | string;
+export type SettingChangeListener = (value: IValueType, previousValue: IValueType) => void;
 
 export const defaultSetting = {
   player: true,
@@ -283,6 +288,8 @@ export const defaultSetting = {
   fakePlayerReviveCost: "100",
   onlineTime: true,
   stats: true,
+  quest: true,
+  questPresets: true,
   /** 红包从发放到过期的小时数（默认 24 小时即 1 天） */
   redPacketExpiryHours: "24",
   /** 领地内飞行（/ability mayfly），默认开启 */
@@ -310,6 +317,8 @@ export const defaultSetting = {
 export class ServerSetting {
   private db?: Database<IValueType>;
   private readonly pending = new Map<IModules, IValueType>();
+  private readonly listeners = new Map<IModules, Set<SettingChangeListener>>();
+  private readonly readyListeners = new Set<() => void>();
 
   constructor() {
     system.run(() => {
@@ -317,6 +326,8 @@ export class ServerSetting {
       for (const [module, state] of this.pending) this.db.set(module, state);
       if (this.pending.size > 0) this.db.save();
       this.pending.clear();
+      for (const listener of this.readyListeners) listener();
+      this.readyListeners.clear();
     });
   }
 
@@ -341,12 +352,35 @@ export class ServerSetting {
 
   setState(module: IModules, state: IValueType): void {
     SystemLog.info(`setState: ${module} = ${state}`);
+    const previousValue = this.pending.get(module) ?? this.db?.get(module) ?? defaultSetting[module];
     if (!this.db) {
       this.pending.set(module, state);
-      return;
+    } else {
+      this.db.set(module, state);
+      this.db.save();
     }
-    this.db.set(module, state);
-    this.db.save();
+    if (previousValue !== state) {
+      for (const listener of this.listeners.get(module) ?? []) listener(state, previousValue);
+    }
+  }
+
+  subscribe(module: IModules, listener: SettingChangeListener): () => void {
+    const listeners = this.listeners.get(module) ?? new Set<SettingChangeListener>();
+    listeners.add(listener);
+    this.listeners.set(module, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) this.listeners.delete(module);
+    };
+  }
+
+  whenReady(listener: () => void): () => void {
+    if (this.db) {
+      listener();
+      return () => undefined;
+    }
+    this.readyListeners.add(listener);
+    return () => this.readyListeners.delete(listener);
   }
 }
 

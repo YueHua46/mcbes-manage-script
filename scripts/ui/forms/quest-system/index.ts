@@ -38,6 +38,7 @@ import questDefinitionService, {
   questRewardSchemas,
   questScopeOptions,
 } from "../../../features/quest/services/quest-definition";
+import { isQuestSystemEnabled } from "../../../features/quest/services/quest-runtime-policy";
 
 const playerDrafts = new Map<string, QuestDefinition>();
 const addableQuestRewardSchemas = questRewardSchemas.filter((schema) => schema.key !== "send_message");
@@ -415,6 +416,10 @@ function formatPlayerQuestDetail(player: Player, quest: QuestDefinition): string
 }
 
 export function openQuestPlayerForm(player: Player, returnForm?: () => void): void {
+  if (!isQuestSystemEnabled()) {
+    showActionMessage(player, "冒险日志", "任务系统当前已关闭。", returnForm);
+    return;
+  }
   if (!questDefinitionService.isReady() || !questPlayerService.isReady()) {
     showActionMessage(player, "冒险日志", "纸和墨还在准备，再给它一点点时间。", returnForm);
     return;

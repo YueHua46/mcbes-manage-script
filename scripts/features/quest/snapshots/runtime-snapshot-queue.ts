@@ -9,6 +9,7 @@ import {
 import type { EffectsSnapshotSummary, EquipmentSnapshotSummary, InventorySnapshotSummary } from "./snapshot-summary";
 import type { CreeperStateSnapshotSummary } from "./snapshot-summary";
 import { buildPlayerCreeperStateSummary } from "../integrations/creeper-state-provider";
+import { isQuestSystemEnabled } from "../services/quest-runtime-policy";
 
 const MAX_PLAYERS_PER_FLUSH = 8;
 const FLUSH_DELAY_TICKS = 2; // 延迟2 ticks后再刷新快照，避免频繁的快照更新
@@ -36,6 +37,7 @@ class RuntimeQuestSnapshotQueue {
   }
 
   mark(player: Player, provider: QuestSnapshotProviderKind, reason: string): void {
+    if (!isQuestSystemEnabled()) return;
     const playerCmid = identityService.resolvePlayerKeyForPlayer(player);
     this.players.set(playerCmid, player);
     this.dirty.mark(playerCmid, provider, reason);

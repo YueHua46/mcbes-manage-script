@@ -35,6 +35,7 @@ const virtualPlugin = {
       namespace: "quest-test",
     }));
     build.onResolve({ filter: /quest-catalog$/ }, () => ({ path: "catalog", namespace: "quest-test" }));
+    build.onResolve({ filter: /quest-runtime-policy$/ }, () => ({ path: "runtime-policy", namespace: "quest-test" }));
     build.onResolve({ filter: /runtime-reward-handlers(?:-test)?$/ }, () => ({
       path: "handlers",
       namespace: "quest-test",
@@ -43,6 +44,9 @@ const virtualPlugin = {
     build.onLoad({ filter: /.*/, namespace: "quest-test" }, (args) => {
       if (args.path === "minecraft") return { contents: "export class Player {}", loader: "ts" };
       if (args.path === "online") return { contents: "export const isRealPlayerEntity = () => true;", loader: "ts" };
+      if (args.path === "runtime-policy") {
+        return { contents: "export const isQuestSystemEnabled = () => true;", loader: "ts" };
+      }
       if (args.path === "repository") {
         return {
           loader: "ts",

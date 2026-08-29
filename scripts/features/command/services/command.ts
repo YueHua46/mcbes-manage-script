@@ -185,6 +185,8 @@ const settingDescriptions: Record<keyof typeof defaultSetting, string> = {
   fakePlayerReviveCost: "复活已死亡的新版模拟玩家所需金币。0 或经济系统关闭时免费，默认 100。",
   onlineTime: "旧版在线时长入口兼容键。在线时长数据入口优先使用 stats。",
   stats: "服务器主菜单数据统计入口。true 显示数据统计，false 隐藏。",
+  quest: "任务系统总开关。false 时隐藏玩家入口并暂停进度、自动接取、快照与通知。",
+  questPresets: "官方预设任务总开关。false 时暂停全部预设任务，自定义任务仍可运行。",
   redPacketExpiryHours: "红包有效时长，单位小时。过期未领会按红包逻辑退回。",
   landFlightEnabled: "领地内飞行总开关。true 可申请领地飞行，false 关闭并回收能力。",
   landFlightUseEconomy: "领地飞行是否按周期扣金币。true 扣费，false 免费但仍受权限限制。",

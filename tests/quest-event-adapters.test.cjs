@@ -14,13 +14,67 @@ const bundleFile = path.join(tempRoot, "quest-adapters.cjs");
 const stubs = new Map([
   [
     "@minecraft/server",
-    `export class Player {}; export const PlayerInventoryType = { Hotbar: "Hotbar", Inventory: "Inventory" }; export const system = {}; export const world = {};`,
+    `
+      export class Player {}
+      export const PlayerInventoryType = { Hotbar: "Hotbar", Inventory: "Inventory" };
+      const signals = [];
+      const signal = () => {
+        const callbacks = new Set();
+        const value = {
+          subscribe(callback) { callbacks.add(callback); return callback; },
+          unsubscribe(callback) { callbacks.delete(callback); },
+          size() { return callbacks.size; },
+        };
+        signals.push(value);
+        return value;
+      };
+      export const world = {
+        beforeEvents: { playerInteractWithEntity: signal(), playerInteractWithBlock: signal() },
+        afterEvents: {
+          entityDie: signal(), playerBreakBlock: signal(), playerInventoryItemChange: signal(),
+          playerPlaceBlock: signal(), itemUse: signal(), playerInteractWithBlock: signal(),
+          playerInteractWithEntity: signal(), effectAdd: signal(), playerSpawn: signal(),
+          playerDimensionChange: signal(),
+        },
+      };
+      export const system = { currentTick: 0, run: () => 1, runTimeout: () => 2, clearRun: () => undefined };
+      globalThis.__questWorldSubscriptionCount = () => signals.reduce((total, entry) => total + entry.size(), 0);
+    `,
   ],
-  ["../registry", `export const eventRegistry = { register() {} };`],
+  [
+    "../registry",
+    `export const eventRegistry = { register(_name, handler) { globalThis.__registerQuestEvents = handler; } };`,
+  ],
   ["../../features/quest/services/quest-player", `export default {};`],
-  ["../../features/platform/scheduler", `export const taskScheduler = {};`],
+  [
+    "../../features/quest/services/quest-runtime-policy",
+    `
+      let enabled = true;
+      let settingListener;
+      export const isQuestSystemEnabled = () => enabled;
+      export const subscribeQuestSystemEnabled = (listener) => { settingListener = listener; return () => { settingListener = undefined; }; };
+      export const whenQuestSettingsReady = (listener) => { listener(); return () => {}; };
+      globalThis.__setQuestEnabled = (next) => { enabled = next; settingListener?.(next); };
+    `,
+  ],
+  [
+    "../../features/platform/scheduler",
+    `
+      let activeTasks = 0;
+      export const taskScheduler = { register() { activeTasks += 1; return () => { activeTasks -= 1; }; } };
+      globalThis.__questTaskCount = () => activeTasks;
+    `,
+  ],
   ["../../features/player/services/online-time", `export const ONLINE_TIME_TICK_INTERVAL = 20;`],
-  ["../../features/quest/snapshots/runtime-snapshot-queue", `export default {};`],
+  [
+    "../../features/quest/snapshots/runtime-snapshot-queue",
+    `
+      let activeConsumers = 0;
+      const queue = { subscribe() { activeConsumers += 1; return () => { activeConsumers -= 1; }; } };
+      globalThis.__questSnapshotConsumerCount = () => activeConsumers;
+      export default queue;
+    `,
+  ],
   [
     "../../features/quest/notifications/quest-notification-service",
     `export const QUEST_AUTO_ACCEPT_FOLLOW_UP_DELAY_TICKS = 1; export default {};`,
@@ -65,6 +119,23 @@ after(() => {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
+test("quest runtime really unsubscribes events and unregisters tasks while disabled", () => {
+  globalThis.__registerQuestEvents();
+  assert.equal(globalThis.__questWorldSubscriptionCount(), 12);
+  assert.equal(globalThis.__questSnapshotConsumerCount(), 1);
+  assert.equal(globalThis.__questTaskCount(), 4);
+
+  globalThis.__setQuestEnabled(false);
+  assert.equal(globalThis.__questWorldSubscriptionCount(), 0);
+  assert.equal(globalThis.__questSnapshotConsumerCount(), 0);
+  assert.equal(globalThis.__questTaskCount(), 0);
+
+  globalThis.__setQuestEnabled(true);
+  assert.equal(globalThis.__questWorldSubscriptionCount(), 12);
+  assert.equal(globalThis.__questSnapshotConsumerCount(), 1);
+  assert.equal(globalThis.__questTaskCount(), 4);
+});
+
 test("quest adapters subscribe only to successful after-events with explicit payloads", () => {
   const contracts = [
     ["playerPlaceBlock", "block.place", ["block", "dimension"]],
@@ -75,7 +146,7 @@ test("quest adapters subscribe only to successful after-events with explicit pay
   ];
 
   for (const [signal, eventType, fields] of contracts) {
-    assert.match(source, new RegExp(`world\\.afterEvents\\.${signal}\\.subscribe`));
+    assert.match(source, new RegExp(`subscribeQuestEvent\\(world\\.afterEvents\\.${signal}`));
     assert.match(source, new RegExp(`"${eventType.replace(".", "\\.")}"`));
     for (const field of fields) assert.match(source, new RegExp(`${field}:`));
   }
@@ -167,10 +238,10 @@ test("crop adapters whitelist planted blocks and accept only authoritative matur
 });
 
 test("crop runtime records planting after successful placement and mature harvest from broken permutation", () => {
-  assert.match(source, /world\.afterEvents\.playerPlaceBlock\.subscribe/);
+  assert.match(source, /subscribeQuestEvent\(world\.afterEvents\.playerPlaceBlock/);
   assert.match(source, /resolvePlantedCrop\(blockTypeId\)/);
   assert.match(source, /"crop\.plant"/);
-  assert.match(source, /world\.afterEvents\.playerBreakBlock\.subscribe/);
+  assert.match(source, /subscribeQuestEvent\(world\.afterEvents\.playerBreakBlock/);
   assert.match(source, /event\.brokenBlockPermutation\.getAllStates\(\)/);
   assert.match(source, /resolveMatureCropHarvest\(blockTypeId,/);
   assert.match(source, /"crop\.harvest"/);

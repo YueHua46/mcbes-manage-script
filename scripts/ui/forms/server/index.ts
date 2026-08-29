@@ -145,7 +145,6 @@ async function openServerMenuFormInternal(player: Player): Promise<void> {
       action: async (player: Player) => {
         openQuestPlayerForm(player, () => void openServerMenuForm(player));
       },
-      alwaysVisible: true,
     },
     {
       id: "other",
