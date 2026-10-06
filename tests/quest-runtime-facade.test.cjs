@@ -161,6 +161,7 @@ const virtualPlugin = {
                 ? { packEnabled: true, questEnabled: true, rewardScale: 1 }
                 : undefined,
               getAvailability: () => "available",
+              createRuleContext: () => ({}),
               getRewardScale: () => 1,
               getRevision: () => definitions.getRevision(),
             };

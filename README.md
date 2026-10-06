@@ -35,14 +35,17 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 同时生成三个 CreeperMenu 发行产物：`npm run mcaddon:release`。当前版本的
 Release 附件名称为：
 
-- `【1.26.52】普通兼容版-苦力怕菜单v3.3.7.mcaddon`
-- `【1.26.52】Realms兼容版-苦力怕菜单v3.3.7.mcaddon`
-- `【1.26.52】BDS增强版-苦力怕菜单v3.3.7.mcaddon`
+- `【1.26.52】普通兼容版-苦力怕菜单v3.3.8.mcaddon`
+- `【1.26.52】Realms兼容版-苦力怕菜单v3.3.8.mcaddon`
+- `【1.26.52】BDS增强版-苦力怕菜单v3.3.8.mcaddon`
 
-三个 CreeperMenu 变体统一使用 **3.3.7** 发行版本。构建依赖精确锁定
+三个 CreeperMenu 变体统一使用 **3.3.8** 发行版本。构建依赖精确锁定
 Minecraft Bedrock **1.26.52**，面向用户标记为 **1.26.5x**，表示适配
 正常的 `1.26.50` 至 `1.26.59` 小版本族。manifest 最低引擎版本为
 **1.26.50**。
+
+v3.3.8 针对多人服务器优化任务事件、快照及存档开销；安装后的验证步骤见
+[任务系统多人性能优化与服主验证](docs/quest-multiplayer-optimization.md)。
 
 Backrooms 行为包和资源包继续使用独立版本 **1.0.0**，不会进入
 CreeperMenu 的三版本 Release。需要同时生成它时可使用

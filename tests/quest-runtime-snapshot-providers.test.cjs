@@ -127,7 +127,10 @@ test("markAll and existing spawn, accept, item and equipment triggers cover the 
   assert.match(queueSource, /this\.mark\(player, "effects", reason\)/);
   assert.match(queueSource, /buildPlayerEffectsSummary\(player\)/);
   assert.match(handlerSource, /questSnapshotRuntime\.markAll\(event\.player, "player_join"\)/);
-  assert.match(handlerSource, /questSnapshotRuntime\.markAll\(event\.source, "item_use"\)/);
+  for (const provider of ["inventory", "equipment", "effects"]) {
+    assert.ok(handlerSource.includes(`questSnapshotRuntime.mark(event.source, "${provider}", "item_use")`));
+  }
+  assert.ok(!handlerSource.includes('questSnapshotRuntime.mark(event.source, "creeper_state", "item_use")'));
   assert.match(handlerSource, /questSnapshotRuntime\.mark\(event\.player, "inventory", "inventory_change"\)/);
   assert.match(handlerSource, /questSnapshotRuntime\.mark\(player, "equipment", "low_frequency_fallback"\)/);
   assert.match(questFormSource, /questSnapshotRuntime\.markAll\(player, "quest_accept"\)/);

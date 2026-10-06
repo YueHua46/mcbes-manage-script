@@ -19,12 +19,14 @@ function indexedValue(field: (typeof INDEXED_FIELDS)[number], value: unknown): s
 
 export class QuestEventIndex {
   private readonly refs = new Map<string, QuestGoalReference[]>();
+  private readonly eventTypes = new Set<string>();
   private readonly autoAcceptQuestIds = new Set<string>();
   private definitions = new Map<string, QuestDefinitionV2>();
   private version = 0;
 
   rebuild(definitions: readonly QuestDefinitionV2[], version: number): void {
     this.refs.clear();
+    this.eventTypes.clear();
     this.autoAcceptQuestIds.clear();
     this.definitions = new Map(definitions.map((definition) => [definition.id, definition]));
     this.version = version;
@@ -34,6 +36,7 @@ export class QuestEventIndex {
       for (const goal of definition.goals) {
         if (goal.semantics === "snapshot") continue;
         const eventType = goal.eventType;
+        this.eventTypes.add(eventType);
         const reference = { questId: definition.id, goalId: goal.id };
         let indexed = false;
         for (const field of INDEXED_FIELDS) {
@@ -61,15 +64,7 @@ export class QuestEventIndex {
   }
 
   hasEventType(eventType: string): boolean {
-    // 检查是否有任何任务关注这个事件类型
-    if (this.refs.has(eventType)) return true;
-    // 检查是否有索引字段关联的任务
-    for (const field of INDEXED_FIELDS) {
-      for (const key of this.refs.keys()) {
-        if (key.startsWith(`${eventType}:${field}:`)) return true;
-      }
-    }
-    return false;
+    return this.eventTypes.has(eventType);
   }
 
   getCandidates(eventType: string, payload: Readonly<Record<string, unknown>>): QuestGoalReference[] {

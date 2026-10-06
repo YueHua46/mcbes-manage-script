@@ -24,6 +24,7 @@ const stubs = new Map([
           subscribe(callback) { callbacks.add(callback); return callback; },
           unsubscribe(callback) { callbacks.delete(callback); },
           size() { return callbacks.size; },
+          emit(event) { for (const callback of callbacks) callback(event); },
         };
         signals.push(value);
         return value;
@@ -37,7 +38,15 @@ const stubs = new Map([
           playerDimensionChange: signal(),
         },
       };
-      export const system = { currentTick: 0, run: () => 1, runTimeout: () => 2, clearRun: () => undefined };
+      const runs = new Map();let nextRun=0;
+      const schedule=(callback,delay=1)=>{const id=++nextRun;runs.set(id,{callback,tick:system.currentTick+delay});return id};
+      export const system = { currentTick: 0, run: f=>schedule(f), runTimeout: (f,d)=>schedule(f,d), clearRun: id=>runs.delete(id) };
+      globalThis.__questEmitInventory=event=>world.afterEvents.playerInventoryItemChange.emit(event);
+      globalThis.__questStep=()=>{
+        system.currentTick++;
+        const ready=[...runs].filter(([,run])=>run.tick<=system.currentTick);
+        for(const [id,run] of ready){if(runs.delete(id))run.callback()}
+      };
       globalThis.__questWorldSubscriptionCount = () => signals.reduce((total, entry) => total + entry.size(), 0);
     `,
   ],
@@ -45,7 +54,15 @@ const stubs = new Map([
     "../registry",
     `export const eventRegistry = { register(_name, handler) { globalThis.__registerQuestEvents = handler; } };`,
   ],
-  ["../../features/quest/services/quest-player", `export default {};`],
+  [
+    "../../features/quest/services/quest-player",
+    `
+    import {system} from '@minecraft/server';
+    globalThis.__questRecorded=[];
+    export default {recordEvent(player,type,payload){globalThis.__questRecorded.push({id:player.id,type,payload,tick:system.currentTick});return []},
+      consumeAutoAccepted:()=>[],reconcileSnapshots:()=>[]};
+  `,
+  ],
   [
     "../../features/quest/services/quest-runtime-policy",
     `
@@ -70,14 +87,14 @@ const stubs = new Map([
     "../../features/quest/snapshots/runtime-snapshot-queue",
     `
       let activeConsumers = 0;
-      const queue = { subscribe() { activeConsumers += 1; return () => { activeConsumers -= 1; }; } };
+      const queue = { mark(){},markAll(){},subscribe() { activeConsumers += 1; return () => { activeConsumers -= 1; }; } };
       globalThis.__questSnapshotConsumerCount = () => activeConsumers;
       export default queue;
     `,
   ],
   [
     "../../features/quest/notifications/quest-notification-service",
-    `export const QUEST_AUTO_ACCEPT_FOLLOW_UP_DELAY_TICKS = 1; export default {};`,
+    `export const QUEST_AUTO_ACCEPT_FOLLOW_UP_DELAY_TICKS = 1; export default {notifyProgressChanges(){},notifyAutoAccepted(){}};`,
   ],
   [
     "../../shared/utils/online-players",
@@ -153,8 +170,48 @@ test("quest adapters subscribe only to successful after-events with explicit pay
   assert.doesNotMatch(source, /world\.beforeEvents\.(?:playerPlaceBlock|itemUse|effectAdd)/);
   assert.match(source, /if \(!isRealPlayerEntity\(event\.player\)\) return;/);
   assert.match(source, /if \(!event\.isFirstEvent\) return;/);
-  assert.match(source, /questSnapshotRuntime\.markAll\(event\.source, "item_use"\)/);
+  for (const provider of ["inventory", "equipment", "effects"]) {
+    assert.ok(source.includes(`questSnapshotRuntime.mark(event.source, "${provider}", "item_use")`));
+  }
   assert.match(source, /itemStackChanged\(event\.beforeItemStack, event\.itemStack\)/);
+});
+
+test("100-player item batches are fair, bounded per tick and retain every amount", () => {
+  globalThis.__setQuestEnabled(false);
+  globalThis.__setQuestEnabled(true);
+  globalThis.__questRecorded.length = 0;
+  for (let i = 0; i < 100; i++) {
+    const player = { id: "multi" + i, name: "multi" + i, isValid: true };
+    for (const typeId of ["minecraft:diamond", "minecraft:iron_ingot"]) {
+      globalThis.__questEmitInventory({ player, inventoryType: "Inventory", itemStack: { typeId, amount: 3 } });
+    }
+  }
+  globalThis.__questStep();
+  assert.ok(globalThis.__questRecorded.length > 0 && globalThis.__questRecorded.length <= 64);
+  assert.equal(new Set(globalThis.__questRecorded.map((event) => event.id)).size, globalThis.__questRecorded.length);
+  for (let i = 0; i < 30; i++) globalThis.__questStep();
+  assert.equal(globalThis.__questRecorded.length, 200);
+  assert.equal(
+    globalThis.__questRecorded.reduce((sum, event) => sum + event.payload.amount, 0),
+    600
+  );
+  const perTick = new Map();
+  for (const event of globalThis.__questRecorded) perTick.set(event.tick, (perTick.get(event.tick) ?? 0) + 1);
+  assert.ok([...perTick.values()].every((count) => count <= 64));
+  assert.equal(new Set(globalThis.__questRecorded.map((event) => `${event.id}:${event.payload.item}`)).size, 200);
+});
+
+test("disabling quests clears deferred item work before the next tick", () => {
+  globalThis.__questRecorded.length = 0;
+  globalThis.__questEmitInventory({
+    player: { id: "pending", name: "pending", isValid: true },
+    inventoryType: "Inventory",
+    itemStack: { typeId: "minecraft:diamond", amount: 10 },
+  });
+  globalThis.__setQuestEnabled(false);
+  globalThis.__questStep();
+  assert.equal(globalThis.__questRecorded.length, 0);
+  globalThis.__setQuestEnabled(true);
 });
 
 test("movement edge detection emits once per glide start and once per changed mount", () => {

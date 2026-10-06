@@ -55,6 +55,10 @@ class QuestStateRepository {
     if (!this.legacyDb) throw new Error("Quest state repository is not ready");
     const store = this.getStore(playerCmid);
     const cached = this.aggregateCache.get(playerCmid);
+    if (cached?.displayName === displayName && cached.migration?.legacyNameMigrationVersion === 1) {
+      const migratedNames = new Set((cached.migration.migratedNames ?? []).map(normalizeName));
+      if ([...knownProfileNames, displayName].every((name) => migratedNames.has(normalizeName(name)))) return cached;
+    }
     const loaded = cached ? undefined : store.load();
     if (loaded?.status === "corrupt") throw new Error(`任务聚合数据损坏，已停止自动覆盖：${loaded.error}`);
 

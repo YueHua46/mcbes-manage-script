@@ -17,6 +17,7 @@ import {
   type QuestTameOwnershipSnapshot,
 } from "../../features/quest/integrations/interaction-evidence";
 import { resolveQuestGlideDistance } from "../../features/quest/integrations/glide-distance";
+import { questDeferredWorkBudget } from "../../features/quest/runtime/quest-work-budget";
 import {
   isQuestSystemEnabled,
   subscribeQuestSystemEnabled,
@@ -26,6 +27,7 @@ import {
 export { resolveQuestGlideDistance };
 
 const pendingItemDeltas = new Map<string, { player: Player; items: Map<string, number> }>();
+const queuedItemDeltas = new Map<string, { player: Player; items: Array<{ itemId: string; amount: number }> }>();
 let itemFlushScheduled = false;
 let questRuntimeActive = false;
 let questSettingUnsubscribe: (() => void) | undefined;
@@ -296,26 +298,49 @@ function addPendingItemDelta(player: Player, itemId: string, amount: number): vo
 }
 
 function flushPendingItemDeltas(): void {
-  const entries = Array.from(pendingItemDeltas.values());
+  for (const [id, { player, items }] of pendingItemDeltas) {
+    const queued = queuedItemDeltas.get(id) ?? { player, items: [] };
+    for (const [itemId, amount] of items) {
+      if (amount > 0) queued.items.push({ itemId, amount });
+    }
+    if (queued.items.length > 0) queuedItemDeltas.set(id, queued);
+  }
   pendingItemDeltas.clear();
 
-  entries.forEach(({ player, items }) => {
-    items.forEach((amount, itemId) => {
-      if (amount <= 0) return;
-      notifyQuestChanges(
-        player,
-        questPlayerService.recordEvent(
+  let examined = 0;
+  while (queuedItemDeltas.size > 0 && examined++ < 64 && questDeferredWorkBudget.canRun(system.currentTick)) {
+    const [id, queued] = queuedItemDeltas.entries().next().value!;
+    queuedItemDeltas.delete(id);
+    const { player } = queued;
+    if (!player.isValid) continue;
+    const { itemId, amount } = queued.items.shift()!;
+    if (queued.items.length > 0) queuedItemDeltas.set(id, queued);
+    questDeferredWorkBudget.run(system.currentTick, () => {
+      try {
+        notifyQuestChanges(
           player,
-          "item.obtain",
-          {
-            item: itemId,
-            amount,
-          },
-          { source: "world.afterEvents.playerInventoryItemChange" }
-        )
-      );
+          questPlayerService.recordEvent(
+            player,
+            "item.obtain",
+            {
+              item: itemId,
+              amount,
+            },
+            { source: "world.afterEvents.playerInventoryItemChange" }
+          )
+        );
+      } catch (error) {
+        console.warn(`[QuestEvents] item delta failed for ${player.name}: ${String(error)}`);
+      }
     });
-  });
+  }
+  if (queuedItemDeltas.size > 0 && !itemFlushScheduled) {
+    itemFlushScheduled = true;
+    scheduleQuestRun(() => {
+      itemFlushScheduled = false;
+      flushPendingItemDeltas();
+    }, 1);
+  }
 }
 
 function addPendingBlockBreak(
@@ -539,7 +564,9 @@ function startQuestEventRuntime(): void {
   subscribeQuestEvent(world.afterEvents.itemUse, (event) => {
     if (!isRealPlayerEntity(event.source)) return;
     // Item use can consume inventory or equip armor/elytra directly, so reconcile both summaries once.
-    questSnapshotRuntime.markAll(event.source, "item_use");
+    questSnapshotRuntime.mark(event.source, "inventory", "item_use");
+    questSnapshotRuntime.mark(event.source, "equipment", "item_use");
+    questSnapshotRuntime.mark(event.source, "effects", "item_use");
     notifyQuestChanges(
       event.source,
       questPlayerService.recordEvent(
@@ -929,6 +956,7 @@ function stopQuestEventRuntime(): void {
   itemFlushScheduled = false;
   blockBreakFlushScheduled = false;
   pendingItemDeltas.clear();
+  queuedItemDeltas.clear();
   pendingBlockBreaks.clear();
   pendingEntityInteractions.clear();
   pendingBlockInteractions.clear();
