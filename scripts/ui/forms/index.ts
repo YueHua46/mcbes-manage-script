@@ -14,3 +14,4 @@ export * from "./other";
 export * from "./behavior-log";
 export * from "./guild";
 export * from "./quest-system";
+export * from "./redemption-code";

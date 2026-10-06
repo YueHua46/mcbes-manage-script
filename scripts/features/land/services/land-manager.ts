@@ -17,11 +17,13 @@ import { getOnlineRealPlayerByName } from "../../../shared/utils/online-players"
 import identityService from "../../player/services/identity-service";
 import { chargeTeleportCost, refundTeleportCost } from "../../economic/services/teleport-cost";
 import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
+import { landBoundaryColors } from "./land-boundary-colors";
 
 class LandManager {
   db!: Database<ILand>;
 
   constructor() {
+    landBoundaryColors.setSource(() => this.db?.getAll() ?? {});
     system.run(() => {
       this.db = new Database<ILand>("lands");
     });

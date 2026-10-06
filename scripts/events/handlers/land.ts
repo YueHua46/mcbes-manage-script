@@ -26,6 +26,11 @@ import landParticle, {
   type LandSelectionGuideInfo,
   type LandSelectionOverlapInfo,
 } from "../../features/land/services/land-particle";
+import {
+  selectNearestBoundaryCandidates,
+  type BoundaryDetail,
+} from "../../features/land/services/land-boundary-render-plan";
+import { FRAME_PROFILES, FRAME_REFRESH_TICKS } from "../../features/land/services/land-boundary-frame";
 import { useNotify } from "../../shared/hooks";
 import { MinecraftBlockTypes } from "@minecraft/vanilla-data";
 import type { ILand, Vector3 } from "../../core/types";
@@ -58,16 +63,6 @@ function stripLandDisplaySection(s: string): string {
 
 type LandBoundaryParticleLevel = "off" | "low" | "balanced" | "high";
 
-const LAND_PARTICLE_LEVELS: Record<
-  LandBoundaryParticleLevel,
-  { renderDistance: number; boundaryRefreshTicks: number; scanRefreshTicks: number; scan: boolean }
-> = {
-  off: { renderDistance: 0, boundaryRefreshTicks: 200, scanRefreshTicks: 200, scan: false },
-  low: { renderDistance: 80, boundaryRefreshTicks: 160, scanRefreshTicks: 80, scan: false },
-  balanced: { renderDistance: 128, boundaryRefreshTicks: 100, scanRefreshTicks: 12, scan: true },
-  high: { renderDistance: 192, boundaryRefreshTicks: 80, scanRefreshTicks: 4, scan: true },
-};
-
 function getLandParticleLevel(): LandBoundaryParticleLevel {
   const value = String(setting.getState("landBoundaryParticleLevel"));
   return value === "off" || value === "low" || value === "high" ? value : "balanced";
@@ -97,16 +92,22 @@ const isMoving = (entity: Entity): boolean => {
 // 领地标记区域存储
 export const landAreas = new Map<string, LandArea>();
 
-function isLandNearPlayerForBoundaryDisplay(land: ILand, playerPos: Vector3, renderDistance: number): boolean {
-  const minX = Math.min(land.vectors.start.x, land.vectors.end.x);
-  const maxX = Math.max(land.vectors.start.x, land.vectors.end.x);
-  const minZ = Math.min(land.vectors.start.z, land.vectors.end.z);
-  const maxZ = Math.max(land.vectors.start.z, land.vectors.end.z);
-  const centerX = (minX + maxX) / 2;
-  const centerZ = (minZ + maxZ) / 2;
-  const dx = playerPos.x - centerX;
-  const dz = playerPos.z - centerZ;
-  return dx * dx + dz * dz <= renderDistance * renderDistance;
+function getNearbyLandsForBoundaryDisplay(player: Player, detail: BoundaryDetail): ILand[] {
+  const profile = FRAME_PROFILES[detail];
+  const candidates = Object.values(landManager.getLandList()).map((land) => ({
+    value: land,
+    start: land.vectors.start,
+    end: land.vectors.end,
+    dimension: land.dimension,
+    priority: land.dimension === player.dimension.id && landManager.isInsideLand(player.location, land).isInside,
+  }));
+  return selectNearestBoundaryCandidates(
+    candidates,
+    player.dimension.id,
+    player.location,
+    profile.distance,
+    profile.maxLands
+  );
 }
 
 function getLandBoundaryVariantForPlayer(
@@ -1585,9 +1586,7 @@ export function registerLandEvents(): void {
     },
   });
 
-  /**
-   * 玩家个人开关：持续显示玩家当前维度内所有领地边界效果。
-   */
+  /** 玩家个人开关：按距离和总预算显示附近领地，优先当前领地。 */
   taskScheduler.register({
     id: "land.boundaryParticleDisplay",
     label: "领地范围常显",
@@ -1596,58 +1595,27 @@ export function registerLandEvents(): void {
     when: () => setting.getState("land") === true,
     run: () => {
       const level = getLandParticleLevel();
-      const config = LAND_PARTICLE_LEVELS[level];
-      if (level === "off" || system.currentTick % config.boundaryRefreshTicks >= 20) return;
+      if (level === "off" || system.currentTick % FRAME_REFRESH_TICKS >= 20) return;
+      const detail: BoundaryDetail = level;
       getOnlineRealPlayers().forEach((p) => {
         if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
           return;
         }
 
-        const lands = Object.values(landManager.getLandList()).filter(
-          (land) =>
-            land.dimension === p.dimension.id &&
-            isLandNearPlayerForBoundaryDisplay(land, p.location, config.renderDistance)
-        );
+        const lands = getNearbyLandsForBoundaryDisplay(p, detail);
+        const perLandBudget = Math.floor(FRAME_PROFILES[detail].particles / Math.max(1, lands.length));
         for (const land of lands) {
+          const budget = { remaining: perLandBudget };
           try {
             landParticle.createLandAmbientBoundary(p, [land.vectors.start, land.vectors.end], {
               seed: `${land.name}:${land.owner}`,
               variant: getLandBoundaryVariantForPlayer(land, p),
-              detail: level,
-            });
-          } catch (error) {
-            // 忽略粒子生成错误
-          }
-        }
-      });
-    },
-  });
-
-  taskScheduler.register({
-    id: "land.boundaryScanDisplay",
-    label: "领地边界扫描光",
-    category: "land",
-    intervalTicks: 4,
-    when: () => setting.getState("land") === true,
-    run: () => {
-      const level = getLandParticleLevel();
-      const config = LAND_PARTICLE_LEVELS[level];
-      if (!config.scan || system.currentTick % config.scanRefreshTicks >= 4) return;
-      getOnlineRealPlayers().forEach((p) => {
-        if (!PlayerSetting.getLandBoundaryParticlesEnabled(p)) {
-          return;
-        }
-
-        const lands = Object.values(landManager.getLandList()).filter(
-          (land) =>
-            land.dimension === p.dimension.id &&
-            isLandNearPlayerForBoundaryDisplay(land, p.location, config.renderDistance)
-        );
-        for (const land of lands) {
-          try {
-            landParticle.createLandAmbientBoundaryScan(p, [land.vectors.start, land.vectors.end], {
-              seed: `${land.name}:${land.owner}`,
-              variant: getLandBoundaryVariantForPlayer(land, p),
+              detail,
+              budget,
+              active: () =>
+                setting.getState("land") === true &&
+                getLandParticleLevel() === detail &&
+                PlayerSetting.getLandBoundaryParticlesEnabled(p),
             });
           } catch (error) {
             // 忽略粒子生成错误

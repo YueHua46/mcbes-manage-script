@@ -4,39 +4,39 @@
  */
 
 import { MolangVariableMap, Player, system, Vector3 } from "@minecraft/server";
+import {
+  FRAME_LIFETIME,
+  FRAME_CROSSFADE,
+  FRAME_PROFILES,
+  boundaryPointDistance,
+  planBoundaryMarkers,
+  reserveBoundaryParticles,
+  BoundaryFrameBudget,
+} from "./land-boundary-frame";
 import { color } from "../../../shared/utils/color";
+import { landBoundaryColors } from "./land-boundary-colors";
 import { getDebugUtilities, isDebugUtilitiesAvailable } from "../../platform/sapi-capabilities";
+import { BoundaryDetail, BoundaryRenderPlan, createBoundaryRenderPlan } from "./land-boundary-render-plan";
+import {
+  boundaryCluster,
+  boundaryWakeDelay,
+  boundaryWakeOrigin,
+  boundaryWakePatches,
+  boundarySurfacePatches,
+} from "./land-boundary-choreography";
 
 /** 预览粒子间距（方块距离 / 步数）。保持轮廓可读，同时避免移动预览时糊屏。 */
 const PARTICLE_SPACING = 2.8;
-const ACCENT_PARTICLE_SPACING = 8;
 /** 单次 runJob 时间片内最多生成的粒子数，避免单 tick 过重触发 Watchdog */
 const PARTICLES_PER_JOB_SLICE = 72;
 /** 单条边上采样步数上限（含端点共 steps+1 个粒子）；过大领地防止刷爆脚本 */
 const MAX_STEPS_PER_LINE = 512;
-/** 单次 createLandParticleArea 粒子总数上限（跨所有边） */
-/** 12 条边 × (MAX_STEPS_PER_LINE+1) 端点粒子时的上界约 6156，略留余量 */
-const MAX_PARTICLES_PER_AREA_CALL = 6200;
 const DEBUG_RENDER_TTL_TICKS = 120;
 const DEBUG_RENDER_TTL_SECONDS = DEBUG_RENDER_TTL_TICKS / 20;
-const PULSE_PARTICLES_PER_EDGE = 1;
 const MAX_GRID_LINES_PER_AXIS = 4;
-const AMBIENT_EDGE_SPACING = 1.55;
-const AMBIENT_GROUND_SPACING = 0.9;
-const AMBIENT_WALL_SPACING = 2.8;
-const AMBIENT_SCAN_STREAKS_PER_EDGE = 3;
-const AMBIENT_SCAN_TRAIL_PARTICLES = 4;
-const AMBIENT_MAX_STEPS_PER_LINE = 320;
-const AMBIENT_MAX_PARTICLES_PER_AREA_CALL = 3600;
 const AMBIENT_PARTICLES_PER_JOB_SLICE = 64;
-const AMBIENT_BOTTOM_LAYER_OFFSET = 0.16;
-const AMBIENT_TOP_LAYER_OFFSET = 0.58;
-const AMBIENT_CORNER_MARKER_SPACING = 5.5;
-const AMBIENT_CORNER_MARKER_MIN_PARTICLES = 5;
-const AMBIENT_CORNER_MARKER_MAX_PARTICLES = 18;
-const AMBIENT_WALL_HEIGHT = 2.05;
-const AMBIENT_WALL_LAYERS = 2;
-const AMBIENT_FOUNDATION_MARKER_INTERVAL = 4;
+/** 进出领地时保持约 3 秒，再用粒子自身的 0.15 秒尾段淡出。 */
+const BOUNDARY_BURST_TICKS = 60;
 
 type Edge = readonly [Vector3, Vector3];
 type DebugShapeHandle = { remove: () => void };
@@ -56,24 +56,22 @@ interface Bounds {
 interface AreaParticlePlan {
   bounds: Bounds;
   edges: Edge[];
-  accents: Edge[];
   corners: Vector3[];
 }
 
 interface AmbientBoundaryOptions {
   seed?: string;
   variant?: AmbientBoundaryVariant;
-  detail?: "low" | "balanced" | "high";
+  detail?: BoundaryDetail;
+  budget?: BoundaryFrameBudget;
+  duration?: number;
+  emphasis?: boolean;
+  tint?: RgbaColor;
+  active?: () => boolean;
 }
 
 interface AmbientPalette {
-  edge: RgbaColor;
-  flow: RgbaColor;
-  corner: RgbaColor;
-  height: RgbaColor;
-  ground: RgbaColor;
-  wall: RgbaColor;
-  scan: RgbaColor;
+  runePrimary: RgbaColor;
 }
 
 type AmbientBoundaryVariant = "owner" | "trusted" | "guild" | "public" | "foreign" | "personal";
@@ -109,6 +107,9 @@ export interface LandSelectionGuideInfo {
 
 class LandParticle {
   private readonly debugShapeGroups = new Map<string, DebugShapeGroup>();
+  private readonly frameLeases = new Map<string, number>();
+  private readonly pendingRefreshes = new Set<string>();
+  private readonly wakeBudgets = new Map<string, { tick: number; remaining: number }>();
   private readonly colorMolangCache = new Map<string, MolangVariableMap>();
 
   /**
@@ -129,86 +130,135 @@ class LandParticle {
    * 创建领地区域粒子效果（方框）
    */
   createLandParticleArea(player: Player, pos: Vector3[]): void {
-    system.run(() => {
-      if (!player.isValid) {
-        return;
-      }
-      const startPos = pos[0];
-      const endPos = pos[1];
-      const plan = this.getAreaParticlePlan(startPos, endPos);
-      if (plan.edges.length === 0) {
-        return;
-      }
-      void this.tryCreateDebugLandArea(player, startPos, endPos).then((rendered) => {
-        this.spawnAreaPulse(player, plan.bounds, plan.edges);
-        if (!rendered) {
-          system.runJob(this.areaParticleGenerator(player, plan));
-        }
-      });
-    });
+    this.createLandAmbientBoundary(player, pos, { emphasis: true, variant: "personal" });
   }
 
-  /**
-   * 常显领地边界：地面霓虹带 + 低矮能量墙 + 扫描光。
-   */
+  /** 光团与晶屑构成的粒子结界；所有附近领地共享玩家本次刷新的粒子预算。 */
   createLandAmbientBoundary(player: Player, pos: Vector3[], options: AmbientBoundaryOptions = {}): void {
-    system.run(() => {
-      if (!player.isValid) {
-        return;
+    if (!player.isValid || pos.length < 2) return;
+    const dimensionId = player.dimension.id;
+    const requestedTick = system.currentTick;
+    const leaseKey = [player.id, dimensionId, ...pos.flatMap((point) => [point.x, point.y, point.z])].join(":");
+    for (const [key, expiry] of this.frameLeases) if (expiry <= requestedTick) this.frameLeases.delete(key);
+    const expiry = this.frameLeases.get(leaseKey);
+    if (expiry !== undefined) {
+      if (options.active && !this.pendingRefreshes.has(leaseKey)) {
+        this.pendingRefreshes.add(leaseKey);
+        system.runTimeout(() => {
+          this.pendingRefreshes.delete(leaseKey);
+          if (player.isValid && player.dimension.id === dimensionId && options.active!())
+            this.createLandAmbientBoundary(player, pos, options);
+        }, expiry - requestedTick);
       }
-      const startPos = pos[0];
-      const endPos = pos[1];
-      const bounds = this.getBounds(startPos, endPos);
-      const bottomY = bounds.min.y + AMBIENT_BOTTOM_LAYER_OFFSET;
-      const topY = bounds.max.y + (bounds.max.y > bounds.min.y ? AMBIENT_TOP_LAYER_OFFSET : 0.34);
-      const bottomEdges = this.getFootprintEdgesAtY(bounds, bottomY);
-      const topEdges = this.getFootprintEdgesAtY(bounds, topY);
-      const verticalEdges = this.getVerticalEdges(bounds, bottomY, topY);
+      return;
+    }
+    // Prevent timer/menu/entry effects painting the same frame on top of itself.
+    if (this.frameLeases.size >= 512) this.frameLeases.delete(this.frameLeases.keys().next().value!);
+    this.frameLeases.set(
+      leaseKey,
+      requestedTick + Math.round(((options.duration ?? FRAME_LIFETIME) - FRAME_CROSSFADE) * 20)
+    );
+    system.run(() => {
+      if (!player.isValid || player.dimension.id !== dimensionId) return;
       const detail = options.detail ?? "balanced";
-      const visibleTopEdges = detail === "low" ? [] : topEdges;
-      const visibleVerticalEdges = detail === "low" ? [] : verticalEdges;
-      const frameEdges = [...bottomEdges, ...visibleTopEdges, ...visibleVerticalEdges];
-      if (frameEdges.length === 0) {
-        return;
-      }
-
-      const palette = this.getAmbientPalette(
-        options.seed ?? `${startPos.x}:${startPos.z}:${endPos.x}:${endPos.z}`,
-        options.variant
-      );
-      if (detail !== "low") this.spawnAmbientCornerMarkers(player, bounds, bottomY, topY, palette);
-      system.runJob(
-        this.ambientBoundaryGenerator(player, bottomEdges, visibleTopEdges, visibleVerticalEdges, palette, detail)
-      );
-    });
-  }
-
-  /**
-   * 常显边界的高频扫描层。单独调度，避免扫描光跟随主边界刷新而跳帧。
-   */
-  createLandAmbientBoundaryScan(player: Player, pos: Vector3[], options: AmbientBoundaryOptions = {}): void {
-    system.run(() => {
-      if (!player.isValid) {
-        return;
-      }
-      const startPos = pos[0];
-      const endPos = pos[1];
-      const bounds = this.getBounds(startPos, endPos);
-      const bottomY = bounds.min.y + AMBIENT_BOTTOM_LAYER_OFFSET;
-      const bottomEdges = this.getFootprintEdgesAtY(bounds, bottomY);
-      if (bottomEdges.length === 0) {
-        return;
-      }
-
-      const seed = options.seed ?? `${startPos.x}:${startPos.z}:${endPos.x}:${endPos.z}`;
+      const seed = options.seed ?? pos.map((point) => `${point.x}:${point.y}:${point.z}`).join(":");
+      const plan = createBoundaryRenderPlan(pos[0], pos[1], detail, seed);
       const palette = this.getAmbientPalette(seed, options.variant);
-      this.spawnAmbientScanSparks(player, bottomEdges, palette, seed);
+      if (options.tint) palette.runePrimary = options.tint;
+      const budget = options.budget ?? { remaining: FRAME_PROFILES[detail].particles };
+      const alive = () =>
+        player.isValid &&
+        player.dimension.id === dimensionId &&
+        system.currentTick - requestedTick < 20 &&
+        (options.active?.() ?? true);
+      system.runJob(
+        this.ambientBoundaryGenerator(
+          player,
+          plan,
+          palette,
+          detail,
+          budget,
+          options.duration ?? FRAME_LIFETIME,
+          options.emphasis ?? false,
+          alive,
+          seed
+        )
+      );
     });
   }
 
+  /** 进出领地保持三秒；已有粒子时接续剩余时长，避免去重吞掉提示或重复叠加。 */
   createLandAmbientBoundaryBurst(player: Player, pos: Vector3[], options: AmbientBoundaryOptions = {}): void {
-    this.createLandAmbientBoundary(player, pos, options);
-    this.createLandAmbientBoundaryScan(player, pos, options);
+    if (!player.isValid || pos.length < 2) return;
+    const dimensionId = player.dimension.id;
+    const untilTick = system.currentTick + BOUNDARY_BURST_TICKS;
+    this.createBoundaryWake(player, pos, options);
+    const leaseKey = [player.id, dimensionId, ...pos.flatMap((point) => [point.x, point.y, point.z])].join(":");
+    const continueBurst = () => {
+      if (!player.isValid || player.dimension.id !== dimensionId || system.currentTick >= untilTick) return;
+      const expiry = this.frameLeases.get(leaseKey) ?? system.currentTick;
+      if (expiry >= untilTick) return;
+      if (expiry > system.currentTick) {
+        system.runTimeout(continueBurst, expiry - system.currentTick);
+        return;
+      }
+      this.createLandAmbientBoundary(player, pos, {
+        ...options,
+        duration: (untilTick - system.currentTick) / 20 + FRAME_CROSSFADE,
+        emphasis: true,
+      });
+    };
+    continueBurst();
+  }
+
+  /** A bounded local accent responds immediately even when the ambient lease is active. */
+  private createBoundaryWake(player: Player, pos: Vector3[], options: AmbientBoundaryOptions): void {
+    const tick = system.currentTick;
+    const dimensionId = player.dimension.id;
+    const detail = options.detail ?? "balanced";
+    for (const [key, value] of this.wakeBudgets)
+      if (tick - value.tick >= BOUNDARY_BURST_TICKS) this.wakeBudgets.delete(key);
+    let budget = this.wakeBudgets.get(player.id);
+    if (!budget) {
+      if (this.wakeBudgets.size >= 512) this.wakeBudgets.delete(this.wakeBudgets.keys().next().value!);
+      budget = { tick, remaining: Math.floor(FRAME_PROFILES[detail].particles / 15) };
+      this.wakeBudgets.set(player.id, budget);
+    }
+    if (budget.remaining < 3) return;
+    // Preserve part of the shared window for a quick return crossing.
+    const sharedBudget = budget;
+    const localBudget = {
+      remaining: Math.min(budget.remaining, Math.ceil((FRAME_PROFILES[detail].particles / 3) * 0.07)),
+    };
+    sharedBudget.remaining -= localBudget.remaining;
+    const seed = options.seed ?? "wake";
+    const plan = createBoundaryRenderPlan(pos[0], pos[1], detail, seed);
+    const origin = boundaryWakeOrigin(plan.bounds, player.location);
+    const palette = this.getAmbientPalette(seed, options.variant);
+    if (options.tint) palette.runePrimary = options.tint;
+    const alive = () => player.isValid && player.dimension.id === dimensionId && system.currentTick - tick < 20;
+    // Shared across this player's transitions for three seconds, separate from the ambient refresh budget.
+    const wake = this.ambientBoundaryGenerator(
+      player,
+      plan,
+      palette,
+      detail,
+      localBudget,
+      3.15,
+      true,
+      alive,
+      seed,
+      origin
+    );
+    system.runJob(
+      (function* () {
+        try {
+          yield* wake;
+        } finally {
+          sharedBudget.remaining += localBudget.remaining;
+        }
+      })()
+    );
   }
 
   /**
@@ -236,16 +286,14 @@ class LandParticle {
       const endPos = guide.end ?? guide.preview;
 
       if (guide.start && endPos) {
-        const plan = this.getAreaParticlePlan(guide.start, endPos);
-        void this.tryCreateDebugSelectionGuide(player, guide, guide.start, endPos).then((rendered) => {
-          this.spawnAreaPulse(player, plan.bounds, plan.edges);
-          this.spawnSelectionGuideBeacons(player, guide.start!, endPos, guide);
-          this.spawnOverlapLandPulses(player, guide.overlaps);
-          if (!rendered) {
-            system.runJob(this.areaParticleGenerator(player, plan));
-            system.runJob(this.overlapParticleGenerator(player, guide.overlaps));
-          }
+        this.spawnSelectionGuideBeacons(player, guide.start, endPos, guide);
+        this.spawnOverlapLandPulses(player, guide.overlaps);
+        this.createLandAmbientBoundary(player, [guide.start, endPos], {
+          duration: 1.15,
+          emphasis: true,
+          tint: this.getGuidePalette(guide.status).edge,
         });
+        system.runJob(this.overlapParticleGenerator(player, guide.overlaps));
         return;
       }
 
@@ -274,7 +322,6 @@ class LandParticle {
     return {
       bounds,
       edges,
-      accents: this.getGridLines(bounds),
       corners: this.getRenderCorners(bounds),
     };
   }
@@ -322,62 +369,6 @@ class LandParticle {
       [corners[2], corners[6]],
       [corners[3], corners[7]],
     ];
-  }
-
-  private *areaParticleGenerator(player: Player, plan: AreaParticlePlan): Generator<void, void, void> {
-    let spawnedTotal = 0;
-    let sliceCount = 0;
-
-    for (const corner of plan.corners) {
-      if (spawnedTotal >= MAX_PARTICLES_PER_AREA_CALL || !player.isValid) return;
-      this.spawnCornerAnchorParticles(player, corner);
-      spawnedTotal += 5;
-      sliceCount += 5;
-      if (sliceCount >= PARTICLES_PER_JOB_SLICE) {
-        sliceCount = 0;
-        yield;
-      }
-    }
-
-    for (const [startPos, endPos] of plan.edges) {
-      let edgeStep = 0;
-      for (const particle of this.iterLineParticles(player, startPos, endPos, MAX_STEPS_PER_LINE)) {
-        if (spawnedTotal >= MAX_PARTICLES_PER_AREA_CALL) {
-          return;
-        }
-        if (!player.isValid) {
-          return;
-        }
-        this.spawnBoundaryParticle(player, particle, edgeStep);
-        spawnedTotal++;
-        sliceCount++;
-        edgeStep++;
-        if (sliceCount >= PARTICLES_PER_JOB_SLICE) {
-          sliceCount = 0;
-          yield;
-        }
-      }
-    }
-
-    for (const [startPos, endPos] of plan.accents) {
-      let accentStep = 0;
-      for (const particle of this.iterLineParticles(player, startPos, endPos, 96, ACCENT_PARTICLE_SPACING)) {
-        if (spawnedTotal >= MAX_PARTICLES_PER_AREA_CALL) {
-          return;
-        }
-        if (!player.isValid) {
-          return;
-        }
-        this.spawnAccentParticle(player, particle, accentStep);
-        spawnedTotal++;
-        sliceCount++;
-        accentStep++;
-        if (sliceCount >= PARTICLES_PER_JOB_SLICE) {
-          sliceCount = 0;
-          yield;
-        }
-      }
-    }
   }
 
   private *overlapParticleGenerator(
@@ -439,84 +430,170 @@ class LandParticle {
 
   private *ambientBoundaryGenerator(
     player: Player,
-    bottomEdges: Edge[],
-    topEdges: Edge[],
-    verticalEdges: Edge[],
+    plan: BoundaryRenderPlan,
     palette: AmbientPalette,
-    detail: "low" | "balanced" | "high"
+    detail: BoundaryDetail,
+    budget: BoundaryFrameBudget,
+    duration: number,
+    emphasis: boolean,
+    alive: () => boolean,
+    seed: string,
+    wakeOrigin?: Vector3
   ): Generator<void, void, void> {
-    let spawnedTotal = 0;
+    if (!alive()) return;
+    const viewer = player.location;
+    const spawn = (identifier: string, position: Vector3, tint: RgbaColor, values: Record<string, number> = {}) => {
+      const molang = new MolangVariableMap();
+      molang.setColorRGBA("variable.color", tint);
+      molang.setFloat("variable.duration", duration);
+      for (const [key, value] of Object.entries(values)) molang.setFloat(`variable.${key}`, value);
+      try {
+        player.spawnParticle(identifier, position, molang);
+      } catch {
+        // Unloaded chunks and unavailable resources should not abort the other visible segments.
+      }
+    };
     let sliceCount = 0;
-
-    const wallLayers = detail === "high" ? AMBIENT_WALL_LAYERS : detail === "balanced" ? 1 : 0;
-    for (const [startPos, endPos] of bottomEdges) {
-      let edgeStep = 0;
-      for (const particle of this.iterLineParticles(
-        player,
-        startPos,
-        endPos,
-        AMBIENT_MAX_STEPS_PER_LINE,
-        AMBIENT_GROUND_SPACING
-      )) {
-        if (!player.isValid || spawnedTotal >= AMBIENT_MAX_PARTICLES_PER_AREA_CALL) {
-          return;
-        }
-        this.spawnAmbientGroundParticle(player, particle, edgeStep, palette);
-        spawnedTotal++;
+    const patch = (
+      position: Vector3,
+      span: Vector3,
+      count: number,
+      alpha: number,
+      focus = false,
+      outline = false
+    ): boolean => {
+      if (alpha <= 0) return true;
+      if (wakeOrigin && boundaryPointDistance(position, wakeOrigin) > 24) return true;
+      const variation = boundaryCluster(seed, position);
+      count = outline ? count : Math.max(2, Math.round(count * (0.55 + variation * 0.8)));
+      if (!reserveBoundaryParticles(budget, count)) return false;
+      const crystalCount = !wakeOrigin && count >= 4 && variation < 0.12 ? 1 : 0;
+      const glowCount = wakeOrigin ? count : Math.ceil(count * 0.7);
+      const dustCount = count - glowCount - crystalCount;
+      const spread = 0.45 + variation * 0.3;
+      const values: Record<string, number> = {
+        span_x: span.x * spread,
+        span_y: span.y * spread,
+        span_z: span.z * spread,
+        phase: variation * 360,
+        delay: wakeOrigin ? boundaryWakeDelay(wakeOrigin, position) : 0,
+        focus: focus ? 1 : 0,
+        clock: system.currentTick / 20,
+        fade: Math.min(FRAME_CROSSFADE, duration / 2),
+        size_scale: outline ? (focus ? 1.3 : 1) : 1,
+      };
+      for (const axis of ["x", "y", "z"] as const) {
+        values[`min_${axis}`] = Math.max(-span[axis] / 2, plan.bounds.min[axis] - position[axis]);
+        values[`max_${axis}`] = Math.min(span[axis] / 2, plan.bounds.max[axis] - position[axis]);
+      }
+      if (outline) {
+        // A single fixed core, with no per-particle random position/size/rotation.
+        spawn("rbb:land_mote_marker", position, this.withAlpha(palette.runePrimary, 1), { ...values, count: 1 });
         sliceCount++;
-        edgeStep++;
+        return true;
+      }
+      for (const [kind, amount] of [
+        ["glow", glowCount],
+        ["crystal", crystalCount],
+        ["dust", dustCount],
+      ] as const) {
+        if (!amount) continue;
+        const tint =
+          kind === "crystal"
+            ? {
+                red: 0.15 + palette.runePrimary.red * 0.85,
+                green: 0.15 + palette.runePrimary.green * 0.85,
+                blue: 0.15 + palette.runePrimary.blue * 0.85,
+                alpha: alpha * 0.65,
+              }
+            : this.withAlpha(palette.runePrimary, alpha);
+        spawn(`rbb:land_mote_${wakeOrigin ? "wake" : kind}`, position, tint, { ...values, count: amount });
+        sliceCount++;
+      }
+      return true;
+    };
+    const edgeCount = detail === "low" ? 4 : detail === "balanced" ? 6 : 8;
+    // Wake surface cells take priority, so tall claims still react at the crossing height.
+    if (wakeOrigin) {
+      const panels = boundaryWakePatches(plan.bounds, wakeOrigin, seed);
+      if (!patch(wakeOrigin, { x: 0.85, y: 1.3, z: 0.85 }, 6, 1, true)) return;
+      for (const panel of panels) {
+        if (!alive()) return;
+        if (
+          !patch(
+            panel.position,
+            panel.span,
+            edgeCount,
+            0.8 * (1 - boundaryPointDistance(panel.position, wakeOrigin) / 22)
+          )
+        )
+          return;
         if (sliceCount >= AMBIENT_PARTICLES_PER_JOB_SLICE) {
           sliceCount = 0;
           yield;
         }
       }
+      return;
     }
-
-    for (const edge of [...bottomEdges, ...topEdges, ...verticalEdges]) {
-      let edgeStep = 0;
-      for (const particle of this.iterLineParticles(
-        player,
-        edge[0],
-        edge[1],
-        AMBIENT_MAX_STEPS_PER_LINE,
-        AMBIENT_EDGE_SPACING
-      )) {
-        if (!player.isValid || spawnedTotal >= AMBIENT_MAX_PARTICLES_PER_AREA_CALL) {
-          return;
-        }
-        this.spawnAmbientBoundaryParticle(player, particle, edgeStep, palette);
-        spawnedTotal++;
+    // The real cuboid is the primary guide: identical spacing and motes on every edge.
+    const profile = FRAME_PROFILES[detail];
+    const canonicalBudget = Math.floor(profile.particles / profile.maxLands);
+    const outlineBudget = Math.min(Math.floor(budget.remaining * 0.9), Math.floor(canonicalBudget * 0.9));
+    const cluster = (position: Vector3, corner = false): boolean => {
+      const count = corner ? 9 : 3;
+      if (!reserveBoundaryParticles(budget, count)) return false;
+      const span = corner ? { x: 0.7, y: 0.7, z: 0.7 } : { x: 0.35, y: 0.35, z: 0.35 };
+      const values: Record<string, number> = {
+        outline: 1,
+        size_scale: corner ? 1.8 : 1.35,
+        phase: boundaryCluster(seed, position) * 360,
+        delay: 0,
+        focus: 0,
+        clock: system.currentTick / 20,
+        fade: Math.min(FRAME_CROSSFADE, duration / 2),
+      };
+      for (const axis of ["x", "y", "z"] as const) {
+        values[`span_${axis}`] = span[axis];
+        values[`min_${axis}`] = Math.max(-span[axis] / 2, plan.bounds.min[axis] - position[axis]);
+        values[`max_${axis}`] = Math.min(span[axis] / 2, plan.bounds.max[axis] - position[axis]);
+      }
+      for (const [kind, amount, alpha] of [
+        [corner ? "corner" : "marker", 1, 1],
+        ["glow", corner ? 4 : 1, 0.8],
+        ["crystal", corner ? 2 : 1, 0.8],
+        ["dust", corner ? 2 : 0, 0.65],
+      ] as const) {
+        if (!amount) continue;
+        spawn(`rbb:land_mote_${kind}`, position, this.withAlpha(palette.runePrimary, alpha), {
+          ...values,
+          count: amount,
+        });
         sliceCount++;
-        edgeStep++;
-        if (sliceCount >= AMBIENT_PARTICLES_PER_JOB_SLICE) {
-          sliceCount = 0;
-          yield;
-        }
+      }
+      return true;
+    };
+    for (const corner of plan.corners) {
+      if (!alive()) return;
+      if (boundaryPointDistance(corner, viewer) >= profile.distance) continue;
+      if (!cluster(corner, true)) return;
+    }
+    // Reserve all eight corner clusters before planning a single common lattice.
+    const samples = Math.max(0, Math.floor((outlineBudget - 72) / 3));
+    for (const point of planBoundaryMarkers(plan, viewer, detail, samples, 1)) {
+      if (!alive()) return;
+      if (!cluster(point)) return;
+      if (sliceCount >= AMBIENT_PARTICLES_PER_JOB_SLICE) {
+        sliceCount = 0;
+        yield;
       }
     }
-
-    for (const [startPos, endPos] of bottomEdges) {
-      let edgeStep = 0;
-      for (const particle of this.iterLineParticles(
-        player,
-        startPos,
-        endPos,
-        AMBIENT_MAX_STEPS_PER_LINE,
-        AMBIENT_WALL_SPACING
-      )) {
-        for (let layer = 0; layer < wallLayers; layer++) {
-          if (!player.isValid || spawnedTotal >= AMBIENT_MAX_PARTICLES_PER_AREA_CALL) {
-            return;
-          }
-          this.spawnAmbientWallParticle(player, particle, edgeStep, layer, palette);
-          spawnedTotal++;
-          sliceCount++;
-          if (sliceCount >= AMBIENT_PARTICLES_PER_JOB_SLICE) {
-            sliceCount = 0;
-            yield;
-          }
-        }
-        edgeStep++;
+    for (const panel of boundarySurfacePatches(plan.bounds, viewer, seed, profile.wallDistance, profile.maxPanels)) {
+      if (!alive()) return;
+      const count = detail === "low" ? 3 : detail === "balanced" ? 5 : 7;
+      if (!patch(panel.position, panel.span, count, emphasis ? 0.16 : 0.1)) return;
+      if (sliceCount >= AMBIENT_PARTICLES_PER_JOB_SLICE) {
+        sliceCount = 0;
+        yield;
       }
     }
   }
@@ -590,29 +667,6 @@ class LandParticle {
     }
   }
 
-  private spawnAccentParticle(player: Player, pos: Vector3, stepIndex: number): void {
-    if (stepIndex % 3 !== 0) return;
-    this.spawnLandEdgeParticleSafe(
-      player,
-      {
-        x: pos.x + 0.5,
-        y: pos.y + 0.14,
-        z: pos.z + 0.5,
-      },
-      { red: 0.46, green: 1, blue: 0.88, alpha: 0.22 }
-    );
-  }
-
-  private spawnCornerAnchorParticles(player: Player, pos: Vector3): void {
-    const center = { x: pos.x, y: pos.y, z: pos.z };
-    this.spawnLandAnchorRingParticleSafe(player, center, { red: 0.84, green: 1, blue: 0.42, alpha: 0.68 });
-    this.spawnLandCornerParticleSafe(
-      player,
-      { ...center, y: center.y + 0.34 },
-      { red: 0.26, green: 1, blue: 0.86, alpha: 0.58 }
-    );
-  }
-
   private spawnOverlapBoundaryParticle(player: Player, pos: Vector3, stepIndex: number): void {
     if (stepIndex % 3 !== 0) return;
     this.spawnLandEdgeParticleSafe(
@@ -631,159 +685,6 @@ class LandParticle {
     this.spawnLandCornerParticleSafe(player, center, { red: 1, green: 0.32, blue: 0.16, alpha: 0.66 });
   }
 
-  private spawnAmbientBoundaryParticle(player: Player, pos: Vector3, stepIndex: number, palette: AmbientPalette): void {
-    const pulse = this.getAmbientPulse(stepIndex);
-    const base = {
-      x: pos.x + 0.5,
-      y: pos.y + 0.18,
-      z: pos.z + 0.5,
-    };
-    this.spawnLandEdgeParticleSafe(player, base, this.withAlpha(palette.edge, palette.edge.alpha * pulse));
-
-    if ((stepIndex + Math.floor(system.currentTick / 5)) % 5 === 0) {
-      this.spawnLandEdgeParticleSafe(
-        player,
-        { ...base, y: base.y + 0.14 },
-        this.withAlpha(palette.flow, palette.flow.alpha * 1.08)
-      );
-    }
-  }
-
-  private spawnAmbientGroundParticle(player: Player, pos: Vector3, stepIndex: number, palette: AmbientPalette): void {
-    const pulse = this.getAmbientPulse(stepIndex + 11);
-    const base = {
-      x: pos.x + 0.5,
-      y: pos.y + 0.075,
-      z: pos.z + 0.5,
-    };
-    this.spawnCustomColoredParticleSafe(
-      player,
-      "rbb:land_ground_band",
-      base,
-      this.withAlpha(palette.ground, palette.ground.alpha * (0.98 + pulse * 0.18))
-    );
-
-    const markerPhase = Math.floor(system.currentTick / 8) % AMBIENT_FOUNDATION_MARKER_INTERVAL;
-    if (stepIndex % AMBIENT_FOUNDATION_MARKER_INTERVAL === markerPhase) {
-      this.spawnLandEdgeParticleSafe(
-        player,
-        { ...base, y: base.y + 0.2 },
-        this.withAlpha(palette.flow, palette.flow.alpha * 0.72)
-      );
-    }
-  }
-
-  private spawnAmbientWallParticle(
-    player: Player,
-    pos: Vector3,
-    stepIndex: number,
-    layerIndex: number,
-    palette: AmbientPalette
-  ): void {
-    const t = (layerIndex + 1) / (AMBIENT_WALL_LAYERS + 1);
-    const alpha = palette.wall.alpha * (0.72 - t * 0.24) * this.getAmbientPulse(stepIndex + layerIndex * 9);
-    this.spawnCustomColoredParticleSafe(
-      player,
-      "rbb:land_wall_panel",
-      {
-        x: pos.x + 0.5,
-        y: pos.y + 0.18 + AMBIENT_WALL_HEIGHT * t,
-        z: pos.z + 0.5,
-      },
-      this.withAlpha(palette.wall, alpha)
-    );
-  }
-
-  private spawnAmbientScanSparks(player: Player, edges: Edge[], palette: AmbientPalette, seed: string): void {
-    const tickOffset = ((system.currentTick + (Math.abs(this.hashString(seed)) % 96)) % 96) / 96;
-    for (const [edgeIndex, edge] of edges.entries()) {
-      for (let i = 0; i < AMBIENT_SCAN_STREAKS_PER_EDGE; i++) {
-        const headT = (tickOffset + i / AMBIENT_SCAN_STREAKS_PER_EDGE + edgeIndex * 0.041) % 1;
-        for (let trail = 0; trail < AMBIENT_SCAN_TRAIL_PARTICLES; trail++) {
-          const trailT = (headT - trail * 0.048 + 1) % 1;
-          const pos = this.lerp(edge[0], edge[1], trailT);
-          const fade = 1 - trail / (AMBIENT_SCAN_TRAIL_PARTICLES + 0.6);
-          const lift = 0.42 + Math.sin((system.currentTick + trail * 3 + edgeIndex * 7) / 8) * 0.04;
-          const particleType = trail === 0 || trail === 1 ? "rbb:land_scan_streak" : "rbb:land_scan_spark";
-          this.spawnCustomColoredParticleSafe(
-            player,
-            particleType,
-            {
-              x: pos.x + 0.5,
-              y: pos.y + lift,
-              z: pos.z + 0.5,
-            },
-            this.withAlpha(palette.scan, palette.scan.alpha * fade * fade)
-          );
-          if (trail === 0) {
-            this.spawnLandEdgeParticleSafe(
-              player,
-              {
-                x: pos.x + 0.5,
-                y: pos.y + 0.22,
-                z: pos.z + 0.5,
-              },
-              this.withAlpha(palette.flow, palette.flow.alpha * 0.82)
-            );
-          }
-        }
-      }
-    }
-  }
-
-  private spawnAmbientCornerMarkers(
-    player: Player,
-    bounds: Bounds,
-    bottomY: number,
-    topY: number,
-    palette: AmbientPalette
-  ): void {
-    const corners = this.getFootprintCorners(bounds);
-    const markerCount = this.getAmbientCornerMarkerCount(topY - bottomY);
-
-    for (const corner of corners) {
-      const bottom = { x: corner.x + 0.5, y: bottomY + 0.08, z: corner.z + 0.5 };
-      const top = { x: corner.x + 0.5, y: topY, z: corner.z + 0.5 };
-
-      this.spawnLandAnchorRingParticleSafe(player, bottom, palette.corner);
-      this.spawnLandAnchorRingParticleSafe(player, top, palette.height);
-
-      for (let i = 0; i < markerCount; i++) {
-        const t = markerCount === 1 ? 0 : i / (markerCount - 1);
-        const color = this.mixColor(palette.corner, palette.height, t);
-        const pulse = this.getAmbientPulse(i * 5);
-        this.spawnLandCornerParticleSafe(
-          player,
-          {
-            x: bottom.x,
-            y: bottom.y + (top.y - bottom.y) * t,
-            z: bottom.z,
-          },
-          this.withAlpha(color, color.alpha * (0.68 + pulse * 0.2))
-        );
-      }
-    }
-  }
-
-  private getAmbientCornerMarkerCount(height: number): number {
-    const adaptiveCount = Math.ceil(Math.max(0, height) / AMBIENT_CORNER_MARKER_SPACING) + 1;
-    return Math.max(AMBIENT_CORNER_MARKER_MIN_PARTICLES, Math.min(AMBIENT_CORNER_MARKER_MAX_PARTICLES, adaptiveCount));
-  }
-
-  private getAmbientPulse(offset: number): number {
-    return 0.78 + Math.sin((system.currentTick + offset) / 7) * 0.22;
-  }
-
-  private mixColor(from: RgbaColor, to: RgbaColor, t: number): RgbaColor {
-    const clamped = Math.max(0, Math.min(1, t));
-    return {
-      red: from.red + (to.red - from.red) * clamped,
-      green: from.green + (to.green - from.green) * clamped,
-      blue: from.blue + (to.blue - from.blue) * clamped,
-      alpha: from.alpha + (to.alpha - from.alpha) * clamped,
-    };
-  }
-
   private withAlpha(color: RgbaColor, alpha: number): RgbaColor {
     return {
       red: color.red,
@@ -791,37 +692,6 @@ class LandParticle {
       blue: color.blue,
       alpha: Math.max(0, Math.min(1, alpha)),
     };
-  }
-
-  private spawnAreaPulse(player: Player, bounds: Bounds, edges: Edge[]): void {
-    if (!player.isValid) return;
-    const tickOffset = (system.currentTick % 120) / 120;
-
-    for (const [edgeIndex, [start, end]] of edges.entries()) {
-      for (let i = 0; i < PULSE_PARTICLES_PER_EDGE; i++) {
-        const t = (tickOffset + i / PULSE_PARTICLES_PER_EDGE + edgeIndex * 0.037) % 1;
-        const pos = this.lerp(start, end, t);
-        this.spawnLandEdgeParticleSafe(
-          player,
-          {
-            x: pos.x + 0.5,
-            y: pos.y + 0.28,
-            z: pos.z + 0.5,
-          },
-          { red: 0.7, green: 1, blue: 0.82, alpha: 0.5 }
-        );
-      }
-    }
-
-    this.spawnLandCornerParticleSafe(
-      player,
-      {
-        x: bounds.center.x,
-        y: bounds.min.y + 0.38,
-        z: bounds.center.z,
-      },
-      { red: 0.22, green: 0.9, blue: 1, alpha: 0.34 }
-    );
   }
 
   private spawnOverlapLandPulses(player: Player, overlaps: LandSelectionOverlapInfo[] | undefined): void {
@@ -1274,65 +1144,37 @@ class LandParticle {
     };
   }
 
-  private getAmbientPalette(_seed: string, variant: AmbientBoundaryOptions["variant"] = "foreign"): AmbientPalette {
-    const palettes: Record<AmbientBoundaryVariant, AmbientPalette> = {
-      owner: {
-        edge: { red: 0.1, green: 0.95, blue: 1, alpha: 0.78 },
-        flow: { red: 0.75, green: 1, blue: 0.92, alpha: 0.78 },
-        corner: { red: 0.95, green: 1, blue: 0.42, alpha: 0.98 },
-        height: { red: 0.28, green: 0.95, blue: 1, alpha: 0.68 },
-        ground: { red: 0.05, green: 0.8, blue: 1, alpha: 0.76 },
-        wall: { red: 0.05, green: 0.9, blue: 1, alpha: 0.34 },
-        scan: { red: 0.9, green: 1, blue: 0.62, alpha: 1 },
-      },
-      trusted: {
-        edge: { red: 0.32, green: 1, blue: 0.58, alpha: 0.74 },
-        flow: { red: 0.78, green: 1, blue: 0.48, alpha: 0.74 },
-        corner: { red: 0.74, green: 1, blue: 0.3, alpha: 0.92 },
-        height: { red: 0.42, green: 1, blue: 0.72, alpha: 0.62 },
-        ground: { red: 0.16, green: 0.95, blue: 0.5, alpha: 0.72 },
-        wall: { red: 0.12, green: 0.9, blue: 0.45, alpha: 0.3 },
-        scan: { red: 0.92, green: 1, blue: 0.48, alpha: 0.94 },
-      },
-      guild: {
-        edge: { red: 0.16, green: 0.74, blue: 1, alpha: 0.78 },
-        flow: { red: 1, green: 0.84, blue: 0.2, alpha: 0.82 },
-        corner: { red: 1, green: 0.74, blue: 0.18, alpha: 1 },
-        height: { red: 0.28, green: 0.92, blue: 1, alpha: 0.66 },
-        ground: { red: 0.08, green: 0.62, blue: 1, alpha: 0.76 },
-        wall: { red: 0.08, green: 0.68, blue: 1, alpha: 0.34 },
-        scan: { red: 1, green: 0.9, blue: 0.25, alpha: 1 },
-      },
-      public: {
-        edge: { red: 0.7, green: 0.86, blue: 1, alpha: 0.7 },
-        flow: { red: 0.96, green: 0.94, blue: 1, alpha: 0.7 },
-        corner: { red: 0.9, green: 0.94, blue: 1, alpha: 0.86 },
-        height: { red: 0.7, green: 0.86, blue: 1, alpha: 0.56 },
-        ground: { red: 0.45, green: 0.7, blue: 1, alpha: 0.68 },
-        wall: { red: 0.42, green: 0.68, blue: 1, alpha: 0.28 },
-        scan: { red: 0.96, green: 0.98, blue: 1, alpha: 0.88 },
-      },
-      foreign: {
-        edge: { red: 1, green: 0.46, blue: 0.24, alpha: 0.76 },
-        flow: { red: 1, green: 0.8, blue: 0.26, alpha: 0.76 },
-        corner: { red: 1, green: 0.28, blue: 0.18, alpha: 0.96 },
-        height: { red: 1, green: 0.56, blue: 0.24, alpha: 0.64 },
-        ground: { red: 1, green: 0.28, blue: 0.14, alpha: 0.74 },
-        wall: { red: 1, green: 0.22, blue: 0.12, alpha: 0.32 },
-        scan: { red: 1, green: 0.74, blue: 0.22, alpha: 0.96 },
-      },
-      personal: {
-        edge: { red: 0.1, green: 0.88, blue: 1, alpha: 0.74 },
-        flow: { red: 0.58, green: 1, blue: 0.82, alpha: 0.74 },
-        corner: { red: 0.88, green: 1, blue: 0.42, alpha: 0.92 },
-        height: { red: 0.35, green: 0.92, blue: 1, alpha: 0.6 },
-        ground: { red: 0.05, green: 0.72, blue: 1, alpha: 0.72 },
-        wall: { red: 0.06, green: 0.78, blue: 1, alpha: 0.3 },
-        scan: { red: 0.82, green: 1, blue: 0.56, alpha: 0.92 },
+  private getAmbientPalette(seed: string, variant: AmbientBoundaryOptions["variant"] = "foreign"): AmbientPalette {
+    const assigned = landBoundaryColors.get(seed);
+    if (assigned) return { runePrimary: assigned };
+    const tones: Record<AmbientBoundaryVariant, RgbaColor> = {
+      owner: { red: 0.3, green: 0.82, blue: 1, alpha: 0.6 },
+      trusted: { red: 0.36, green: 0.9, blue: 0.67, alpha: 0.6 },
+      guild: { red: 0.95, green: 0.75, blue: 0.35, alpha: 0.6 },
+      public: { red: 0.6, green: 0.76, blue: 0.88, alpha: 0.6 },
+      foreign: { red: 0.95, green: 0.55, blue: 0.35, alpha: 0.6 },
+      personal: { red: 0.3, green: 0.82, blue: 1, alpha: 0.6 },
+    };
+    const identities = [
+      [0.22, 0.85, 1],
+      [0.65, 0.42, 1],
+      [0.32, 0.75, 1],
+      [0.42, 0.9, 1],
+      [0.6, 0.55, 1],
+      [0.3, 0.55, 1],
+      [0.5, 0.68, 1],
+      [0.52, 0.82, 1],
+    ];
+    const identity = identities[(this.hashString(seed) >>> 0) % identities.length];
+    const base = tones[variant];
+    return {
+      runePrimary: {
+        red: identity[0] * 0.9 + base.red * 0.1,
+        green: identity[1] * 0.9 + base.green * 0.1,
+        blue: identity[2] * 0.9 + base.blue * 0.1,
+        alpha: base.alpha,
       },
     };
-
-    return palettes[variant];
   }
 
   private hashString(value: string): number {
@@ -1375,64 +1217,6 @@ class LandParticle {
       { x: max.x, y: min.y, z: max.z },
       { x: min.x, y: max.y, z: max.z },
       { x: max.x, y: max.y, z: max.z },
-    ];
-  }
-
-  private getFootprintCorners(bounds: Bounds): Vector3[] {
-    const y = bounds.min.y;
-    return [
-      { x: bounds.min.x, y, z: bounds.min.z },
-      { x: bounds.max.x, y, z: bounds.min.z },
-      { x: bounds.min.x, y, z: bounds.max.z },
-      { x: bounds.max.x, y, z: bounds.max.z },
-    ];
-  }
-
-  private getFootprintEdges(bounds: Bounds): Edge[] {
-    return this.getFootprintEdgesAtY(bounds, bounds.min.y);
-  }
-
-  private getFootprintEdgesAtY(bounds: Bounds, y: number): Edge[] {
-    const corners = this.getFootprintCorners(bounds);
-    return [
-      [
-        { x: corners[0].x, y, z: corners[0].z },
-        { x: corners[1].x, y, z: corners[1].z },
-      ],
-      [
-        { x: corners[1].x, y, z: corners[1].z },
-        { x: corners[3].x, y, z: corners[3].z },
-      ],
-      [
-        { x: corners[3].x, y, z: corners[3].z },
-        { x: corners[2].x, y, z: corners[2].z },
-      ],
-      [
-        { x: corners[2].x, y, z: corners[2].z },
-        { x: corners[0].x, y, z: corners[0].z },
-      ],
-    ];
-  }
-
-  private getVerticalEdges(bounds: Bounds, bottomY: number, topY: number): Edge[] {
-    const corners = this.getFootprintCorners(bounds);
-    return [
-      [
-        { x: corners[0].x, y: bottomY, z: corners[0].z },
-        { x: corners[0].x, y: topY, z: corners[0].z },
-      ],
-      [
-        { x: corners[1].x, y: bottomY, z: corners[1].z },
-        { x: corners[1].x, y: topY, z: corners[1].z },
-      ],
-      [
-        { x: corners[2].x, y: bottomY, z: corners[2].z },
-        { x: corners[2].x, y: topY, z: corners[2].z },
-      ],
-      [
-        { x: corners[3].x, y: bottomY, z: corners[3].z },
-        { x: corners[3].x, y: topY, z: corners[3].z },
-      ],
     ];
   }
 

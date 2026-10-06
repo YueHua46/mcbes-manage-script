@@ -14,7 +14,7 @@ export const coreEndQuests: QuestDefinitionV2[] = [
   corePresetQuest({
     id: "preset.core.end.kill_dragon",
     title: "这次轮到龙看字幕了",
-    description: "由你参与并被系统可靠归因地击败末影龙。必须是真正的巨龙死亡事件，捡到龙息或经验不能冒领战绩。",
+    description: "参与终末之战并成功击败末影龙。只有巨龙真正倒下才算完成，捡到龙息或经验都不算。",
     completionMessage: "末影龙倒下，终末诗篇为你翻开。",
     chapterId: "core.end",
     order: 1,

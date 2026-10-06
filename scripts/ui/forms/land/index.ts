@@ -9,6 +9,8 @@ import { color } from "../../../shared/utils/color";
 import { getOnlineRealPlayers } from "../../../shared/utils/online-players";
 import { Player, Vector3, world } from "@minecraft/server";
 import landManager from "../../../features/land/services/land-manager";
+import { FRAME_PROFILES } from "../../../features/land/services/land-boundary-frame";
+import { selectNearestBoundaryCandidates } from "../../../features/land/services/land-boundary-render-plan";
 import landParticle from "../../../features/land/services/land-particle";
 import { openServerMenuForm } from "../server";
 import { openConfirmDialogForm, openDialogForm } from "../../../ui/components/dialog";
@@ -31,8 +33,6 @@ import { formatDateTime } from "../../../shared/utils/format";
 import { isAdmin as playerIsAdmin } from "../../../shared/utils/common";
 import { openLandSnapshotForm } from "./snapshot";
 import PlayerSetting from "../../../features/player/services/player-settings";
-
-const LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE = 192;
 
 function canUseLandTeleport(player: Player): boolean {
   return setting.getState("landTeleportEnabled") === true || playerIsAdmin(player);
@@ -1606,35 +1606,30 @@ function buildLandBoundaryParticleButtonLabel(player: Player): string {
 }
 
 function previewAllDimensionLandBoundaries(player: Player): void {
-  const lands = Object.values(landManager.getLandList()).filter(
-    (land) => land.dimension === player.dimension.id && isLandNearPlayerForBoundaryPreview(land, player.location)
+  const profile = FRAME_PROFILES.balanced;
+  const candidates = Object.values(landManager.getLandList()).map((land) => ({
+    value: land,
+    start: land.vectors.start,
+    end: land.vectors.end,
+    dimension: land.dimension,
+    priority: land.dimension === player.dimension.id && landManager.isInsideLand(player.location, land).isInside,
+  }));
+  const lands = selectNearestBoundaryCandidates(
+    candidates,
+    player.dimension.id,
+    player.location,
+    profile.distance,
+    profile.maxLands
   );
+  const perLandBudget = Math.floor(profile.particles / Math.max(1, lands.length));
   for (const land of lands) {
-    try {
-      landParticle.createLandAmbientBoundary(player, [land.vectors.start, land.vectors.end], {
-        seed: `${land.name}:${land.owner}`,
-        variant: getLandBoundaryVariantForPlayer(land, player),
-      });
-      landParticle.createLandAmbientBoundaryScan(player, [land.vectors.start, land.vectors.end], {
-        seed: `${land.name}:${land.owner}`,
-        variant: getLandBoundaryVariantForPlayer(land, player),
-      });
-    } catch {
-      // 忽略粒子生成错误
-    }
+    const budget = { remaining: perLandBudget };
+    landParticle.createLandAmbientBoundary(player, [land.vectors.start, land.vectors.end], {
+      seed: `${land.name}:${land.owner}`,
+      variant: getLandBoundaryVariantForPlayer(land, player),
+      budget,
+    });
   }
-}
-
-function isLandNearPlayerForBoundaryPreview(land: ILand, playerPos: Vector3): boolean {
-  const minX = Math.min(land.vectors.start.x, land.vectors.end.x);
-  const maxX = Math.max(land.vectors.start.x, land.vectors.end.x);
-  const minZ = Math.min(land.vectors.start.z, land.vectors.end.z);
-  const maxZ = Math.max(land.vectors.start.z, land.vectors.end.z);
-  const centerX = (minX + maxX) / 2;
-  const centerZ = (minZ + maxZ) / 2;
-  const dx = playerPos.x - centerX;
-  const dz = playerPos.z - centerZ;
-  return dx * dx + dz * dz <= LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE * LAND_BOUNDARY_PARTICLE_PREVIEW_DISTANCE;
 }
 
 function getLandBoundaryVariantForPlayer(

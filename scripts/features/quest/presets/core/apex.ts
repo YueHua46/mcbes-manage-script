@@ -48,7 +48,7 @@ export const coreApexQuests: QuestDefinitionV2[] = [
   corePresetQuest({
     id: "preset.core.apex.kill_wither",
     title: "三头老板，集体下线",
-    description: "由你参与并被系统可靠归因地击败一只凋零。召唤地点请慎重选择，村庄不是免费的 Boss 竞技场。",
+    description: "参与战斗并击败一只凋零。召唤地点请慎重选择，村庄不是免费的 Boss 竞技场。",
     completionMessage: "凋零被终结，下界之星终于恢复安静。",
     chapterId: "core.apex",
     order: 2,

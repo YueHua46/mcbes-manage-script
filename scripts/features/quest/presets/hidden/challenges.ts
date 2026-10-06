@@ -20,14 +20,14 @@ export const hiddenChallengeQuests: QuestDefinitionV2[] = [
   hiddenPresetQuest({
     id: "preset.hidden.warden",
     title: "直面黑暗，还赢了",
-    description: "由你直接或可靠归因地击败一只监守者。它不是普通主线目标；只有玩家击杀归因明确时才会揭晓。",
+    description: "亲手击败一只监守者。这是一项隐藏挑战，成功击杀后才会揭晓，别让黑暗先发现你。",
     completionMessage: "监守者倒下，黑暗第一次主动给你让了路。",
     chapterId: "hidden.challenges",
     order: 1,
     rarity: "legendary",
     reliability: "A",
     goals: [
-      milestoneGoal("goal.kill_warden", "entity.kill", "由自己可靠归因击败一只监守者", {
+      milestoneGoal("goal.kill_warden", "entity.kill", "亲手击败一只监守者", {
         filters: { entity: { op: "eq", value: "minecraft:warden" } },
       }),
     ],
@@ -38,14 +38,14 @@ export const hiddenChallengeQuests: QuestDefinitionV2[] = [
   hiddenPresetQuest({
     id: "preset.hidden.dragon_again",
     title: "终末返场，龙也加班",
-    description: "在持久 Boss 击杀记录中，把末影龙击杀次数推进到两次。必须是同一玩家的可靠累计，重复播放动画不算。",
+    description: "亲手击败末影龙两次。只有真正完成的击杀才会计数，重复播放动画不算。",
     completionMessage: "末影龙第二次落幕，终末世界确认你是来返场的。",
     chapterId: "hidden.challenges",
     order: 2,
     rarity: "legendary",
     reliability: "B",
     goals: [
-      counterGoal("goal.kill_ender_dragon_twice", "entity.kill", 2, "累计可靠归因击败末影龙两次", {
+      counterGoal("goal.kill_ender_dragon_twice", "entity.kill", 2, "累计击败末影龙两次", {
         filters: { entity: { op: "eq", value: "minecraft:ender_dragon" } },
         selectorId: "selector.counter.boss_kill_count",
         backfillPolicy: "historical",

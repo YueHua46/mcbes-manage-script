@@ -88,7 +88,7 @@ export const worldOceanQuests: QuestDefinitionV2[] = [
   worldPresetQuest({
     id: "preset.world.ocean.elder_guardian",
     title: "老鱼也得讲基本法",
-    description: "由你击杀一只远古守卫者。系统必须记录真实击杀归因，挖掘疲劳消失或捡到海绵都不能替代战绩。",
+    description: "亲手击杀一只远古守卫者。挖掘疲劳消失或捡到海绵都不算完成任务。",
     completionMessage: "远古守卫者倒下，神殿的压迫感少了一层。",
     chapterId: "world.ocean",
     order: 5,

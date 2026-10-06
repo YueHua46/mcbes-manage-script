@@ -45,6 +45,7 @@ import {
 import questPlayerService from "../../../features/quest/services/quest-player";
 import questSnapshotRuntime from "../../../features/quest/snapshots/runtime-snapshot-queue";
 import hudBroker from "../../../features/hud/runtime-hud-broker";
+import { openRedemptionCodeManageForm } from "../redemption-code";
 
 // ==================== 领地飞行（管理） ====================
 
@@ -122,9 +123,9 @@ function openLandFlightSettingsForm(player: Player): void {
 
 const LAND_PARTICLE_LEVEL_OPTIONS = [
   { value: "off", label: "关闭", description: "完全关闭领地常显粒子，性能开销最低" },
-  { value: "low", label: "省流", description: "仅显示稀疏地面边界，80 格范围，无扫描光" },
-  { value: "balanced", label: "均衡（推荐）", description: "128 格范围，低频扫描与单层边界墙" },
-  { value: "high", label: "绚丽", description: "192 格范围、双层边界墙与高频扫描，开销最高" },
+  { value: "low", label: "省流", description: "80 格范围，完整 3D 稀疏符文结界，无巡游光" },
+  { value: "balanced", label: "均衡（推荐）", description: "128 格范围，完整 3D 秘法符文与双环巡游光" },
+  { value: "high", label: "绚丽", description: "192 格范围，密集 3D 符文、八角法阵与立柱追光" },
 ] as const;
 
 function openLandParticleSettingsForm(player: Player): void {
@@ -1470,6 +1471,7 @@ export function openEconomyManageForm(player: Player): void {
   form.button("玩家金币管理", "textures/icons/rewards");
   form.button("功能设置", "textures/icons/gadgets");
   form.button("怪物金币奖励范围", "textures/icons/zombi");
+  form.button("兑换码管理", "textures/icons/gift");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -1491,6 +1493,9 @@ export function openEconomyManageForm(player: Player): void {
         openMonsterRewardRangeListForm(player);
         break;
       case 5:
+        openRedemptionCodeManageForm(player, () => openEconomyManageForm(player));
+        break;
+      case 6:
         openSystemSettingForm(player);
         break;
     }

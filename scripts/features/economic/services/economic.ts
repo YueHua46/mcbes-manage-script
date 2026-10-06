@@ -12,7 +12,13 @@ import { filterRealPlayerRecords, getOnlineRealPlayers } from "../../../shared/u
 import { colorCodes } from "../../../shared/utils/color";
 import { formatDateOnlyBeijing } from "../../../shared/utils/datetime-beijing";
 import identityService from "../../player/services/identity-service";
-import type { IUserWallet, IUserWalletWithDailyLimit, ITransaction } from "../models/economic.model";
+import type {
+  ICreditGoldOnceInput,
+  ICreditGoldOnceResult,
+  IUserWallet,
+  IUserWalletWithDailyLimit,
+  ITransaction,
+} from "../models/economic.model";
 
 export const PLAYER_MARKET_PURCHASE_REASON = "购买玩家交易市场商品";
 export const MONEY_SCOREBOARD_OBJECTIVE = "yuehua_money";
@@ -254,6 +260,7 @@ export class Economic {
       dailyEarned: 0,
       lastResetDate: this.getCurrentDateString(),
       dailyLimitNotifyCount: 0,
+      appliedCredits: {},
     };
     this.saveWallet(storageKey, wallet);
     return wallet;
@@ -430,6 +437,141 @@ export class Economic {
     this.logTransaction("system", playerName, amount, reason);
 
     return amount;
+  }
+
+  /**
+   * 以持久化收据为界，为玩家精确发放一次金币。
+   *
+   * 余额与收据在同一个 eco_wallets 记录中一次保存；重试已成功的 key
+   * 只返回原收据，不会再加币或重复记录交易日志。
+   */
+  creditGoldOnce(input: ICreditGoldOnceInput): ICreditGoldOnceResult {
+    if (!input || typeof input.playerName !== "string" || input.playerName.trim().length === 0) {
+      return { status: "rejected", reason: "invalid_player" };
+    }
+    if (typeof input.playerIdentityId !== "string" || input.playerIdentityId.length === 0) {
+      return { status: "rejected", reason: "invalid_identity" };
+    }
+    if (!Number.isSafeInteger(input.amount) || input.amount <= 0 || input.amount > MONEY_SCOREBOARD_MAX) {
+      return { status: "rejected", reason: "invalid_amount" };
+    }
+    if (typeof input.idempotencyKey !== "string" || input.idempotencyKey.length === 0) {
+      return { status: "rejected", reason: "invalid_idempotency_key" };
+    }
+
+    // 先验证名字与稳定身份的对应关系，再读取钱包。getWallet 可能创建钱包、
+    // 迁移旧名字键并立即保存，身份不匹配的请求不得触发这些副作用。
+    let profile: ReturnType<typeof identityService.getProfileByName>;
+    try {
+      profile = identityService.getProfileByName(input.playerName);
+    } catch (error) {
+      console.warn(`读取玩家 ${input.playerName} 的身份失败`, error);
+      return { status: "retryable_error", reason: "identity_unavailable" };
+    }
+    if (!profile || profile.id !== input.playerIdentityId) {
+      return { status: "rejected", reason: "invalid_identity" };
+    }
+
+    let wallet: IUserWalletWithDailyLimit;
+    let storageKey: string;
+    try {
+      wallet = this.getWallet(input.playerName);
+      storageKey = this.resolveWalletKey(input.playerName);
+    } catch (error) {
+      console.warn(`读取玩家 ${input.playerName} 的钱包失败`, error);
+      return { status: "retryable_error", reason: "wallet_unavailable" };
+    }
+
+    if (storageKey !== input.playerIdentityId || wallet.identityId !== input.playerIdentityId) {
+      return { status: "rejected", reason: "invalid_identity" };
+    }
+
+    const rawAppliedCredits: unknown = wallet.appliedCredits;
+    if (
+      rawAppliedCredits !== undefined &&
+      (rawAppliedCredits === null || typeof rawAppliedCredits !== "object" || Array.isArray(rawAppliedCredits))
+    ) {
+      console.warn(`玩家 ${input.playerName} 的幂等加币收据容器无效`);
+      return { status: "retryable_error", reason: "wallet_receipt_invalid" };
+    }
+    const appliedCredits = (rawAppliedCredits ?? {}) as NonNullable<IUserWallet["appliedCredits"]>;
+    const existingReceipt = Object.prototype.hasOwnProperty.call(appliedCredits, input.idempotencyKey)
+      ? appliedCredits[input.idempotencyKey]
+      : undefined;
+
+    // 优先识别已落库的结果：即使经济系统随后关闭，恢复流程仍能确认已到账。
+    if (existingReceipt !== undefined) {
+      if (
+        existingReceipt === null ||
+        typeof existingReceipt !== "object" ||
+        !Number.isSafeInteger(existingReceipt.amount) ||
+        existingReceipt.amount <= 0 ||
+        existingReceipt.amount > MONEY_SCOREBOARD_MAX ||
+        !Number.isSafeInteger(existingReceipt.appliedAt) ||
+        existingReceipt.appliedAt < 0 ||
+        typeof existingReceipt.reason !== "string"
+      ) {
+        console.warn(`玩家 ${input.playerName} 的幂等加币收据 ${input.idempotencyKey} 无效`);
+        return { status: "retryable_error", reason: "wallet_receipt_invalid" };
+      }
+      if (existingReceipt.amount !== input.amount) {
+        return {
+          status: "conflict",
+          requestedAmount: input.amount,
+          appliedAmount: existingReceipt.amount,
+          balance: wallet.gold,
+        };
+      }
+      return { status: "already_credited", amount: existingReceipt.amount, balance: wallet.gold };
+    }
+
+    if (!this.isEconomyEnabled()) {
+      return { status: "rejected", reason: "economy_disabled" };
+    }
+    if (wallet.gold > MONEY_SCOREBOARD_MAX - input.amount) {
+      return { status: "rejected", reason: "balance_limit_exceeded" };
+    }
+
+    const ignoreDailyLimit = input.ignoreDailyLimit === true;
+    if (!ignoreDailyLimit) {
+      const dailyGoldLimit = this.syncDailyGoldLimitFromSetting();
+      if (wallet.dailyEarned > dailyGoldLimit - input.amount) {
+        return { status: "rejected", reason: "daily_limit_exceeded" };
+      }
+    }
+
+    const nextWallet: IUserWalletWithDailyLimit = {
+      ...wallet,
+      gold: wallet.gold + input.amount,
+      dailyEarned: ignoreDailyLimit ? wallet.dailyEarned : wallet.dailyEarned + input.amount,
+      appliedCredits: {
+        ...appliedCredits,
+        [input.idempotencyKey]: {
+          amount: input.amount,
+          appliedAt: Date.now(),
+          reason: input.reason,
+        },
+      },
+    };
+
+    try {
+      // 余额与 appliedCredits 作为同一钱包快照落库，禁止分两次 save。
+      this.saveWallet(storageKey, nextWallet);
+    } catch (error) {
+      // Database.set 先更新运行时缓存；保存失败时必须恢复旧快照，
+      // 避免后续重试把未落库的收据误判为已到账。
+      try {
+        this.db.set(storageKey, wallet);
+      } catch (rollbackError) {
+        console.warn(`恢复玩家 ${input.playerName} 的钱包缓存失败`, rollbackError);
+      }
+      console.warn(`玩家 ${input.playerName} 的幂等加币保存失败`, error);
+      return { status: "retryable_error", reason: "wallet_save_failed" };
+    }
+
+    // 日志不是余额的提交条件；收据会阻止重试时再次记录。
+    this.logTransaction("system", input.playerName, input.amount, input.reason);
+    return { status: "credited", amount: input.amount, balance: nextWallet.gold };
   }
 
   removeGold(

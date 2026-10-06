@@ -39,7 +39,7 @@ export const updateMountsQuests: QuestDefinitionV2[] = [
   updatePresetQuest(PACK_ID, {
     id: "preset.update.mounts.spear_charge",
     title: "速度拉满，矛尖先到",
-    description: "骑乘时使用长矛完成一次有效冲锋命中。必须同时验证速度、武器和伤害归因，普通近战戳一下不能冒充冲锋。",
+    description: "骑着坐骑加速冲锋，并用长矛命中目标。只有冲锋命中才会完成任务，普通近战攻击不算。",
     completionMessage: "长矛冲锋命中，速度成功换算成了伤害。",
     chapterId: "update.mounts",
     order: 2,

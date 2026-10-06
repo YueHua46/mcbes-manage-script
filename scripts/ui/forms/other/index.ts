@@ -17,6 +17,7 @@ import { isAdmin } from "../../../shared/utils/common";
 import { openMyEnderChestForm } from "../system/player-inventory-admin";
 import { chargeTeleportCost, refundTeleportCost } from "../../../features/economic/services/teleport-cost";
 import { openLiveServerPanel } from "../system/live-server-panel";
+import { openRedemptionCodeForm } from "../redemption-code";
 
 function openAuthorListForm(player: Player): void {
   const authors = [{ name: "月花zzZ", icon: "textures/authors/yuehua" }];
@@ -54,6 +55,14 @@ export function openBaseFunctionForm(player: Player): void {
   const buttons: Array<{ text: string; icon: string; action: () => void }> = [];
 
   buttons.push({ text: "留言板", icon: "textures/icons/8", action: () => openLeaveMessageForms(player) });
+
+  if (setting.getState("economy") === true) {
+    buttons.push({
+      text: "兑换码",
+      icon: "textures/icons/gift",
+      action: () => openRedemptionCodeForm(player, () => openBaseFunctionForm(player)),
+    });
+  }
 
   if (randomTeleport) {
     buttons.push({

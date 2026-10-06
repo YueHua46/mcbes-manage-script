@@ -4,3 +4,4 @@
 
 export * from "./economic.model";
 export * from "./red-packet.model";
+export * from "./redemption-code.model";

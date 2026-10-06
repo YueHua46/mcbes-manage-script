@@ -1,0 +1,63 @@
+{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "rbb:land_mote_wake",
+      "basic_render_parameters": {
+        "material": "particles_add",
+        "texture": "textures/particle/rbb_land_mote_glow"
+      }
+    },
+    "components": {
+      "minecraft:emitter_rate_instant": {
+        "num_particles": "variable.count"
+      },
+      "minecraft:emitter_lifetime_once": {
+        "active_time": 0.01
+      },
+      "minecraft:emitter_shape_point": {},
+      "minecraft:particle_initial_speed": 0,
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": "variable.duration"
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          "0.2 * variable.size_scale * (0.75 + variable.particle_random_4 * variable.particle_random_4 * 0.45) * (0.95 + math.sin(math.max(0, variable.particle_age - variable.delay) * 65 + variable.phase) * 0.05)",
+          "0.2 * variable.size_scale * (0.75 + variable.particle_random_4 * variable.particle_random_4 * 0.45) * (0.95 + math.sin(math.max(0, variable.particle_age - variable.delay) * 65 + variable.phase) * 0.05)"
+        ],
+        "facing_camera_mode": "rotate_xyz",
+        "uv": {
+          "texture_width": 64,
+          "texture_height": 64,
+          "uv": [
+            0,
+            0
+          ],
+          "uv_size": [
+            64,
+            64
+          ]
+        }
+      },
+      "minecraft:particle_appearance_tinting": {
+        "color": [
+          "variable.color.r",
+          "variable.color.g",
+          "variable.color.b",
+          "variable.color.a * math.clamp((variable.particle_age - variable.delay) / (0.16 - variable.focus * 0.08), 0, 1) * math.clamp((variable.duration - variable.particle_age) / 0.45, 0, 1) * (1 - math.clamp((math.max(0, variable.particle_age - variable.delay) - (0.28 - variable.focus * 0.14)) / 0.55, 0, 1))"
+        ]
+      },
+      "minecraft:particle_motion_parametric": {
+        "relative_position": [
+          "math.clamp(((variable.particle_random_1 - 0.5) * (0.18 + math.clamp((math.max(0, variable.particle_age - variable.delay) - 0.12) / 0.45, 0, 1) * 0.82) + math.sin(variable.phase + 0) * 0.18) * variable.span_x + math.sin(math.max(0, variable.particle_age - variable.delay) * 65 + variable.phase + 0) * 0.12 + math.sin(math.max(0, variable.particle_age - variable.delay) * 60 + variable.particle_random_4 * 360) * 0.05, variable.min_x, variable.max_x)",
+          "math.clamp(((variable.particle_random_2 - 0.5) * (0.18 + math.clamp((math.max(0, variable.particle_age - variable.delay) - 0.12) / 0.45, 0, 1) * 0.82) + math.sin(variable.phase + 120) * 0.18) * variable.span_y + math.max(0, variable.particle_age - variable.delay) * 0.12 + math.sin(math.max(0, variable.particle_age - variable.delay) * 65 + variable.phase) * 0.08 + math.sin(math.max(0, variable.particle_age - variable.delay) * 60 + variable.particle_random_4 * 360) * 0.05, variable.min_y, variable.max_y)",
+          "math.clamp(((variable.particle_random_3 - 0.5) * (0.18 + math.clamp((math.max(0, variable.particle_age - variable.delay) - 0.12) / 0.45, 0, 1) * 0.82) + math.sin(variable.phase + 240) * 0.18) * variable.span_z + math.sin(math.max(0, variable.particle_age - variable.delay) * 65 + variable.phase + 180) * 0.12 + math.sin(math.max(0, variable.particle_age - variable.delay) * 60 + variable.particle_random_4 * 360) * 0.05, variable.min_z, variable.max_z)"
+        ]
+      },
+      "minecraft:particle_initial_spin": {
+        "rotation": "variable.particle_random_4 * 360",
+        "rotation_rate": 0
+      }
+    }
+  }
+}

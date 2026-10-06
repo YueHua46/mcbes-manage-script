@@ -10,6 +10,7 @@ import { APP_VERSION, MINECRAFT_VERSION_FAMILY } from "./build-metadata";
 import "./features/behavior-log/services/log-inspector-tool";
 import "./features/blacklist/services/blacklist";
 import "./features/command/services/command";
+import "./features/economic/services/redemption-code";
 import "./features/fake-player";
 import "./features/floating-text";
 import "./features/guild";
