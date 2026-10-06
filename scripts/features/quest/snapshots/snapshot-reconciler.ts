@@ -106,11 +106,13 @@ export function reconcileSnapshotGoals(input: SnapshotReconcileInput): string[] 
     if (
       current?.kind !== "snapshot" ||
       current.observedValue !== next.observedValue ||
-      current.reconciledAt !== next.reconciledAt ||
       current.providerVersion !== next.providerVersion
     ) {
       input.progress[goal.id] = next;
       changedGoalIds.push(goal.id);
+    } else {
+      // Freshness is useful in memory, but must not write a whole generation for unchanged progress.
+      current.reconciledAt = next.reconciledAt;
     }
   }
   return changedGoalIds;

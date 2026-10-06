@@ -66,6 +66,15 @@ class QuestCatalogService {
   private builtDefinitionRevision = -1;
   private serverStateRevision = 0;
   private builtServerStateRevision = -1;
+  private availabilityCatalog?: EffectiveQuestCatalog;
+  private availabilityPresetsEnabled?: boolean;
+  private readonly availabilityEntries = new Map<
+    string,
+    {
+      entry: EffectiveQuestEntry;
+      chapter?: QuestChapterDefinition;
+    }
+  >();
 
   constructor() {
     system.run(() => {
@@ -125,14 +134,27 @@ class QuestCatalogService {
     return this.presets.getQuest(questId);
   }
 
-  getAvailability(questId: string, aggregate: QuestPlayerAggregate): QuestAvailability {
+  getAvailability(questId: string, aggregate: QuestPlayerAggregate, context?: QuestRuleContext): QuestAvailability {
     const catalog = this.ensureCatalog();
-    const entry = this.getEffectiveQuest(questId);
-    if (!entry) return "unavailable";
+    const presetsEnabled = arePresetQuestsEnabled();
+    if (catalog !== this.availabilityCatalog || presetsEnabled !== this.availabilityPresetsEnabled) {
+      this.availabilityEntries.clear();
+      this.availabilityCatalog = catalog;
+      this.availabilityPresetsEnabled = presetsEnabled;
+    }
+    let cached = this.availabilityEntries.get(questId);
+    if (!cached) {
+      const entry = this.getEffectiveQuest(questId);
+      if (!entry) return "unavailable";
+      cached = {
+        entry,
+        chapter: entry.definition.chapterId ? catalog.getChapter(entry.definition.chapterId) : undefined,
+      };
+      this.availabilityEntries.set(questId, cached);
+    }
+    const { entry, chapter } = cached;
     const definition = entry.definition;
-    const chapter = definition.chapterId ? catalog.getChapter(definition.chapterId) : undefined;
     const pack = entry.pack;
-    const context = this.ruleContext(aggregate);
     const releaseState =
       definition.releaseState === "planned" || chapter?.releaseState === "planned" || pack?.releaseState === "planned"
         ? "planned"
@@ -153,7 +175,7 @@ class QuestCatalogService {
         availableGameplayExperiments: entry.confirmedGameplayExperiments,
         unlockRule,
       },
-      context
+      context ?? this.createRuleContext(aggregate)
     );
   }
 
@@ -200,7 +222,7 @@ class QuestCatalogService {
     return true;
   }
 
-  private ruleContext(aggregate: QuestPlayerAggregate): QuestRuleContext {
+  createRuleContext(aggregate: QuestPlayerAggregate): QuestRuleContext {
     const facts = Object.fromEntries(
       Object.keys(aggregate.facts).map((factId) => [factId, getQuestFactValue(aggregate, factId)])
     );

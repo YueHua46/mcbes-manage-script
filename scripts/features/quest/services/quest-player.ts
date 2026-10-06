@@ -14,6 +14,7 @@ import {
   type QuestEvent,
   type QuestPlayerAggregate,
   type QuestRarity,
+  type QuestRuleContext,
 } from "../domain";
 import { hasProcessedQuestEvent, markQuestEventProcessed, QuestEventBus, QuestEventIndex } from "../events";
 import { claimQuestRewards, completeQuestInstance } from "../rewards";
@@ -365,12 +366,12 @@ class QuestPlayerService {
     options: { source?: string; dedupeKey?: string } = {}
   ): QuestProgressChange[] {
     if (!isQuestSystemEnabled() || !isRealPlayerEntity(player) || !this.isReady()) return [];
-    const aggregate = questStateRepository.loadForPlayer(player);
     this.ensureEventIndex();
 
     // 早期退出：如果这个事件类型没有任何任务需要，直接返回
     const hasCandidates = this.eventIndex.hasEventType(eventKey);
     if (!hasCandidates && !options.dedupeKey) return [];
+    const aggregate = questStateRepository.loadForPlayer(player);
 
     const event: QuestEvent = {
       id: `quest.runtime:${aggregate.playerCmid}:${++this.eventSequence}`,
@@ -390,13 +391,17 @@ class QuestPlayerService {
     let changedAggregate = false;
     const acceptedBeforeEvent = this.ensureAutoAcceptedInAggregate(aggregate);
     if (acceptedBeforeEvent.size > 0) changedAggregate = true;
-    if (this.reconcileHistoricalProgressInAggregate(aggregate)) changedAggregate = true;
-    if (this.recordFacts(aggregate, event)) changedAggregate = true;
-    const acceptedFromThisEvent = this.ensureAutoAcceptedInAggregate(aggregate);
+    const historicalChanged = this.reconcileHistoricalProgressInAggregate(aggregate);
+    const factsChanged = this.recordFacts(aggregate, event);
+    if (historicalChanged || factsChanged) changedAggregate = true;
+    const acceptedFromThisEvent =
+      historicalChanged || factsChanged ? this.ensureAutoAcceptedInAggregate(aggregate) : new Set<string>();
     if (acceptedFromThisEvent.size > 0) changedAggregate = true;
     const changes: QuestProgressChange[] = [];
     const candidates = this.eventIndex.getCandidates(event.type, event.payload);
     const goalsByQuest = new Map<string, Set<string>>();
+    let ruleContext: QuestRuleContext | undefined;
+    let completedQuest = false;
     for (const candidate of candidates) {
       const goalIds = goalsByQuest.get(candidate.questId) ?? new Set<string>();
       goalIds.add(candidate.goalId);
@@ -404,12 +409,13 @@ class QuestPlayerService {
     }
 
     for (const [questId, goalIds] of goalsByQuest) {
-      const quest = questCatalogService.getDefinition(questId);
+      const quest = this.eventIndex.getDefinition(questId);
       if (!quest || !quest.enabled) continue;
       if (acceptedFromThisEvent.has(questId) && quest.unlockEventPolicy !== "include_once") continue;
-      if (questCatalogService.getAvailability(questId, aggregate) !== "available") continue;
       const instance = getCurrentInstance(aggregate, quest);
       if (!instance || instance.lifecycle !== "accepted") continue;
+      ruleContext ??= questCatalogService.createRuleContext(aggregate);
+      if (questCatalogService.getAvailability(questId, aggregate, ruleContext) !== "available") continue;
 
       let changedQuest = false;
       const legacyQuest = toLegacyDefinitionView(quest);
@@ -453,6 +459,8 @@ class QuestPlayerService {
 
       if (changedQuest && isQuestDefinitionComplete(quest, instance.progress)) {
         completeQuestInstance(instance, quest, Date.now(), questCatalogService.getRewardScale(quest.id));
+        ruleContext = undefined;
+        completedQuest = true;
         changes.forEach((change) => {
           if (change.quest.id === quest.id) change.completedQuest = true;
         });
@@ -463,7 +471,7 @@ class QuestPlayerService {
       markQuestEventProcessed(aggregate, event.dedupeKey);
       changedAggregate = true;
     }
-    const acceptedAfterCompletion = this.ensureAutoAcceptedInAggregate(aggregate);
+    const acceptedAfterCompletion = completedQuest ? this.ensureAutoAcceptedInAggregate(aggregate) : new Set<string>();
     if (acceptedAfterCompletion.size > 0) changedAggregate = true;
     if (changedAggregate) questStateRepository.saveForPlayer(player, aggregate);
     this.queueAutoAccepted(
@@ -573,11 +581,27 @@ class QuestPlayerService {
     if (this.reconcileHistoricalProgressInAggregate(aggregate)) changedAggregate = true;
     const changes: QuestProgressChange[] = [];
 
+    let ruleContext: QuestRuleContext | undefined;
     for (const [questId, instanceId] of Object.entries(aggregate.activeByQuestId)) {
-      const definition = questCatalogService.getDefinition(questId);
+      const definition = this.eventIndex.getDefinition(questId);
       const instance = aggregate.instances[instanceId];
       if (!definition || !instance || instance.lifecycle !== "accepted") continue;
-      if (questCatalogService.getAvailability(questId, aggregate) !== "available") continue;
+      const hasProvider = definition.goals.some((goal) =>
+        goal.semantics === "snapshot"
+          ? !!(goal.provider === "inventory"
+              ? batch.inventory
+              : goal.provider === "equipment"
+                ? batch.equipment
+                : false)
+          : goal.semantics === "milestone" &&
+            goal.backfillPolicy === "current_state" &&
+            !!(goal.evidenceProviderId === "evidence.effect.current"
+              ? batch.effects
+              : goal.evidenceProviderId?.startsWith("evidence.creeper.") && batch.creeperState)
+      );
+      if (!hasProvider) continue;
+      ruleContext ??= questCatalogService.createRuleContext(aggregate);
+      if (questCatalogService.getAvailability(questId, aggregate, ruleContext) !== "available") continue;
 
       const beforeValues = Object.fromEntries(
         definition.goals.map((goal) => [goal.id, getGoalProgressValue(instance.progress[goal.id])])
@@ -610,6 +634,7 @@ class QuestPlayerService {
       }
       if (isQuestDefinitionComplete(definition, instance.progress)) {
         completeQuestInstance(instance, definition, Date.now(), questCatalogService.getRewardScale(questId));
+        ruleContext = undefined;
         changes.forEach((change) => {
           if (change.quest.id === questId) change.completedQuest = true;
         });
@@ -642,15 +667,24 @@ class QuestPlayerService {
 
   private reconcileHistoricalProgressInAggregate(aggregate: QuestPlayerAggregate): boolean {
     let changed = false;
+    let ruleContext: QuestRuleContext | undefined;
     for (const [questId, instanceId] of Object.entries(aggregate.activeByQuestId)) {
-      const definition = questCatalogService.getDefinition(questId);
+      const definition = this.eventIndex.getDefinition(questId);
       const instance = aggregate.instances[instanceId];
       if (!definition || !instance || instance.lifecycle !== "accepted") continue;
-      if (questCatalogService.getAvailability(questId, aggregate) !== "available") continue;
+      if (
+        !definition.goals.some(
+          (goal) => goal.semantics === "counter" && resolveHistoricalBossCounterValue(aggregate, goal) !== undefined
+        )
+      )
+        continue;
+      ruleContext ??= questCatalogService.createRuleContext(aggregate);
+      if (questCatalogService.getAvailability(questId, aggregate, ruleContext) !== "available") continue;
       if (reconcileHistoricalBossCounterGoals(aggregate, definition, instance).length === 0) continue;
       changed = true;
       if (isQuestDefinitionComplete(definition, instance.progress)) {
         completeQuestInstance(instance, definition, Date.now(), questCatalogService.getRewardScale(questId));
+        ruleContext = undefined;
       }
     }
     return changed;
@@ -659,12 +693,14 @@ class QuestPlayerService {
   private ensureAutoAcceptedInAggregate(aggregate: QuestPlayerAggregate): Set<string> {
     const now = Date.now();
     const accepted = new Set<string>();
+    let ruleContext: QuestRuleContext | undefined;
     for (const questId of this.eventIndex.getAutoAcceptQuestIds()) {
-      const quest = questCatalogService.getDefinition(questId);
+      const quest = this.eventIndex.getDefinition(questId);
       if (!quest || !quest.enabled || quest.acceptMode !== "auto") continue;
-      if (questCatalogService.getAvailability(questId, aggregate) !== "available") continue;
       const current = getCurrentInstance(aggregate, quest, now);
       if (current && !(quest.scope === "repeatable" && current.lifecycle === "claimed")) continue;
+      ruleContext ??= questCatalogService.createRuleContext(aggregate);
+      if (questCatalogService.getAvailability(questId, aggregate, ruleContext) !== "available") continue;
       const instance = createAcceptedInstance(aggregate, quest, now);
       aggregate.instances[instance.instanceId] = instance;
       aggregate.activeByQuestId[quest.id] = instance.instanceId;

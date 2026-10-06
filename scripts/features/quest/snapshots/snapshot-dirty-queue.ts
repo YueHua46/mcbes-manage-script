@@ -36,4 +36,8 @@ export class QuestSnapshotDirtyQueue {
   get size(): number {
     return this.entries.size;
   }
+
+  clear(): void {
+    this.entries.clear();
+  }
 }
