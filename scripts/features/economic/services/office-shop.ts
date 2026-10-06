@@ -25,6 +25,8 @@ export interface OfficeShopItemMetaData {
   category: string;
   price: number;
   amount: number;
+  /** 缺省为有限库存，兼容已有商品。 */
+  unlimitedSupply?: boolean;
   createdAt: number;
 }
 
@@ -41,6 +43,7 @@ export interface IAddItemToCategory {
   categoryName: string;
   item: ItemStack;
   amount: number;
+  unlimitedSupply?: boolean;
   price: number;
   cb: () => void;
 }
@@ -150,7 +153,15 @@ class OfficeShop {
   /**
    * 添加商品到分类
    */
-  addItemToCategory({ player, categoryName, item, amount, price, cb }: IAddItemToCategory): void {
+  addItemToCategory({
+    player,
+    categoryName,
+    item,
+    amount,
+    unlimitedSupply = false,
+    price,
+    cb,
+  }: IAddItemToCategory): void {
     const category = this.getCategory(categoryName);
     if (!category) {
       openDialogForm(player, { title: "§c错误", desc: "§c该类别不存在！" }, () => cb());
@@ -160,6 +171,7 @@ class OfficeShop {
       category: categoryName,
       price,
       amount,
+      unlimitedSupply,
       createdAt: Date.now(),
     };
     this.itemDB.add(item, itemMetaData);

@@ -38,6 +38,8 @@ export class QuestCapabilityRegistry {
 }
 
 export const AVAILABLE_QUEST_CAPABILITY_DEFINITIONS = [
+  // Legacy capability ID remains stable; source now identifies released content.
+  { id: "cap.content.minecraft.drop3_experiment.v1", source: "Minecraft Bedrock 1.26.50 released content" },
   { id: "cap.event.item.obtain.v1", source: "playerInventoryItemChange" },
   { id: "cap.event.entity.kill.v1", source: "entityDie" },
   { id: "cap.event.block.break.v1", source: "playerBreakBlock" },
@@ -68,6 +70,7 @@ export const AVAILABLE_QUEST_CAPABILITY_DEFINITIONS = [
 ] as const;
 
 export const EXPERIMENTAL_QUEST_CAPABILITY_DEFINITIONS = [
+  { id: "cap.event.cushion.ride_successfully.v1", source: "taskScheduler.quest.movementTransitions.actualMount" },
   { id: "cap.event.archaeology.brush_success.v1", source: "playerInteractWithBlock.suspiciousTransition" },
   { id: "cap.event.crop.harvest.v1", source: "world.afterEvents.playerBreakBlock" },
   { id: "cap.event.entity.tame.v1", source: "playerInteractWithEntity.ownershipTransition" },
@@ -92,7 +95,6 @@ export const UNAVAILABLE_QUEST_CAPABILITY_IDS = [
   "cap.content.minecraft.chaos_cubed.v1",
   "cap.content.minecraft.chase_the_skies.v1",
   "cap.content.minecraft.copper_age.v1",
-  "cap.content.minecraft.drop3_experiment.v1",
   "cap.content.minecraft.mounts_of_mayhem.v1",
   "cap.content.minecraft.tiny_takeover.v1",
   "cap.event.baby_mob.encounter.v1",
@@ -102,7 +104,6 @@ export const UNAVAILABLE_QUEST_CAPABILITY_IDS = [
   "cap.event.copper_golem.sort_success.v1",
   "cap.event.crafter.output.v1",
   "cap.event.creaking.encounter.v1",
-  "cap.event.cushion.ride_successfully.v1",
   "cap.event.dried_ghast.hydration_started.v1",
   "cap.event.enchant.apply.v1",
   "cap.event.entity.breed.v1",

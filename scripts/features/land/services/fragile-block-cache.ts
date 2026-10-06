@@ -120,6 +120,7 @@ export function isFragilePistonAffectedBlock(typeId: string): boolean {
     typeId.includes("cornflower") ||
     typeId.includes("eyeblossom") ||
     typeId.includes("bush") ||
+    typeId.includes("shrub") ||
     typeId.includes("crop") ||
     typeId.includes("wheat") ||
     typeId.includes("carrots") ||

@@ -164,6 +164,16 @@ export function resolveQuestMovementTransitions(
 }
 
 const movementSamples = new Map<string, QuestMovementSample>();
+
+export function resolveQuestMountEvents(
+  previous: QuestMovementSample | undefined,
+  current: QuestMovementSample
+): string[] {
+  if (!resolveQuestMovementTransitions(previous, current).rideChanged || !current.ridingEntityTypeId) return [];
+  return current.ridingEntityTypeId === "minecraft:cushion"
+    ? ["player.ride", "cushion.ride_successfully"]
+    : ["player.ride"];
+}
 const biomeSamples = new Map<string, string>();
 
 interface PendingEntityInteraction {
@@ -881,12 +891,12 @@ function startQuestEventRuntime(): void {
               )
             );
           }
-          if (transitions.rideChanged && ridingEntityTypeId) {
+          for (const eventType of resolveQuestMountEvents(previous, current)) {
             notifyQuestChanges(
               player,
               questPlayerService.recordEvent(
                 player,
-                "player.ride",
+                eventType,
                 {
                   entity: ridingEntityTypeId,
                   dimension: dimensionId,

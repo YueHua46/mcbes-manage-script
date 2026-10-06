@@ -264,9 +264,13 @@ class OfficeShopSettingForm {
     // 填充商品
     currentPageItems.forEach((itemData, index) => {
       const displayName = getItemDisplayName(itemData.item);
-      const lores = [`§e单价: §f${itemData.data.price}`, `§e库存: §f${itemData.data.amount}`, `§e点击编辑或删除`];
+      const lores = [
+        `§e单价: §f${itemData.data.price}`,
+        `§e库存: §f${itemData.data.unlimitedSupply ? "无限供应" : itemData.data.amount}`,
+        `§e点击编辑或删除`,
+      ];
       const itemIconPath = getChestItemTextureKey(itemData.item);
-      const amount = itemData.data.amount; // 使用商品库存数量，而不是物品本身的数量
+      const amount = itemData.data.unlimitedSupply ? 1 : itemData.data.amount;
       const isEnchanted = hasAnyEnchantment(itemData.item);
 
       form.button(
@@ -340,7 +344,7 @@ class OfficeShopSettingForm {
           text: `单价: ${item.data.price}\n`,
         },
         {
-          text: `库存: ${item.data.amount}\n`,
+          text: `库存: ${item.data.unlimitedSupply ? "无限供应" : item.data.amount}\n`,
         },
         {
           text: `请选择要执行的操作`,
@@ -386,7 +390,8 @@ class OfficeShopSettingForm {
 
     const form = new ModalFormData()
       .title(title)
-      .textField("库存数量", "请输入新的库存数量", { defaultValue: item.data.amount.toString() })
+      .toggle("无限供应（开启后购买不扣库存）", { defaultValue: item.data.unlimitedSupply === true })
+      .textField("指定库存（无限供应时忽略）", "请输入新的库存数量", { defaultValue: item.data.amount.toString() })
       .textField("单价", "请输入商品单价", { defaultValue: item.data.price.toString() });
 
     form.show(player).then((res) => {
@@ -396,11 +401,11 @@ class OfficeShopSettingForm {
         return;
       }
 
-      const [newAmountStr, newPriceStr] = res.formValues;
-      const newPrice = parseInt(newPriceStr as string);
-      const newAmount = parseInt(newAmountStr as string);
+      const [unlimitedSupply, newAmountStr, newPriceStr] = res.formValues;
+      const newPrice = Number(newPriceStr);
+      const newAmount = unlimitedSupply === true ? item.data.amount : Number(newAmountStr);
 
-      if (isNaN(newPrice) || newPrice <= 0) {
+      if (!Number.isSafeInteger(newPrice) || newPrice <= 0) {
         openDialogForm(
           player,
           {
@@ -412,12 +417,15 @@ class OfficeShopSettingForm {
         return;
       }
 
-      if (isNaN(newAmount) || newAmount <= 0) {
+      if (
+        typeof unlimitedSupply !== "boolean" ||
+        (!unlimitedSupply && (!Number.isSafeInteger(newAmount) || newAmount <= 0))
+      ) {
         openDialogForm(
           player,
           {
             title: "§c错误",
-            desc: "请输入有效的库存数量",
+            desc: "指定库存必须为正整数",
           },
           () => this.openEditItemForm(player, categoryName, item)
         );
@@ -428,6 +436,7 @@ class OfficeShopSettingForm {
       officeShop.updateItemMeta(item.data, {
         ...item.data,
         amount: newAmount,
+        unlimitedSupply,
         price: newPrice,
       });
 
@@ -598,7 +607,8 @@ class OfficeShopSettingForm {
   private openItemAddDetailsForm(player: Player, categoryName: string, item: ItemStack, slot: number): void {
     const form = new ModalFormData()
       .title(`添加商品到 ${categoryName}`)
-      .textField("数量", "请输入商品数量", { defaultValue: "1" })
+      .toggle("无限供应（开启后购买不扣库存）", { defaultValue: false })
+      .textField("指定库存（无限供应时忽略）", "请输入商品库存数量", { defaultValue: "1" })
       .textField("单价", "请输入商品单价", { defaultValue: "1" });
 
     form.show(player).then((response) => {
@@ -615,11 +625,11 @@ class OfficeShopSettingForm {
         return;
       }
 
-      const [amountStr, priceStr] = response.formValues;
-      const amount = parseInt(amountStr as string);
-      const price = parseInt(priceStr as string);
+      const [unlimitedSupply, amountStr, priceStr] = response.formValues;
+      const amount = unlimitedSupply === true ? 1 : Number(amountStr);
+      const price = Number(priceStr);
 
-      if (isNaN(price) || price <= 0) {
+      if (!Number.isSafeInteger(price) || price <= 0) {
         openDialogForm(
           player,
           {
@@ -631,12 +641,12 @@ class OfficeShopSettingForm {
         return;
       }
 
-      if (isNaN(amount) || amount <= 0) {
+      if (typeof unlimitedSupply !== "boolean" || !Number.isSafeInteger(amount) || amount <= 0) {
         openDialogForm(
           player,
           {
             title: "§c错误",
-            desc: "请输入有效的数量",
+            desc: "指定库存必须为正整数",
           },
           () => this.openItemAddDetailsForm(player, categoryName, item, slot)
         );
@@ -649,6 +659,7 @@ class OfficeShopSettingForm {
         categoryName,
         item,
         amount,
+        unlimitedSupply,
         price,
         cb: () =>
           openDialogForm(
@@ -662,7 +673,7 @@ class OfficeShopSettingForm {
                   },
                   getItemDisplayName(item) as any,
                   {
-                    text: ` x${amount}`,
+                    text: unlimitedSupply ? " 无限供应" : ` 库存: ${amount}`,
                   },
                   {
                     text: ` 单价: ${price}`,

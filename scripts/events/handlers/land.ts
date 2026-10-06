@@ -172,6 +172,42 @@ const LAND_SENSITIVE_ENTITY_PLACE_ITEMS = new Map<string, string[]>([
   ["minecraft:tnt_minecart", ["minecraft:tnt_minecart", "minecraft:minecart"]],
   ["minecraft:command_block_minecart", ["minecraft:command_block_minecart", "minecraft:minecart"]],
 ]);
+for (const wood of [
+  "oak",
+  "spruce",
+  "birch",
+  "jungle",
+  "acacia",
+  "dark_oak",
+  "mangrove",
+  "cherry",
+  "pale_oak",
+  "poplar",
+]) {
+  LAND_SENSITIVE_ENTITY_PLACE_ITEMS.set("minecraft:" + wood + "_boat", ["minecraft:boat"]);
+  LAND_SENSITIVE_ENTITY_PLACE_ITEMS.set("minecraft:" + wood + "_chest_boat", ["minecraft:chest_boat"]);
+}
+LAND_SENSITIVE_ENTITY_PLACE_ITEMS.set("minecraft:bamboo_chest_raft", ["minecraft:chest_boat"]);
+for (const color of [
+  "white",
+  "orange",
+  "magenta",
+  "light_blue",
+  "yellow",
+  "lime",
+  "pink",
+  "gray",
+  "light_gray",
+  "cyan",
+  "purple",
+  "blue",
+  "brown",
+  "green",
+  "red",
+  "black",
+]) {
+  LAND_SENSITIVE_ENTITY_PLACE_ITEMS.set("minecraft:" + color + "_cushion", ["minecraft:cushion"]);
+}
 const LAND_BREAK_PROTECTED_ENTITY_TYPE_IDS = new Set<string>();
 for (const entityTypeIds of LAND_SENSITIVE_ENTITY_PLACE_ITEMS.values()) {
   for (const entityTypeId of entityTypeIds) {
@@ -2066,6 +2102,17 @@ export function registerLandEvents(): void {
    */
   world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
     const { player, block, itemStack } = event;
+    // 实体物品不会触发 playerPlaceBlock；检查实际放置点，覆盖从领地外向内放置。
+    if (itemStack && LAND_SENSITIVE_ENTITY_PLACE_ITEMS.has(itemStack.typeId)) {
+      const targetLocation = getTargetLocationFromUseOn(block.location, event.blockFace);
+      const targetLand = landManager.testLand(targetLocation, block.dimension.id).insideLand;
+      if (targetLand && !isLandPlaceAllowed(player, targetLand)) {
+        event.cancel = true;
+        const ownerName = targetLand.owner;
+        system.run(() => warnDeniedLandUse(player, ownerName));
+        return;
+      }
+    }
     const { isInside, insideLand } = landManager.testLand(block.location, block.dimension.id);
 
     if (!isInside || !insideLand) return;
@@ -2238,6 +2285,7 @@ export function registerLandEvents(): void {
     // 检查按钮权限
     if (
       buttons.includes(blockTypeId as MinecraftBlockTypes) ||
+      blockTypeId.endsWith("_button") ||
       blockTypeContainsAny(blockTypeId, DOOR_BLOCK_KEYWORDS)
     ) {
       if (!insideLand.public_auth.useButton) {
@@ -2266,7 +2314,7 @@ export function registerLandEvents(): void {
     }
 
     // 检查锻造类权限
-    if (smelting.includes(blockTypeId as MinecraftBlockTypes)) {
+    if (smelting.includes(blockTypeId as MinecraftBlockTypes) || blockTypeId.endsWith("_bed")) {
       if (!insideLand.public_auth.useSmelting) {
         event.cancel = true;
         sendLandWarning(playerName, ownerName);
@@ -2290,7 +2338,11 @@ export function registerLandEvents(): void {
     const { isInside, insideLand } = landManager.testLand(target.location, target.dimension.id);
 
     if (!isInside || !insideLand) return;
-    if (LAND_BREAK_PROTECTED_ENTITY_TYPE_IDS.has(target.typeId) && !isLandBreakAllowed(player, insideLand)) {
+    if (
+      target.typeId !== "minecraft:cushion" &&
+      LAND_BREAK_PROTECTED_ENTITY_TYPE_IDS.has(target.typeId) &&
+      !isLandBreakAllowed(player, insideLand)
+    ) {
       event.cancel = true;
       warnDeniedLandEntityBreaking(player, target, insideLand);
       return;

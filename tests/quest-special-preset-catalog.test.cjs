@@ -78,18 +78,19 @@ test("special reliability, rarity and rewards exactly match v1.4", () => {
   );
 });
 
-test("Drop 3 remains disabled behind explicit content and gameplay experiment gates", () => {
+test("released Drop 3 content preserves IDs and no longer requires the gameplay experiment", () => {
   const pack = content.specialPresetPacks.find((candidate) => candidate.id === "preset.experiment.drop3");
   const quests = content.specialPresetQuests.filter((quest) => quest.packId === pack.id);
-  assert.equal(pack.defaultEnabled, false);
-  assert.equal(pack.releaseState, "experimental");
+  assert.equal(pack.defaultEnabled, true);
+  assert.equal(pack.releaseState, "active");
+  assert.equal(pack.version, 2);
   assert.deepEqual(pack.requiredCapabilities, ["cap.content.minecraft.drop3_experiment.v1"]);
-  assert.deepEqual(pack.requiredGameplayExperiments, ["minecraft:drop_3"]);
+  assert.deepEqual(pack.requiredGameplayExperiments, []);
   assert.equal(
     quests.every(
       (quest) =>
         quest.requiredCapabilities.includes(pack.requiredCapabilities[0]) &&
-        quest.requiredGameplayExperiments.includes(pack.requiredGameplayExperiments[0])
+        quest.requiredGameplayExperiments.length === 0
     ),
     true
   );

@@ -127,11 +127,15 @@ class OfficeShopForm {
       const displayName = getItemDisplayName(itemData.item);
       const lores = itemData.item.getLore();
       const itemIconPath = getChestItemTextureKey(itemData.item);
-      const amount = itemData.data.amount; // 使用商品库存数量，而不是物品本身的数量
+      const amount = itemData.data.unlimitedSupply ? 1 : itemData.data.amount;
       const durability = getChestItemDurabilityBarValue(itemData.item);
       const isEnchanted = hasAnyEnchantment(itemData.item);
 
-      const updatedLores = [`${colorCodes.gold}价格: ${colorCodes.yellow}${itemData.data.price} 金币`, ...lores];
+      const updatedLores = [
+        `${colorCodes.gold}价格: ${colorCodes.yellow}${itemData.data.price} 金币`,
+        `${colorCodes.gold}库存: ${colorCodes.yellow}${itemData.data.unlimitedSupply ? "无限供应" : itemData.data.amount}`,
+        ...lores,
+      ];
 
       chestForm.button(index, displayName, updatedLores, itemIconPath, amount, durability, isEnchanted);
     });
@@ -177,7 +181,7 @@ class OfficeShopForm {
       .title("商品详情")
       .body(
         `${colorCodes.gold}单价: ${colorCodes.yellow}${itemData.data.price} 金币\n` +
-          `${colorCodes.gold}库存: ${colorCodes.yellow}${itemData.data.amount}\n` +
+          `${colorCodes.gold}库存: ${colorCodes.yellow}${itemData.data.unlimitedSupply ? "无限供应" : itemData.data.amount}\n` +
           `${colorCodes.gold}您的余额: ${colorCodes.yellow}${wallet.gold} 金币`
       )
       .button("购买", "textures/ui/confirm")
@@ -216,15 +220,15 @@ class OfficeShopForm {
         return;
       }
 
-      const qty = parseInt(qtyStr);
-      if (isNaN(qty) || qty <= 0) {
+      const qty = Number(qtyStr);
+      if (!Number.isSafeInteger(qty) || qty <= 0) {
         openDialogForm(player, { title: "错误", desc: "请输入有效的购买数量" }, () =>
           this.askBuyQuantity(player, itemData, categoryName, page)
         );
         return;
       }
 
-      if (qty > itemData.data.amount) {
+      if (!itemData.data.unlimitedSupply && qty > itemData.data.amount) {
         openDialogForm(player, { title: "错误", desc: "库存不足" }, () =>
           this.askBuyQuantity(player, itemData, categoryName, page)
         );
@@ -351,7 +355,32 @@ class OfficeShopForm {
     categoryName: string,
     page: number
   ): void {
+    // 表单可能停留较久，按存储槽位重新读取商品，避免使用过期库存或供应模式。
+    const currentItem = officeShop
+      .getCategoryItems(categoryName)
+      .find(
+        (entry) =>
+          entry.itemDB.data.slot === itemData.itemDB.data.slot && entry.data.createdAt === itemData.data.createdAt
+      );
+    if (
+      !currentItem ||
+      !Number.isSafeInteger(qty) ||
+      qty <= 0 ||
+      (!currentItem.data.unlimitedSupply && qty > currentItem.data.amount)
+    ) {
+      openDialogForm(player, { title: "购买失败", desc: "商品已下架或库存不足，请重新选择。" }, () =>
+        this.openCategoryProducts(player, categoryName, page)
+      );
+      return;
+    }
+    itemData = currentItem;
     const totalPrice = itemData.data.price * qty;
+    if (!Number.isSafeInteger(totalPrice) || totalPrice <= 0) {
+      openDialogForm(player, { title: "购买失败", desc: "购买总价无效，请重新选择购买数量。" }, () =>
+        this.openCategoryProducts(player, categoryName, page)
+      );
+      return;
+    }
 
     // 检查金币
     if (!economic.hasEnoughGold(player.name, totalPrice)) {
@@ -381,14 +410,16 @@ class OfficeShopForm {
       const itemToGive = itemData.item.clone();
       this.addItemStacksToContainer(container, itemToGive, qty);
 
-      const nextAmount = itemData.data.amount - qty;
-      if (nextAmount <= 0) {
-        officeShop.deleteItem(itemData.data);
-      } else {
-        officeShop.updateItemMeta(itemData.data, {
-          ...itemData.data,
-          amount: nextAmount,
-        });
+      if (!itemData.data.unlimitedSupply) {
+        const nextAmount = itemData.data.amount - qty;
+        if (nextAmount <= 0) {
+          officeShop.deleteItem(itemData.data);
+        } else {
+          officeShop.updateItemMeta(itemData.data, {
+            ...itemData.data,
+            amount: nextAmount,
+          });
+        }
       }
 
       openDialogForm(

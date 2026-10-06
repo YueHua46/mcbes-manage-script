@@ -33,6 +33,42 @@ function createRegistries() {
   };
 }
 
+test("released wilderness tasks become available without resetting saved administrator overrides", () => {
+  const registries = createRegistries();
+  const catalog = new catalogModule.EffectiveQuestCatalog({ ...registries, customQuests: [] });
+  const ready = ["dappled_forest", "poplar", "shelf_mushroom", "red_shrub", "cushion"];
+  for (const suffix of ready) {
+    const entry = catalog.getEffectiveQuest(`preset.experiment.drop3.${suffix}`);
+    assert.equal(entry.packEnabled, true);
+    assert.deepEqual(entry.definition.requiredGameplayExperiments, []);
+    assert.equal(
+      entry.definition.requiredCapabilities.every((id) => registries.capabilities.isAvailable(id)),
+      true
+    );
+  }
+  for (const suffix of ["camp", "straw_bed"]) {
+    const entry = catalog.getEffectiveQuest(`preset.experiment.drop3.${suffix}`);
+    assert.equal(
+      entry.definition.requiredCapabilities.every((id) => registries.capabilities.isAvailable(id)),
+      false
+    );
+  }
+  const disabled = new catalogModule.EffectiveQuestCatalog({
+    ...registries,
+    customQuests: [],
+    serverStates: [
+      {
+        packId: "preset.experiment.drop3",
+        enabled: false,
+        overrideQuestEnabled: { "preset.experiment.drop3.poplar": false },
+      },
+    ],
+  });
+  const entry = disabled.getEffectiveQuest("preset.experiment.drop3.poplar");
+  assert.equal(entry.packEnabled, false);
+  assert.equal(entry.questEnabled, false);
+});
+
 test("quest catalog and preset sources remain independent of the Minecraft runtime", () => {
   for (const relativeDirectory of [
     ["scripts", "features", "quest", "catalog"],

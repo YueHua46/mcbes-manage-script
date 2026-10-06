@@ -1,14 +1,14 @@
 import type { QuestChapterDefinition, QuestDefinitionV2, QuestPackDefinition } from "../../domain";
-import { experimentChapter, experimentPresetQuest, inventoryGoal, milestoneGoal } from "../builders";
+import { presetChapter, presetQuest, inventoryGoal, milestoneGoal } from "../builders";
 
 const PACK_ID = "preset.experiment.drop3" as const;
 const CONTENT_CAP = "cap.content.minecraft.drop3_experiment.v1";
-const GAMEPLAY_EXPERIMENT = "minecraft:drop_3";
+// 保留历史 pack/quest ID，升级不重置服务器覆盖和玩家进度。
 
-export const experimentDrop3Chapter: QuestChapterDefinition = experimentChapter({
+export const experimentDrop3Chapter: QuestChapterDefinition = presetChapter(PACK_ID, {
   id: "experiment.drop3",
-  title: "26.40 试验田，先戴护目镜",
-  description: "斑驳森林、废弃营地和实验家具都在这里；只有服务器可靠确认玩法实验后才会开放。",
+  title: "26.50 荒野新旅程",
+  description: "斑驳森林、杨木和荒野家具已正式发布；尚无可靠事件的任务继续保持不可用。",
   order: 1,
   unlockRule: { type: "capability", capabilityId: CONTENT_CAP },
   questIds: [
@@ -22,16 +22,14 @@ export const experimentDrop3Chapter: QuestChapterDefinition = experimentChapter(
   ],
 });
 
-const experimentRequirements = {
-  requiredGameplayExperiments: [GAMEPLAY_EXPERIMENT],
-};
-
 export const experimentDrop3Quests: QuestDefinitionV2[] = [
-  experimentPresetQuest({
+  presetQuest({
+    packId: PACK_ID,
+    category: "update",
     id: "preset.experiment.drop3.dappled_forest",
     title: "斑驳森林，颜色开始串台",
     description: "真正进入一次斑驳森林生物群系。站在相似树色旁边不算，必须由 biome Adapter 确认当前区域 identifier。",
-    completionMessage: "斑驳森林已抵达，实验世界的调色盘正式上线。",
+    completionMessage: "斑驳森林已抵达，荒野世界的调色盘正式上线。",
     chapterId: "experiment.drop3",
     order: 1,
     rarity: "rare",
@@ -46,9 +44,10 @@ export const experimentDrop3Quests: QuestDefinitionV2[] = [
     gold: 150,
     experience: 50,
     requiredCapabilities: [CONTENT_CAP, "cap.event.player.biome_enter.v1"],
-    ...experimentRequirements,
   }),
-  experimentPresetQuest({
+  presetQuest({
+    packId: PACK_ID,
+    category: "update",
     id: "preset.experiment.drop3.poplar",
     title: "杨木到手，新树种报到",
     description: "让背包里出现至少一块杨木原木。必须匹配正式 Poplar log identifier，改名后的普通原木不算新品种。",
@@ -61,12 +60,13 @@ export const experimentDrop3Quests: QuestDefinitionV2[] = [
     gold: 100,
     experience: 35,
     requiredCapabilities: [CONTENT_CAP, "cap.snapshot.inventory.v1"],
-    ...experimentRequirements,
   }),
-  experimentPresetQuest({
+  presetQuest({
+    packId: PACK_ID,
+    category: "update",
     id: "preset.experiment.drop3.shelf_mushroom",
     title: "蘑菇上树，常识下班",
-    description: "让背包里出现至少一个架生蘑菇。任务检查实际实验物品 identifier，不接受任何名称看起来相近的替代品。",
+    description: "让背包里出现至少一个架生蘑菇。任务检查实际正式版物品 identifier，不接受任何名称看起来相近的替代品。",
     completionMessage: "架生蘑菇入袋，树干也有了自己的小阳台。",
     chapterId: "experiment.drop3",
     order: 3,
@@ -78,9 +78,10 @@ export const experimentDrop3Quests: QuestDefinitionV2[] = [
     gold: 120,
     experience: 40,
     requiredCapabilities: [CONTENT_CAP, "cap.snapshot.inventory.v1"],
-    ...experimentRequirements,
   }),
-  experimentPresetQuest({
+  presetQuest({
+    packId: PACK_ID,
+    category: "update",
     id: "preset.experiment.drop3.red_shrub",
     title: "红色灌木，低调失败",
     description:
@@ -94,9 +95,10 @@ export const experimentDrop3Quests: QuestDefinitionV2[] = [
     gold: 120,
     experience: 40,
     requiredCapabilities: [CONTENT_CAP, "cap.snapshot.inventory.v1"],
-    ...experimentRequirements,
   }),
-  experimentPresetQuest({
+  presetQuest({
+    packId: PACK_ID,
+    category: "update",
     id: "preset.experiment.drop3.camp",
     title: "营地还在，人先撤了",
     description: "真正进入一次废弃营地结构边界。营火、帐篷或几块木板都不是可靠代理，必须等待结构定位事件直接确认。",
@@ -115,9 +117,10 @@ export const experimentDrop3Quests: QuestDefinitionV2[] = [
     gold: 300,
     experience: 100,
     requiredCapabilities: [CONTENT_CAP, "cap.event.structure.enter.v1"],
-    ...experimentRequirements,
   }),
-  experimentPresetQuest({
+  presetQuest({
+    packId: PACK_ID,
+    category: "update",
     id: "preset.experiment.drop3.straw_bed",
     title: "草床一晚，主打能睡",
     description: "成功使用草床完成一次对应睡眠行为。仅与草床互动、因危险或时间不对而失败，都不能算睡过这一晚。",
@@ -132,34 +135,34 @@ export const experimentDrop3Quests: QuestDefinitionV2[] = [
     gold: 180,
     experience: 60,
     requiredCapabilities: [CONTENT_CAP, "cap.event.straw_bed.used_successfully.v1"],
-    ...experimentRequirements,
   }),
-  experimentPresetQuest({
+  presetQuest({
+    packId: PACK_ID,
+    category: "update",
     id: "preset.experiment.drop3.cushion",
     title: "坐垫就位，先歇会儿",
-    description: "成功坐上一次实验坐垫。把坐垫拿在手里或站在旁边不算，必须由 Cushion Adapter 确认有效乘坐关系。",
+    description: "成功坐上一次坐垫。把坐垫拿在手里或站在旁边不算，必须由 Cushion Adapter 确认有效乘坐关系。",
     completionMessage: "坐垫乘坐成功，冒险暂停片刻也算合理安排。",
     chapterId: "experiment.drop3",
     order: 7,
     rarity: "rare",
     reliability: "B",
-    goals: [milestoneGoal("goal.ride_cushion", "cushion.ride_successfully", "成功坐上一次实验坐垫")],
+    goals: [milestoneGoal("goal.ride_cushion", "cushion.ride_successfully", "成功坐上一次坐垫")],
     gold: 150,
     experience: 50,
     requiredCapabilities: [CONTENT_CAP, "cap.event.cushion.ride_successfully.v1"],
-    ...experimentRequirements,
   }),
 ];
 
 export const experimentDrop3Pack: QuestPackDefinition = {
   id: PACK_ID,
-  version: 1,
-  title: "26.40 后续玩法实验",
-  description: "仅在 Drop 3 玩法实验和对应内容能力均被可靠确认时开放；默认关闭，不凭 Beta APIs 状态猜测。",
-  category: "experiment",
-  defaultEnabled: false,
-  releaseState: "experimental",
+  version: 2,
+  title: "26.50 荒野新旅程",
+  description: "正式版内容任务；收集、群系和坐垫任务已接入，营地与草床任务等待可靠成功事件。",
+  category: "update",
+  defaultEnabled: true,
+  releaseState: "active",
   requiredCapabilities: [CONTENT_CAP],
-  requiredGameplayExperiments: [GAMEPLAY_EXPERIMENT],
+  requiredGameplayExperiments: [],
   chapterIds: [experimentDrop3Chapter.id],
 };

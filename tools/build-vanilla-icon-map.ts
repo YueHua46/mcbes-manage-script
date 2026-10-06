@@ -1,7 +1,7 @@
 /**
  * 从 Mojang bedrock-samples 生成 minecraft:typeId → Chest UI 贴图路径映射。
  *
- * 数据源（均来自 bedrock-samples @ main，随游戏版本更新后重新运行即可）：
+ * 数据源（来自固定正式版 tag/commit；升级时先更新 vanilla-icon-source.json）：
  *   - mojang-items.json          → typeId 全集
  *   - item_texture.json          → 物品栏图标
  *   - blocks.json                → 方块 → terrain shortname
@@ -9,14 +9,20 @@
  *
  * 用法：
  *   npm run build:vanilla-icon-map
- *   npm run build:vanilla-icon-map -- 1.26.30
+ *   npm run build:vanilla-icon-map -- 1.26.52
+ *   npm run build:vanilla-icon-map -- 1.26.52 --metadata-dir out/upgrade-audit
  */
 import * as fs from "fs";
 import * as path from "path";
 
 const OWNER = "Mojang";
 const REPO = "bedrock-samples";
-const DEFAULT_BRANCH = "main";
+const iconSource = JSON.parse(fs.readFileSync(path.join(__dirname, "vanilla-icon-source.json"), "utf8")) as {
+  gameVersionRange: string;
+  contentVersion: string;
+  tag: string;
+  commit: string;
+};
 
 const OUTPUT_RELATIVE = "../scripts/assets/vanilla-item-icon-paths.ts";
 const LOCAL_OUTPUT = "../out/vanilla-icon-map/vanilla-item-icon-paths.ts";
@@ -76,15 +82,7 @@ const AGGREGATE_TEXTURE_KEYS: ReadonlySet<string> = new Set([
   "fishing_rod",
 ]);
 
-const SPEAR_TIER_MATERIALS = [
-  "wooden",
-  "stone",
-  "copper",
-  "iron",
-  "golden",
-  "diamond",
-  "netherite",
-] as const;
+const SPEAR_TIER_MATERIALS = ["wooden", "stone", "copper", "iron", "golden", "diamond", "netherite"] as const;
 
 /** blocks.json 键与 typeId shortname 不一致 */
 const BLOCK_ID_ALIASES: Record<string, string> = {
@@ -100,25 +98,9 @@ const SPAWN_EGG_ENTITY_ALIASES: Record<string, string> = {
   zombie_pigman: "zombified_piglin",
 };
 
-const TOOL_TIER_MATERIALS = [
-  "wooden",
-  "stone",
-  "iron",
-  "golden",
-  "diamond",
-  "netherite",
-  "copper",
-] as const;
+const TOOL_TIER_MATERIALS = ["wooden", "stone", "iron", "golden", "diamond", "netherite", "copper"] as const;
 
-const ARMOR_TIER_MATERIALS = [
-  "leather",
-  "chainmail",
-  "iron",
-  "golden",
-  "diamond",
-  "netherite",
-  "copper",
-] as const;
+const ARMOR_TIER_MATERIALS = ["leather", "chainmail", "iron", "golden", "diamond", "netherite", "copper"] as const;
 
 const TIER_TOOL_TYPES = new Set(["sword", "pickaxe", "axe", "shovel", "hoe"]);
 const TIER_ARMOR_TYPES = new Set(["helmet", "chestplate", "leggings", "boots"]);
@@ -358,7 +340,7 @@ function textureBasename(texturePath: string): string {
   return texturePath.split("/").pop() ?? texturePath;
 }
 
-function buildTextureBasenameIndex(textureData: Record<string, unknown>): Map<string, string> {
+export function buildTextureBasenameIndex(textureData: Record<string, unknown>): Map<string, string> {
   const index = new Map<string, string>();
   for (const entry of Object.values(textureData)) {
     for (const texturePath of collectAllTexturePaths(entry)) {
@@ -373,11 +355,7 @@ function resolveTextureEntry(entry: unknown, index = 0): string | undefined {
   return paths[index];
 }
 
-function resolveItemTextureKey(
-  key: string,
-  ctx: ResolverContext,
-  index = 0
-): string | undefined {
+function resolveItemTextureKey(key: string, ctx: ResolverContext, index = 0): string | undefined {
   const entry = ctx.textureData[key];
   if (!entry) return undefined;
   return resolveTextureEntry(entry, index);
@@ -441,8 +419,7 @@ function resolveSpearItem(shortname: string, ctx: ResolverContext): string | und
   if (!match) return undefined;
   const index = SPEAR_TIER_MATERIALS.indexOf(match[1] as (typeof SPEAR_TIER_MATERIALS)[number]);
   if (index < 0) return undefined;
-  const materialPrefix =
-    match[1] === "wooden" ? "wood" : match[1] === "golden" ? "gold" : match[1];
+  const materialPrefix = match[1] === "wooden" ? "wood" : match[1] === "golden" ? "gold" : match[1];
   return resolveItemTextureKey(`${materialPrefix}_spear`, ctx) ?? ctx.basenameIndex.get(`${materialPrefix}_spear`);
 }
 
@@ -572,7 +549,7 @@ function resolveBlockItem(shortname: string, ctx: ResolverContext): string | und
 
     const path = normalizeTexturePath(
       typeof terrainEntry === "object"
-        ? (terrainEntry as Record<string, unknown>).textures ?? terrainEntry
+        ? ((terrainEntry as Record<string, unknown>).textures ?? terrainEntry)
         : terrainEntry
     );
     if (path) return path;
@@ -587,10 +564,7 @@ function resolveConventionPath(shortname: string, ctx: ResolverContext): string 
   return `textures/items/${shortname}`;
 }
 
-function lookupItemTextureByCandidates(
-  shortname: string,
-  ctx: ResolverContext
-): string | undefined {
+function lookupItemTextureByCandidates(shortname: string, ctx: ResolverContext): string | undefined {
   for (const key of getAllItemTextureKeyCandidates(shortname)) {
     if (ctx.textureData[key] && !AGGREGATE_TEXTURE_KEYS.has(key)) {
       const path = resolveItemTextureKey(key, ctx);
@@ -600,8 +574,11 @@ function lookupItemTextureByCandidates(
   return undefined;
 }
 
-function resolveVanillaItemTexture(typeId: string, ctx: ResolverContext): ResolveResult {
+export function resolveVanillaItemTexture(typeId: string, ctx: ResolverContext): ResolveResult {
   const shortname = typeId.slice("minecraft:".length);
+  if (shortname === "shelf_mushroom") {
+    return { texturePath: "textures/blocks/shelf_mushroom_small", source: "block" };
+  }
 
   const tier = resolveTierItem(shortname, ctx);
   if (tier) return { texturePath: tier, source: "tier" };
@@ -657,13 +634,13 @@ function resolveVanillaItemTexture(typeId: string, ctx: ResolverContext): Resolv
   return { texturePath: convention, source: "convention" };
 }
 
-function isObtainableTypeId(typeId: string): boolean {
+export function isObtainableTypeId(typeId: string): boolean {
   const stripped = typeId.replace(/^minecraft:/, "");
   if (stripped === "lit_furnace" || stripped === "lit_redstone_ore" || stripped === "fire") {
     return false;
   }
   for (const pattern of EXCLUDE_PATTERNS) {
-    if (stripped.includes(pattern)) return false;
+    if (pattern === "air" ? stripped === "air" : stripped.includes(pattern)) return false;
   }
   return true;
 }
@@ -719,8 +696,33 @@ function stripJsonComments(source: string): string {
   return source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
-function resolveGitRef(_gameVersion?: string): string {
-  return DEFAULT_BRANCH;
+export function hasTextureFile(texturePath: string, resourcePaths: ReadonlySet<string>): boolean {
+  return [".png", ".tga"].some(
+    (extension) =>
+      resourcePaths.has(`resource_pack/${texturePath}${extension}`) ||
+      fs.existsSync(path.resolve(__dirname, "../resource_packs/CreeperMenu", `${texturePath}${extension}`))
+  );
+}
+
+async function fetchTree(
+  gitRef: string
+): Promise<{ sha: string; truncated: boolean; tree: { type: string; path: string }[] }> {
+  const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${gitRef}?recursive=1`, {
+    headers: { "User-Agent": "mcbes-manage-script-icon-map-generator" },
+    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`资源树下载失败: HTTP ${response.status}`);
+  return response.json() as ReturnType<typeof fetchTree>;
+}
+
+export function resolveGitRef(gameVersion: string): string {
+  const parts = gameVersion.split(".").map(Number);
+  const family = `${parts[0]}.${parts[1]}.${Math.floor(parts[2] / 10)}x`;
+  if (!/^\d+\.\d+\.\d+$/.test(gameVersion) || family !== iconSource.gameVersionRange) {
+    throw new Error("请先配置此游戏版本的正式版图标数据源，禁止使用 main 冒充正式版");
+  }
+  if (!/^[a-f0-9]{40}$/.test(iconSource.commit)) throw new Error("图标数据源必须固定完整 commit");
+  return iconSource.commit;
 }
 
 function serializeOutput(map: Map<string, string>, gameVersion: string, gitRef: string): string {
@@ -729,10 +731,12 @@ function serializeOutput(map: Map<string, string>, gameVersion: string, gitRef: 
   return `/**
  * 原版物品 Chest UI 贴图路径（自动生成，请勿手改）
  * 游戏版本: ${gameVersion}
- * 数据源: ${OWNER}/${REPO} @ ${gitRef}
+ * 内容版本: ${iconSource.contentVersion}
+ * 数据源: ${OWNER}/${REPO} @ ${iconSource.tag} (${gitRef})
  * 生成命令: npm run build:vanilla-icon-map -- ${gameVersion}
  */
 export const VANILLA_ITEM_ICON_PATHS_VERSION = "${gameVersion}";
+export const VANILLA_ITEM_ICON_SOURCE_COMMIT = "${gitRef}";
 
 export const vanillaItemIconPaths: Record<string, string> = {
 ${lines}
@@ -741,31 +745,47 @@ ${lines}
 }
 
 async function main(): Promise<void> {
-  const gameVersion = process.argv[2] ?? "1.26.30";
-  const gitRef = resolveGitRef(process.argv[2]);
+  const gameVersion =
+    process.argv[2] ??
+    JSON.parse(fs.readFileSync(path.join(__dirname, "../release.config.json"), "utf8")).minecraftVersion;
+  const gitRef = resolveGitRef(gameVersion);
+  const metadataIndex = process.argv.indexOf("--metadata-dir");
+  const metadataDir = metadataIndex < 0 ? undefined : process.argv[metadataIndex + 1];
+  if (metadataIndex >= 0 && !metadataDir) throw new Error("--metadata-dir 缺少目录");
+  const readSource = <T>(relativePath: string, cacheName: string): Promise<T> =>
+    metadataDir
+      ? Promise.resolve(
+          JSON.parse(stripJsonComments(fs.readFileSync(path.resolve(metadataDir, cacheName), "utf8"))) as T
+        )
+      : fetchJson<T>(relativePath, gitRef);
 
   console.log(`📦 目标版本: ${gameVersion} (git ref: ${gitRef})`);
 
   console.log("⬇️  下载数据源...");
   const [itemTextureJson, mojangItemsJson, blocksJson, terrainJson] = await Promise.all([
-    fetchJson<{ texture_data?: Record<string, unknown> }>(
+    readSource<{ texture_data?: Record<string, unknown> }>(
       "resource_pack/textures/item_texture.json",
-      gitRef
+      "item-texture.json"
     ),
-    fetchJson<MojangItemsJson>("metadata/vanilladata_modules/mojang-items.json", gitRef),
-    fetchJson<Record<string, unknown>>("resource_pack/blocks.json", gitRef),
-    fetchJson<{ texture_data?: Record<string, unknown> }>(
+    readSource<MojangItemsJson>("metadata/vanilladata_modules/mojang-items.json", "items.json"),
+    readSource<Record<string, unknown>>("resource_pack/blocks.json", "blocks.json"),
+    readSource<{ texture_data?: Record<string, unknown> }>(
       "resource_pack/textures/terrain_texture.json",
-      gitRef
+      "terrain-texture.json"
     ),
   ]);
 
+  const tree = metadataDir
+    ? JSON.parse(fs.readFileSync(path.resolve(metadataDir, "tree.json"), "utf8"))
+    : await fetchTree(gitRef);
+  if (tree.truncated || tree.sha !== gitRef) throw new Error("资源树不完整或与固定 commit 不一致");
+  const resourcePaths = new Set<string>(
+    tree.tree.filter((entry: { type: string }) => entry.type === "blob").map((entry: { path: string }) => entry.path)
+  );
   const textureData = itemTextureJson.texture_data ?? {};
   const mojangItems = mojangItemsJson.data_items ?? [];
   const terrainData = terrainJson.texture_data ?? {};
-  const blocks = Object.fromEntries(
-    Object.entries(blocksJson).filter(([key]) => key !== "format_version")
-  );
+  const blocks = Object.fromEntries(Object.entries(blocksJson).filter(([key]) => key !== "format_version"));
 
   const ctx: ResolverContext = {
     textureData,
@@ -777,6 +797,7 @@ async function main(): Promise<void> {
   const map = new Map<string, string>();
   const sourceStats = new Map<ResolveSource, number>();
   const conventionOnly: string[] = [];
+  const unmapped: { typeId: string; texturePath: string }[] = [];
   let excluded = 0;
 
   for (const row of mojangItems) {
@@ -789,6 +810,10 @@ async function main(): Promise<void> {
     }
 
     const resolved = resolveVanillaItemTexture(typeId, ctx);
+    if (!hasTextureFile(resolved.texturePath, resourcePaths)) {
+      unmapped.push({ typeId, texturePath: resolved.texturePath });
+      continue;
+    }
     map.set(typeId, resolved.texturePath);
     sourceStats.set(resolved.source, (sourceStats.get(resolved.source) ?? 0) + 1);
     if (resolved.source === "convention") conventionOnly.push(typeId);
@@ -816,11 +841,13 @@ async function main(): Promise<void> {
   const conventionOut = path.resolve(__dirname, CONVENTION_OUTPUT);
 
   fs.mkdirSync(path.dirname(localOut), { recursive: true });
+  fs.writeFileSync(unmappedOut, JSON.stringify(unmapped, null, 2) + "\n", "utf-8");
+  fs.writeFileSync(conventionOut, JSON.stringify(conventionOnly.sort(), null, 2), "utf-8");
+  if (unmapped.length)
+    throw new Error("有 " + unmapped.length + " 个贴图路径不存在；详见 " + unmappedOut + "，未覆盖现有映射");
   fs.writeFileSync(localOut, output, "utf-8");
   fs.mkdirSync(path.dirname(pluginOut), { recursive: true });
   fs.writeFileSync(pluginOut, output, "utf-8");
-  fs.writeFileSync(unmappedOut, "[]\n", "utf-8");
-  fs.writeFileSync(conventionOut, JSON.stringify(conventionOnly.sort(), null, 2), "utf-8");
 
   console.log(`💾 已写入:\n   ${localOut}\n   ${pluginOut}\n   ${conventionOut}`);
   if (conventionOnly.length > 0) {
@@ -828,12 +855,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  const cause =
-    error && typeof error === "object" && "cause" in error
-      ? String((error as { cause?: unknown }).cause ?? "")
-      : "";
-  console.error("❌ 生成失败:", cause ? `${message}（${cause}）` : message);
-  process.exit(1);
-});
+if (require.main === module)
+  main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    const cause =
+      error && typeof error === "object" && "cause" in error ? String((error as { cause?: unknown }).cause ?? "") : "";
+    console.error("❌ 生成失败:", cause ? `${message}（${cause}）` : message);
+    process.exit(1);
+  });

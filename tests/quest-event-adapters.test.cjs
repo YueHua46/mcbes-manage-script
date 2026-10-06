@@ -187,6 +187,20 @@ test("movement edge detection emits once per glide start and once per changed mo
   );
 });
 
+test("cushion success requires an actual new mount and does not count boats or continued sitting", () => {
+  const events = adapters.resolveQuestMountEvents;
+  const sitting = { gliding: false, ridingEntityId: "cushion-1", ridingEntityTypeId: "minecraft:cushion" };
+  assert.deepEqual(events(undefined, { gliding: false }), []);
+  assert.deepEqual(events(undefined, sitting), ["player.ride", "cushion.ride_successfully"]);
+  assert.deepEqual(events(sitting, sitting), []);
+  assert.deepEqual(events(sitting, { gliding: false }), []);
+  assert.deepEqual(
+    events(undefined, { gliding: false, ridingEntityId: "boat", ridingEntityTypeId: "minecraft:boat" }),
+    ["player.ride"]
+  );
+  assert.deepEqual(events(undefined, { gliding: false, ridingEntityTypeId: "minecraft:cushion" }), []);
+});
+
 test("glide distance counts only continuous same-dimension flight and rejects teleport-sized segments", () => {
   const distance = adapters.resolveQuestGlideDistance;
   const point = (gliding, dimensionId, x, y, z) => ({
@@ -209,7 +223,7 @@ test("movement runtime samples low-frequency state and records only transition e
   assert.match(source, /player\.isGliding/);
   assert.match(source, /if \(transitions\.startedGliding\)/);
   assert.match(source, /"player\.glide"/);
-  assert.match(source, /if \(transitions\.rideChanged && ridingEntityTypeId\)/);
+  assert.match(source, /for \(const eventType of resolveQuestMountEvents\(previous, current\)\)/);
   assert.match(source, /"player\.ride"/);
   assert.match(source, /resolveQuestGlideDistance\(previous, current\)/);
   assert.match(source, /"elytra\.distance"/);

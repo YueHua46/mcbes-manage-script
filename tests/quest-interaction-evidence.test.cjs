@@ -131,5 +131,6 @@ test("runtime captures before-state but emits all progress only from successful 
   assert.match(handlerSource, /resolveArchaeologyEvidence\(/);
   assert.match(handlerSource, /"archaeology\.brush_success"/);
 
-  assert.doesNotMatch(handlerSource, /straw_bed|cushion|future_interaction/);
+  assert.doesNotMatch(handlerSource, /straw_bed|future_interaction/);
+  assert.match(handlerSource, /resolveQuestMountEvents\(previous, current\)/);
 });

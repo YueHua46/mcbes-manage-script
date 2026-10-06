@@ -35,14 +35,14 @@ Minecraft 基岩版服务器菜单附加包。它把传送、领地、经济、�
 同时生成三个 CreeperMenu 发行产物：`npm run mcaddon:release`。当前版本的
 Release 附件名称为：
 
-- `【1.26.44】普通兼容版-苦力怕菜单v3.3.1.mcaddon`
-- `【1.26.44】Realms兼容版-苦力怕菜单v3.3.1.mcaddon`
-- `【1.26.44】BDS增强版-苦力怕菜单v3.3.1.mcaddon`
+- `【1.26.52】普通兼容版-苦力怕菜单v3.3.2.mcaddon`
+- `【1.26.52】Realms兼容版-苦力怕菜单v3.3.2.mcaddon`
+- `【1.26.52】BDS增强版-苦力怕菜单v3.3.2.mcaddon`
 
-三个 CreeperMenu 变体统一使用 **3.3.1** 发行版本。构建依赖精确锁定
-Minecraft Bedrock **1.26.44**，面向用户标记为 **1.26.4x**，表示适配
-正常的 `1.26.40` 至 `1.26.49` 小版本族。manifest 最低引擎版本仍为
-**1.26.0**。
+三个 CreeperMenu 变体统一使用 **3.3.2** 发行版本。构建依赖精确锁定
+Minecraft Bedrock **1.26.52**，面向用户标记为 **1.26.5x**，表示适配
+正常的 `1.26.50` 至 `1.26.59` 小版本族。manifest 最低引擎版本为
+**1.26.50**。
 
 Backrooms 行为包和资源包继续使用独立版本 **1.0.0**，不会进入
 CreeperMenu 的三版本 Release。需要同时生成它时可使用
@@ -265,10 +265,16 @@ npm run update:minecraft-deps # 更新依赖到指定版本（提前先在packag
 
 ```bash
 npm run build:vanilla-icon-map
-npm run build:vanilla-icon-map -- 1.26.45
+npm run build:vanilla-icon-map -- 1.26.52
 ```
 
-生成器会从 Mojang 官方 `bedrock-samples` 获取物品和贴图元数据，诊断报告输出到 `out/vanilla-icon-map/`。
+生成器使用 `tools/vanilla-icon-source.json` 固定 Mojang 官方正式版 tag 和 commit，
+分别记录目标游戏版本和资源内容版本。当前为 1.26.52 游戏、1.26.50 内容数据；
+升级时先确认并更新该数据源配置，不能用 `main` 的预览内容替代正式版。
+每条路径必须在官方资源树或本项目资源包中存在 PNG/TGA 文件；缺失时写入诊断报告并中止，
+不会覆盖已有映射。报告输出到 `out/vanilla-icon-map/`。
+
+本次升级的游戏内验证操作与预期结果见 [26.52 升级验证清单](docs/minecraft-26.52-verification.md)。
 
 ### 品牌图
 

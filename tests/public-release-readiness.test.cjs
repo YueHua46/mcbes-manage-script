@@ -32,7 +32,10 @@ function directoryDigest(relativeDirectory) {
 }
 
 function fileDigest(relativePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(path.join(root, relativePath))).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(path.join(root, relativePath)))
+    .digest("hex");
 }
 
 test("repository uses a consistent noncommercial source-available license", () => {
@@ -121,8 +124,8 @@ test("README documents the automatic three-variant release workflow", () => {
     "npm run release:sync -- 3.3.0",
     "git tag v3.3.0",
     "git push origin v3.3.0",
-    "1.26.44",
-    "1.26.4x",
+    release.minecraftVersion,
+    `${release.minecraftVersion.split(".").slice(0, 2).join(".")}.${Math.floor(Number(release.minecraftVersion.split(".")[2]) / 10)}x`,
     "Backrooms",
     "独立版本",
   ]) {
