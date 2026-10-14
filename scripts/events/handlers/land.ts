@@ -51,10 +51,14 @@ import {
   type PistonMovementPhase,
   type PistonRollbackTransaction,
 } from "../../features/land/services/piston-movement-plan";
-import fragileBlockCache, { isFragilePistonAffectedBlock } from "../../features/land/services/fragile-block-cache";
+import fragileBlockCache, {
+  isFragilePistonAffectedBlock,
+  purgeOrphanedDestroyedContainerSnapshots,
+} from "../../features/land/services/fragile-block-cache";
 import { isPistonDestroyedContainerType } from "../../features/land/services/piston-destroyed-container";
 import { iterateBoundaryShell } from "../../features/land/services/land-boundary-shell";
 import { executePistonRollbackCommit } from "../../features/land/services/piston-rollback-transaction";
+import { pruneExpiredEntries } from "../../shared/utils/expiring-map";
 
 /** 避免玩家名/领地名的 § 破坏标题与 actionbar */
 function stripLandDisplaySection(s: string): string {
@@ -1182,6 +1186,7 @@ function logLandBreakAttemptOnce(player: Player, block: any, land: ILand): void 
   if (now - prev < LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS) return;
 
   recentLandBreakAttemptLog.set(key, now);
+  pruneExpiredEntries(recentLandBreakAttemptLog, now, LAND_BREAK_ATTEMPT_LOG_COOLDOWN_MS);
   behaviorLog.logLandBreakAttempt(player, block.typeId, block.location, block.dimension.id, {
     name: land.name,
     owner: land.owner,
@@ -1540,7 +1545,10 @@ function clearLandWaterByGetBlocks(landData: ILand): void {
  */
 export function registerLandEvents(): void {
   registerLandBreakingPreviewEvents();
-  system.runTimeout(scheduleFragileBlockCacheWarmup, 40);
+  system.runTimeout(() => {
+    purgeOrphanedDestroyedContainerSnapshots();
+    scheduleFragileBlockCacheWarmup();
+  }, 40);
 
   // ==================== 定时任务 ====================
 

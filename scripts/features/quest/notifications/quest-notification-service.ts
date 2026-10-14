@@ -1,5 +1,6 @@
 import { Player, world } from "@minecraft/server";
 import hudBroker from "../../hud/runtime-hud-broker";
+import { pruneExpiredEntries } from "../../../shared/utils/expiring-map";
 import type { QuestProgressChange } from "../services/quest-player";
 import type { QuestDefinition } from "../services/quest-definition";
 import type { QuestRarity } from "../domain";
@@ -153,6 +154,7 @@ class QuestNotificationService {
     const now = Date.now();
     if (now - (this.lastProgressSoundAt.get(cooldownKey) ?? 0) < PROGRESS_SOUND_COOLDOWN_MS) return;
     this.lastProgressSoundAt.set(cooldownKey, now);
+    pruneExpiredEntries(this.lastProgressSoundAt, now, PROGRESS_SOUND_COOLDOWN_MS);
     this.playSound(player, rarity, "progress");
   }
 

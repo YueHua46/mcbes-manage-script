@@ -183,3 +183,20 @@ test("fact and completion unlocks are accepted immediately without counting the 
   r.service.recordEvent(p, "item.obtain", { item: "minecraft:diamond", amount: 2 });
   assert.equal(next.progress.goal_obtain_ten_diamonds?.value ?? next.progress["goal.obtain_ten_diamonds"].value, 2);
 });
+
+test("released quest caches reload committed progress without loss", async () => {
+  const r = await createQuestRuntime();
+  r.definitions.setDefinitions([quest("release_cache", 5)]);
+  const p = player("leaver");
+  r.service.ensureAutoAccepted(p);
+  r.service.recordEvent(p, "item.obtain", { item: "minecraft:diamond", amount: 3 });
+  const before = r.repo.loadForPlayer(p);
+  const committed = JSON.parse(JSON.stringify({ active: before.activeByQuestId, instances: before.instances }));
+  assert.ok(Object.keys(committed.instances).length > 0, "fixture must record progress");
+
+  r.repo.release(before.playerCmid);
+  const after = r.repo.loadForPlayer(p);
+
+  assert.notEqual(after, before, "release must drop the cached aggregate object");
+  assert.deepEqual({ active: after.activeByQuestId, instances: after.instances }, committed);
+});

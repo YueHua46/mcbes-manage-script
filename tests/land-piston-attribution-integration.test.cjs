@@ -60,7 +60,10 @@ test("fragile cache is event-driven, bounded, and restored after piston reversal
 });
 
 test("piston-destroyed shulker boxes are cached, transactionally restored, and their delayed drops are removed", () => {
-  assert.match(fragileCacheSource, /MAX_DESTROYED_CONTAINER_CACHE_ENTRIES = 4_096/);
+  assert.match(fragileCacheSource, /MAX_DESTROYED_CONTAINER_CACHE_ENTRIES = 1_024/);
+  // Memory structures survive /reload; ids must not collide and leftovers must be purged on startup.
+  assert.match(fragileCacheSource, /destroyedContainerSessionTag/);
+  assert.match(landSource, /purgeOrphanedDestroyedContainerSnapshots\(\);/);
   assert.match(fragileCacheSource, /StructureSaveMode\.Memory/);
   assert.match(landSource, /getDestroyedContainerSnapshots\(dimension, terminalLocations\)/);
   assert.match(landSource, /terminalSnapshots\.push\(cachedDestroyedContainer\)/);

@@ -9,6 +9,7 @@ import { isBundleTypeId } from "./constants";
 import setting from "../system/services/setting";
 import { taskScheduler } from "../platform/scheduler";
 import { getOnlineRealPlayers } from "../../shared/utils/online-players";
+import { pruneExpiredEntries } from "../../shared/utils/expiring-map";
 
 const ANTI_DUPE_MSG =
   "§c当前服务器已禁止在非常规箱子类容器内放入收纳袋（防止刷物）。如有特殊需求请联系管理员将你加入防刷白名单后再放置。";
@@ -101,6 +102,7 @@ function notifyPlayerThrottled(player: Player, nowTick: number): void {
   const prev = lastNotifyTick.get(player.id) ?? 0;
   if (nowTick - prev < 40) return;
   lastNotifyTick.set(player.id, nowTick);
+  pruneExpiredEntries(lastNotifyTick, nowTick, 40, 256);
   player.sendMessage(ANTI_DUPE_MSG);
 }
 
