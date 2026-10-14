@@ -12,7 +12,7 @@
     "layer": 20,
     "$cm_font_scale": 0.78,
     "$cm_hud_text": "$actionbar_text",
-    "visible": "((not (($cm_hud_text - '[CMHUD]') = $cm_hud_text)) and (not $pocket_screen))",
+    "ignored": "((($cm_hud_text - '[CMHUD]') = $cm_hud_text) or $pocket_screen)",
     "controls": [
       {
         "status_text": {
@@ -34,7 +34,7 @@
     "size": ["100%c + 10px", 21],
     "nineslice_size": 8,
     "$cm_font_scale": 0.7,
-    "visible": "((not (($cm_hud_text - '[CMHUD]') = $cm_hud_text)) and $pocket_screen)"
+    "ignored": "((($cm_hud_text - '[CMHUD]') = $cm_hud_text) or (not $pocket_screen))"
   },
   "cm_player_status_factory": {
     "type": "panel",
@@ -69,7 +69,7 @@
     "$cm_quest_accent": [0.31, 0.52, 0.3],
     "$cm_quest_rarity_label": "普通委托",
     "$cm_quest_icon": "◆",
-    "visible": "(not (($cm_quest_text - $cm_quest_marker) = $cm_quest_text))",
+    "ignored": "(($cm_quest_text - $cm_quest_marker) = $cm_quest_text)",
     "controls": [
       {
         "top_accent": {
@@ -103,7 +103,7 @@
                 "offset": [0, -1],
                 "size": [32, 32],
                 "texture": "textures/ui/creeper_menu/quest_emblem",
-                "visible": "((($cm_quest_text - '§r§0§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§d§r') = $cm_quest_text))",
+                "ignored": "(not ((($cm_quest_text - '§r§0§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§0§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§1§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§2§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§3§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§4§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§5§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§6§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§7§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§d§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§e§r') = $cm_quest_text) and (($cm_quest_text - '§r§8§f§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§0§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§1§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§2§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§3§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§4§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§5§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§6§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§7§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§8§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§9§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§a§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§b§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§c§r') = $cm_quest_text) and (($cm_quest_text - '§r§9§d§r') = $cm_quest_text)))",
                 "layer": 32
               }
             },
@@ -115,7 +115,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_survival_first_log",
-                "visible": "(not (($cm_quest_text - '§r§0§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -127,7 +127,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_survival_crafting_table",
-                "visible": "(not (($cm_quest_text - '§r§0§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -139,7 +139,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_survival_stone_pickaxe",
-                "visible": "(not (($cm_quest_text - '§r§0§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -151,7 +151,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_survival_torches",
-                "visible": "(not (($cm_quest_text - '§r§0§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -163,7 +163,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_survival_furnace",
-                "visible": "(not (($cm_quest_text - '§r§0§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -175,7 +175,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_survival_bed",
-                "visible": "(not (($cm_quest_text - '§r§0§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -187,7 +187,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_survival_shield",
-                "visible": "(not (($cm_quest_text - '§r§0§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -199,7 +199,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_iron_ingots",
-                "visible": "(not (($cm_quest_text - '§r§0§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -211,7 +211,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_iron_pickaxe",
-                "visible": "(not (($cm_quest_text - '§r§0§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -223,7 +223,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_bucket",
-                "visible": "(not (($cm_quest_text - '§r§0§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -235,7 +235,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_full_iron_armor",
-                "visible": "(not (($cm_quest_text - '§r§0§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -247,7 +247,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_redstone",
-                "visible": "(not (($cm_quest_text - '§r§0§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -259,7 +259,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_lapis",
-                "visible": "(not (($cm_quest_text - '§r§0§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -271,7 +271,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_first_diamond",
-                "visible": "(not (($cm_quest_text - '§r§0§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -283,7 +283,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_diamond_miner",
-                "visible": "(not (($cm_quest_text - '§r§0§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -295,7 +295,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_diamond_pickaxe",
-                "visible": "(not (($cm_quest_text - '§r§0§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§0§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -307,7 +307,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_mining_obsidian",
-                "visible": "(not (($cm_quest_text - '§r§1§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -319,7 +319,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_magic_enchanting_table",
-                "visible": "(not (($cm_quest_text - '§r§1§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -331,7 +331,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_magic_bookshelves",
-                "visible": "(not (($cm_quest_text - '§r§1§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -343,7 +343,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_magic_first_enchant",
-                "visible": "(not (($cm_quest_text - '§r§1§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -355,7 +355,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_magic_anvil",
-                "visible": "(not (($cm_quest_text - '§r§1§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -367,7 +367,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_magic_enchanted_book",
-                "visible": "(not (($cm_quest_text - '§r§1§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -379,7 +379,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_enter",
-                "visible": "(not (($cm_quest_text - '§r§1§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -391,7 +391,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_quartz",
-                "visible": "(not (($cm_quest_text - '§r§1§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -403,7 +403,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_piglin_barter",
-                "visible": "(not (($cm_quest_text - '§r§1§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -415,7 +415,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_blaze_hunter",
-                "visible": "(not (($cm_quest_text - '§r§1§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -427,7 +427,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_blaze_rods",
-                "visible": "(not (($cm_quest_text - '§r§1§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -439,7 +439,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_nether_wart",
-                "visible": "(not (($cm_quest_text - '§r§1§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -451,7 +451,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_brewing_stand",
-                "visible": "(not (($cm_quest_text - '§r§1§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -463,7 +463,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_ancient_debris",
-                "visible": "(not (($cm_quest_text - '§r§1§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -475,7 +475,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_nether_netherite_ingot",
-                "visible": "(not (($cm_quest_text - '§r§1§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -487,7 +487,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_eye_ender_pearls",
-                "visible": "(not (($cm_quest_text - '§r§1§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§1§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -499,7 +499,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_eye_blaze_powder",
-                "visible": "(not (($cm_quest_text - '§r§2§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -511,7 +511,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_eye_eyes",
-                "visible": "(not (($cm_quest_text - '§r§2§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -523,7 +523,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_eye_stronghold",
-                "visible": "(not (($cm_quest_text - '§r§2§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -535,7 +535,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_eye_enter_end",
-                "visible": "(not (($cm_quest_text - '§r§2§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -547,7 +547,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_end_kill_dragon",
-                "visible": "(not (($cm_quest_text - '§r§2§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -559,7 +559,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_end_dragon_breath",
-                "visible": "(not (($cm_quest_text - '§r§2§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -571,7 +571,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_end_gateway",
-                "visible": "(not (($cm_quest_text - '§r§2§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -583,7 +583,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_chorus",
-                "visible": "(not (($cm_quest_text - '§r§2§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -595,7 +595,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_shulkers",
-                "visible": "(not (($cm_quest_text - '§r§2§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -607,7 +607,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_shells",
-                "visible": "(not (($cm_quest_text - '§r§2§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -619,7 +619,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_city",
-                "visible": "(not (($cm_quest_text - '§r§2§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -631,7 +631,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_elytra",
-                "visible": "(not (($cm_quest_text - '§r§2§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -643,7 +643,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_shulker_box",
-                "visible": "(not (($cm_quest_text - '§r§2§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -655,7 +655,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_endcity_fly",
-                "visible": "(not (($cm_quest_text - '§r§2§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -667,7 +667,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_apex_wither_skulls",
-                "visible": "(not (($cm_quest_text - '§r§2§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -679,7 +679,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_apex_kill_wither",
-                "visible": "(not (($cm_quest_text - '§r§2§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§2§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -691,7 +691,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_apex_nether_star",
-                "visible": "(not (($cm_quest_text - '§r§3§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -703,7 +703,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_apex_beacon",
-                "visible": "(not (($cm_quest_text - '§r§3§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -715,7 +715,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/core_apex_full_beacon",
-                "visible": "(not (($cm_quest_text - '§r§3§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -727,7 +727,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_village_first_trade",
-                "visible": "(not (($cm_quest_text - '§r§3§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -739,7 +739,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_village_trader",
-                "visible": "(not (($cm_quest_text - '§r§3§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -751,7 +751,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_village_cure",
-                "visible": "(not (($cm_quest_text - '§r§3§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -763,7 +763,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_village_ominous_bottle",
-                "visible": "(not (($cm_quest_text - '§r§3§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -775,7 +775,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_village_raid",
-                "visible": "(not (($cm_quest_text - '§r§3§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -787,7 +787,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_village_totem",
-                "visible": "(not (($cm_quest_text - '§r§3§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -799,7 +799,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_enter",
-                "visible": "(not (($cm_quest_text - '§r§3§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -811,7 +811,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_treasure_map",
-                "visible": "(not (($cm_quest_text - '§r§3§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -823,7 +823,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_heart",
-                "visible": "(not (($cm_quest_text - '§r§3§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -835,7 +835,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_guardians",
-                "visible": "(not (($cm_quest_text - '§r§3§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -847,7 +847,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_elder_guardian",
-                "visible": "(not (($cm_quest_text - '§r§3§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -859,7 +859,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_sponge",
-                "visible": "(not (($cm_quest_text - '§r§3§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -871,7 +871,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_ocean_conduit",
-                "visible": "(not (($cm_quest_text - '§r§3§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§3§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -883,7 +883,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_brush",
-                "visible": "(not (($cm_quest_text - '§r§4§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -895,7 +895,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_brush_suspicious",
-                "visible": "(not (($cm_quest_text - '§r§4§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -907,7 +907,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_sherd",
-                "visible": "(not (($cm_quest_text - '§r§4§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -919,7 +919,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_pot",
-                "visible": "(not (($cm_quest_text - '§r§4§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -931,7 +931,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_sniffer_egg",
-                "visible": "(not (($cm_quest_text - '§r§4§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -943,7 +943,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_archaeology_ancient_plants",
-                "visible": "(not (($cm_quest_text - '§r§4§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -955,7 +955,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_sculk",
-                "visible": "(not (($cm_quest_text - '§r§4§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -967,7 +967,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_enter",
-                "visible": "(not (($cm_quest_text - '§r§4§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -979,7 +979,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_ancient_city",
-                "visible": "(not (($cm_quest_text - '§r§4§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -991,7 +991,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_echo_shard",
-                "visible": "(not (($cm_quest_text - '§r§4§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1003,7 +1003,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_recovery_compass",
-                "visible": "(not (($cm_quest_text - '§r§4§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1015,7 +1015,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_deepdark_swift_sneak",
-                "visible": "(not (($cm_quest_text - '§r§4§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1027,7 +1027,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_enter",
-                "visible": "(not (($cm_quest_text - '§r§4§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1039,7 +1039,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_breeze",
-                "visible": "(not (($cm_quest_text - '§r§4§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1051,7 +1051,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_breeze_rod",
-                "visible": "(not (($cm_quest_text - '§r§4§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1063,7 +1063,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_trial_key",
-                "visible": "(not (($cm_quest_text - '§r§4§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§4§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1075,7 +1075,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_vault",
-                "visible": "(not (($cm_quest_text - '§r§5§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1087,7 +1087,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_ominous",
-                "visible": "(not (($cm_quest_text - '§r§5§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1099,7 +1099,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_ominous_key",
-                "visible": "(not (($cm_quest_text - '§r§5§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1111,7 +1111,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_heavy_core",
-                "visible": "(not (($cm_quest_text - '§r§5§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1123,7 +1123,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_trials_mace",
-                "visible": "(not (($cm_quest_text - '§r§5§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1135,7 +1135,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_farm_plant",
-                "visible": "(not (($cm_quest_text - '§r§5§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1147,7 +1147,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_farm_harvest",
-                "visible": "(not (($cm_quest_text - '§r§5§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1159,7 +1159,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_farm_breed",
-                "visible": "(not (($cm_quest_text - '§r§5§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1171,7 +1171,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_farm_rancher",
-                "visible": "(not (($cm_quest_text - '§r§5§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1183,7 +1183,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_farm_tame",
-                "visible": "(not (($cm_quest_text - '§r§5§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1195,7 +1195,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_farm_honey",
-                "visible": "(not (($cm_quest_text - '§r§5§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1207,7 +1207,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_redstone",
-                "visible": "(not (($cm_quest_text - '§r§5§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1219,7 +1219,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_piston",
-                "visible": "(not (($cm_quest_text - '§r§5§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1231,7 +1231,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_observer",
-                "visible": "(not (($cm_quest_text - '§r§5§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1243,7 +1243,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_comparator",
-                "visible": "(not (($cm_quest_text - '§r§5§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1255,7 +1255,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_hopper",
-                "visible": "(not (($cm_quest_text - '§r§5§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§5§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1267,7 +1267,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_crafter",
-                "visible": "(not (($cm_quest_text - '§r§6§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1279,7 +1279,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_redstone_crafter_use",
-                "visible": "(not (($cm_quest_text - '§r§6§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1291,7 +1291,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_enter",
-                "visible": "(not (($cm_quest_text - '§r§6§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1303,7 +1303,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_pale_oak",
-                "visible": "(not (($cm_quest_text - '§r§6§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1315,7 +1315,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_creaking",
-                "visible": "(not (($cm_quest_text - '§r§6§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1327,7 +1327,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_heart",
-                "visible": "(not (($cm_quest_text - '§r§6§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1339,7 +1339,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/world_pale_garden_resin",
-                "visible": "(not (($cm_quest_text - '§r§6§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1351,7 +1351,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_open_menu",
-                "visible": "(not (($cm_quest_text - '§r§6§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1363,7 +1363,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_waypoint",
-                "visible": "(not (($cm_quest_text - '§r§6§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1375,7 +1375,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_tpa",
-                "visible": "(not (($cm_quest_text - '§r§6§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1387,7 +1387,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_random_tp",
-                "visible": "(not (($cm_quest_text - '§r§6§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1399,7 +1399,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_land",
-                "visible": "(not (($cm_quest_text - '§r§6§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1411,7 +1411,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_public_waypoint",
-                "visible": "(not (($cm_quest_text - '§r§6§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1423,7 +1423,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_market",
-                "visible": "(not (($cm_quest_text - '§r§6§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1435,7 +1435,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_red_packet",
-                "visible": "(not (($cm_quest_text - '§r§6§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1447,7 +1447,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/creeper_guide_guild",
-                "visible": "(not (($cm_quest_text - '§r§6§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§6§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1459,7 +1459,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_copper_ingots",
-                "visible": "(not (($cm_quest_text - '§r§7§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1471,7 +1471,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_copper_pickaxe",
-                "visible": "(not (($cm_quest_text - '§r§7§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1483,7 +1483,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_copper_full_armor",
-                "visible": "(not (($cm_quest_text - '§r§7§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1495,7 +1495,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_copper_golem",
-                "visible": "(not (($cm_quest_text - '§r§7§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1507,7 +1507,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_copper_chest",
-                "visible": "(not (($cm_quest_text - '§r§7§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1519,7 +1519,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_copper_sorting",
-                "visible": "(not (($cm_quest_text - '§r§7§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1531,7 +1531,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_copper_shelf",
-                "visible": "(not (($cm_quest_text - '§r§7§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1543,7 +1543,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_skies_dried_ghast",
-                "visible": "(not (($cm_quest_text - '§r§7§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1555,7 +1555,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_skies_revive",
-                "visible": "(not (($cm_quest_text - '§r§7§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1567,7 +1567,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_skies_ghastling",
-                "visible": "(not (($cm_quest_text - '§r§7§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1579,7 +1579,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_skies_happy_ghast",
-                "visible": "(not (($cm_quest_text - '§r§7§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1591,7 +1591,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_skies_harness",
-                "visible": "(not (($cm_quest_text - '§r§7§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1603,7 +1603,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_skies_ride",
-                "visible": "(not (($cm_quest_text - '§r§7§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1615,7 +1615,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_spear",
-                "visible": "(not (($cm_quest_text - '§r§7§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1627,7 +1627,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_spear_charge",
-                "visible": "(not (($cm_quest_text - '§r§7§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1639,7 +1639,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_zombie_horse",
-                "visible": "(not (($cm_quest_text - '§r§7§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§7§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1651,7 +1651,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_camel_husk",
-                "visible": "(not (($cm_quest_text - '§r§8§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1663,7 +1663,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_parched",
-                "visible": "(not (($cm_quest_text - '§r§8§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1675,7 +1675,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_nautilus",
-                "visible": "(not (($cm_quest_text - '§r§8§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1687,7 +1687,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_mounts_ride_nautilus",
-                "visible": "(not (($cm_quest_text - '§r§8§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1699,7 +1699,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_name_tag",
-                "visible": "(not (($cm_quest_text - '§r§8§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1711,7 +1711,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_name_baby",
-                "visible": "(not (($cm_quest_text - '§r§8§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1723,7 +1723,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_golden_dandelion",
-                "visible": "(not (($cm_quest_text - '§r§8§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1735,7 +1735,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_baby_collection",
-                "visible": "(not (($cm_quest_text - '§r§8§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1747,7 +1747,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_tiny_trumpet",
-                "visible": "(not (($cm_quest_text - '§r§8§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1759,7 +1759,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_sulfur",
-                "visible": "(not (($cm_quest_text - '§r§8§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1771,7 +1771,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_cinnabar",
-                "visible": "(not (($cm_quest_text - '§r§8§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1783,7 +1783,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_cave",
-                "visible": "(not (($cm_quest_text - '§r§8§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1795,7 +1795,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_meet_cube",
-                "visible": "(not (($cm_quest_text - '§r§8§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1807,7 +1807,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_bucket_cube",
-                "visible": "(not (($cm_quest_text - '§r§8§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1819,7 +1819,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_feed_cube",
-                "visible": "(not (($cm_quest_text - '§r§8§e§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§e§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1831,7 +1831,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_tnt",
-                "visible": "(not (($cm_quest_text - '§r§8§f§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§8§f§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1843,7 +1843,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_geyser",
-                "visible": "(not (($cm_quest_text - '§r§9§0§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§0§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1855,7 +1855,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/update_chaos_bounce_disc",
-                "visible": "(not (($cm_quest_text - '§r§9§1§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§1§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1867,7 +1867,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_dappled_forest",
-                "visible": "(not (($cm_quest_text - '§r§9§2§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§2§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1879,7 +1879,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_poplar",
-                "visible": "(not (($cm_quest_text - '§r§9§3§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§3§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1891,7 +1891,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_shelf_mushroom",
-                "visible": "(not (($cm_quest_text - '§r§9§4§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§4§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1903,7 +1903,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_red_shrub",
-                "visible": "(not (($cm_quest_text - '§r§9§5§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§5§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1915,7 +1915,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_camp",
-                "visible": "(not (($cm_quest_text - '§r§9§6§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§6§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1927,7 +1927,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_straw_bed",
-                "visible": "(not (($cm_quest_text - '§r§9§7§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§7§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1939,7 +1939,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/experiment_drop3_cushion",
-                "visible": "(not (($cm_quest_text - '§r§9§8§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§8§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1951,7 +1951,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/hidden_warden",
-                "visible": "(not (($cm_quest_text - '§r§9§9§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§9§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1963,7 +1963,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/hidden_dragon_again",
-                "visible": "(not (($cm_quest_text - '§r§9§a§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§a§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1975,7 +1975,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/hidden_mace_smash",
-                "visible": "(not (($cm_quest_text - '§r§9§b§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§b§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1987,7 +1987,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/hidden_happy_ghast_party",
-                "visible": "(not (($cm_quest_text - '§r§9§c§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§c§r') = $cm_quest_text)",
                 "layer": 33
               }
             },
@@ -1999,7 +1999,7 @@
                 "offset": [0, 2],
                 "size": [28, 28],
                 "texture": "textures/ui/creeper_menu/quest_icons/hidden_elytra_distance",
-                "visible": "(not (($cm_quest_text - '§r§9§d§r') = $cm_quest_text))",
+                "ignored": "(($cm_quest_text - '§r§9§d§r') = $cm_quest_text)",
                 "layer": 33
               }
             }

@@ -65,6 +65,13 @@ test("quest rarity themes drive mutually exclusive HUD markers and hide the nati
     assert.match(source, new RegExp(marker.replace(/[\[\]]/g, "\\$&")));
     assert.match(hud.hud_actionbar_text.visible, new RegExp(marker.replace(/[\[\]]/g, "\\$&")));
   }
+  // Actionbar factories rebuild these templates on every actionbar update; `ignored` skips
+  // building non-matching controls instead of creating hundreds of hidden ones.
+  assert.equal(hud.cm_quest_toast.visible, undefined);
+  assert.match(hud.cm_quest_toast.ignored, /\$cm_quest_marker/);
+  assert.equal(hud.cm_player_status_panel.visible, undefined);
+  assert.match(hud.cm_player_status_panel.ignored, /\[CMHUD\]/);
+  assert.match(hud["cm_player_status_panel_pocket@hud.cm_player_status_panel"].ignored, /\[CMHUD\]/);
   assert.equal(hud.cm_quest_toast.type, "image");
   assert.equal(hud.cm_quest_toast.texture, "textures/ui/creeper_menu/quest_toast_panel");
   assert.equal(hud.cm_quest_toast.controls[0].top_accent.anchor_from, "left_middle");
@@ -146,8 +153,9 @@ test("all 158 preset quests have unique transparent 32px HUD artwork and fixed m
     assert.equal(icon.anchor_from, "center", `${entry.slug} horizontal/vertical origin`);
     assert.equal(icon.anchor_to, "center", `${entry.slug} horizontal/vertical destination`);
     assert.deepEqual(icon.offset, [0, 2], `${entry.slug} optical vertical centering`);
-    assert.match(icon.visible, new RegExp(marker));
-    assert.match(badgeChip.controls[0].badge_icon.visible, new RegExp(marker));
+    assert.match(icon.ignored, new RegExp(marker));
+    assert.equal(icon.visible, undefined, `${entry.slug} must be skipped with ignored, not hidden`);
+    assert.match(badgeChip.controls[0].badge_icon.ignored, new RegExp(marker));
   }
   assert.equal(hashes.size, 158, "every preset quest needs distinct artwork");
   assert.equal(markers.size, 158, "every preset quest needs a distinct marker");
