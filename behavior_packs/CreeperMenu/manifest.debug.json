@@ -5,7 +5,7 @@
     "description": "苦力怕菜单行为包（本地/BDS调试版，不适用Realms）",
     "uuid": "c32e1f60-0ee0-4413-a760-d261d91e5fc6",
     "version": [3, 3, 8],
-    "min_engine_version": [1, 26, 50]
+    "min_engine_version": [1, 26, 40]
   },
   "modules": [
     {
