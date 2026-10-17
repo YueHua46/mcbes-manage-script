@@ -27,7 +27,9 @@ import {
 export { resolveQuestGlideDistance };
 
 const pendingItemDeltas = new Map<string, { player: Player; items: Map<string, number> }>();
-const queuedItemDeltas = new Map<string, { player: Player; items: Array<{ itemId: string; amount: number }> }>();
+// Backlog drained under the shared work budget. Amounts are merged per item so a sustained burst
+// (mining, farms) grows with distinct item types, never with the number of pickups.
+const queuedItemDeltas = new Map<string, { player: Player; items: Map<string, number> }>();
 let itemFlushScheduled = false;
 let questRuntimeActive = false;
 let questSettingUnsubscribe: (() => void) | undefined;
@@ -299,11 +301,12 @@ function addPendingItemDelta(player: Player, itemId: string, amount: number): vo
 
 function flushPendingItemDeltas(): void {
   for (const [id, { player, items }] of pendingItemDeltas) {
-    const queued = queuedItemDeltas.get(id) ?? { player, items: [] };
+    const queued = queuedItemDeltas.get(id) ?? { player, items: new Map<string, number>() };
+    queued.player = player;
     for (const [itemId, amount] of items) {
-      if (amount > 0) queued.items.push({ itemId, amount });
+      if (amount > 0) queued.items.set(itemId, (queued.items.get(itemId) ?? 0) + amount);
     }
-    if (queued.items.length > 0) queuedItemDeltas.set(id, queued);
+    if (queued.items.size > 0) queuedItemDeltas.set(id, queued);
   }
   pendingItemDeltas.clear();
 
@@ -313,8 +316,9 @@ function flushPendingItemDeltas(): void {
     queuedItemDeltas.delete(id);
     const { player } = queued;
     if (!player.isValid) continue;
-    const { itemId, amount } = queued.items.shift()!;
-    if (queued.items.length > 0) queuedItemDeltas.set(id, queued);
+    const [itemId, amount] = queued.items.entries().next().value!;
+    queued.items.delete(itemId);
+    if (queued.items.size > 0) queuedItemDeltas.set(id, queued);
     questDeferredWorkBudget.run(system.currentTick, () => {
       try {
         notifyQuestChanges(

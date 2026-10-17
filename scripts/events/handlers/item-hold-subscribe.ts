@@ -4,6 +4,7 @@
 
 import { system, world } from "@minecraft/server";
 import { eventRegistry } from "../registry";
+import { pruneExpiredEntries } from "../../shared/utils/expiring-map";
 import behaviorLog from "../../features/behavior-log/services/behavior-log";
 import { collectPlayerItemWatchSnapshot } from "../../features/behavior-log/services/item-watch-collect";
 import { matchesItemWatchSubscribedType } from "../../features/item-watch/item-watch-subscription";
@@ -37,6 +38,7 @@ export function registerItemHoldSubscribeEvents(): void {
     const last = debounceAt.get(dk) ?? 0;
     if (now - last < DEBOUNCE_MS) return;
     debounceAt.set(dk, now);
+    pruneExpiredEntries(debounceAt, now, DEBOUNCE_MS);
 
     const acquiredTypeId = itemStack.typeId;
 

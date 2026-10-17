@@ -13,7 +13,8 @@ import {
 import { isPistonDestroyedContainerType } from "./piston-destroyed-container";
 
 const MAX_FRAGILE_BLOCK_CACHE_ENTRIES = 50_000;
-const MAX_DESTROYED_CONTAINER_CACHE_ENTRIES = 4_096;
+// Each entry is a full shulker box structure held in engine (native) memory, not the script heap.
+const MAX_DESTROYED_CONTAINER_CACHE_ENTRIES = 1_024;
 const ADJACENT_OFFSETS: readonly Vector3[] = [
   { x: 0, y: 0, z: 0 },
   { x: 1, y: 0, z: 0 },
@@ -51,7 +52,32 @@ export interface PistonDestroyedContainerSnapshot {
   typeId: string;
 }
 
+const DESTROYED_CONTAINER_STRUCTURE_PREFIX = "creeper_menu:piston_boundary_container_";
+// Memory-mode structures outlive a script reload (/reload) while this module's bookkeeping does not.
+// A per-load tag keeps new ids from colliding with leftovers; leftovers are removed on startup.
+const destroyedContainerSessionTag = Date.now().toString(36);
 let destroyedContainerSnapshotSequence = 0;
+
+/** Removes container snapshots orphaned by a previous script load in the same world session. */
+export function purgeOrphanedDestroyedContainerSnapshots(): number {
+  let removed = 0;
+  try {
+    const manager = world.structureManager as unknown as { getWorldStructureIds?: () => string[] };
+    for (const id of manager.getWorldStructureIds?.() ?? []) {
+      if (!id.startsWith(DESTROYED_CONTAINER_STRUCTURE_PREFIX)) continue;
+      // Snapshots taken by this load are still tracked and may be needed for a rollback.
+      if (id.startsWith(`${DESTROYED_CONTAINER_STRUCTURE_PREFIX}${destroyedContainerSessionTag}_`)) continue;
+      try {
+        if (world.structureManager.delete(id)) removed++;
+      } catch {
+        /* already gone */
+      }
+    }
+  } catch {
+    /* structure listing unavailable on this engine version */
+  }
+  return removed;
+}
 
 function locationKey(dimensionId: string, location: Vector3): string {
   return `${dimensionId}:${Math.floor(location.x)},${Math.floor(location.y)},${Math.floor(location.z)}`;
@@ -186,7 +212,7 @@ class FragileBlockCache {
       y: Math.floor(block.location.y),
       z: Math.floor(block.location.z),
     };
-    const structureId = `creeper_menu:piston_boundary_container_${++destroyedContainerSnapshotSequence}`;
+    const structureId = `${DESTROYED_CONTAINER_STRUCTURE_PREFIX}${destroyedContainerSessionTag}_${++destroyedContainerSnapshotSequence}`;
     try {
       world.structureManager.createFromWorld(structureId, block.dimension, location, location, {
         includeBlocks: true,
