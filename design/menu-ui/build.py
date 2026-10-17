@@ -630,9 +630,12 @@ def update_quest_icon_hud(entries: list[dict[str, Any]]) -> None:
     existing_controls = badge_chip["controls"]
     fallback = next(control for control in existing_controls if "badge_icon" in control)
     markers = [quest_icon_marker(entry["markerIndex"]) for entry in entries]
-    fallback["badge_icon"]["visible"] = "(" + " and ".join(
+    # `ignored` is evaluated once when the actionbar factory instantiates the toast and skips
+    # creating the control entirely; `visible: false` would still build every hidden icon.
+    fallback["badge_icon"].pop("visible", None)
+    fallback["badge_icon"]["ignored"] = "(not (" + " and ".join(
         f"(($cm_quest_text - '{marker}') = $cm_quest_text)" for marker in markers
-    ) + ")"
+    ) + "))"
 
     generated_controls = []
     for entry, marker in zip(entries, markers, strict=True):
@@ -646,7 +649,7 @@ def update_quest_icon_hud(entries: list[dict[str, Any]]) -> None:
                     "offset": [0, 2],
                     "size": [28, 28],
                     "texture": f"textures/ui/creeper_menu/quest_icons/{slug}",
-                    "visible": f"(not (($cm_quest_text - '{marker}') = $cm_quest_text))",
+                    "ignored": f"(($cm_quest_text - '{marker}') = $cm_quest_text)",
                     "layer": 33,
                 }
             }
