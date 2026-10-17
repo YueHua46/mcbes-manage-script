@@ -58,25 +58,26 @@ function getMaxSnapshots(): number {
 }
 
 function resetOversizedStartupDatabase(): void {
-  const index = Number(world.getDynamicProperty(`${DATABASE_NAME}Index`));
-  if (!Number.isFinite(index) || index <= MAX_STARTUP_CHUNKS) return;
+  const index = Database.getStoredChunkCount(DATABASE_NAME);
+  if (index <= MAX_STARTUP_CHUNKS) return;
 
   console.warn(`[ItemWatchSnapshotStore] ${DATABASE_NAME} 数据块过多(${index})，为避免启动内存溢出已重置快照库`);
-  world.setDynamicProperty(`${DATABASE_NAME}Index`, 1);
-  world.setDynamicProperty(`${DATABASE_NAME}:0`, EMPTY_DATABASE_JSON);
+  // 新格式下 resetStorage 会同步清理上一代分块；这里只需分批清理旧格式遗留的分块。
+  const staleKeys = Database.resetStorage(DATABASE_NAME, EMPTY_DATABASE_JSON);
+  if (staleKeys.length === 0) return;
 
-  let nextChunk = 1;
+  let nextKey = 0;
   const clearOldChunks = system.runInterval(() => {
-    const end = Math.min(nextChunk + 64, index);
-    for (let i = nextChunk; i < end; i++) {
+    const end = Math.min(nextKey + 64, staleKeys.length);
+    for (let i = nextKey; i < end; i++) {
       try {
-        world.setDynamicProperty(`${DATABASE_NAME}:${i}`, undefined);
+        world.setDynamicProperty(staleKeys[i], undefined);
       } catch {
         // 清理旧分块失败不影响新库启动，后续不会再读取这些分块。
       }
     }
-    nextChunk = end;
-    if (nextChunk >= index) {
+    nextKey = end;
+    if (nextKey >= staleKeys.length) {
       system.clearRun(clearOldChunks);
     }
   }, 1);

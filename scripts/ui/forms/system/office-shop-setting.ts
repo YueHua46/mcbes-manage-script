@@ -137,12 +137,19 @@ class OfficeShopSettingForm {
         return;
       }
 
-      officeShop.createCategory({
-        name,
-        description,
-        icon: emojiKeyToEmojiPath(categoryIconKeys[iconIndex]),
-        player,
-      });
+      try {
+        officeShop.createCategory({
+          name,
+          description,
+          icon: emojiKeyToEmojiPath(categoryIconKeys[iconIndex]),
+          player,
+        });
+      } catch (error) {
+        openDialogForm(player, { title: "§c失败", desc: `§c添加类别失败：${String(error)}` }, () =>
+          this.openMainMenu(player)
+        );
+        return;
+      }
 
       openDialogForm(player, { title: "§a成功", desc: "商品类别添加成功" }, () => this.openMainMenu(player));
     });
@@ -213,7 +220,16 @@ class OfficeShopSettingForm {
         return;
       }
 
-      officeShop.deleteCategory(categoryName);
+      try {
+        officeShop.deleteCategory(categoryName);
+      } catch (error) {
+        openDialogForm(
+          player,
+          { title: "§c删除失败", desc: `§c删除类别失败，类别与商品均未改变：${String(error)}` },
+          () => this.manageCategoryItems(player, categoryName)
+        );
+        return;
+      }
       openDialogForm(player, { title: "§a成功", desc: `类别 ${categoryName} 已删除` }, () =>
         this.openCategoryList(player)
       );
@@ -432,13 +448,22 @@ class OfficeShopSettingForm {
         return;
       }
 
-      // 更新商品信息
-      officeShop.updateItemMeta(item.data, {
-        ...item.data,
-        amount: newAmount,
-        unlimitedSupply,
-        price: newPrice,
-      });
+      // 更新商品信息（商品在表单打开期间被购买或修改过时会失败，需要重新打开）
+      try {
+        officeShop.updateItemMeta(item.data, {
+          ...item.data,
+          amount: newAmount,
+          unlimitedSupply,
+          price: newPrice,
+        });
+      } catch (error) {
+        openDialogForm(
+          player,
+          { title: "§c修改失败", desc: `§c商品已变化或保存失败，请重新打开后再试：${String(error)}` },
+          () => this.openCategoryItemListForm(player, categoryName)
+        );
+        return;
+      }
 
       openDialogForm(
         player,
@@ -483,7 +508,16 @@ class OfficeShopSettingForm {
       }
 
       // 删除商品
-      officeShop.deleteItem(item.data);
+      try {
+        officeShop.deleteItem(item.data);
+      } catch (error) {
+        openDialogForm(
+          player,
+          { title: "§c删除失败", desc: `§c商品已变化或保存失败，请重新打开后再试：${String(error)}` },
+          () => this.openCategoryItemListForm(player, categoryName)
+        );
+        return;
+      }
 
       openDialogForm(
         player,

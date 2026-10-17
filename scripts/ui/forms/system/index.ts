@@ -16,6 +16,7 @@ import guildService from "../../../features/guild/services/guild-service";
 import wayPoint from "../../../features/waypoint/services/waypoint";
 import { isAdmin } from "../../../shared/utils/common";
 import { officeShopSettingForm } from "./office-shop-setting";
+import { openItemDatabaseMaintenanceForm } from "./item-database-maintenance";
 import { openPlayerInventoryAdminForm } from "./player-inventory-admin";
 import { openNotifyForms } from "../notify";
 import { openBehaviorLogForm } from "../behavior-log";
@@ -1472,6 +1473,7 @@ export function openEconomyManageForm(player: Player): void {
   form.button("功能设置", "textures/icons/gadgets");
   form.button("怪物金币奖励范围", "textures/icons/zombi");
   form.button("兑换码管理", "textures/icons/gift");
+  form.button("物品数据库维护", "textures/icons/gear");
   form.button("返回", "textures/icons/back");
 
   form.show(player).then((data) => {
@@ -1496,6 +1498,9 @@ export function openEconomyManageForm(player: Player): void {
         openRedemptionCodeManageForm(player, () => openEconomyManageForm(player));
         break;
       case 6:
+        openItemDatabaseMaintenanceForm(player, () => openEconomyManageForm(player));
+        break;
+      case 7:
         openSystemSettingForm(player);
         break;
     }

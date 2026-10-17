@@ -427,16 +427,37 @@ export class Economic {
       }
     }
 
+    const walletKey = this.resolveWalletKey(playerName);
+    const goldBefore = wallet.gold;
+    const dailyEarnedBefore = wallet.dailyEarned;
     wallet.gold += amount;
 
     if (!ignoreDailyLimit) {
       wallet.dailyEarned += amount;
     }
 
-    this.saveWallet(this.resolveWalletKey(playerName), wallet);
+    try {
+      this.saveWallet(walletKey, wallet);
+    } catch (error) {
+      // getWallet 返回的是缓存中的对象：保存失败必须恢复，否则之后的自动保存会把未生效的加币写进去。
+      wallet.gold = goldBefore;
+      wallet.dailyEarned = dailyEarnedBefore;
+      this.restoreWalletCache(walletKey, wallet);
+      console.warn(`给玩家 ${playerName} 加币保存失败，已撤销`, error);
+      return 0;
+    }
     this.logTransaction("system", playerName, amount, reason);
 
     return amount;
+  }
+
+  /** 保存失败后把已恢复的钱包放回缓存（不抛出） */
+  private restoreWalletCache(walletKey: string, wallet: IUserWallet): void {
+    try {
+      this.db.set(walletKey, wallet);
+    } catch (error) {
+      console.warn(`恢复钱包缓存失败: ${walletKey}`, error);
+    }
   }
 
   /**
@@ -601,8 +622,18 @@ export class Economic {
     const deductedAmount = Math.min(amount, wallet.gold - minimumGold);
     if (deductedAmount <= 0) return false;
 
+    const walletKey = this.resolveWalletKey(playerName);
+    const goldBefore = wallet.gold;
     wallet.gold -= deductedAmount;
-    this.saveWallet(this.resolveWalletKey(playerName), wallet);
+    try {
+      this.saveWallet(walletKey, wallet);
+    } catch (error) {
+      // 同 addGold：恢复缓存中的钱包，返回失败，调用方据此放弃本次操作。
+      wallet.gold = goldBefore;
+      this.restoreWalletCache(walletKey, wallet);
+      console.warn(`扣除玩家 ${playerName} 金币保存失败，已撤销`, error);
+      return false;
+    }
     this.logTransaction(playerName, "system", deductedAmount, reason);
 
     return true;

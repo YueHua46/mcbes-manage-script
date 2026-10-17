@@ -9,9 +9,8 @@ import ItemDatabase, { Item as DbItem } from "./item-database";
 import { openDialogForm } from "../../../ui/components/dialog";
 import { officeShopCategoryIcons } from "../../../assets/glyph-map";
 
-// 商品类别接口定义
+// 商品类别接口定义（持久化记录，不再保存 Player 对象：它序列化后只是 {}）
 export interface ICategory {
-  player: Player;
   name: string;
   description?: string;
   icon?: string;
@@ -60,9 +59,18 @@ class OfficeShop {
     });
   }
 
+  /** 保存分类；失败时恢复缓存并抛出 */
   private saveCategory(name: string, category: ICategory): void {
-    this.db.set(name, category);
-    this.db.save();
+    const previous = this.db.get(name);
+    const { player: _legacyPlayer, ...record } = category as ICategory & { player?: unknown };
+    this.db.set(name, record);
+    try {
+      this.db.save();
+    } catch (error) {
+      if (previous === undefined) this.db.delete(name);
+      else this.db.set(name, previous);
+      throw error;
+    }
   }
 
   /**
@@ -109,13 +117,22 @@ class OfficeShop {
   /**
    * 创建分类
    */
-  createCategory({ player, name, description, icon }: Omit<ICategory, "created" | "modified" | "createdBy">): void {
+  createCategory({
+    player,
+    name,
+    description,
+    icon,
+  }: {
+    player: Player;
+    name: string;
+    description?: string;
+    icon?: string;
+  }): void {
     if (this.db.has(name)) {
       openDialogForm(player, { title: "§c错误", desc: "§c该类别已存在！" }, () => {});
       return;
     }
     const newCategory: ICategory = {
-      player,
       name,
       description,
       icon,
@@ -129,7 +146,7 @@ class OfficeShop {
   /**
    * 编辑分类
    */
-  editCategory(name: string, updates: Partial<Omit<ICategory, "name" | "player" | "createdBy">>): void {
+  editCategory(name: string, updates: Partial<Omit<ICategory, "name" | "createdBy">>): void {
     const existing = this.getCategory(name);
     if (!existing) return;
     const updated: ICategory = {
@@ -141,13 +158,23 @@ class OfficeShop {
   }
 
   /**
-   * 删除分类
+   * 删除分类：先一次提交删除该分类下的全部商品，成功后再删除分类本身。
+   * 任何一步失败都会抛出；商品删除失败时分类与商品都保持原样。
    */
   deleteCategory(name: string): void {
     if (!this.db.has(name)) return;
+    const entries = this.getCategoryItems(name);
+    if (entries.length > 0) {
+      this.itemDB.removeMany(entries.map((entry) => entry.itemDB.data));
+    }
+    const previous = this.db.get(name);
     this.db.delete(name);
-    this.db.save();
-    this.getCategoryItems(name).forEach((entry) => entry.itemDB.delete());
+    try {
+      this.db.save();
+    } catch (error) {
+      this.db.set(name, previous);
+      throw error;
+    }
   }
 
   /**
@@ -174,7 +201,13 @@ class OfficeShop {
       unlimitedSupply,
       createdAt: Date.now(),
     };
-    this.itemDB.add(item, itemMetaData);
+    try {
+      this.itemDB.add(item, itemMetaData);
+    } catch (error) {
+      // cb 是“添加成功”提示，失败时不能调用
+      openDialogForm(player, { title: "§c错误", desc: `§c添加商品失败：${String(error)}` }, () => {});
+      return;
+    }
     cb();
   }
 

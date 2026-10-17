@@ -396,6 +396,9 @@ class OfficeShopForm {
     const container = inventory.container;
     if (!container) return;
 
+    // 先拍背包快照再扣钱：扣钱之后的任何失败都能撤回背包并退款
+    const inventorySnapshot = this.snapshotContainer(container);
+
     // 扣除金币
     if (!economic.removeGold(player.name, totalPrice, "购买官方商店物品")) {
       openDialogForm(player, { title: "购买失败", desc: `${colorCodes.red}支付失败！` }, () =>
@@ -403,8 +406,6 @@ class OfficeShopForm {
       );
       return;
     }
-
-    const inventorySnapshot = this.snapshotContainer(container);
 
     try {
       const itemToGive = itemData.item.clone();
@@ -421,7 +422,33 @@ class OfficeShopForm {
           });
         }
       }
+    } catch (error) {
+      this.restoreContainer(container, inventorySnapshot);
+      SystemLog.error(`购买失败退款: ${error}`);
+      const refunded = economic.addGold(player.name, totalPrice, "购买失败退款", true);
+      if (refunded !== totalPrice) {
+        // 退款也没能写入：必须让玩家和日志都知道，不能假装已退款。
+        SystemLog.error(`官方商店退款失败: ${player.name} 应退 ${totalPrice}，实际 ${refunded}`);
+        openDialogForm(
+          player,
+          {
+            title: "购买失败",
+            desc: `${colorCodes.red}购买物品失败，且自动退款失败（应退 ${totalPrice} 金币），请截图联系管理员处理！`,
+          },
+          () => this.openCategoryProducts(player, categoryName, page)
+        );
+        return;
+      }
+      openDialogForm(
+        player,
+        { title: "购买失败", desc: `${colorCodes.red}购买物品失败，已退款 ${totalPrice} 金币！` },
+        () => this.openCategoryProducts(player, categoryName, page)
+      );
+      return;
+    }
 
+    // 已提交：提示失败只记录，绝不回滚交易
+    try {
       openDialogForm(
         player,
         {
@@ -431,14 +458,7 @@ class OfficeShopForm {
         () => this.openCategoryProducts(player, categoryName, page)
       );
     } catch (error) {
-      this.restoreContainer(container, inventorySnapshot);
-      SystemLog.error(`购买失败退款: ${error}`);
-      economic.addGold(player.name, totalPrice, "购买失败退款", true);
-      openDialogForm(
-        player,
-        { title: "购买失败", desc: `${colorCodes.red}购买物品失败，已退款 ${totalPrice} 金币！` },
-        () => this.openCategoryProducts(player, categoryName, page)
-      );
+      SystemLog.error(`官方商店购买成功提示失败（交易已完成，不回滚）: ${error}`);
     }
   }
 

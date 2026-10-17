@@ -37,6 +37,7 @@ function harness(metadata = {}) {
   let balance = 100;
   let stored;
   let failDelivery = false;
+  let failSuccessDialog = false;
   const dialogs = [];
   const mutations = [];
   const forms = [];
@@ -107,6 +108,7 @@ function harness(metadata = {}) {
     SystemLog: { error() {} },
     openDialogForm(_player, dialog) {
       dialogs.push(dialog);
+      if (failSuccessDialog && dialog.title === "购买成功") throw new Error("injected dialog failure");
     },
   };
   const { officeShopForm } = load("scripts/ui/forms/economic/office-shop-form.ts", globals);
@@ -132,6 +134,9 @@ function harness(metadata = {}) {
     },
     failDelivery() {
       failDelivery = true;
+    },
+    failSuccessDialog() {
+      failSuccessDialog = true;
     },
   };
 }
@@ -222,4 +227,17 @@ test("finite stock rejects fractions and malformed numeric input", async () => {
     assert.deepEqual(h.mutations, []);
     assert.match(h.dialogs[0].desc, /正整数/);
   }
+});
+
+test("a notification failure after the stock commit does not roll the purchase back", () => {
+  const h = harness();
+  h.failSuccessDialog();
+  try {
+    h.purchase(2);
+  } catch {
+    // 通知失败可以向上抛出，但交易本身必须保持已完成
+  }
+  assert.equal(h.delivered, 2, "the buyer keeps the items");
+  assert.equal(h.entry.data.amount, 3, "the committed stock change stands");
+  assert.equal(h.balance, 96, "no refund for a completed purchase");
 });

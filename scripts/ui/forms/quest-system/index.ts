@@ -4,7 +4,12 @@ import { CreeperMessageFormData as MessageFormData } from "../../creeper-message
 import { CreeperModalFormData as ModalFormData } from "../../creeper-modal-form";
 import { ChestFormData, ChestFormResponse } from "../../components/chest-ui";
 import { color } from "../../../shared/utils/color";
-import { PersistedItemStack, serializeItemStack } from "../../../shared/utils/item-stack-persist";
+import {
+  collectLossyReasons,
+  describeLossyReasons,
+  PersistedItemStack,
+  serializeItemStack,
+} from "../../../shared/utils/item-stack-persist";
 import questPlayerService from "../../../features/quest/services/quest-player";
 import questCatalogService from "../../../features/quest/services/quest-catalog";
 import type {
@@ -1701,9 +1706,15 @@ function openInventoryItemRewardSelector(
       rawtext: [
         { text: "§a已选择 " },
         { translate: stack.localizationKey },
-        { text: ` §7(${stack.typeId}) §ax${stack.amount}，已保存完整物品数据${nestedNote}。请确认后保存奖励。` },
+        { text: ` §7(${stack.typeId}) §ax${stack.amount}，已保存物品数据${nestedNote}。请确认后保存奖励。` },
       ],
     });
+    const lossyReasons = collectLossyReasons(snapshot);
+    if (lossyReasons.size > 0) {
+      player.sendMessage(
+        `§e注意：该物品的以下数据无法通过脚本保存，发放奖励时会丢失：${describeLossyReasons(lossyReasons)}`
+      );
+    }
     openRewardEditor(player, reward, onSave);
   });
 }

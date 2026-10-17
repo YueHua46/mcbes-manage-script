@@ -8,7 +8,7 @@ import { openDialogForm } from "../../../ui/components/dialog";
 import { color } from "../../../shared/utils/color";
 import ItemDatabase, { Item as DbItem } from "./item-database";
 import { colorCodes } from "../../../shared/utils/color";
-import { isAdmin } from "../../../shared/utils/common";
+import { isAdmin, SystemLog } from "../../../shared/utils/common";
 import { usePlayerByName } from "../../../shared/hooks/use-player";
 import { recordCreeperQuestSuccess } from "../../quest/integrations/creeper-quest-events";
 
@@ -72,20 +72,38 @@ class PlayerMarket {
       createdAt: Date.now(),
     };
 
+    const itemToStore = slotItem.clone();
+    itemToStore.amount = amount;
+    let remaining: ItemStack | undefined;
+    if (slotItem.amount > amount) {
+      remaining = slotItem.clone();
+      remaining.amount -= amount;
+    }
+
+    // 1. 先从玩家背包扣除：失败则什么都没发生
     try {
-      const itemToStore = slotItem.clone();
-      itemToStore.amount = amount;
+      container.setItem(slotIndex, remaining);
+    } catch (error) {
+      return `上架失败: ${error}`;
+    }
 
+    // 2. 提交挂单：失败则把原物品放回原槽位
+    try {
       this.marketDB.add(itemToStore, { ...itemData });
-
-      if (slotItem.amount === amount) {
-        container.setItem(slotIndex);
-      } else {
-        const remaining = slotItem.clone();
-        remaining.amount -= amount;
-        container.setItem(slotIndex, remaining);
+    } catch (error) {
+      try {
+        container.setItem(slotIndex, slotItem);
+      } catch (restoreError) {
+        SystemLog.error(
+          `玩家市场上架失败且归还物品失败: ${player.name} 槽位 ${slotIndex} ${slotItem.typeId} x${slotItem.amount}（${String(restoreError)}）`
+        );
+        return `上架失败，且物品归还失败，请截图联系管理员处理：${error}`;
       }
+      return `上架失败: ${error}`;
+    }
 
+    // 3. 已提交：通知失败不影响结果
+    this.afterCommit("上架成功提示", () =>
       openDialogForm(
         player,
         {
@@ -93,9 +111,16 @@ class PlayerMarket {
           desc: `${colorCodes.green}成功上架 ${colorCodes.yellow}${itemData.amount} ${colorCodes.green}个 ${colorCodes.aqua}${itemData.name}${colorCodes.green}，单价: ${colorCodes.gold}${itemData.price}`,
         },
         callback
-      );
+      )
+    );
+  }
+
+  /** 交易已提交后的通知类步骤：失败只记录，绝不回滚交易 */
+  private afterCommit(label: string, step: () => void): void {
+    try {
+      step();
     } catch (error) {
-      return `上架失败: ${error}`;
+      SystemLog.error(`玩家市场${label}失败（交易已完成，不回滚）: ${String(error)}`);
     }
   }
 
@@ -112,22 +137,17 @@ class PlayerMarket {
 
     const container = inventory.container;
 
-    if (container.emptySlotsCount === 0) {
-      openDialogForm(
-        player,
-        {
-          title: "下架失败",
-          desc: color.red(`背包已满，无法将物品返还给玩家`),
-        },
-        callback
-      );
-      return;
+    if (this.calculateContainerCapacity(container, entry.item, entry.data.amount) < entry.data.amount) {
+      return "背包空间不足，无法将物品返还给你";
     }
 
     try {
-      const item = await this.takeItem(entry);
-      container.addItem(item);
+      this.withdrawToContainer(entry, container);
+    } catch (error) {
+      return `下架失败: ${error}`;
+    }
 
+    this.afterCommit("下架成功提示", () =>
       openDialogForm(
         player,
         {
@@ -135,10 +155,8 @@ class PlayerMarket {
           desc: `${colorCodes.green}成功下架 ${colorCodes.yellow}${entry.data.amount} ${colorCodes.green}个 ${colorCodes.aqua}${entry.data.name}`,
         },
         callback
-      );
-    } catch (error) {
-      return `下架失败: ${error}`;
-    }
+      )
+    );
   }
 
   /**
@@ -188,14 +206,36 @@ class PlayerMarket {
     return Math.min(canHold, requestedAmount);
   }
 
+  /**
+   * 兼容旧挂单：确保记录中的数量与实体中物品的数量一致（只在不一致时写入）。
+   */
   private syncEntryStoredAmount(entry: MarketItem): ItemStack {
     const amount = Math.max(1, Math.min(entry.data.amount, entry.item.maxAmount));
+    if (amount === entry.item.amount && amount === entry.data.amount) return entry.item.clone();
     const storedItem = entry.item.clone();
     storedItem.amount = amount;
+    entry.itemDB.replaceItem(storedItem, { amount });
     entry.item = storedItem;
     entry.data.amount = amount;
-    entry.itemDB.editData({ amount, item: storedItem });
     return storedItem;
+  }
+
+  /**
+   * 把挂单中的物品取到容器里：先放进容器，再提交删除；提交失败则撤回容器改动。
+   * 交付的是存储实体中真实保存的物品（完整 NBT）。
+   */
+  private withdrawToContainer(entry: MarketItem, container: Container): ItemStack {
+    this.syncEntryStoredAmount(entry);
+    const actual = entry.itemDB.unStore(true);
+    const snapshot = this.snapshotContainer(container);
+    try {
+      this.addItemStacksToContainer(container, actual, actual.amount);
+      entry.itemDB.unStore(false);
+    } catch (error) {
+      this.restoreContainer(container, snapshot);
+      throw error;
+    }
+    return actual;
   }
 
   /**
@@ -244,6 +284,7 @@ class PlayerMarket {
     const inventorySnapshot = this.snapshotContainer(container);
     let paid = false;
 
+    // 交易阶段：付款 → 发放 → 提交库存变更；任何一步失败都撤回背包并退款
     try {
       const result = economic.transfer(player.name, entry.data.playerName, totalPrice, PLAYER_MARKET_PURCHASE_REASON);
 
@@ -261,49 +302,72 @@ class PlayerMarket {
       paid = true;
 
       if (amount === entry.data.amount) {
-        const item = entry.item.clone();
-        item.amount = amount;
-        this.addItemStacksToContainer(container, item, item.amount);
-        await this.takeItem(entry);
+        this.withdrawToContainer(entry, container);
       } else {
-        const purchasedItem = entry.item.clone();
+        // 以实体中真实保存的物品为模板发放，剩余部分替换回存储
+        const actual = entry.itemDB.unStore(true);
+        const purchasedItem = actual.clone();
         purchasedItem.amount = amount;
 
         this.addItemStacksToContainer(container, purchasedItem, amount);
 
         const nextAmount = entry.data.amount - amount;
-        const remainingItem = entry.item.clone();
+        const remainingItem = actual.clone();
         remainingItem.amount = nextAmount;
-        entry.itemDB.editData({ amount: nextAmount, item: remainingItem });
+        entry.itemDB.replaceItem(remainingItem, { amount: nextAmount });
         entry.data.amount = nextAmount;
         entry.item = remainingItem;
       }
+    } catch (error) {
+      this.restoreContainer(container, inventorySnapshot);
+      let refundFailed = false;
+      if (paid) {
+        const refund = economic.transfer(entry.data.playerName, player.name, totalPrice, "购买失败退款");
+        if (refund !== true) {
+          refundFailed = true;
+          SystemLog.error(
+            `玩家市场退款失败: ${entry.data.playerName} -> ${player.name} ${totalPrice} 金币（${String(refund)}）`
+          );
+        }
+      }
+      const desc = refundFailed
+        ? `购买失败: ${error}\n自动退款失败（应退 ${totalPrice} 金币），请截图联系管理员处理！`
+        : `购买失败: ${error}`;
+      openDialogForm(player, { title: "购买失败", desc: color.red(desc) }, callback);
+      return;
+    }
 
-      const tradeDedupeKey = `${entry.data.createdAt}:${player.name}:${Date.now()}`;
+    // 已提交：任务事件与提示失败只记录，绝不回滚交易
+    const tradeDedupeKey = `${entry.data.createdAt}:${player.name}:${Date.now()}`;
+    const tradedTypeId = entry.item.typeId;
+    this.afterCommit("买家任务事件", () =>
       recordCreeperQuestSuccess(player, "marketTrade", {
         payload: {
           action: "buy",
           sellerName: entry.data.playerName,
-          item: entry.item.typeId,
+          item: tradedTypeId,
           amount,
           totalPrice,
         },
         dedupeKey: `creeper.market.trade:buyer:${tradeDedupeKey}`,
-      });
+      })
+    );
+    this.afterCommit("卖家任务事件", () => {
       const onlineSeller = usePlayerByName(entry.data.playerName);
       if (onlineSeller && onlineSeller.name !== player.name) {
         recordCreeperQuestSuccess(onlineSeller, "marketTrade", {
           payload: {
             action: "sell",
             buyerName: player.name,
-            item: entry.item.typeId,
+            item: tradedTypeId,
             amount,
             totalPrice,
           },
           dedupeKey: `creeper.market.trade:seller:${tradeDedupeKey}`,
         });
       }
-
+    });
+    this.afterCommit("购买成功提示", () =>
       openDialogForm(
         player,
         {
@@ -311,14 +375,8 @@ class PlayerMarket {
           desc: `${colorCodes.green}成功购买 ${colorCodes.yellow}${amount} ${colorCodes.green}个 ${colorCodes.aqua}${entry.data.name}${colorCodes.green}，总价: ${colorCodes.gold}${totalPrice} ${colorCodes.yellow}金币`,
         },
         callback
-      );
-    } catch (error) {
-      this.restoreContainer(container, inventorySnapshot);
-      if (paid) {
-        economic.transfer(entry.data.playerName, player.name, totalPrice, "购买失败退款");
-      }
-      openDialogForm(player, { title: "购买失败", desc: color.red(`购买失败: ${error}`) }, callback);
-    }
+      )
+    );
   }
 
   /**
@@ -329,11 +387,12 @@ class PlayerMarket {
   }
 
   /**
-   * 取回物品
+   * 取回物品（直接从数据库移除并返回实体中的真实物品）。
+   * 需要放进容器时请用 withdrawToContainer，它会在放入失败时撤销。
    */
   async takeItem(entry: MarketItem): Promise<ItemStack> {
     this.syncEntryStoredAmount(entry);
-    return await entry.itemDB.unStore(false);
+    return entry.itemDB.unStore(false);
   }
 
   /**
@@ -344,8 +403,12 @@ class PlayerMarket {
     if (!this.isValid(entry)) return "物品不存在或已被下架";
     if (!Number.isInteger(price) || price <= 0 || !Number.isSafeInteger(price)) return "请输入有效的正整数价格";
 
+    try {
+      entry.itemDB.editData({ price });
+    } catch (error) {
+      return `修改失败，商品可能已变化：${String(error)}`;
+    }
     entry.data.price = price;
-    entry.itemDB.editData({ price });
 
     const seller = usePlayerByName(entry.data.playerName);
     seller?.sendMessage(
@@ -366,18 +429,22 @@ class PlayerMarket {
     const inventory = seller.getComponent("inventory");
     if (!inventory) return "无法获取卖家背包";
 
-    const itemToReturn = this.syncEntryStoredAmount(entry);
-    const canHoldAmount = this.calculateContainerCapacity(inventory.container, itemToReturn, entry.data.amount);
+    const canHoldAmount = this.calculateContainerCapacity(inventory.container, entry.item, entry.data.amount);
     if (canHoldAmount < entry.data.amount) return "卖家背包空间不足，无法完整返还";
 
+    let item: ItemStack;
     try {
-      const item = await this.takeItem(entry);
-      this.addItemStacksToContainer(inventory.container, item, item.amount);
+      item = this.withdrawToContainer(entry, inventory.container);
+    } catch (error) {
+      return `强制下架失败: ${error}`;
+    }
 
+    this.afterCommit("强制下架通知", () =>
       seller.sendMessage(
         `${colorCodes.yellow}管理员 ${admin.name} 已将您在玩家交易市场的 ${colorCodes.aqua}${entry.data.name}${colorCodes.yellow} 强制下架并返还到背包。`
-      );
-
+      )
+    );
+    this.afterCommit("强制下架提示", () =>
       openDialogForm(
         admin,
         {
@@ -385,10 +452,8 @@ class PlayerMarket {
           desc: `${colorCodes.green}已下架 ${colorCodes.yellow}${item.amount} ${colorCodes.green}个 ${colorCodes.aqua}${entry.data.name}${colorCodes.green}，并返还给 ${colorCodes.white}${entry.data.playerName}`,
         },
         callback
-      );
-    } catch (error) {
-      return `强制下架失败: ${error}`;
-    }
+      )
+    );
   }
 
   /**
@@ -401,19 +466,22 @@ class PlayerMarket {
     const inventory = admin.getComponent("inventory");
     if (!inventory) return "无法获取管理员背包";
 
-    const itemToConfiscate = this.syncEntryStoredAmount(entry);
-    const canHoldAmount = this.calculateContainerCapacity(inventory.container, itemToConfiscate, entry.data.amount);
+    const canHoldAmount = this.calculateContainerCapacity(inventory.container, entry.item, entry.data.amount);
     if (canHoldAmount < entry.data.amount) return "管理员背包空间不足，无法完整没收";
 
+    let item: ItemStack;
     try {
-      const item = await this.takeItem(entry);
-      this.addItemStacksToContainer(inventory.container, item, item.amount);
+      item = this.withdrawToContainer(entry, inventory.container);
+    } catch (error) {
+      return `没收失败: ${error}`;
+    }
 
-      const seller = usePlayerByName(entry.data.playerName);
-      seller?.sendMessage(
+    this.afterCommit("没收通知", () =>
+      usePlayerByName(entry.data.playerName)?.sendMessage(
         `${colorCodes.red}管理员 ${admin.name} 已没收您在玩家交易市场上架的 ${colorCodes.aqua}${entry.data.name}${colorCodes.red}。`
-      );
-
+      )
+    );
+    this.afterCommit("没收提示", () =>
       openDialogForm(
         admin,
         {
@@ -421,10 +489,8 @@ class PlayerMarket {
           desc: `${colorCodes.green}已没收 ${colorCodes.yellow}${item.amount} ${colorCodes.green}个 ${colorCodes.aqua}${entry.data.name}${colorCodes.green} 到你的背包。`,
         },
         callback
-      );
-    } catch (error) {
-      return `没收失败: ${error}`;
-    }
+      )
+    );
   }
 
   /**

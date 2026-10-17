@@ -508,7 +508,15 @@ class PlayerMarketForm {
       if (response.canceled) return;
 
       if (response.selection === 0) {
-        playerMarket.unlistItem(player, item, () => this.myListedItems(player, page));
+        void playerMarket
+          .unlistItem(player, item, () => this.myListedItems(player, page))
+          .then((result) => {
+            if (typeof result === "string") {
+              openDialogForm(player, { title: "下架失败", desc: colorCodes.red + result }, () =>
+                this.myListedItems(player, page)
+              );
+            }
+          });
       } else {
         this.myListedItems(player, page);
       }
@@ -646,7 +654,15 @@ class PlayerMarketForm {
         return;
       }
 
-      playerMarket.listItem(player, slot, price, amount, name, desc, () => this.openMainMenu(player));
+      void playerMarket
+        .listItem(player, slot, price, amount, name, desc, () => this.openMainMenu(player))
+        .then((result) => {
+          if (typeof result === "string") {
+            openDialogForm(player, { title: "上架失败", desc: colorCodes.red + result }, () =>
+              this.openMainMenu(player)
+            );
+          }
+        });
     });
   }
 }
