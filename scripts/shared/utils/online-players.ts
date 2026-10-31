@@ -1,4 +1,4 @@
-import { Player, world } from "@minecraft/server";
+import { Player, system, world } from "@minecraft/server";
 import {
   filterRealPlayerRecords,
   isFakePlayerEntity,
@@ -20,12 +20,34 @@ export {
 
 export const isScriptFakePlayerEntity = isFakePlayerEntity;
 
+let cachedTick = -1;
+let cachedPlayers: Player[] = [];
+
+function invalidateOnlinePlayerCache(): void {
+  cachedTick = -1;
+  cachedPlayers = [];
+}
+
+world.afterEvents.playerLeave.subscribe(() => {
+  invalidateOnlinePlayerCache();
+});
+
 export function getOnlineRealPlayers(): Player[] {
-  return world.getAllPlayers().filter((player) => !isScriptFakePlayerEntity(player));
+  const tick = system.currentTick;
+  if (cachedTick === tick) return cachedPlayers;
+  cachedTick = tick;
+  cachedPlayers = world.getAllPlayers().filter((player) => !isScriptFakePlayerEntity(player));
+  return cachedPlayers;
 }
 
 export function getOnlineRealPlayerByName(name: string): Player | undefined {
-  return getOnlineRealPlayers().find((player) => player.name === name);
+  return getOnlineRealPlayers().find((player) => {
+    try {
+      return player.isValid && player.name === name;
+    } catch {
+      return false;
+    }
+  });
 }
 
 export function getOnlineRealPlayerCount(): number {

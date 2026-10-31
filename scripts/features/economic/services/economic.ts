@@ -70,7 +70,7 @@ export class Economic {
       id: "economy.moneyScoreboardBridge",
       label: "金币计分板双向同步",
       category: "economy",
-      intervalTicks: 1,
+      intervalTicks: 20,
       when: () => setting.getState("economy") === true,
       run: () => this.reconcileMoneyScoreboard(),
     });
@@ -134,10 +134,16 @@ export class Economic {
   private reconcileMoneyScoreboard(): void {
     if (!this.db || !this.logDb) return;
 
+    const onlinePlayers = getOnlineRealPlayers();
+    if (onlinePlayers.length === 0) {
+      this.lastSyncedScores.clear();
+      return;
+    }
+
     const objective = this.ensureMoneyObjective();
     const onlineIds = new Set<string>();
 
-    for (const player of getOnlineRealPlayers()) {
+    for (const player of onlinePlayers) {
       onlineIds.add(player.id);
       const wallet = this.getWallet(player.name);
       const walletScore = this.toScoreboardGold(wallet.gold);

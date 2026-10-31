@@ -33,6 +33,7 @@ function formatBytes(value: number | undefined): string {
 }
 
 function buildSnapshot(): string {
+  serverInfo.refreshEntityCounts();
   const onlinePlayers = getOnlineRealPlayers();
   const tps = serverInfo.TPS || 0;
   const otherEntities = serverInfo.organismLength || 0;

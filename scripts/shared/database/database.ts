@@ -13,6 +13,7 @@ const AUTO_SAVE_RETRY_DELAY_MS = 60_000;
 
 export class Database<V = any> {
   static readonly databases = new Array<Database<any>>();
+  private static readonly orphanCleanupScheduled = new Set<string>();
   private cache!: Record<string, V>;
   private isDirty = false; // 标记数据库是否被修改
   private dirtySinceMs?: number;
@@ -23,7 +24,52 @@ export class Database<V = any> {
     private readonly defaultValue: string = "{}"
   ) {
     this.cache = Database.getAll(this.name, this.defaultValue);
+    this.scheduleOrphanChunkCleanup();
     Database.databases.push(this);
+  }
+
+  private scheduleOrphanChunkCleanup(): void {
+    if (Database.orphanCleanupScheduled.has(this.name)) return;
+
+    const serializedLength = JSON.stringify(this.cache).length;
+    const expectedChunkCount = Math.max(1, Math.ceil(serializedLength / Math.floor(32767 * 0.95)));
+    const prefix = `${this.name}:`;
+    const corruptBackupPrefix = `${this.name}:corruptBackup:`;
+    const staleIds = world.getDynamicPropertyIds().filter((id) => {
+      if (id.startsWith(corruptBackupPrefix)) return true;
+      if (!id.startsWith(prefix)) return false;
+      const suffix = id.slice(prefix.length);
+      return /^\d+$/.test(suffix) && Number(suffix) >= expectedChunkCount;
+    });
+
+    if (staleIds.length === 0) return;
+
+    Database.orphanCleanupScheduled.add(this.name);
+    console.warn(
+      `[Database] cleaning orphan chunks "${this.name}": expected=${expectedChunkCount}, stale=${staleIds.length}`
+    );
+
+    const indexKey = `${this.name}Index`;
+    try {
+      world.setDynamicProperty(indexKey, expectedChunkCount);
+    } catch {
+      // Keep cleanup best-effort on older runtimes.
+    }
+
+    let cursor = 0;
+    const cleanupRun = system.runInterval(() => {
+      const end = Math.min(cursor + 32, staleIds.length);
+      for (; cursor < end; cursor++) {
+        try {
+          world.setDynamicProperty(staleIds[cursor], undefined);
+        } catch {
+          // A missing or already-cleared chunk is harmless.
+        }
+      }
+      if (cursor >= staleIds.length) {
+        system.clearRun(cleanupRun);
+      }
+    }, 1);
   }
 
   /**

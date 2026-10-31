@@ -1547,7 +1547,6 @@ export function registerLandEvents(): void {
   registerLandBreakingPreviewEvents();
   system.runTimeout(() => {
     purgeOrphanedDestroyedContainerSnapshots();
-    scheduleFragileBlockCacheWarmup();
   }, 40);
 
   // ==================== 定时任务 ====================
@@ -1558,7 +1557,9 @@ export function registerLandEvents(): void {
     category: "land",
     intervalTicks: 1200,
     skipIfRunning: true,
-    when: () => setting.getState("land") === true,
+    // BDS 1.26.61.1 会为 runJob 中的大量方块句柄保留原生内存；脆弱
+    // 方块缓存改为在实际活塞/方块事件中懒捕获，避免后台预热造成持续膨胀。
+    when: () => false,
     run: scheduleFragileBlockCacheWarmup,
   });
 
@@ -1569,8 +1570,8 @@ export function registerLandEvents(): void {
     id: "land.markerCleanup",
     label: "领地标记与方块清理",
     category: "land",
-    intervalTicks: 20,
-    when: () => setting.getState("land") === true,
+    intervalTicks: 100,
+    when: () => setting.getState("land") === true && getOnlineRealPlayers().length > 0,
     run: () => {
       // 1. 清除过期的领地标记坐标点
       landAreas.forEach((landArea, playerId) => {
@@ -1623,8 +1624,8 @@ export function registerLandEvents(): void {
     id: "land.witherBossCheck",
     label: "凋零 BOSS 权限检查",
     category: "land",
-    intervalTicks: WITHER_BOSS_CHECK_INTERVAL_TICKS,
-    when: () => setting.getState("land") === true,
+    intervalTicks: Math.max(100, WITHER_BOSS_CHECK_INTERVAL_TICKS),
+    when: () => setting.getState("land") === true && getOnlineRealPlayers().length > 0,
     run: () => {
       enforceWitherBossLandAccess();
     },

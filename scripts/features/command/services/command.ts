@@ -1327,6 +1327,7 @@ function handleServerInfoCommand(origin: CustomCommandOrigin): CustomCommandResu
 
   system.run(() => {
     try {
+      serverInfo.refreshEntityCounts(true);
       const allPlayers = getOnlineRealPlayers();
       const playerCount = allPlayers.length;
       const playerNames = allPlayers.map((p) => p.name).join(", ");

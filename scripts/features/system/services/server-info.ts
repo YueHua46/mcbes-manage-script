@@ -5,7 +5,6 @@
 
 import { world } from "@minecraft/server";
 import { getTPS } from "../../../shared/utils/tps";
-import { taskScheduler } from "../../platform/scheduler";
 
 const ITEM_ENTITY_TYPE_ID = "minecraft:item";
 const TRACKED_DIMENSIONS = ["overworld", "nether", "the_end"];
@@ -25,35 +24,23 @@ function countEntities(query: { type?: string; excludeTypes?: string[] }): numbe
 class Server {
   organismLength: number = 0;
   itemsLength: number = 0;
+  private lastEntityRefreshAt = 0;
 
   get TPS(): number {
     return getTPS();
   }
 
   constructor() {
-    this.registerScheduledTasks();
+    // Entity enumeration allocates native BDS wrappers. Keep it on demand and
+    // briefly cached instead of scanning every dimension every second forever.
   }
 
-  private registerScheduledTasks(): void {
-    taskScheduler.register({
-      id: "server.entityCount",
-      label: "其他实体统计",
-      category: "core",
-      intervalTicks: 20,
-      run: () => {
-        this.organismLength = countEntities({ excludeTypes: [ITEM_ENTITY_TYPE_ID] });
-      },
-    });
-
-    taskScheduler.register({
-      id: "server.itemCount",
-      label: "掉落物统计",
-      category: "core",
-      intervalTicks: 20,
-      run: () => {
-        this.itemsLength = countEntities({ type: ITEM_ENTITY_TYPE_ID });
-      },
-    });
+  refreshEntityCounts(force = false): void {
+    const now = Date.now();
+    if (!force && now - this.lastEntityRefreshAt < 5000) return;
+    this.lastEntityRefreshAt = now;
+    this.organismLength = countEntities({ excludeTypes: [ITEM_ENTITY_TYPE_ID] });
+    this.itemsLength = countEntities({ type: ITEM_ENTITY_TYPE_ID });
   }
 }
 
