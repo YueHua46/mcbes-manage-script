@@ -65,13 +65,11 @@ test("quest rarity themes drive mutually exclusive HUD markers and hide the nati
     assert.match(source, new RegExp(marker.replace(/[\[\]]/g, "\\$&")));
     assert.match(hud.hud_actionbar_text.visible, new RegExp(marker.replace(/[\[\]]/g, "\\$&")));
   }
-  // Actionbar factories rebuild these templates on every actionbar update; `ignored` skips
-  // building non-matching controls instead of creating hundreds of hidden ones.
-  assert.equal(hud.cm_quest_toast.visible, undefined);
+  // The status panel must use `visible`: its marker changes with every actionbar update,
+  // while `ignored` is evaluated when the factory template is instantiated.
   assert.match(hud.cm_quest_toast.ignored, /\$cm_quest_marker/);
-  assert.equal(hud.cm_player_status_panel.visible, undefined);
-  assert.match(hud.cm_player_status_panel.ignored, /\[CMHUD\]/);
-  assert.match(hud["cm_player_status_panel_pocket@hud.cm_player_status_panel"].ignored, /\[CMHUD\]/);
+  assert.match(hud.cm_player_status_panel.visible, /\[CMHUD\]/);
+  assert.match(hud["cm_player_status_panel_pocket@hud.cm_player_status_panel"].visible, /\[CMHUD\]/);
   assert.equal(hud.cm_quest_toast.type, "image");
   assert.equal(hud.cm_quest_toast.texture, "textures/ui/creeper_menu/quest_toast_panel");
   assert.equal(hud.cm_quest_toast.controls[0].top_accent.anchor_from, "left_middle");

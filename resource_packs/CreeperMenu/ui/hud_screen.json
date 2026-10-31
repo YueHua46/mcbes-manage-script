@@ -12,7 +12,7 @@
     "layer": 20,
     "$cm_font_scale": 0.78,
     "$cm_hud_text": "$actionbar_text",
-    "ignored": "((($cm_hud_text - '[CMHUD]') = $cm_hud_text) or $pocket_screen)",
+    "visible": "((not (($cm_hud_text - '[CMHUD]') = $cm_hud_text)) and (not $pocket_screen))",
     "controls": [
       {
         "status_text": {
@@ -34,7 +34,7 @@
     "size": ["100%c + 10px", 21],
     "nineslice_size": 8,
     "$cm_font_scale": 0.7,
-    "ignored": "((($cm_hud_text - '[CMHUD]') = $cm_hud_text) or (not $pocket_screen))"
+    "visible": "((not (($cm_hud_text - '[CMHUD]') = $cm_hud_text)) and $pocket_screen)"
   },
   "cm_player_status_factory": {
     "type": "panel",
